@@ -1,0 +1,9 @@
+/* U-03 (10 Nov 2026): accessibility basics for every page that uses the main layout */
+::placeholder, .form-control::placeholder { color: #6b7280 !important; opacity: 1; } /* 4.8:1 on white (was about 3:1) */
+.text-muted { color: #5f6670 !important; }                                             /* 5.6:1 on white */
+a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid #1d4ed8 !important; outline-offset: 2px;
+}
+.skip-link { position: absolute; left: -9999px; top: 0; z-index: 10000; background: #fff; color: #1d4ed8; padding: 6px 10px; }
+.skip-link:focus { left: 8px; top: 8px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

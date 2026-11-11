@@ -1,0 +1,4 @@
+AuthType Basic
+AuthName "Developer Documentation"
+AuthUserFile /var/www/vhosts/vnrseeds.co.in/expensenew/.htpasswd
+Require valid-user

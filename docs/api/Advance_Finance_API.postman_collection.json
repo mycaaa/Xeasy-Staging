@@ -1,0 +1,258 @@
+{
+  "info": {
+    "name": "Advance Finance API",
+    "description": "API collection for Advance Finance Controller operations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/advance/finance",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "456",
+      "type": "string"
+    },
+    {
+      "key": "employee_id", 
+      "value": "EMP001",
+      "type": "string"
+    },
+    {
+      "key": "request_id",
+      "value": "5",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Finance Test Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/test",
+          "host": ["{{base_url}}"],
+          "path": ["test"]
+        },
+        "description": "Test database connectivity and get finance-related statistics"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Pending Finance Approvals",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/pending",
+          "host": ["{{base_url}}"],
+          "path": ["pending"]
+        },
+        "description": "Retrieve all advance requests with approved activities ready for finance processing (same JSON structure as /api/advance)"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Approve - All Activities",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept", 
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"finance_approved_amount\": 9500.00,\n  \"finance_remark\": \"Approved with policy adjustment\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/approve",
+          "host": ["{{base_url}}"],
+          "path": ["approve"]
+        },
+        "description": "Approve all activities for an employee with optional amount adjustment"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Approve - Specific Activity",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw", 
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"activity_id\": 10,\n  \"finance_approved_amount\": 5000.00,\n  \"finance_remark\": \"Approved for specific activity only\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/approve",
+          "host": ["{{base_url}}"],
+          "path": ["approve"]
+        },
+        "description": "Approve a specific activity for an employee"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Approve - Full Amount",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"finance_remark\": \"Approved full amount as requested\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/approve",
+          "host": ["{{base_url}}"],
+          "path": ["approve"]
+        },
+        "description": "Approve full requested amount for all employee activities"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Reject - All Activities",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"remarks\": \"Exceeds policy limits for this activity type\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/reject",
+          "host": ["{{base_url}}"],
+          "path": ["reject"]
+        },
+        "description": "Reject all activities for an employee"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Reject - Specific Activity",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"activity_id\": 10,\n  \"remarks\": \"This specific activity does not meet finance criteria\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/reject",
+          "host": ["{{base_url}}"],
+          "path": ["reject"]
+        },
+        "description": "Reject a specific activity for an employee"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Revert - All Activities",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"remarks\": \"Need additional documentation before finance approval\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/revert",
+          "host": ["{{base_url}}"],
+          "path": ["revert"]
+        },
+        "description": "Revert all activities for an employee back to last approval level"
+      },
+      "response": []
+    },
+    {
+      "name": "Finance Revert - Specific Activity",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": {{user_id}},\n  \"employee_id\": \"{{employee_id}}\",\n  \"request_id\": {{request_id}},\n  \"activity_id\": 10,\n  \"remarks\": \"This activity needs re-approval with additional details\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/revert",
+          "host": ["{{base_url}}"],
+          "path": ["revert"]
+        },
+        "description": "Revert a specific activity back to last approval level"
+      },
+      "response": []
+    }
+  ]
+}

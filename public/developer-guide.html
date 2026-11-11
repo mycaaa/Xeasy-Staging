@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xeasy – Developer Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;font-size:14px;color:#1e293b;background:#f8fafc;display:flex}
+nav{width:260px;min-height:100vh;background:#0f172a;color:#cbd5e1;position:fixed;top:0;left:0;overflow-y:auto;padding-bottom:40px}
+nav h1{font-size:16px;font-weight:700;padding:20px 18px 10px;color:#fff;border-bottom:1px solid #1e293b}
+nav h1 span{color:#38bdf8}
+nav ul{list-style:none}
+nav ul li a{display:block;padding:7px 18px;color:#94a3b8;text-decoration:none;font-size:13px;border-left:3px solid transparent;transition:all .15s}
+nav ul li a:hover,nav ul li a.active{color:#fff;border-left-color:#38bdf8;background:#1e293b}
+nav .nav-group{padding:10px 18px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#475569;margin-top:8px}
+main{margin-left:260px;padding:32px 40px;max-width:1100px;width:100%}
+h2{font-size:22px;font-weight:700;color:#0f172a;margin:32px 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0}
+h3{font-size:16px;font-weight:600;color:#1e40af;margin:20px 0 8px}
+h4{font-size:14px;font-weight:600;color:#0f172a;margin:14px 0 6px}
+p{line-height:1.7;margin-bottom:10px;color:#334155}
+code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 6px;font-family:Consolas,monospace;font-size:12px;color:#0f172a}
+pre{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:16px;overflow-x:auto;font-size:12px;line-height:1.6;margin:10px 0}
+pre .kw{color:#38bdf8} pre .str{color:#86efac} pre .cmt{color:#64748b} pre .fn{color:#fbbf24}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:#1e293b;color:#fff;padding:8px 10px;text-align:left;font-weight:600}
+td{padding:7px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
+tr:nth-child(even) td{background:#f8fafc}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-yellow{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#dc2626}
+.badge-purple{background:#ede9fe;color:#6d28d9}
+.tip{background:#eff6ff;border-left:4px solid #3b82f6;padding:10px 14px;border-radius:4px;margin:10px 0;font-size:13px}
+.warn{background:#fffbeb;border-left:4px solid #f59e0b;padding:10px 14px;border-radius:4px;margin:10px 0;font-size:13px}
+.section{background:#fff;border-radius:10px;padding:24px 28px;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
+.flow-step{background:#dbeafe;color:#1e40af;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.flow-arrow{color:#94a3b8;font-size:14px}
+</style>
+</head>
+<body>
+<nav>
+<h1>📋 <span>Xeasy</span> Dev Guide</h1>
+<div class="nav-group">Overview</div>
+<ul>
+  <li><a href="#overview">Project Overview</a></li>
+  <li><a href="#tech-stack">Tech Stack</a></li>
+  <li><a href="#project-structure">Folder Structure</a></li>
+</ul>
+<div class="nav-group">Database</div>
+<ul>
+  <li><a href="#databases">Database Connections</a></li>
+  <li><a href="#hrims-tables">HRIMS Tables</a></li>
+  <li><a href="#expense-tables">Expense Tables</a></li>
+  <li><a href="#app-tables">App Tables</a></li>
+</ul>
+<div class="nav-group">Architecture</div>
+<ul>
+  <li><a href="#routes">Routes</a></li>
+  <li><a href="#auth">Authentication</a></li>
+  <li><a href="#session">Session Variables</a></li>
+  <li><a href="#controllers">Controllers</a></li>
+  <li><a href="#models">Models</a></li>
+  <li><a href="#services">Services</a></li>
+</ul>
+<div class="nav-group">Modules</div>
+<ul>
+  <li><a href="#claims">Claims Module</a></li>
+  <li><a href="#approver">Approver Module</a></li>
+  <li><a href="#verifier">Verifier Module</a></li>
+  <li><a href="#finance">Finance Module</a></li>
+  <li><a href="#advance">Advance Module</a></li>
+  <li><a href="#ledger">Ledger / Imprest</a></li>
+  <li><a href="#reports">Reports</a></li>
+</ul>
+<div class="nav-group">API & App</div>
+<ul>
+  <li><a href="#api">API Endpoints</a></li>
+  <li><a href="#flutter">Flutter App</a></li>
+  <li><a href="#external-api">External APIs</a></li>
+</ul>
+<div class="nav-group">Patterns</div>
+<ul>
+  <li><a href="#coding-patterns">Coding Patterns</a></li>
+  <li><a href="#exports">Excel Exports</a></li>
+  <li><a href="#workflows">Claim Workflows</a></li>
+  <li><a href="#todo">Known Issues / TODO</a></li>
+</ul>
+</nav>
+<main>
+
+<!-- OVERVIEW -->
+<div class="section" id="overview">
+<h2>🏠 Project Overview</h2>
+<p><strong>Xeasy</strong> is a multi-company expense claim management system for <strong>VNR Seeds</strong>. It covers the full lifecycle: employee submits bills → verifier checks → approver approves → finance pays. It supports 3 companies:</p>
+<table>
+<tr><th>Company ID</th><th>Name</th><th>Code</th></tr>
+<tr><td>1</td><td>VNR Seeds Pvt Ltd</td><td>VNR</td></tr>
+<tr><td>3</td><td>VNR Nursery</td><td>NURSERY</td></tr>
+<tr><td>11</td><td>VVNR Seeds</td><td>VVNR</td></tr>
+</table>
+<p>The web app is a Laravel 11 backend + Blade frontend. The mobile app is Flutter. Both share the same MySQL databases.</p>
+</div>
+
+<!-- TECH STACK -->
+<div class="section" id="tech-stack">
+<h2>⚙️ Tech Stack</h2>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Version</th></tr>
+<tr><td>Backend</td><td>Laravel</td><td>11.x</td></tr>
+<tr><td>Frontend (Web)</td><td>Blade + Bootstrap 5 + jQuery</td><td>–</td></tr>
+<tr><td>Mobile</td><td>Flutter / Dart</td><td>3.x</td></tr>
+<tr><td>Database</td><td>MySQL</td><td>8.x</td></tr>
+<tr><td>Charts</td><td>ApexCharts + Chart.js</td><td>–</td></tr>
+<tr><td>Excel Export</td><td>maatwebsite/excel (PhpSpreadsheet)</td><td>3.x</td></tr>
+<tr><td>Auth</td><td>Laravel Auth + Spatie Permission</td><td>–</td></tr>
+<tr><td>Notifications</td><td>Central Notification (Matrix API)</td><td>–</td></tr>
+</table>
+</div>
+
+<!-- FOLDER STRUCTURE -->
+<div class="section" id="project-structure">
+<h2>📁 Folder Structure</h2>
+<pre>
+xeasy_laravel/
+├── app/
+│   ├── Console/Commands/         # Artisan commands (imprest:automate, etc.)
+│   ├── Exports/                  # Excel export classes (maatwebsite)
+│   ├── Helpers/                  # DatabaseSwitcher, CommonHelper, ExpenseHelper
+│   ├── Http/Controllers/
+│   │   ├── admin/                # Admin-facing controllers
+│   │   ├── Api/                  # REST API controllers (for web + mobile)
+│   │   │   ├── Advance/          # Advance module API
+│   │   │   ├── Mobile/           # Legacy Flutter bridge APIs
+│   │   ├── Finance/              # Finance-specific controllers
+│   │   └── *.php                 # Core controllers (Auth, Approver, Verifier…)
+│   ├── Models/                   # Eloquent models
+│   ├── Services/                 # Business logic services
+│   └── Mail/                     # Mailable classes
+├── routes/
+│   ├── web.php                   # Public web routes
+│   ├── backend.php               # Authenticated web routes (middleware: web)
+│   ├── api.php                   # REST API routes (middleware: api, prefix: /api)
+│   ├── advance.php               # Advance API routes (prefix: /api, no auth middleware)
+│   └── mobile-api.php            # Legacy Flutter PHP bridge routes
+├── resources/views/
+│   ├── admin/                    # Admin panel views
+│   ├── employee/                 # Employee-facing views
+│   │   ├── partials/             # Partial includes (approver-tab, etc.)
+│   │   ├── vnr/, vvnr/, nursery/ # Company-specific approver views
+│   ├── verifier/, finance/       # Role-specific views
+│   └── layouts/                  # Base layouts
+└── bootstrap/app.php             # Route registration
+</pre>
+</div>
+
+<!-- DATABASES -->
+<div class="section" id="databases">
+<h2>🗄️ Database Connections</h2>
+<p>The project uses <strong>multiple DB connections</strong> selected dynamically per company. The helper <code>DatabaseSwitcher</code> manages this.</p>
+<table>
+<tr><th>Connection Key</th><th>Purpose</th><th>How to get in code</th></tr>
+<tr><td><code>hrims</code></td><td>Employee master data (HR)</td><td><code>DatabaseSwitcher::getHrimsConnection()</code></td></tr>
+<tr><td><code>expense</code> / <code>expense_vvnr</code></td><td>Expense claims, payments</td><td><code>session('expense_connection')</code></td></tr>
+<tr><td><code>mysql</code></td><td>App config tables (permissions, users, advance requests, imprest)</td><td>Default Laravel connection</td></tr>
+</table>
+<div class="tip">💡 Always use <code>session('expense_connection')</code> for expense queries — never hardcode <code>'expense'</code>. VVNR uses a different DB.</div>
+<pre>
+<span class="cmt">// Correct pattern:</span>
+$expConn = session('expense_connection', 'expense');
+DB::connection($expConn)->table('y8_expenseclaims')->...;
+
+<span class="cmt">// Switch company connections at login:</span>
+DatabaseSwitcher::setCompanyConnections($companyId);
+</pre>
+</div>
+
+<!-- HRIMS TABLES -->
+<div class="section" id="hrims-tables">
+<h2>📋 HRIMS Tables (Employee Master)</h2>
+<table>
+<tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr>
+<tr><td><code>hrm_employee</code></td><td>Employee basic info</td><td>EmployeeID, EmpCode_New, Fname, Sname, Lname, EmpStatus (A/D), CompanyId, DateOfResignation, DateOfSepration</td></tr>
+<tr><td><code>hrm_employee_general</code></td><td>Employee job details</td><td>EmployeeID, GradeId, DepartmentId, DesigId, EmpVertical, TerrId, HqId, ZoneId, RegionId, RepEmployeeID (reporting manager), MobileNo_Vnr, EmailId_Vnr, DateJoining, ReportingName</td></tr>
+<tr><td><code>hrm_employee_personal</code></td><td>Personal details</td><td>MobileNo, DateOfBirth</td></tr>
+<tr><td><code>core_grades</code></td><td>Grade master</td><td>id, grade_name (J1,J2,J3,J4,M1…)</td></tr>
+<tr><td><code>core_departments</code></td><td>Department master</td><td>id, department_name</td></tr>
+<tr><td><code>core_designation</code></td><td>Designation master</td><td>id, designation_name</td></tr>
+<tr><td><code>core_verticals</code></td><td>Business vertical</td><td>id, vertical_name</td></tr>
+<tr><td><code>core_territory</code></td><td>Territory / HQ</td><td>id, territory_name</td></tr>
+<tr><td><code>core_city_village_by_state</code></td><td>City/village HQ fallback</td><td>id, city_village_name</td></tr>
+<tr><td><code>core_zones</code></td><td>Zone master</td><td>id, zone_name</td></tr>
+<tr><td><code>core_regions</code></td><td>Region master</td><td>id, region_name</td></tr>
+<tr><td><code>core_states</code></td><td>State / branch</td><td>id, state_name</td></tr>
+</table>
+<div class="tip">💡 HQ name = <code>CASE WHEN eg.TerrId > 0 THEN tr.territory_name ELSE hq.city_village_name END</code> — always use this pattern.</div>
+<div class="tip">💡 Reporting manager is stored in <code>hrm_employee_general.RepEmployeeID</code> — NOT in <code>hrm_employee_reporting</code>. Use <code>RepEmployeeID</code> for all team member queries.</div>
+</div>
+
+<!-- EXPENSE TABLES -->
+<div class="section" id="expense-tables">
+<h2>💰 Expense Tables (Dynamic per Financial Year)</h2>
+<div class="warn">⚠️ Expense tables are <strong>year-prefixed</strong>: <code>y7_expenseclaims</code>, <code>y8_expenseclaims</code> etc. Always use <code>ExpenseClaim::tableName($yearId)</code> or <code>'y'.$yearId.'_expenseclaims'</code>.</div>
+<table>
+<tr><th>Table Pattern</th><th>Purpose</th><th>Key Columns</th></tr>
+<tr><td><code>y{n}_expenseclaims</code></td><td>Individual expense bills uploaded by employees</td><td>ExpId, CrBy (employee), ClaimId (type), ClaimMonth, ClaimYearId, FilledTAmt, FilledOkay, ClaimStatus, BillDate, CrDate, DateEntryRemark, VerifyBy, VerifyDate, ApprBy, ApprDate, FinancedBy, FinancedDate, Img_1/2/3 (images), Img_4/5 (PDFs)</td></tr>
+<tr><td><code>y{n}_monthexpensefinal</code></td><td>Monthly consolidated record per employee — one row per employee per month</td><td>EmployeeID, Month, YearId, Status (Open/Closed), Total_Claim, DateOfSubmit, PostDate, RecevingDate, Verified_Date, Approved_Date, Finance_Date, Fin_PayDate, Verified_Amount, Approved_Amount, Fin_PayAmt, payment_status, total_adjustment, carried_balance_json</td></tr>
+<tr><td><code>claimtype</code></td><td>Claim type master (DA, Running KM, Hotel, etc.)</td><td>ClaimId, ClaimName, cgId, ClaimStatus</td></tr>
+<tr><td><code>financialyear</code></td><td>Financial year master</td><td>YearId, Year (e.g. "2025-26")</td></tr>
+<tr><td><code>employee_ledger_balances</code></td><td>Fixed imprest and advance ledger per employee</td><td>employee_id, fixed_imprest_amt_1/2, fixed_imprest_date_1/2, advance_amt_1..4, advance_date_1..4, advance_month_1..4, dr, cr, balance, closing_balance</td></tr>
+</table>
+
+<h3>ClaimStatus Values</h3>
+<table>
+<tr><th>Value</th><th>Meaning</th></tr>
+<tr><td><code>Draft</code></td><td>Saved but not submitted</td></tr>
+<tr><td><code>Submitted</code></td><td>Submitted by employee</td></tr>
+<tr><td><code>Filled</code></td><td>Verifier has processed</td></tr>
+<tr><td><code>Verified</code></td><td>Verified — awaiting approver</td></tr>
+<tr><td><code>Approved</code></td><td>Approved by manager</td></tr>
+<tr><td><code>Financed</code></td><td>Paid by finance</td></tr>
+<tr><td><code>Deactivate</code></td><td>Deleted/cancelled — exclude from all queries</td></tr>
+</table>
+
+<h3>monthexpensefinal — Workflow Stages</h3>
+<div class="flow">
+<span class="flow-step">DateOfSubmit</span><span class="flow-arrow">→</span>
+<span class="flow-step">PostDate (Courier sent)</span><span class="flow-arrow">→</span>
+<span class="flow-step">RecevingDate (Received by HO)</span><span class="flow-arrow">→</span>
+<span class="flow-step">Verified_Date</span><span class="flow-arrow">→</span>
+<span class="flow-step">Approved_Date</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance_Date</span><span class="flow-arrow">→</span>
+<span class="flow-step">Fin_PayDate</span>
+</div>
+<p>TAT for each stage = <code>DATEDIFF(end_date, start_date)</code>. Both dates must be non-null and not <code>0000-00-00</code>.</p>
+</div>
+
+<!-- APP TABLES -->
+<div class="section" id="app-tables">
+<h2>🔧 App Tables (mysql connection)</h2>
+<table>
+<tr><th>Table</th><th>Purpose</th></tr>
+<tr><td><code>users</code></td><td>Web login accounts linked to employee_id</td></tr>
+<tr><td><code>advance_requests</code></td><td>Advance request header — one per submission</td></tr>
+<tr><td><code>advance_request_employees</code></td><td>Per-employee rows under an advance request</td></tr>
+<tr><td><code>advance_request_activities</code></td><td>Per-activity amounts; holds payment_status, finance_approved_amount</td></tr>
+<tr><td><code>imprest_requests</code></td><td>Auto-generated imprest requests for new joiners / promotions (status: pending/approved/rejected)</td></tr>
+<tr><td><code>claim_rating_rules</code></td><td>Rules for auto-rating claims</td></tr>
+<tr><td><code>claim_rating_results</code></td><td>Computed ratings per employee-month</td></tr>
+<tr><td><code>eml_send_logs</code></td><td>All outgoing email logs</td></tr>
+<tr><td><code>submission_settings</code></td><td>Configurable expense submission deadlines per company</td></tr>
+<tr><td><code>general_settings</code></td><td>System-wide config key-value pairs</td></tr>
+<tr><td><code>roles / permissions</code></td><td>Spatie permission tables</td></tr>
+<tr><td><code>user_logs</code></td><td>Login audit trail</td></tr>
+</table>
+</div>
+
+<!-- ROUTES -->
+<div class="section" id="routes">
+<h2>🛣️ Routes</h2>
+<table>
+<tr><th>File</th><th>Middleware</th><th>Prefix</th><th>Purpose</th></tr>
+<tr><td><code>routes/web.php</code></td><td>web</td><td>/</td><td>Login, logout, public pages</td></tr>
+<tr><td><code>routes/backend.php</code></td><td>web (auth inside)</td><td>/</td><td>All authenticated web pages and admin routes</td></tr>
+<tr><td><code>routes/api.php</code></td><td>api</td><td>/api</td><td>REST API for web AJAX calls</td></tr>
+<tr><td><code>routes/advance.php</code></td><td>none (public)</td><td>/api</td><td>Advance module APIs — called from Flutter with session token</td></tr>
+<tr><td><code>routes/mobile-api.php</code></td><td>api</td><td>/api</td><td>Legacy PHP API bridge for Flutter</td></tr>
+</table>
+<div class="tip">💡 <strong>backend.php</strong> is the main file. All employee, approver, verifier, finance, admin, and report routes live here. Grouped by permission middleware using Spatie.</div>
+</div>
+
+<!-- AUTH -->
+<div class="section" id="auth">
+<h2>🔐 Authentication</h2>
+<p><code>AuthController@login</code> handles two modes:</p>
+<table>
+<tr><th>Mode</th><th>How</th><th>Company</th></tr>
+<tr><td>Normal</td><td>EmpCode_New + password (decrypted from DB)</td><td>Detected from hrm_employee.CompanyId</td></tr>
+<tr><td>Token</td><td>JWT token in URL (used by Flutter SSO)</td><td>Always company 1</td></tr>
+</table>
+<p>On login, the controller:</p>
+<ol style="margin:8px 0 8px 20px;line-height:2">
+<li>Sets company DB connections via <code>DatabaseSwitcher::setCompanyConnections()</code></li>
+<li>Validates employee status (Active/D with 15-day grace)</li>
+<li>Determines role: <code>A</code> (Approver) if <code>hrm_employee_general.RepEmployeeID</code> has reportees, else <code>E</code></li>
+<li>Stores all key data in session (see Session Variables below)</li>
+<li>Calls <code>show_request_tab</code> external API to get advance access flags</li>
+</ol>
+</div>
+
+<!-- SESSION VARIABLES -->
+<div class="section" id="session">
+<h2>🔑 Session Variables</h2>
+<p>All key data is stored in session at login. Controllers read from session — never from the DB for basic employee info.</p>
+<table>
+<tr><th>Key</th><th>Value</th><th>Used for</th></tr>
+<tr><td><code>employee_id</code></td><td>EmployeeID (int)</td><td>All queries filtering by employee</td></tr>
+<tr><td><code>company_id</code></td><td>1 / 3 / 11</td><td>Company filtering in all queries</td></tr>
+<tr><td><code>year_id</code></td><td>e.g. 8</td><td>Table prefix: y8_expenseclaims</td></tr>
+<tr><td><code>expense_connection</code></td><td>e.g. "expense" or "expense_vvnr"</td><td>DB connection for all expense queries</td></tr>
+<tr><td><code>hrims_connection</code></td><td>"hrims"</td><td>DB connection for employee data</td></tr>
+<tr><td><code>emp_role</code></td><td>A / E</td><td>Approver vs Employee role</td></tr>
+<tr><td><code>token_id</code></td><td>xeasy_tokenid from hrm_employee</td><td>Passed to external API calls</td></tr>
+<tr><td><code>reporting_vess</code></td><td>Y / N</td><td>Show VVNR approver tab</td></tr>
+<tr><td><code>reporting_nursery</code></td><td>Y / N</td><td>Show Nursery approver tab</td></tr>
+<tr><td><code>advance_module</code></td><td>Y / N</td><td>Show Advance tab</td></tr>
+<tr><td><code>adv_activity</code></td><td>Y / N</td><td>Can apply Activity advance</td></tr>
+<tr><td><code>adv_expense</code></td><td>Y / N</td><td>Can apply Expense advance</td></tr>
+<tr><td><code>adv_approver</code></td><td>Y / N</td><td>Can approve team advance requests</td></tr>
+<tr><td><code>adv_hod</code></td><td>Y / N</td><td>HOD — can submit team advance</td></tr>
+<tr><td><code>emp_name</code>, <code>emp_code</code>, <code>emp_grade</code></td><td>strings</td><td>Display in UI</td></tr>
+<tr><td><code>department_name</code>, <code>designation_name</code></td><td>strings</td><td>Display in UI</td></tr>
+</table>
+</div>
+
+<!-- CONTROLLERS -->
+<div class="section" id="controllers">
+<h2>🎮 Controllers Reference</h2>
+<table>
+<tr><th>Controller</th><th>Role</th><th>Key Methods</th></tr>
+<tr><td><code>AuthController</code></td><td>Login / Logout</td><td>login(), logout(), decrypt()</td></tr>
+<tr><td><code>DashboardController</code></td><td>Employee dashboard data</td><td>index(), getStagewiseTATForEmployee(), getReportingManagerDashData(), getMissingImprestList()</td></tr>
+<tr><td><code>ClaimantController</code></td><td>Employee claim upload page</td><td>claims(), claimList(), getOdometerData()</td></tr>
+<tr><td><code>ApproverController</code></td><td>Approver claim list</td><td>pendingList(), approvedList(), approve(), deny()</td></tr>
+<tr><td><code>VNRApproverController</code></td><td>VNR approver — proxies to external API</td><td>getApproverPendingList(), approveClaimByApprover(), submitClaimByApprover()</td></tr>
+<tr><td><code>ExpensePaymentController</code></td><td>Finance payment processing</td><td>pending(), approve(), ledgerSummary()</td></tr>
+<tr><td><code>admin/ReportController</code></td><td>Report generation</td><td>totalRunningKm(), claimsReport(), export()</td></tr>
+<tr><td><code>admin/ImprestAutomationController</code></td><td>Imprest requests</td><td>index(), approve(), reject(), missingImprest()</td></tr>
+<tr><td><code>admin/EmployeeReportController</code></td><td>Employee master report</td><td>index(), export()</td></tr>
+<tr><td><code>Api/LedgerSummaryApiController</code></td><td>Ledger API</td><td>index(), employeeDetails()</td></tr>
+<tr><td><code>Api/Advance/AdvanceApprovalController</code></td><td>Advance approvals API</td><td>pending(), approved(), rejected(), approve(), reject()</td></tr>
+<tr><td><code>Api/Advance/HodAdvanceReportController</code></td><td>HOD team advance report API</td><td>consolidatedReport(), getTeamMembersList(), getEmployeeLevel()</td></tr>
+</table>
+</div>
+
+<!-- MODELS -->
+<div class="section" id="models">
+<h2>📦 Key Models</h2>
+<table>
+<tr><th>Model</th><th>Table</th><th>Notes</th></tr>
+<tr><td><code>ExpenseClaim</code></td><td>y{n}_expenseclaims</td><td>Has static <code>tableName($yearId)</code> method</td></tr>
+<tr><td><code>MonthExpenseFinal</code></td><td>y{n}_monthexpensefinal</td><td>Has static <code>tableName($yearId)</code> method</td></tr>
+<tr><td><code>HRMEmployees</code></td><td>hrm_employee</td><td>Connection: hrims. Scope: <code>scopeActive()</code> → EmpStatus='A'</td></tr>
+<tr><td><code>HRMEmployeeGeneral</code></td><td>hrm_employee_general</td><td>Connection: hrims</td></tr>
+<tr><td><code>AdvanceRequest</code></td><td>advance_requests</td><td>Status constants: STATUS_PENDING, STATUS_APPROVED, STATUS_FINANCE, STATUS_REJECTED</td></tr>
+<tr><td><code>EmployeeLedgerBalance</code></td><td>employee_ledger_balances</td><td>Uses SoftDeletes. Has fixed_imprest_amt_1/2 and advance_amt_1..4</td></tr>
+<tr><td><code>User</code></td><td>users</td><td>Standard Laravel auth. Linked to employee via employee_id</td></tr>
+<tr><td><code>FinancialYear</code></td><td>financialyear</td><td>Has static <code>getYearById($id)</code></td></tr>
+</table>
+</div>
+
+<!-- SERVICES -->
+<div class="section" id="services">
+<h2>⚙️ Services</h2>
+<table>
+<tr><th>Service</th><th>Purpose</th></tr>
+<tr><td><code>ImprestAutomationService</code></td><td>Detects new joiners and J1/J2→J3/J4/M1 promotions; creates imprest_requests. Eligible: Sales/PD/Plant Disease, grades J1–M1.</td></tr>
+<tr><td><code>ApproverDashboardService</code></td><td>Aggregates team TAT, claim counts, expense overview for the standalone approver dashboard page.</td></tr>
+<tr><td><code>ClaimActionLogService</code></td><td>Logs every status change on a claim with before/after snapshot.</td></tr>
+<tr><td><code>TransferNotificationService</code></td><td>Sends email on employee transfer/deputation events.</td></tr>
+<tr><td><code>EligibilityValidationService</code></td><td>Validates claim amounts against policy limits (hotel duration/city category).</td></tr>
+<tr><td><code>CentralNotificationService</code></td><td>Calls Matrix API (https://matrix.vnrin.in/api/v1/actions/*) for push/in-app notifications.</td></tr>
+</table>
+</div>
+
+<!-- CLAIMS MODULE -->
+<div class="section" id="claims">
+<h2>📄 Claims Module</h2>
+<h3>Flow</h3>
+<div class="flow">
+<span class="flow-step">Employee uploads bill</span><span class="flow-arrow">→</span>
+<span class="flow-step">Verifier verifies</span><span class="flow-arrow">→</span>
+<span class="flow-step">Employee submits month</span><span class="flow-arrow">→</span>
+<span class="flow-step">Approver approves</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance pays</span>
+</div>
+<h3>Key URLs</h3>
+<table>
+<tr><th>URL</th><th>Controller</th><th>Description</th></tr>
+<tr><td><code>GET /new-claim</code></td><td>ClaimantController@claims</td><td>Upload page with recent 5 claims table</td></tr>
+<tr><td><code>GET /claimant</code></td><td>ClaimantController@claimant</td><td>Full claims management page</td></tr>
+<tr><td><code>GET /claim-list/data</code></td><td>ClaimantController@claimList</td><td>DataTables JSON — last 5 claims with images</td></tr>
+</table>
+<h3>Image Storage</h3>
+<p>Images are stored via external API. <code>Img_1, Img_2, Img_3</code> = photos. <code>Img_4</code> = pdf_1, <code>Img_5</code> = pdf_2 in <code>y{n}_expenseclaims</code>.</p>
+</div>
+
+<!-- APPROVER MODULE -->
+<div class="section" id="approver">
+<h2>✅ Approver Module</h2>
+<p>Each company has its own approver controller that <strong>proxies to the external PHP API</strong>:</p>
+<table>
+<tr><th>Company</th><th>Route Prefix</th><th>Controller</th></tr>
+<tr><td>VNR</td><td>/vnr/approver</td><td>VNRApproverController</td></tr>
+<tr><td>VVNR</td><td>/vvnr/approver</td><td>VVNRApproverController</td></tr>
+<tr><td>Nursery</td><td>/nursery/approver</td><td>NurseryApproverController</td></tr>
+</table>
+<p>The view <code>resources/views/employee/vnr/approver.blade.php</code> includes <code>approver-module-new.blade.php</code> which renders the mobile-style card UI with mini-stepper pipeline.</p>
+<h3>Team Members Query Pattern</h3>
+<pre>
+<span class="cmt">// CORRECT — use hrm_employee_general.RepEmployeeID</span>
+DB::connection($hrimsConn)
+    ->table(<span class="str">'hrm_employee_general as eg'</span>)
+    ->join(<span class="str">'hrm_employee as e'</span>, <span class="str">'eg.EmployeeID'</span>, <span class="str">'e.EmployeeID'</span>)
+    ->where(<span class="str">'eg.RepEmployeeID'</span>, $managerId)
+    ->where(<span class="str">'e.EmpStatus'</span>, <span class="str">'A'</span>)  <span class="cmt">// 'A' not 'Active'</span>
+    ->pluck(<span class="str">'eg.EmployeeID'</span>);
+</pre>
+</div>
+
+<!-- VERIFIER MODULE -->
+<div class="section" id="verifier">
+<h2>🔍 Verifier Module</h2>
+<p>Verifiers check claims before approver. Key features: rate per KM validation, running KM verification, eligibility check against policy.</p>
+<table>
+<tr><th>URL</th><th>Description</th></tr>
+<tr><td><code>GET /verify-pending</code></td><td>Pending claims to verify</td></tr>
+<tr><td><code>GET /verify-running-km</code></td><td>Odometer/KM claims verification</td></tr>
+</table>
+<p>The verifier dashboard also shows the <strong>Missing Fixed Imprest</strong> card — active employees in Sales/PD (J1–M1) with no ledger entry.</p>
+</div>
+
+<!-- FINANCE MODULE -->
+<div class="section" id="finance">
+<h2>💳 Finance Module</h2>
+<table>
+<tr><th>URL</th><th>Description</th></tr>
+<tr><td><code>GET /expense-payments/pending</code></td><td>Claims ready for payment</td></tr>
+<tr><td><code>GET /expense-payments/ledger-summary</code></td><td>Employee ledger with imprest and advance balances</td></tr>
+<tr><td><code>GET /advance/finance/pending</code></td><td>Advance requests at finance stage</td></tr>
+</table>
+<p>The <code>employee_ledger_balances</code> table tracks all imprest and advance per employee. <code>fixed_imprest_amt_1/2</code> = standing cash given. <code>advance_amt_1..4</code> = advance slots.</p>
+</div>
+
+<!-- ADVANCE MODULE -->
+<div class="section" id="advance">
+<h2>💸 Advance Module</h2>
+<p>Three advance types: <strong>Activity</strong> (team/HOD), <strong>Expense</strong> (self), <strong>Other</strong> (self). Access controlled by <code>show_request_tab</code> API response stored in session.</p>
+<h3>Routes (all under /api prefix via advance.php)</h3>
+<table>
+<tr><th>Endpoint</th><th>Description</th></tr>
+<tr><td><code>GET /api/advance</code></td><td>Employee's own activity advance list</td></tr>
+<tr><td><code>GET /api/advance/expense</code></td><td>Employee's expense advance list</td></tr>
+<tr><td><code>POST /api/advance/draft</code></td><td>Create new advance request draft</td></tr>
+<tr><td><code>POST /api/advance/submit/{id}</code></td><td>Submit draft for approval</td></tr>
+<tr><td><code>GET /api/advance/approvals/pending</code></td><td>Approver's pending list</td></tr>
+<tr><td><code>POST /api/advance/approve</code></td><td>Approve a request</td></tr>
+<tr><td><code>GET /api/advance/hod/consolidated-report</code></td><td>HOD team advance report with hierarchy</td></tr>
+</table>
+<div class="tip">💡 Advance routes are registered in <code>routes/advance.php</code> under <code>/api</code> prefix with <strong>no auth middleware</strong> — they authenticate via the logged-in session or user_id query param from Flutter.</div>
+<h3>Access Flag Check (on Login)</h3>
+<pre>
+GET {API_BASE_URL}/advance_request.php?value=show_request_tab&YearId=&tokenid=&ComId=&empid=
+
+<span class="cmt">Response example:</span>
+{
+  "code": 200, "data": {
+    "Activity": "N", "Expense": "N", "Other": "N",
+    "IsApprover": "Y", "IsHOD": "Y",
+    "ActivityAdvance": "N", "ExpenseAdvance": "N"
+  }
+}
+</pre>
+</div>
+
+<!-- LEDGER / IMPREST -->
+<div class="section" id="ledger">
+<h2>📒 Ledger & Fixed Imprest</h2>
+<h3>Eligible Employees for Fixed Imprest</h3>
+<table>
+<tr><th>Grade</th><th>Standard Imprest</th><th>Departments</th></tr>
+<tr><td>J1, J2</td><td>₹20,000</td><td rowspan="3">Sales, PD, Plant Disease</td></tr>
+<tr><td>J3, J4</td><td>₹40,000</td></tr>
+<tr><td>M1</td><td>₹40,000</td></tr>
+</table>
+<h3>Balance Calculation Logic</h3>
+<pre>
+Total Balance = Fixed Imprest (amt_1 + amt_2)
+              + Advance Slots (amt_1..4)
+              + Paid Advances (advance_request_activities where payment_status IN Paid/Unsettled)
+              - Adjustments from y{n}_monthexpensefinal (total_adjustment where carried_balance_json has remaining > 0)
+</pre>
+<h3>Missing Imprest Report</h3>
+<p>URL: <code>GET /imprest-automation/missing-imprest</code> — shows active employees in eligible grades/depts with <code>fixed_imprest_amt_1 = 0</code> AND <code>fixed_imprest_amt_2 = 0</code>.</p>
+</div>
+
+<!-- REPORTS -->
+<div class="section" id="reports">
+<h2>📊 Reports</h2>
+<table>
+<tr><th>Report</th><th>URL</th><th>Export</th></tr>
+<tr><td>Claim Stage Dashboard</td><td>/reports/claim-stage-dashboard</td><td>Multi-sheet Excel per stage per month</td></tr>
+<tr><td>FY Claim Stage Report</td><td>/reports/claim-fy-report</td><td>Excel with courier/mail tracking columns</td></tr>
+<tr><td>Total Running KM</td><td>/total-running-km</td><td>Excel</td></tr>
+<tr><td>Expense Type Report</td><td>/expense-type-report</td><td>Streaming Excel</td></tr>
+<tr><td>TAT Analysis</td><td>/reports/claim-stage-dashboard (TAT tab)</td><td>Excel</td></tr>
+<tr><td>Ledger Summary</td><td>/expense-payments/ledger-summary</td><td>Excel</td></tr>
+<tr><td>Employee Master Report</td><td>/employee-report</td><td>Excel (18 columns)</td></tr>
+<tr><td>Missing Imprest</td><td>/imprest-automation/missing-imprest</td><td>Print</td></tr>
+<tr><td>Advance Report</td><td>/advance-report</td><td>Excel</td></tr>
+</table>
+</div>
+
+<!-- API -->
+<div class="section" id="api">
+<h2>🔌 API Endpoints Summary</h2>
+<table>
+<tr><th>Endpoint</th><th>Auth</th><th>Used by</th></tr>
+<tr><td><code>GET /api/ledger-summary</code></td><td>Session</td><td>Web finance page</td></tr>
+<tr><td><code>GET /api/ledger-summary/employee/{id}</code></td><td>Session</td><td>Web ledger detail</td></tr>
+<tr><td><code>GET /api/advance/*</code></td><td>Session/user_id</td><td>Web + Flutter</td></tr>
+<tr><td><code>GET /api/vnr/approver/pending/list</code></td><td>Session</td><td>Web approver page</td></tr>
+<tr><td><code>GET /dashboard/my-claims</code></td><td>Session</td><td>Employee dashboard</td></tr>
+<tr><td><code>GET /dashboard/odometer-trend</code></td><td>Session</td><td>Employee dashboard chart</td></tr>
+<tr><td><code>POST /api/{comId}/common.php</code></td><td>tokenid param</td><td>Flutter legacy bridge</td></tr>
+<tr><td><code>POST /api/{comId}/claim.php</code></td><td>tokenid param</td><td>Flutter legacy bridge</td></tr>
+<tr><td><code>GET /api/{comId}/advance_request.php</code></td><td>tokenid param</td><td>Flutter legacy bridge</td></tr>
+</table>
+</div>
+
+<!-- FLUTTER APP -->
+<div class="section" id="flutter">
+<h2>📱 Flutter App Integration</h2>
+<p>The Flutter app uses two base URLs defined in <code>lib/utils/Config.dart</code>:</p>
+<table>
+<tr><th>Constant</th><th>URL</th><th>Used for</th></tr>
+<tr><td><code>MainUrl</code></td><td>https://expense.vnrseeds.co.in/api/</td><td>Legacy PHP API calls (common.php, claim.php)</td></tr>
+<tr><td><code>MainUrl_Og</code></td><td>https://expense.vnrseeds.co.in/api/</td><td>advance_request.php calls (no comId prefix)</td></tr>
+<tr><td><code>NewXeasyMainUrl</code></td><td>https://expensenew.vnrseeds.co.in/api/</td><td>New Laravel REST API calls</td></tr>
+</table>
+<h3>Key Flutter Screens</h3>
+<table>
+<tr><th>Screen</th><th>API Used</th></tr>
+<tr><td>HomeScreen</td><td>common.php (open list, closed list)</td></tr>
+<tr><td>AdvanceRequestScreen</td><td>advance_request.php?value=show_request_tab + get_month_list</td></tr>
+<tr><td>AdvanceRequestListScreen (Approver)</td><td>NewXeasyMainUrl + advance/approvals/pending|approved|rejected</td></tr>
+<tr><td>HODAdvanceReportScreen</td><td>NewXeasyMainUrl + advance/hod/consolidated-report</td></tr>
+<tr><td>ExpenseAdvanceRequestScreen</td><td>advance_request.php?value=get_advance_request</td></tr>
+</table>
+<div class="tip">💡 Central Notification Service is called directly from Flutter to <code>https://matrix.vnrin.in/api/v1/actions/*</code> on approve/reject/submit actions.</div>
+</div>
+
+<!-- EXTERNAL APIS -->
+<div class="section" id="external-api">
+<h2>🌐 External APIs</h2>
+<table>
+<tr><th>API</th><th>Base URL</th><th>Purpose</th></tr>
+<tr><td>Xeasy Legacy API</td><td>https://expense.vnrseeds.co.in/api/</td><td>Common data, claim actions, advance requests (PHP)</td></tr>
+<tr><td>Central Notification</td><td>https://matrix.vnrin.in/api/v1/actions/</td><td>Push/in-app notifications for approve/submit actions</td></tr>
+<tr><td>HRIMS Image</td><td>https://vnrseeds.co.in/file-view/Employee_Image/</td><td>Employee profile photos</td></tr>
+</table>
+<p>All external API calls use <code>Http::withOptions(['verify' => false])</code> (SSL verify disabled for internal network). The <code>token_id</code> from session is always passed as <code>tokenid</code> param.</p>
+</div>
+
+<!-- CODING PATTERNS -->
+<div class="section" id="coding-patterns">
+<h2>💡 Coding Patterns & Conventions</h2>
+
+<h3>1. Always Use Session Connection</h3>
+<pre>
+<span class="cmt">// WRONG:</span>
+DB::connection('expense')->table(...);
+
+<span class="cmt">// CORRECT:</span>
+$expConn = session('expense_connection', 'expense');
+DB::connection($expConn)->table(...);
+</pre>
+
+<h3>2. Dynamic Year Tables</h3>
+<pre>
+$yearId = session('year_id');
+$table  = ExpenseClaim::tableName($yearId);    <span class="cmt">// y8_expenseclaims</span>
+$mef    = 'y' . $yearId . '_monthexpensefinal';
+</pre>
+
+<h3>3. Date Validation Pattern</h3>
+<pre>
+<span class="cmt">// Dates stored as '0000-00-00' when empty. Always check:</span>
+$blankDates = ['', '0000-00-00', '1970-01-01', null];
+$isValid = !in_array($row->SomeDate, $blankDates);
+</pre>
+
+<h3>4. EmpStatus Values</h3>
+<pre>
+'A'  = Active      <span class="cmt">// filter with ->where('EmpStatus', 'A') — NOT 'Active'</span>
+'D'  = Deactivated
+'De' = legacy deactivated
+</pre>
+
+<h3>5. Financial Year Month Order</h3>
+<pre>
+<span class="cmt">// FY runs April(4) → March(3) — not Jan→Dec</span>
+$fyMonths = [4,5,6,7,8,9,10,11,12,1,2,3];
+$monthLabels = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+</pre>
+
+<h3>6. TAT Calculation</h3>
+<pre>
+<span class="cmt">// Use AVG(DATEDIFF) across all claims — NOT on single rows</span>
+ROUND(AVG(CASE
+    WHEN end_date IS NOT NULL AND end_date != '0000-00-00'
+     AND start_date IS NOT NULL AND start_date != '0000-00-00'
+    THEN GREATEST(0, DATEDIFF(end_date, start_date))
+END), 1) AS stage_tat
+</pre>
+
+<h3>7. Excel Export Pattern</h3>
+<pre>
+<span class="cmt">// All exports extend this pattern:</span>
+<span class="kw">class</span> <span class="fn">MyExport</span> <span class="kw">implements</span> FromCollection, WithHeadings, ShouldAutoSize, WithEvents, WithStyles
+{
+    <span class="kw">public function</span> <span class="fn">collection</span>() { <span class="kw">return</span> collect($this->data); }
+    <span class="kw">public function</span> <span class="fn">headings</span>() { <span class="kw">return</span> [...]; }
+    <span class="kw">public function</span> <span class="fn">styles</span>(Worksheet $sheet) { <span class="kw">return</span> [1 => ['font' => ['bold' => true]]]; }
+    <span class="kw">public function</span> <span class="fn">registerEvents</span>() { ... }
+}
+
+<span class="cmt">// In controller:</span>
+<span class="kw">return</span> Excel::download(<span class="kw">new</span> <span class="fn">MyExport</span>($data), <span class="str">'filename.xlsx'</span>);
+</pre>
+</div>
+
+<!-- EXPORTS -->
+<div class="section" id="exports">
+<h2>📤 Excel Export Classes</h2>
+<table>
+<tr><th>Class</th><th>File</th><th>Description</th></tr>
+<tr><td>LedgerSummaryExport</td><td>Exports/LedgerSummaryExport.php</td><td>Employee balance with imprest and advance</td></tr>
+<tr><td>EmployeeReportExport</td><td>Exports/EmployeeReportExport.php</td><td>Employee master with all HR fields</td></tr>
+<tr><td>ClaimStagesExport</td><td>Exports/ClaimStagesExport.php</td><td>Multi-sheet claim stage report</td></tr>
+<tr><td>RunningKmExport</td><td>Exports/RunningKmExport.php</td><td>Running KM report with month columns</td></tr>
+<tr><td>AdvanceReportExport</td><td>Exports/AdvanceReportExport.php</td><td>Advance request summary</td></tr>
+</table>
+</div>
+
+<!-- WORKFLOWS -->
+<div class="section" id="workflows">
+<h2>🔄 Claim Workflows</h2>
+<h3>VNR Workflow</h3>
+<div class="flow">
+<span class="flow-step">Submit Bill</span><span class="flow-arrow">→</span>
+<span class="flow-step">Verifier Verifies</span><span class="flow-arrow">→</span>
+<span class="flow-step">Employee Submits Month (Courier)</span><span class="flow-arrow">→</span>
+<span class="flow-step">HO Receives</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance Verifies</span><span class="flow-arrow">→</span>
+<span class="flow-step">Manager Approves</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance Pays</span>
+</div>
+<h3>VVNR Workflow (company_id = 11)</h3>
+<div class="flow">
+<span class="flow-step">Submit Bill</span><span class="flow-arrow">→</span>
+<span class="flow-step">Manager Approves</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance Pays</span><span class="flow-arrow">→</span>
+<span class="flow-step">Courier Posted</span><span class="flow-arrow">→</span>
+<span class="flow-step">Finance Verifies</span>
+</div>
+<p>The VVNR workflow is detected by <code>session('company_id') == 11</code>. Many reports and exports have separate CASE logic for this.</p>
+
+<h3>TAT Stage Mapping</h3>
+<table>
+<tr><th>Stage</th><th>VNR</th><th>VVNR</th></tr>
+<tr><td>Submitted</td><td>DateOfSubmit → PostDate</td><td>DateOfSubmit → Approved_Date</td></tr>
+<tr><td>Finance Verification</td><td>RecevingDate → Verified_Date</td><td>RecevingDate → Verified_Date</td></tr>
+<tr><td>Reporting Manager</td><td>Verified_Date → Approved_Date</td><td>N/A</td></tr>
+<tr><td>Finance Approval</td><td>Approved_Date → Finance_Date</td><td>Approved_Date → Finance_Date</td></tr>
+<tr><td>Payment</td><td>Finance_Date → Fin_PayDate</td><td>Finance_Date → Fin_PayDate</td></tr>
+</table>
+</div>
+
+<!-- TODO -->
+<div class="section" id="todo">
+<h2>⚠️ Known Issues & TODO</h2>
+<table>
+<tr><th>Item</th><th>Priority</th><th>Notes</th></tr>
+<tr><td>Advance settlement tab</td><td><span class="badge badge-red">High</span></td><td>Dashboard links to ?tab=settlement but no implementation</td></tr>
+<tr><td>Advance edit/resubmit for reverted requests</td><td><span class="badge badge-red">High</span></td><td>AdvanceRequestViewController.update() is a stub</td></tr>
+<tr><td>HOD Team Advance Report (web)</td><td><span class="badge badge-yellow">Medium</span></td><td>API exists at /api/advance/hod/consolidated-report but no web page</td></tr>
+<tr><td>imprest:automate --dry-run</td><td><span class="badge badge-yellow">Medium</span></td><td>Flag wired in command but service always inserts</td></tr>
+<tr><td>console.log in approver-module-new.blade.php</td><td><span class="badge badge-yellow">Medium</span></td><td>Debug log should be removed before production</td></tr>
+<tr><td>ELIGIBLE_DEPARTMENTS constant unused</td><td><span class="badge badge-green">Low</span></td><td>ImprestAutomationService has constant but method uses inline check</td></tr>
+<tr><td>Multi-level advance approver (web)</td><td><span class="badge badge-yellow">Medium</span></td><td>Flutter has per-level HOD flow; web is single-level</td></tr>
+<tr><td>Notification center UI (web)</td><td><span class="badge badge-green">Low</span></td><td>Flutter has NotificationsScreen; web has no bell/notification panel</td></tr>
+<tr><td>Verifier screen (Flutter)</td><td><span class="badge badge-green">Low</span></td><td>App has Claimant + Approver but no Verifier screen</td></tr>
+</table>
+</div>
+
+<div class="section" style="background:#f0fdf4;border:1px solid #86efac">
+<h3 style="color:#15803d">📌 Quick Reference</h3>
+<p><strong>Add a new report:</strong> Create controller in <code>admin/</code>, add route in <code>backend.php</code> inside permission group, create blade in <code>resources/views/admin/</code>, create export class in <code>app/Exports/</code>.</p>
+<p><strong>Add a new API:</strong> Create controller in <code>app/Http/Controllers/Api/</code>, add route in <code>routes/api.php</code> or <code>routes/advance.php</code>.</p>
+<p><strong>Debug DB issue:</strong> Check <code>session('expense_connection')</code> and <code>session('year_id')</code> — wrong values here cause all expense queries to fail.</p>
+<p><strong>Check permissions:</strong> <code>$user->can('permission_name')</code> via Spatie. Permissions are seeded and managed from admin panel.</p>
+</div>
+
+<p style="color:#94a3b8;font-size:12px;margin-top:24px;text-align:center">Generated: August 2026 · Xeasy Laravel Developer Guide</p>
+</main>
+<script>
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', function() {
+    document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+window.addEventListener('scroll', () => {
+  const sections = document.querySelectorAll('[id]');
+  sections.forEach(sec => {
+    const top = sec.getBoundingClientRect().top;
+    if (top >= 0 && top < 200) {
+      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+      const link = document.querySelector('nav a[href="#'+sec.id+'"]');
+      if (link) link.classList.add('active');
+    }
+  });
+});
+</script>
+</body></html>

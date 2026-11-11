@@ -1,0 +1,43 @@
+# C-10: checks on every push and pull request. Read-only token, no secrets used, no deployment.
+# (C-01: the only workflow ever added before was malicious; this one cannot read or send secrets.)
+name: checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer
+      - name: PHP syntax
+        run: find app bootstrap config database routes -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > /dev/null
+      - name: Blade raw output and SQL interpolation guard
+        run: |
+          # fail on new request input pasted into SQL or new {!! !!} on request data
+          ! grep -rnE "(select|update|insert|delete|whereRaw|selectRaw)\s*\([^)]*\\\$request->(input|get)\(" app
+          ! grep -rnE "\{!!\s*request\(" resources/views
+      - name: Install
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Tests
+        run: php artisan test --without-tty || vendor/bin/phpunit
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false

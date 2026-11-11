@@ -1,0 +1,4 @@
+Record No,Beneficiary Account Number,Transaction Refno,Bank Name,IFSC Code,Account Number,Value Date,Amount,Beneficiary Name,Payment Type,RBI/UTR Reference Number,Currency,Error Description,Status of Cheque and Direct Debit Transaction,Beneficiary Aadhaar number,Destination Bank,Credit Reference
+1,10070735518,BT26012849793988,IDFB Bank,IDFB0042344,9876543210,28/01/2026,753447.00,Nayanaben Patel Kondheshwar farm,RTGS,BARBR22026012820262332,INR,,SUCCESS,123456789012,HDFC Bank,REF123
+2,440402010011096,BT26012849793989,UBIN Bank,UBIN0544043,1234567890,28/01/2026,389424.00,Prafullaben Mukeshbhai Patel Kondheshwar farm,RTGS,BARBR22026012820262338,INR,,SUCCESS,987654321098,State Bank of India,REF456
+3,01790100024203,BT26012849793990,BARB Bank,BARB0DHANSU,5678901234,28/01/2026,131119.00,Bhupendra Santilal Patel Hirapur Kampa,Intra Bank Fund transfer,- -,INR,,SUCCESS,456789012345,ICICI Bank,REF789

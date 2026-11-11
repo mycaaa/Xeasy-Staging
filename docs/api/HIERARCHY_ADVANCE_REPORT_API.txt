@@ -1,0 +1,465 @@
+================================================================================
+HIERARCHY-BASED ADVANCE REPORT API - FINAL DOCUMENTATION
+================================================================================
+
+OVERVIEW:
+This API provides advance payment reports based on employee hierarchy levels.
+Uses recursive employee fetching based on RepEmployeeID from hrm_employee_general.
+
+BASE URL: /api/advance/hod
+
+================================================================================
+STEP 1: CHECK EMPLOYEE LEVEL
+================================================================================
+
+Endpoint: GET /api/advance/hod/employee-level
+
+Parameters:
+- employee_id (required): Employee ID to check
+
+Example Request:
+GET /api/advance/hod/employee-level?employee_id=1225
+
+Response:
+{
+  "success": true,
+  "message": "Employee level retrieved successfully",
+  "data": {
+    "employee_id": 1225,
+    "employee_name": "John Doe",
+    "employee_code": "1095",
+    "access_level": "zone",
+    "level_description": "Zone Level"
+  }
+}
+
+Access Levels:
+- "territory" = Territory Level (TerrId > 0)
+- "region" = Region Level (RegionId > 0, TerrId = 0)
+- "zone" = Zone Level (ZoneId > 0, RegionId = 0, TerrId = 0)
+- "bu" = Business Unit Level (BUId > 0, ZoneId = 0, RegionId = 0, TerrId = 0)
+- "all" = All Levels Access (BUId > 0 with other levels)
+- "none" = No hierarchy assigned
+
+================================================================================
+STEP 2: LOAD APPROPRIATE FILTERS BASED ON LEVEL
+================================================================================
+
+2.1 BUSINESS UNIT LEVEL (access_level = "bu")
+----------------------------------------------
+Show Filter: Business Units dropdown only
+
+API: GET /api/advance/hod/business-units
+Parameters:
+- search (optional): Search term
+- limit (optional): Default 10
+
+Example:
+GET /api/advance/hod/business-units?search=sales&limit=10
+
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "id": 5,
+      "name": "Sales Division",
+      "code": "SD",
+      "numeric_code": "001"
+    }
+  ]
+}
+
+Report API Call:
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&month=2&year_id=2026
+
+
+2.2 ZONE LEVEL (access_level = "zone")
+---------------------------------------
+Show Filters: Business Units → Zones dropdowns
+
+Step 1 - Get Business Units:
+GET /api/advance/hod/business-units?search=&limit=10
+
+Step 2 - Get Zones (filtered by selected BU):
+GET /api/advance/hod/zones?business_unit_id=5&search=&limit=10
+
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "id": 12,
+      "name": "North Zone",
+      "code": "NZ",
+      "numeric_code": "001",
+      "vertical_id": "1"
+    }
+  ]
+}
+
+Report API Call:
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&zone_id=12&month=2&year_id=2026
+
+
+2.3 REGION LEVEL (access_level = "region")
+-------------------------------------------
+Show Filters: Business Units → Zones → Regions dropdowns
+
+Step 1 - Get Business Units:
+GET /api/advance/hod/business-units?search=&limit=10
+
+Step 2 - Get Zones (filtered by selected BU):
+GET /api/advance/hod/zones?business_unit_id=5&search=&limit=10
+
+Step 3 - Get Regions (filtered by selected Zone):
+GET /api/advance/hod/regions?zone_id=12&search=&limit=10
+
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "id": 25,
+      "name": "North Region",
+      "code": "NR",
+      "numeric_code": "001",
+      "vertical_id": "1"
+    }
+  ]
+}
+
+Report API Call:
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&zone_id=12&region_id=25&month=2&year_id=2026
+
+
+2.4 TERRITORY LEVEL (access_level = "territory")
+-------------------------------------------------
+Show Filters: Business Units → Zones → Regions → Territories dropdowns
+
+Step 1 - Get Business Units:
+GET /api/advance/hod/business-units?search=&limit=10
+
+Step 2 - Get Zones (filtered by selected BU):
+GET /api/advance/hod/zones?business_unit_id=5&search=&limit=10
+
+Step 3 - Get Regions (filtered by selected Zone):
+GET /api/advance/hod/regions?zone_id=12&search=&limit=10
+
+Step 4 - Get Territories (filtered by selected Region):
+GET /api/advance/hod/territories?region_id=25&search=&limit=10
+
+Response:
+{
+  "success": true,
+  "data": [
+    {
+      "id": "1",
+      "territory_id": "T001",
+      "region_id": "25",
+      "name": "Delhi Territory",
+      "effective_from": "2024-01-01",
+      "effective_to": "2099-12-31"
+    }
+  ]
+}
+
+Report API Call:
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&zone_id=12&region_id=25&terr_id=T001&month=2&year_id=2026
+
+
+2.5 ALL LEVEL (access_level = "all")
+-------------------------------------
+Show All Filters: Business Units → Zones → Regions → Territories dropdowns
+(Same as Territory Level)
+
+
+2.6 NONE LEVEL (access_level = "none")
+---------------------------------------
+No filters available - Show error message
+"No hierarchy assigned to this employee"
+
+================================================================================
+STEP 3: GET TEAM MEMBERS LIST
+================================================================================
+
+Endpoint: GET /api/advance/hod/team
+
+Parameters:
+- employee_id (required): Employee ID
+
+Example:
+GET /api/advance/hod/team?employee_id=1225
+
+Response:
+{
+  "success": true,
+  "message": "Team members with advances retrieved successfully",
+  "data": {
+    "access_level": "zone",
+    "team_members": [
+      {
+        "EmployeeID": 1226,
+        "EmployeeName": "Jane Smith",
+        "EmployeeCode": "1096",
+        "EmailId_Vnr": "jane@example.com",
+        "DepartmentName": "Sales",
+        "Designation": "Sales Executive",
+        "BUId": 5,
+        "BUName": "Sales Division",
+        "BUCode": "SD",
+        "ZoneId": 12,
+        "ZoneName": "North Zone",
+        "ZoneCode": "NZ",
+        "RegionId": 0,
+        "RegionName": null,
+        "RegionCode": null,
+        "TerrId": 0,
+        "TerritoryName": null,
+        "TerritoryCode": null
+      }
+    ]
+  }
+}
+
+================================================================================
+STEP 4: GET CONSOLIDATED REPORT
+================================================================================
+
+Endpoint: GET /api/advance/hod/consolidated-report
+
+Required Parameters:
+- employee_id (required): Employee ID
+
+Optional Parameters:
+- month (optional): Month number (1-12)
+- year_id (optional): Year (e.g., 2026)
+- specific_employee_id (optional): Filter by specific team member
+- bu_id (optional): Business Unit ID
+- zone_id (optional): Zone ID
+- region_id (optional): Region ID
+- terr_id (optional): Territory ID
+
+Example Requests:
+
+1. Basic Report (All team members, all months):
+GET /api/advance/hod/consolidated-report?employee_id=1225
+
+2. Filtered by Month and Year:
+GET /api/advance/hod/consolidated-report?employee_id=1225&month=2&year_id=2026
+
+3. Filtered by Hierarchy (Zone Level):
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&zone_id=12&month=2&year_id=2026
+
+4. Filtered by Specific Employee:
+GET /api/advance/hod/consolidated-report?employee_id=1225&specific_employee_id=1226&month=2&year_id=2026
+
+Response Structure:
+{
+  "success": true,
+  "access_level": "zone",
+  "grand_total": 45000,
+  "data": {
+    "26": {
+      "activity_name": "Field Day (FD/FV)",
+      "grand_total": 45000,
+      "months": {
+        "Feb": {
+          "month_total": 45000,
+          "submitted_by": [
+            {
+              "submitted_by_id": 1234,
+              "submitted_by_name": "Manager Name",
+              "submitted_by_code": "M001",
+              "submitted_by_total": 45000,
+              "employees": [
+                {
+                  "employee_id": 1225,
+                  "employee_name": "John Doe",
+                  "employee_code": "1095",
+                  "department": "Sales",
+                  "designation": "Manager",
+                  "hierarchy": {
+                    "business_unit": {
+                      "id": 5,
+                      "name": "Sales Division",
+                      "code": "SD"
+                    },
+                    "zone": {
+                      "id": 12,
+                      "name": "North Zone",
+                      "code": "NZ"
+                    },
+                    "region": {
+                      "id": 0,
+                      "name": null,
+                      "code": null
+                    },
+                    "territory": {
+                      "id": 0,
+                      "name": null,
+                      "code": null
+                    }
+                  },
+                  "advance_requests": [
+                    {
+                      "request_id": 6,
+                      "status": "Closed",
+                      "submitted_at": "2026-02-14 03:22:25",
+                      "total_amount": 20000,
+                      "activities": [
+                        {
+                          "activity_type": "Product Differentiation (PDA)",
+                          "crops": ["Bhindi", "Cowpea"],
+                          "amount": 20000,
+                          "payment_status": "Paid",
+                          "approvals": [
+                            {
+                              "approval_level": 1,
+                              "approver_id": 100,
+                              "approver_name": "Approver Name",
+                              "approver_status": "Approved",
+                              "approver_amount": 20000,
+                              "approver_date": "2026-02-15",
+                              "approver_remark": "Approved"
+                            }
+                          ],
+                          "finance": {
+                            "approved_amount": 20000,
+                            "status": "Approved",
+                            "date": "2026-02-16",
+                            "remark": "Finance approved"
+                          },
+                          "payment": {
+                            "amount": 20000,
+                            "status": "Paid",
+                            "date": "2026-02-17",
+                            "remark": "Payment released"
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "employee_total": 20000
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+================================================================================
+FILTER LOGIC SUMMARY
+================================================================================
+
+Employee Level → Available Filters → Report Parameters
+-------------------------------------------------------
+
+BU Level:
+- Filters: BU only
+- API: ?employee_id=X&bu_id=Y
+
+Zone Level:
+- Filters: BU → Zone
+- API: ?employee_id=X&bu_id=Y&zone_id=Z
+
+Region Level:
+- Filters: BU → Zone → Region
+- API: ?employee_id=X&bu_id=Y&zone_id=Z&region_id=R
+
+Territory Level:
+- Filters: BU → Zone → Region → Territory
+- API: ?employee_id=X&bu_id=Y&zone_id=Z&region_id=R&terr_id=T
+
+All Level:
+- Filters: BU → Zone → Region → Territory (all available)
+- API: ?employee_id=X&bu_id=Y&zone_id=Z&region_id=R&terr_id=T
+
+None Level:
+- No filters available
+- Show error message
+
+================================================================================
+CASCADING FILTER BEHAVIOR
+================================================================================
+
+1. When BU is selected → Load Zones for that BU
+2. When Zone is selected → Load Regions for that Zone
+3. When Region is selected → Load Territories for that Region
+4. Each dropdown filters the next level
+5. Search is available in all dropdowns (limit: 10 records)
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. All APIs use recursive employee fetching via RepEmployeeID
+2. Only PAID advances are shown in reports (payment_status = 'Paid')
+3. Team members list shows only employees with advance requests
+4. Access level is returned in all responses for UI logic
+5. Hierarchy filters are optional - can get report without filters
+6. Month filter: 1-12 (Jan-Dec)
+7. Year filter: Use year_id (e.g., 2026)
+8. All dropdowns support search with 10 record limit
+
+================================================================================
+COMPLETE WORKFLOW EXAMPLE
+================================================================================
+
+Step 1: Check Employee Level
+GET /api/advance/hod/employee-level?employee_id=1225
+→ Response: access_level = "zone"
+
+Step 2: Load Filters Based on Level
+GET /api/advance/hod/business-units?limit=10
+→ User selects BU: id=5
+
+GET /api/advance/hod/zones?business_unit_id=5&limit=10
+→ User selects Zone: id=12
+
+Step 3: Get Team Members (Optional)
+GET /api/advance/hod/team?employee_id=1225
+→ Shows all team members with advances
+
+Step 4: Get Report with Filters
+GET /api/advance/hod/consolidated-report?employee_id=1225&bu_id=5&zone_id=12&month=2&year_id=2026
+→ Shows filtered report
+
+================================================================================
+ERROR HANDLING
+================================================================================
+
+Missing employee_id:
+{
+  "success": false,
+  "message": "Employee ID is required"
+}
+
+Employee not found:
+{
+  "success": false,
+  "message": "Employee not found"
+}
+
+No team members:
+{
+  "success": true,
+  "access_level": "zone",
+  "grand_total": 0,
+  "data": [],
+  "message": "No team members found"
+}
+
+No paid advances:
+{
+  "success": true,
+  "access_level": "zone",
+  "grand_total": 0,
+  "data": [],
+  "message": "No paid advances found"
+}
+
+================================================================================

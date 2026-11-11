@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Group Meal & Xeasy Changes - Task Checklist</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f9;
+            padding: 30px 20px;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .subhead {
+            color: #475569;
+            margin-bottom: 28px;
+            font-size: 16px;
+            border-left: 4px solid #3b82f6;
+            padding-left: 14px;
+            background: #eef2ff;
+            padding: 12px 18px;
+            border-radius: 8px;
+        }
+
+        .progress-wrapper {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .progress-bar-bg {
+            flex: 1;
+            min-width: 180px;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #3b82f6;
+            border-radius: 20px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-weight: 600;
+            font-size: 15px;
+            color: #1e293b;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            margin-bottom: 28px;
+            overflow: hidden;
+            border: 1px solid #e9edf2;
+        }
+
+        .section-header {
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e9edf2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .section-header .badge {
+            background: #dbeafe;
+            color: #1e4f8a;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .task-list {
+            padding: 8px 0;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 14px 24px;
+            border-bottom: 1px solid #f1f4f9;
+            transition: background 0.15s;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-item:hover {
+            background: #fafcff;
+        }
+
+        .task-item .check-btn {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            margin-top: 2px;
+            border-radius: 8px;
+            border: 2px solid #cbd5e1;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+
+        .task-item .check-btn:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
+        }
+
+        .task-item .check-btn.done {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        .task-item .check-btn.done:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-title {
+            font-weight: 500;
+            font-size: 15px;
+            margin-bottom: 3px;
+            color: #0f172a;
+        }
+
+        .task-desc {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.5;
+        }
+
+        .task-desc .highlight {
+            background: #fef9c3;
+            padding: 0 4px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .task-meta {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+        }
+
+        .task-meta .tag {
+            background: #f1f5f9;
+            padding: 0 10px;
+            border-radius: 30px;
+            color: #334155;
+        }
+
+        .reset-btn {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 16px;
+            display: inline-block;
+        }
+
+        .reset-btn:hover {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+
+        .footer-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 8px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            .task-item {
+                flex-direction: column;
+                gap: 8px;
+                padding: 16px;
+            }
+
+            .task-item .check-btn {
+                align-self: flex-start;
+            }
+
+            .progress-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .progress-text {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>✅ Group Meal & Xeasy Changes</h1>
+        <div class="subhead">
+            <strong>📋 Task checklist</strong> — Click the <strong>check button</strong> on each task when it's done.
+            Progress is saved automatically in your browser.
+        </div>
+
+        <div class="progress-wrapper">
+            <span style="font-weight:500; font-size:15px;">Overall progress</span>
+            <div class="progress-bar-bg">
+                <div class="progress-fill" id="progressFill" style="width:0%"></div>
+            </div>
+            <span class="progress-text" id="progressText">0%</span>
+        </div>
+
+        <!-- ===== SECTION A: GROUP MEAL ===== -->
+        <div class="section" data-section="groupmeal">
+            <div class="section-header">
+                <h2>A. Group Meal – Issues / Changes</h2>
+                <span class="badge" id="groupmealBadge">0 / 6</span>
+            </div>
+            <div class="task-list" id="groupmealList">
+                <!-- tasks injected by JS -->
+            </div>
+        </div>
+
+        <!-- ===== SECTION B: OTHER XEASY CHANGES ===== -->
+        <div class="section" data-section="xeasy">
+            <div class="section-header">
+                <h2>B. Other Xeasy Changes</h2>
+                <span class="badge" id="xeasyBadge">0 / 7</span>
+            </div>
+            <div class="task-list" id="xeasyList">
+                <!-- tasks injected by JS -->
+            </div>
+        </div>
+
+        <!-- ===== SECTION C: MANAGER DASHBOARD ===== -->
+        <div class="section" data-section="manager">
+            <div class="section-header">
+                <h2>C. Manager / Team Expense Dashboard</h2>
+                <span class="badge" id="managerBadge">0 / 1</span>
+            </div>
+            <div class="task-list" id="managerList">
+                <!-- tasks injected by JS -->
+            </div>
+        </div>
+
+        <div class="footer-actions">
+            <button class="reset-btn" id="resetBtn">🔄 Reset all checks</button>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // ----- TASK DATA -----
+            const tasks = [
+                // Group Meal (6)
+                {
+                    id: 'gm1',
+                    section: 'groupmeal',
+                    title: 'Verifier – Participant data visibility',
+                    desc: 'Claimant and participant details remain visible & properly linked throughout verification.',
+                    meta: 'Verifier screen'
+                },
+                {
+                    id: 'gm2',
+                    section: 'groupmeal',
+                    title: 'Remove “Max Pax Allowed – 100” message',
+                    desc: 'Remove the message during Group Meal submission.',
+                    meta: 'UI'
+                },
+                {
+                    id: 'gm3',
+                    section: 'groupmeal',
+                    title: '“Other Participant” – Edit option',
+                    desc: 'Add Edit option for existing entries (currently delete+re-add).',
+                    meta: 'Functionality'
+                },
+                {
+                    id: 'gm4',
+                    section: 'groupmeal',
+                    title: 'Other Participant – Change sequence',
+                    desc: 'Sequence: Category → No. of Other Pax → Add Other Participant.',
+                    meta: 'UX flow'
+                },
+                {
+                    id: 'gm5',
+                    section: 'groupmeal',
+                    title: 'Restrict adding participants beyond total pax',
+                    desc: 'Disable “Add Other Participant” once total pax is reached (data-entry stage).',
+                    meta: 'Validation'
+                },
+                {
+                    id: 'gm6',
+                    section: 'groupmeal',
+                    title: 'Remove “Max 0 Participant” display',
+                    desc: 'Do not display “Max 0 Participant” on Group Meal screen.',
+                    meta: 'UI'
+                },
+
+                // Other Xeasy (7)
+                {
+                    id: 'xe1',
+                    section: 'xeasy',
+                    title: 'Approver visibility before verification',
+                    desc: 'Claim/details visible to approver from the start (pending status shown separately).',
+                    meta: 'Dashboard'
+                },
+                {
+                    id: 'xe2',
+                    section: 'xeasy',
+                    title: 'Remove “Danger” word',
+                    desc: 'Remove “Danger” wherever it appears on relevant screens.',
+                    meta: 'UI'
+                },
+                {
+                    id: 'xe3',
+                    section: 'xeasy',
+                    title: 'Rename DA Head Names',
+                    desc: 'Update DA & DA@HQ naming as required.',
+                    meta: 'Naming'
+                },
+                {
+                    id: 'xe4',
+                    section: 'xeasy',
+                    title: 'Rail Fare – Tatkal / Premium Tatkal form & visibility',
+                    desc: 'Add form/field to DB; show category (General/Normal, Tatkal, Premium Tatkal) on Verifier & approval screens.',
+                    meta: 'Rail Fare'
+                },
+                {
+                    id: 'xe5',
+                    section: 'xeasy',
+                    title: 'Claimant amount should not change on Verifier',
+                    desc: 'Maintain separate Claimed Amount and Verified Amount. Verifier actions affect only verified amount.',
+                    meta: 'Critical'
+                },
+                {
+                    id: 'xe6',
+                    section: 'xeasy',
+                    title: 'Claim should not disappear when activity amount is ₹0',
+                    desc: 'If verifier sets amount to ₹0, claim remains visible with claimed amount, verified ₹0, and remarks.',
+                    meta: 'Critical'
+                },
+                {
+                    id: 'xe7',
+                    section: 'xeasy',
+                    title: 'Data punching: Tatkal/Premium Tatkal visibility',
+                    desc: 'Ensure punched data flows to Verifier screen (interim arrangement).',
+                    meta: 'Rail Fare'
+                },
+
+                // Manager Dashboard (1)
+                {
+                    id: 'mg1',
+                    section: 'manager',
+                    title: 'Show only expense heads actually claimed by team',
+                    desc: 'Manager dashboard displays only those expense heads against which a claim is submitted. Unclaimed heads (₹0/NA) are hidden.',
+                    meta: 'Dashboard'
+                }
+            ];
+
+            // ----- STATE -----
+            // key: task.id, value: true/false
+            let checks = {};
+
+            // ----- DOM refs -----
+            const groupmealList = document.getElementById('groupmealList');
+            const xeasyList = document.getElementById('xeasyList');
+            const managerList = document.getElementById('managerList');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const resetBtn = document.getElementById('resetBtn');
+
+            const sectionBadges = {
+                groupmeal: document.getElementById('groupmealBadge'),
+                xeasy: document.getElementById('xeasyBadge'),
+                manager: document.getElementById('managerBadge')
+            };
+
+            // ----- helpers -----
+            function saveState() {
+                try {
+                    localStorage.setItem('groupmeal_checklist', JSON.stringify(checks));
+                } catch (e) { }
+            }
+
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem('groupmeal_checklist');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (typeof parsed === 'object' && parsed !== null) {
+                            checks = parsed;
+                            // ensure only valid task ids
+                            const validIds = new Set(tasks.map(t => t.id));
+                            for (const key of Object.keys(checks)) {
+                                if (!validIds.has(key)) {
+                                    delete checks[key];
+                                }
+                            }
+                            return;
+                        }
+                    }
+                } catch (e) { }
+                // default: all false
+                checks = {};
+                tasks.forEach(t => { checks[t.id] = false; });
+            }
+
+            function renderTasks() {
+                // clear containers
+                groupmealList.innerHTML = '';
+                xeasyList.innerHTML = '';
+                managerList.innerHTML = '';
+
+                // group tasks by section
+                const sections = {
+                    groupmeal: [],
+                    xeasy: [],
+                    manager: []
+                };
+                tasks.forEach(t => {
+                    if (sections[t.section]) sections[t.section].push(t);
+                });
+
+                // render each section
+                for (const [section, taskList] of Object.entries(sections)) {
+                    const container = document.getElementById(section + 'List');
+                    if (!container) continue;
+                    taskList.forEach(task => {
+                        const item = createTaskElement(task);
+                        container.appendChild(item);
+                    });
+                    updateBadge(section);
+                }
+
+                updateProgress();
+            }
+
+            function createTaskElement(task) {
+                const div = document.createElement('div');
+                div.className = 'task-item';
+                div.dataset.taskId = task.id;
+
+                const isChecked = checks[task.id] || false;
+
+                // Check button
+                const btn = document.createElement('button');
+                btn.className = 'check-btn' + (isChecked ? ' done' : '');
+                btn.innerHTML = isChecked ? '✓' : '';
+                btn.setAttribute('aria-label', 'Toggle check');
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    toggleTask(task.id);
+                });
+
+                // Content
+                const content = document.createElement('div');
+                content.className = 'task-content';
+
+                const title = document.createElement('div');
+                title.className = 'task-title';
+                title.textContent = task.title;
+
+                const desc = document.createElement('div');
+                desc.className = 'task-desc';
+                desc.textContent = task.desc;
+
+                const meta = document.createElement('div');
+                meta.className = 'task-meta';
+                const tag = document.createElement('span');
+                tag.className = 'tag';
+                tag.textContent = task.meta || '—';
+                meta.appendChild(tag);
+
+                content.appendChild(title);
+                content.appendChild(desc);
+                content.appendChild(meta);
+
+                div.appendChild(btn);
+                div.appendChild(content);
+
+                return div;
+            }
+
+            function toggleTask(taskId) {
+                if (!checks.hasOwnProperty(taskId)) return;
+                checks[taskId] = !checks[taskId];
+                saveState();
+                // re-render all tasks (simple but robust)
+                renderTasks();
+            }
+
+            function updateBadge(section) {
+                const badge = sectionBadges[section];
+                if (!badge) return;
+                const sectionTasks = tasks.filter(t => t.section === section);
+                const done = sectionTasks.filter(t => checks[t.id]).length;
+                badge.textContent = `${done} / ${sectionTasks.length}`;
+            }
+
+            function updateProgress() {
+                const total = tasks.length;
+                const done = tasks.filter(t => checks[t.id]).length;
+                const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+                progressFill.style.width = pct + '%';
+                progressText.textContent = pct + '%';
+            }
+
+            function resetAll() {
+                if (!confirm('Reset all checkboxes to unchecked?')) return;
+                tasks.forEach(t => { checks[t.id] = false; });
+                saveState();
+                renderTasks();
+            }
+
+            // ----- init -----
+            loadState();
+            renderTasks();
+
+            // reset button
+            resetBtn.addEventListener('click', resetAll);
+
+            // re-render on storage changes from other tabs (optional)
+            window.addEventListener('storage', function (e) {
+                if (e.key === 'groupmeal_checklist') {
+                    loadState();
+                    renderTasks();
+                }
+            });
+        })();
+    </script>
+</body>
+
+</html>

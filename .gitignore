@@ -1,0 +1,37 @@
+# Xeasy (Laravel) — never commit secrets, uploads, logs or installed packages
+/.env
+/.env.*
+!/.env.example
+/vendor/
+/node_modules/
+/public/storage
+/public/hot
+/public/build
+/storage/*.key
+/storage/app/*
+!/storage/app/.gitkeep
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+!/storage/framework/*/.gitkeep
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/debugbar/*
+/bootstrap/cache/*.php
+/s3_local/
+/.phpunit.result.cache
+/.phpunit.cache
+*.sql
+*.sql.gz
+*.tgz
+*.zip
+*.log
+.DS_Store
+.idea/
+.vscode/
+# database dumps and setup files stay on the server
+/setup/
+!/database/sql/*.sql
+!/database/schema/*.sql
+!/tests/reconciliation/*.sql

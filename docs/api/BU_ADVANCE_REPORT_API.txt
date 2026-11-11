@@ -1,0 +1,256 @@
+================================================================================
+BU LEVEL ADVANCE REPORT API DOCUMENTATION
+================================================================================
+
+OVERVIEW:
+This API provides Business Unit (BU) level advance payment reports.
+BU Level employees are identified by: BUId > 0, ZoneId = 0, RegionId = 0, TerrId = 0
+
+BASE URL: /api/advance/bu
+
+================================================================================
+ENDPOINTS
+================================================================================
+
+1. GET BUSINESS UNITS LIST
+   Endpoint: GET /api/advance/bu/business-units
+   
+   Parameters:
+   - search (optional): Search term for BU name, code, or numeric code
+   - limit (optional): Number of records to return (default: 10)
+   
+   Example:
+   GET /api/advance/bu/business-units?search=sales&limit=10
+   
+   Response:
+   {
+     "success": true,
+     "message": "Business units retrieved successfully",
+     "data": [
+       {
+         "id": 5,
+         "name": "Sales Division",
+         "code": "SD",
+         "numeric_code": "001"
+       }
+     ]
+   }
+
+================================================================================
+
+2. GET BU LEVEL TEAM MEMBERS
+   Endpoint: GET /api/advance/bu/team
+   
+   Parameters:
+   - bu_id (required): Business Unit ID
+   
+   Description:
+   Returns only BU level employees (BUId > 0, others = 0) who have advance requests
+   
+   Example:
+   GET /api/advance/bu/team?bu_id=5
+   
+   Response:
+   {
+     "success": true,
+     "message": "BU level team members with advances retrieved successfully",
+     "data": [
+       {
+         "EmployeeID": 1225,
+         "EmployeeName": "John Doe",
+         "EmployeeCode": "1095",
+         "EmailId_Vnr": "john@example.com",
+         "DepartmentName": "Sales",
+         "Designation": "Manager",
+         "BUId": 5,
+         "BUName": "Sales Division",
+         "BUCode": "SD",
+         "ZoneId": 0,
+         "ZoneName": null,
+         "ZoneCode": null,
+         "RegionId": 0,
+         "RegionName": null,
+         "RegionCode": null,
+         "TerrId": 0,
+         "TerritoryName": null,
+         "TerritoryCode": null
+       }
+     ]
+   }
+
+================================================================================
+
+3. GET BU LEVEL CONSOLIDATED REPORT
+   Endpoint: GET /api/advance/bu/consolidated-report
+   
+   Parameters:
+   - bu_id (required): Business Unit ID
+   - month (optional): Month number (1-12)
+   - year_id (optional): Year (e.g., 2026)
+   - employee_id (optional): Specific employee ID
+   
+   Description:
+   Returns paid advance requests for BU level employees
+   Grouped by: Activity → Month → Submitted By → Employee → Requests
+   
+   Example:
+   GET /api/advance/bu/consolidated-report?bu_id=5&month=2&year_id=2026
+   
+   Response Structure:
+   {
+     "success": true,
+     "grand_total": 45000,
+     "data": {
+       "26": {
+         "activity_name": "Field Day (FD/FV)",
+         "grand_total": 45000,
+         "months": {
+           "Feb": {
+             "month_total": 45000,
+             "submitted_by": [
+               {
+                 "submitted_by_id": 1234,
+                 "submitted_by_name": "Manager Name",
+                 "submitted_by_code": "M001",
+                 "submitted_by_total": 45000,
+                 "employees": [
+                   {
+                     "employee_id": 1225,
+                     "employee_name": "John Doe",
+                     "employee_code": "1095",
+                     "department": "Sales",
+                     "designation": "Manager",
+                     "hierarchy": {
+                       "business_unit": {
+                         "id": 5,
+                         "name": "Sales Division",
+                         "code": "SD"
+                       },
+                       "zone": {
+                         "id": 0,
+                         "name": null,
+                         "code": null
+                       },
+                       "region": {
+                         "id": 0,
+                         "name": null,
+                         "code": null
+                       },
+                       "territory": {
+                         "id": 0,
+                         "name": null,
+                         "code": null
+                       }
+                     },
+                     "advance_requests": [
+                       {
+                         "request_id": 6,
+                         "status": "Closed",
+                         "submitted_at": "2026-02-14 03:22:25",
+                         "total_amount": 20000,
+                         "activities": [
+                           {
+                             "activity_type": "Product Differentiation (PDA)",
+                             "crops": ["Bhindi", "Cowpea"],
+                             "amount": 20000,
+                             "payment_status": "Paid",
+                             "approvals": [
+                               {
+                                 "approval_level": 1,
+                                 "approver_id": 100,
+                                 "approver_name": "Approver Name",
+                                 "approver_status": "Approved",
+                                 "approver_amount": 20000,
+                                 "approver_date": "2026-02-15",
+                                 "approver_remark": "Approved"
+                               }
+                             ],
+                             "finance": {
+                               "approved_amount": 20000,
+                               "status": "Approved",
+                               "date": "2026-02-16",
+                               "remark": "Finance approved"
+                             },
+                             "payment": {
+                               "amount": 20000,
+                               "status": "Paid",
+                               "date": "2026-02-17",
+                               "remark": "Payment released"
+                             }
+                           }
+                         ]
+                       }
+                     ],
+                     "employee_total": 20000
+                   }
+                 ]
+               }
+             ]
+           }
+         }
+       }
+     }
+   }
+
+================================================================================
+BU LEVEL IDENTIFICATION LOGIC
+================================================================================
+
+BU Level employees are identified by the following criteria in hrm_employee_general:
+- BUId > 0 (assigned to a Business Unit)
+- ZoneId = 0 (not assigned to a Zone)
+- RegionId = 0 (not assigned to a Region)
+- TerrId = 0 (not assigned to a Territory)
+
+This ensures only employees at the Business Unit level are included in reports.
+
+================================================================================
+DATABASE TABLES USED
+================================================================================
+
+1. hrm_employee_general - Employee hierarchy assignments
+2. hrm_employee - Employee basic information
+3. advance_requests - Advance request master data
+4. advance_request_employees - Employee-request mapping
+5. advance_request_activities - Activity details and payment info
+6. advance_activity_approvals - Approval workflow details
+7. core_business_unit - Business unit master data
+8. core_departments - Department master data
+9. core_designation - Designation master data
+10. claimtype - Activity name master data
+11. adv_activity_types - Activity type master data
+12. core_crops - Crop master data
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. Only PAID advances are included in the consolidated report
+2. Payment status must be 'Paid' and payment_date must not be null
+3. Hierarchy information is included for each employee
+4. Approval details show the complete approval workflow
+5. Finance details show finance approval information
+6. Payment details show actual payment information
+7. Totals are calculated at multiple levels:
+   - Grand Total (across all activities)
+   - Activity Total (per activity)
+   - Month Total (per month within activity)
+   - Submitted By Total (per submitter)
+   - Employee Total (per employee)
+
+================================================================================
+COMPARISON WITH HOD CONTROLLER
+================================================================================
+
+HOD Controller:
+- Uses hrm_employee_reporting.HodId to find team members
+- Supports all hierarchy levels (BU, Zone, Region, Territory)
+- Supports hierarchy filtering
+
+BU Controller:
+- Uses hrm_employee_general with BU level logic
+- Only shows BU level employees (BUId > 0, others = 0)
+- Focused specifically on Business Unit level reporting
+- Simpler, dedicated to BU level only
+
+================================================================================

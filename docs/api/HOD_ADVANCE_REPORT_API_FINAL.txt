@@ -1,0 +1,747 @@
+================================================================================
+                    HOD ADVANCE REPORT API DOCUMENTATION
+================================================================================
+
+Base URL: http://your-domain.com/api/advance/hod
+
+================================================================================
+1. GET CONSOLIDATED REPORT
+================================================================================
+
+Endpoint: GET /api/advance/hod/consolidated-report
+
+Description: 
+Get consolidated advance payment report. Shows only PAID advances grouped by 
+Activity → Month → Submitted By → Employee → Requests. Can filter by HOD or 
+hierarchy levels (BU, Zone, Region, Territory).
+
+Query Parameters:
+  - hod_id (optional)      : HOD Employee ID (for team-based filtering)
+  - employee_id (optional) : Filter by specific employee
+  - year_id (optional)     : Filter by year ID
+  - month (optional)       : Filter by month (1-12)
+  - bu_id (optional)       : Filter by Business Unit ID (BU level: BU>0, others=0)
+  - zone_id (optional)     : Filter by Zone ID (Zone level: BU>0, Zone>0, others=0)
+  - region_id (optional)   : Filter by Region ID (Region level: BU>0, Zone>0, Region>0, Terr=0)
+  - terr_id (optional)     : Filter by Territory ID (Territory level: all>0)
+
+Note: At least one filter is required (hod_id, bu_id, zone_id, region_id, terr_id, or employee_id)
+
+Hierarchy Level Logic:
+- BU Level: BUId > 0, ZoneId = 0, RegionId = 0, TerrId = 0
+- Zone Level: BUId > 0, ZoneId > 0, RegionId = 0, TerrId = 0
+- Region Level: BUId > 0, ZoneId > 0, RegionId > 0, TerrId = 0
+- Territory Level: BUId > 0, ZoneId > 0, RegionId > 0, TerrId > 0
+
+Example Request:
+# By HOD
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2
+
+# By Business Unit (BU level employees only)
+GET /api/advance/hod/consolidated-report?bu_id=5&year_id=2026&month=2
+
+# By Zone (Zone level employees only)
+GET /api/advance/hod/consolidated-report?bu_id=5&zone_id=10&year_id=2026&month=2
+
+# By Region (Region level employees only)
+GET /api/advance/hod/consolidated-report?bu_id=5&zone_id=10&region_id=25&year_id=2026&month=2
+
+# By Territory (Territory level employees only)
+GET /api/advance/hod/consolidated-report?bu_id=5&zone_id=10&region_id=25&terr_id=100&year_id=2026&month=2
+
+Example Response:
+{
+  "success": true,
+  "grand_total": 45000,
+  "data": {
+    "26": {
+      "activity_name": "Field Day (FD/FV)",
+      "grand_total": 45000,
+      "months": {
+        "Feb": {
+          "month_total": 45000,
+          "submitted_by": [
+            {
+              "submitted_by_id": 461,
+              "submitted_by_name": "Raveesh Agnihotri",
+              "submitted_by_code": "EMP461",
+              "submitted_by_total": 45000,
+              "employees": [
+                {
+                  "employee_id": 1225,
+                  "employee_name": "Sandip Dinkar Nistane",
+                  "employee_code": "1095",
+                  "department": "Sales",
+                  "designation": "Area Coordinator",
+                  "hierarchy": {
+                    "business_unit": {
+                      "id": 5,
+                      "name": "Seeds Business Unit",
+                      "code": "SBU001"
+                    },
+                    "zone": {
+                      "id": 10,
+                      "name": "North Zone",
+                      "code": "NZ001"
+                    },
+                    "region": {
+                      "id": 25,
+                      "name": "Delhi Region",
+                      "code": "DR001"
+                    },
+                    "territory": {
+                      "id": 100,
+                      "name": "Delhi NCR",
+                      "code": "DNCR001"
+                    }
+                  },
+                  "employee_total": 45000,
+                  "advance_requests": [
+                    {
+                      "request_id": 12,
+                      "status": "Closed",
+                      "submitted_at": "2026-02-14 03:22:25",
+                      "total_amount": 40000,
+                      "activities": [
+                        {
+                          "activity_type": "Product Differentiation (PDA)",
+                          "crops": ["Mustard Seed"],
+                          "amount": 40000,
+                          "payment_status": "Paid",
+                          "approvals": [
+                            {
+                              "approval_level": 1,
+                              "approver_id": 123,
+                              "approver_name": "John Doe",
+                              "approver_status": "Approved",
+                              "approver_amount": 40000,
+                              "approver_date": "2026-02-15 10:30:00",
+                              "approver_remark": "Approved"
+                            }
+                          ],
+                          "finance": {
+                            "approved_amount": 40000,
+                            "status": "Approved",
+                            "date": "2026-02-16 14:20:00",
+                            "remark": "Finance approved"
+                          },
+                          "payment": {
+                            "amount": 40000,
+                            "status": "Paid",
+                            "date": "2026-02-17 09:15:00",
+                            "remark": "Payment released"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+Use Cases:
+- View all paid advances for team members
+- Filter by year, month, employee
+- Filter by hierarchy (BU, Zone, Region, Territory)
+- Track payment status and approval flow
+- Generate reports for specific time periods
+
+================================================================================
+2. GET TEAM MEMBERS LIST
+================================================================================
+
+Endpoint: GET /api/advance/hod/team
+
+Description: 
+Get list of employees who have taken advances. Can filter by HOD or hierarchy 
+levels. Only employees with advance requests are shown.
+
+Query Parameters:
+  - hod_id (optional)    : HOD Employee ID
+  - bu_id (optional)     : Business Unit ID (BU level filtering)
+  - zone_id (optional)   : Zone ID (Zone level filtering)
+  - region_id (optional) : Region ID (Region level filtering)
+  - terr_id (optional)   : Territory ID (Territory level filtering)
+
+Note: At least one filter is required
+
+Example Request:
+# By HOD
+GET /api/advance/hod/team?hod_id=51
+
+# By Business Unit (BU level employees)
+GET /api/advance/hod/team?bu_id=5
+
+# By Zone (Zone level employees)
+GET /api/advance/hod/team?bu_id=5&zone_id=10
+
+Example Response:
+{
+  "success": true,
+  "message": "Team members with advances retrieved successfully",
+  "data": [
+    {
+      "EmployeeID": 1225,
+      "EmployeeName": "Sandip Dinkar Nistane",
+      "EmployeeCode": "1095",
+      "EmailId_Vnr": "sandip@vnrseeds.co.in",
+      "DepartmentName": "Sales",
+      "Designation": "Area Coordinator",
+      "BUId": 5,
+      "BUName": "Seeds Business Unit",
+      "BUCode": "SBU001",
+      "ZoneId": 10,
+      "ZoneName": "North Zone",
+      "ZoneCode": "NZ001",
+      "RegionId": 25,
+      "RegionName": "Delhi Region",
+      "RegionCode": "DR001",
+      "TerrId": 100,
+      "TerritoryName": "Delhi NCR",
+      "TerritoryCode": "DNCR001"
+    }
+  ]
+}
+
+Use Cases:
+- Get list of employees for dropdown filters
+- Show team member details with hierarchy
+- Filter employees who have advance requests
+
+================================================================================
+3. GET BUSINESS UNITS
+================================================================================
+
+Endpoint: GET /api/advance/hod/business-units
+
+Description: 
+Get active business units for filter dropdown. Returns 10 records by default.
+Supports search functionality.
+
+Query Parameters:
+  - search (optional) : Search term (searches in name, code, numeric_code)
+  - limit (optional)  : Number of records to return (default: 10)
+
+Example Request:
+GET /api/advance/hod/business-units
+GET /api/advance/hod/business-units?search=seeds
+GET /api/advance/hod/business-units?search=SBU&limit=20
+
+Example Response:
+{
+  "success": true,
+  "message": "Business units retrieved successfully",
+  "data": [
+    {
+      "id": 5,
+      "name": "Seeds Business Unit",
+      "code": "SBU001",
+      "numeric_code": "001"
+    },
+    {
+      "id": 6,
+      "name": "Agri Services",
+      "code": "AGS001",
+      "numeric_code": "002"
+    }
+  ]
+}
+
+Use Cases:
+- Populate Business Unit dropdown filter
+- Search business units by name/code
+- Show BU hierarchy level
+
+================================================================================
+4. GET ZONES
+================================================================================
+
+Endpoint: GET /api/advance/hod/zones
+
+Description: 
+Get active zones for filter dropdown. Returns 10 records by default.
+Supports search functionality and cascading filter by Business Unit.
+
+Query Parameters:
+  - search (optional)          : Search term (searches in name, code, numeric_code)
+  - limit (optional)           : Number of records to return (default: 10)
+  - business_unit_id (optional): Filter zones by Business Unit ID
+
+Example Request:
+GET /api/advance/hod/zones
+GET /api/advance/hod/zones?search=north
+GET /api/advance/hod/zones?business_unit_id=5
+GET /api/advance/hod/zones?business_unit_id=5&search=north&limit=20
+
+Example Response:
+{
+  "success": true,
+  "message": "Zones retrieved successfully",
+  "data": [
+    {
+      "id": 10,
+      "name": "North Zone",
+      "code": "NZ001",
+      "numeric_code": "001",
+      "vertical_id": "1"
+    },
+    {
+      "id": 11,
+      "name": "South Zone",
+      "code": "SZ001",
+      "numeric_code": "002",
+      "vertical_id": "1"
+    }
+  ]
+}
+
+Use Cases:
+- Populate Zone dropdown filter
+- Search zones by name/code
+- Filter zones by selected Business Unit (cascading dropdown)
+- Show Zone hierarchy level
+
+================================================================================
+5. GET REGIONS
+================================================================================
+
+Endpoint: GET /api/advance/hod/regions
+
+Description: 
+Get active regions for filter dropdown. Returns 10 records by default.
+Supports search functionality and multi-level cascading filter by Business Unit or Zone.
+
+Query Parameters:
+  - search (optional)          : Search term (searches in name, code, numeric_code)
+  - limit (optional)           : Number of records to return (default: 10)
+  - business_unit_id (optional): Filter regions by Business Unit ID (cascades through zones)
+  - zone_id (optional)         : Filter regions by Zone ID
+
+Example Request:
+GET /api/advance/hod/regions
+GET /api/advance/hod/regions?search=delhi
+GET /api/advance/hod/regions?business_unit_id=5
+GET /api/advance/hod/regions?zone_id=10
+GET /api/advance/hod/regions?business_unit_id=5&search=delhi&limit=20
+
+Example Response:
+{
+  "success": true,
+  "message": "Regions retrieved successfully",
+  "data": [
+    {
+      "id": 25,
+      "name": "Delhi Region",
+      "code": "DR001",
+      "numeric_code": "001",
+      "vertical_id": "1"
+    },
+    {
+      "id": 26,
+      "name": "Mumbai Region",
+      "code": "MR001",
+      "numeric_code": "002",
+      "vertical_id": "1"
+    }
+  ]
+}
+
+Use Cases:
+- Populate Region dropdown filter
+- Search regions by name/code
+- Filter regions by selected Business Unit (multi-level cascade)
+- Filter regions by selected Zone (direct cascade)
+- Show Region hierarchy level
+
+================================================================================
+6. GET TERRITORIES
+================================================================================
+
+Endpoint: GET /api/advance/hod/territories
+
+Description: 
+Get territories from core_region_territory mapping table. Returns 10 
+records by default. Supports search functionality and cascading filter by Region.
+
+Query Parameters:
+  - search (optional)    : Search term (searches in name, territory_id)
+  - limit (optional)     : Number of records to return (default: 10)
+  - region_id (optional) : Filter territories by Region ID
+
+Example Request:
+GET /api/advance/hod/territories
+GET /api/advance/hod/territories?search=delhi
+GET /api/advance/hod/territories?region_id=25
+GET /api/advance/hod/territories?region_id=25&search=delhi
+GET /api/advance/hod/territories?region_id=25&limit=20
+
+Example Response:
+{
+  "success": true,
+  "message": "Territories retrieved successfully",
+  "data": [
+    {
+      "id": "1",
+      "territory_id": "100",
+      "region_id": "25",
+      "name": "Delhi NCR",
+      "effective_from": "2024-01-01",
+      "effective_to": null
+    },
+    {
+      "id": "2",
+      "territory_id": "101",
+      "region_id": "25",
+      "name": "Delhi South",
+      "effective_from": "2024-01-01",
+      "effective_to": null
+    }
+  ]
+}
+
+Use Cases:
+- Populate Territory dropdown filter
+- Search territories by name/code/pincode
+- Filter territories by selected Business Unit (multi-level cascade)
+- Filter territories by selected Zone (multi-level cascade)
+- Filter territories by selected Region (direct cascade)
+- Show Territory hierarchy level (lowest level)
+
+================================================================================
+7. GET HIERARCHY MAPPING
+================================================================================
+
+Endpoint: GET /api/advance/hod/hierarchy-mapping
+
+Description: 
+Get hierarchical structure of team members showing BU → Zone → Region → 
+Territory with employee counts at each level. Only shows hierarchy for the 
+HOD's team members.
+
+Query Parameters:
+  - hod_id (required) : HOD Employee ID
+
+Example Request:
+GET /api/advance/hod/hierarchy-mapping?hod_id=51
+
+Example Response:
+{
+  "success": true,
+  "message": "Hierarchy mapping retrieved successfully",
+  "data": [
+    {
+      "id": 5,
+      "name": "Seeds Business Unit",
+      "code": "SBU001",
+      "employee_count": 25,
+      "zones": [
+        {
+          "id": 10,
+          "name": "North Zone",
+          "code": "NZ001",
+          "employee_count": 15,
+          "regions": [
+            {
+              "id": 25,
+              "name": "Delhi Region",
+              "code": "DR001",
+              "employee_count": 10,
+              "territories": [
+                {
+                  "id": 100,
+                  "name": "Delhi NCR",
+                  "code": "DNCR001",
+                  "employee_count": 10
+                }
+              ]
+            },
+            {
+              "id": 26,
+              "name": "Punjab Region",
+              "code": "PR001",
+              "employee_count": 5,
+              "territories": [
+                {
+                  "id": 102,
+                  "name": "Ludhiana",
+                  "code": "LDH001",
+                  "employee_count": 5
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "name": "South Zone",
+          "code": "SZ001",
+          "employee_count": 10,
+          "regions": [
+            {
+              "id": 30,
+              "name": "Karnataka Region",
+              "code": "KR001",
+              "employee_count": 10,
+              "territories": [
+                {
+                  "id": 150,
+                  "name": "Bangalore",
+                  "code": "BLR001",
+                  "employee_count": 10
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Use Cases:
+- Show hierarchical organization structure
+- Display employee distribution across hierarchy
+- Create cascading dropdown filters
+- Visualize team structure
+
+================================================================================
+HIERARCHY FILTER COMBINATIONS
+================================================================================
+
+You can combine multiple hierarchy filters in the consolidated report:
+
+Example 1: Filter by Business Unit
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&bu_id=5
+
+Example 2: Filter by Zone
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&zone_id=10
+
+Example 3: Filter by Region
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&region_id=25
+
+Example 4: Filter by Territory
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&terr_id=100
+
+Example 5: Combine Multiple Filters
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&bu_id=5&zone_id=10
+
+Example 6: All Filters Combined
+GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2&bu_id=5&zone_id=10&region_id=25&terr_id=100&employee_id=1225
+
+================================================================================
+DATA FLOW & HIERARCHY
+================================================================================
+
+Hierarchy Levels (Top to Bottom):
+1. Business Unit (BUId)     → Highest level
+2. Zone (ZoneId)            → Second level
+3. Region (RegionId)        → Third level
+4. Territory (TerrId)       → Lowest level (City/Village)
+
+Report Grouping Structure:
+Activity Name
+  └── Month
+      └── Submitted By (Person who submitted the request)
+          └── Employee (Person for whom advance was requested)
+              └── Advance Requests
+                  └── Activities
+                      ├── Approvals (All approval levels)
+                      ├── Finance (Finance approval details)
+                      └── Payment (Payment details)
+
+================================================================================
+DATABASE TABLES USED
+================================================================================
+
+Main Tables:
+- advance_requests              : Advance request header
+- advance_request_employees     : Employees in the request
+- advance_request_activities    : Activities in the request
+- advance_activity_approvals    : Approval details
+
+HRIMS Tables (hrims connection):
+- hrm_employee                  : Employee master
+- hrm_employee_general          : Employee general info with hierarchy
+- hrm_employee_reporting        : Reporting structure (HOD mapping)
+- core_departments              : Department master
+- core_designation              : Designation master
+- core_business_unit            : Business Unit master
+- core_zones                    : Zone master
+- core_regions                  : Region master
+- core_region_territory         : Region to Territory mapping (used for territories)
+- core_crops                    : Crop master
+
+Hierarchy Mapping Tables:
+- core_bu_zone_mapping          : Business Unit to Zone mapping
+- core_zone_region_mapping      : Zone to Region mapping (if exists)
+- core_region_territory         : Region to Territory mapping
+
+Note: Territory information is fetched from core_region_territory table 
+instead of core_city_village_by_state. The TerrId in hrm_employee_general 
+maps to territory_id in core_region_territory table.
+
+Other Tables:
+- claimtype                     : Activity name master
+- adv_activity_types            : Activity type master
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. Only PAID advances are shown in the consolidated report
+2. Hierarchy filters (bu_id, zone_id, region_id, terr_id) are applied at the 
+   team member level first, then advance data is filtered
+3. The getTeamMembers() method handles all hierarchy filtering internally by 
+   joining with hrm_employee_general table
+4. All amounts are in float format
+5. Dates are in 'Y-m-d H:i:s' format
+6. Employee hierarchy is fetched from hrm_employee_general table
+7. Team members are identified using hrm_employee_reporting.HodId
+8. Month filter uses advance_requests.month column (1-12)
+9. Year filter uses advance_requests.year_id column
+10. All hierarchy APIs return only active records (is_active = '1')
+11. Hierarchy mapping shows only team members of the specified HOD
+12. Territory information uses core_region_territory table (not core_city_village_by_state)
+13. Cascading filters work at team member level: BU → Zone → Region → Territory
+
+================================================================================
+ERROR RESPONSES
+================================================================================
+
+Missing HOD ID:
+{
+  "success": false,
+  "message": "HOD ID is required"
+}
+
+No Team Members:
+{
+  "success": true,
+  "grand_total": 0,
+  "data": [],
+  "message": "No team members found for this HOD"
+}
+
+No Paid Advances:
+{
+  "success": true,
+  "grand_total": 0,
+  "data": [],
+  "message": "No paid advances found"
+}
+
+Server Error:
+{
+  "success": false,
+  "message": "Failed to retrieve consolidated report: [error details]"
+}
+
+================================================================================
+TESTING EXAMPLES
+================================================================================
+
+1. Get all paid advances for HOD's team in February 2026:
+   GET /api/advance/hod/consolidated-report?hod_id=51&year_id=2026&month=2
+
+2. Get advances for specific employee:
+   GET /api/advance/hod/consolidated-report?hod_id=51&employee_id=1225
+
+3. Get advances for North Zone only:
+   GET /api/advance/hod/consolidated-report?hod_id=51&zone_id=10
+
+4. Get team members list:
+   GET /api/advance/hod/team?hod_id=51
+
+5. Get hierarchy structure:
+   GET /api/advance/hod/hierarchy-mapping?hod_id=51
+
+6. Get all business units for dropdown:
+   GET /api/advance/hod/business-units
+
+7. Search for specific business unit:
+   GET /api/advance/hod/business-units?search=seeds
+
+8. Search territories by pincode:
+   GET /api/advance/hod/territories?search=110001
+
+9. Get more results (increase limit):
+   GET /api/advance/hod/zones?search=north&limit=20
+
+10. Cascading filters - Get zones for specific Business Unit:
+    GET /api/advance/hod/zones?business_unit_id=5
+
+11. Cascading filters - Get regions for specific Zone:
+    GET /api/advance/hod/regions?zone_id=10
+
+12. Cascading filters - Get territories for specific Region:
+    GET /api/advance/hod/territories?region_id=25
+
+13. Multi-level cascade - Get regions for Business Unit:
+    GET /api/advance/hod/regions?business_unit_id=5
+
+14. Multi-level cascade - Get territories for Business Unit:
+    GET /api/advance/hod/territories?business_unit_id=5
+
+15. Multi-level cascade - Get territories for Zone:
+    GET /api/advance/hod/territories?zone_id=10
+
+16. Combined cascading and search:
+    GET /api/advance/hod/zones?business_unit_id=5&search=north
+
+17. Multi-level with search:
+    GET /api/advance/hod/territories?business_unit_id=5&search=delhi
+
+================================================================================
+FRONTEND IMPLEMENTATION GUIDE
+================================================================================
+
+Step 1: Load Filter Options (with Multi-Level Cascading & Search)
+- Call /business-units (loads first 10 by default)
+- When user selects a Business Unit:
+  - Call /zones?business_unit_id=5 (loads zones for that BU)
+  - Call /regions?business_unit_id=5 (loads regions for that BU - cascades through zones)
+  - Call /territories?business_unit_id=5 (loads territories for that BU - cascades through zones & regions)
+- When user selects a Zone:
+  - Call /regions?zone_id=10 (loads regions for that zone)
+  - Call /territories?zone_id=10 (loads territories for that zone - cascades through regions)
+- When user selects a Region:
+  - Call /territories?region_id=25 (loads territories for that region)
+- Implement search as user types: /business-units?search=seeds
+- Call /hierarchy-mapping to show team structure
+- Call /team to get employee list
+
+Multi-Level Cascading Filter Flow:
+- Business Unit → Zones, Regions, Territories
+- Zone → Regions, Territories
+- Region → Territories
+
+This allows users to select any level and automatically filter all lower levels!
+
+Step 2: Apply Filters
+- User selects HOD, Year, Month, and optional hierarchy filters
+- Call /consolidated-report with selected parameters
+
+Step 3: Display Report
+- Group data by Activity → Month → Submitted By → Employee
+- Show totals at each level (grand_total, month_total, submitted_by_total, employee_total)
+- Display approval flow, finance details, and payment information
+- Show employee hierarchy information
+
+Step 4: Export/Print
+- Use the structured JSON data to generate Excel/PDF reports
+- Include all hierarchy levels and totals
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+
+Created: 2026-02-25
+Version: 1.0
+Controller: App\Http\Controllers\Api\Advance\HodAdvanceReportController
+Routes File: routes/advance.php
