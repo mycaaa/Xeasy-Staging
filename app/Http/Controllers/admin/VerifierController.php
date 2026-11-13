@@ -1165,8 +1165,15 @@ class VerifierController extends Controller
             }
 
             return response()->json(['success' => true, 'message' => 'Record verified successfully.', 'data' => ['rate' => $rate, 'amount' => $totAmt]]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error verifying record: ' . $e->getMessage()], 500);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            // RKM-VERIFY-03: every failure (also PHP errors) answers with its reason and a reference in the log
+            $ref = strtoupper(substr(sha1(uniqid('', true)), 0, 8));
+            \Illuminate\Support\Facades\Log::error('verifyRunningKmRecord failed', ['ref' => $ref, 'exp' => $request->expId, 'error' => $e->getMessage(), 'at' => $e->getFile().':'.$e->getLine()]);
+            $msg = $e instanceof \App\Services\Claims\ClaimTransitionDenied ? $e->getMessage() : 'Error verifying record: '.mb_substr($e->getMessage(), 0, 300);
+
+            return response()->json(['success' => false, 'message' => $msg.' (ref '.$ref.')'], $e instanceof \App\Services\Claims\ClaimTransitionDenied ? 403 : 500);
         }
     }
 

@@ -810,8 +810,11 @@
                                 $btn.html('<i class="ri-check-double-line me-1"></i> Verify').prop("disabled", false);
                             }
                         },
-                        error: function() {
-                            showAlert("danger", "ri-close-circle-line", "Server error. Please try again.");
+                        error: function(xhr) {
+                            // RKM-VERIFY-03: show the server's reason instead of a generic message
+                            const j = xhr.responseJSON || {};
+                            const why = j.message || j.msg || (xhr.status === 419 ? "The page has expired. Refresh the page and try again." : "Server error (" + xhr.status + "). Please try again.");
+                            showAlert("danger", "ri-close-circle-line", why);
                             $btn.html('<i class="ri-check-double-line me-1"></i> Verify').prop("disabled", false);
                         }
                     });
