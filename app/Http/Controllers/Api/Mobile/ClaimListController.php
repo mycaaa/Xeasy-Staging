@@ -73,19 +73,9 @@ class ClaimListController extends BaseMobileController
                             $TotVerifyAmt = ((array) $verifyResult[0])['TotVerifyAmt'] ?? '0';
                         }
 
-                        // Calculate submit_btn using dynamic deadline setting
-                        $lastMonth = $currentMonth - 1;
-                        if ($lastMonth <= 0) $lastMonth = 12;
-                        $submit_btn = 'N';
-
-                        // Get dynamic last submission day from settings
-                        $lastSubmissionDay = \App\Models\SubmissionSetting::getLastDay((int) $ComId);
-
-                        if ((int) $month != $currentMonth) {
-                            if (((int) $month == $lastMonth && $currentDay <= $lastSubmissionDay) || $SubPermission == 'Y') {
-                                $submit_btn = 'Y';
-                            }
-                        }
+                        // SUBMIT-BTN-01: same rule as the submit itself (month ended, all punched, due date / late approval)
+                        $st = \App\Services\ClaimRules\MonthSubmit::state($expenseConn, (int) $ComId, (int) $YearId, (int) $empid, (int) $month, $SubPermission);
+                        $submit_btn = $st['allowed'] ? 'Y' : 'N';
 
                         // Match legacy response structure EXACTLY
                         $Open_list[] = [
@@ -104,6 +94,7 @@ class ClaimListController extends BaseMobileController
                                 'TotVerifyAmt' => (string) $TotVerifyAmt,
                             ],
                             'submit_btn' => $submit_btn,
+                            'submit_note' => $st['reason'],
                             'ComId' => (string) $ComId,
                         ];
                     }

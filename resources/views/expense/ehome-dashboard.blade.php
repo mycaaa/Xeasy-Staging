@@ -523,7 +523,8 @@
                                     <button class="eh-btn-submit ehome-submit-btn"
                                         data-month="{{ $mNum }}">Submit</button>
                                 @else
-                                    <span class="text-muted small">—</span>
+                                    {{-- SUBMIT-BTN-01: say why it cannot be submitted yet --}}
+                                    <span class="text-muted small" title="{{ $o['submit_note'] ?? '' }}">{{ $o['submit_note'] ?? '—' }}</span>
                                 @endif
                             </td>
                             <td>

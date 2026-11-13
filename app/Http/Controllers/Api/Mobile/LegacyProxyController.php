@@ -833,7 +833,8 @@ class LegacyProxyController extends BaseMobileController
             $relayKey = (string) config('app.internal_api_key', '');
             $isBackendSubmit = $request->input('backend_submit') == '1' && $relayKey !== ''
                 && hash_equals($relayKey, (string) $request->header('X-Xeasy-Internal', ''));
-            $cut = $isBackendSubmit ? null : \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->submissionCutoff((int) $comId, (int) $yearId, (int) $month, $subPerm, $conn));
+            // SUBMIT-BTN-01: late bills approved through Late Bill Approval count as permission for the month
+            $cut = ($isBackendSubmit || \App\Services\ClaimRules\MonthSubmit::lateAllowed($conn, (int) $yearId, $empId, $month, $subPerm)) ? null : \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->submissionCutoff((int) $comId, (int) $yearId, (int) $month, $subPerm, $conn));
             if ($cut !== null) {
                 return response()->json(['Code' => '100', 'msg' => $cut]);
             }

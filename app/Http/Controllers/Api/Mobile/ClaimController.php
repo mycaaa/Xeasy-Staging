@@ -183,9 +183,9 @@ class ClaimController extends BaseMobileController
             $verify = ['TotVerifyAmt' => $t->TotVerifyAmt];
             unset($t->TotVerifyAmt);
 
-            // Legacy rule: submit allowed for last month or earlier until the 15th, or with SubPermission.
-            $submit = ((int) $m->Month <= (int) date('m', strtotime('-1 month')) && date('Y-m-d') <= date('Y-m-15'))
-                || $m->SubPermission === 'Y';
+            // SUBMIT-BTN-01: same rule as the submit itself
+            $st = \App\Services\ClaimRules\MonthSubmit::state($conn, (int) ($ctx[2] ?? 1), (int) $yearId, (int) $empId, (int) $m->Month, $m->SubPermission);
+            $submit = $st['allowed'];
 
             $list[] = [
                 'Month' => $m->Month,
@@ -193,6 +193,7 @@ class ClaimController extends BaseMobileController
                 'TotalFilled_Claim_with_Amount' => (array) $t,
                 'TotalVerify_Claim_with_Amount' => $verify,
                 'submit_btn' => $submit ? 'Y' : 'N',
+                'submit_note' => $st['reason'],
             ];
         }
 

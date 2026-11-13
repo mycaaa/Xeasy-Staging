@@ -1115,7 +1115,7 @@ function renderOpenMonth(it, expanded) {
                         data-totdeniedclaims="${nD}"
                         title="Final Submit Month">
                         <i class="ri-checkbox-circle-line"></i> Submit
-                    </button>` : ''}
+                    </button>` : (it.submit_note ? `<span class="mcv-ab" style="opacity:.75;cursor:help;font-size:.72rem;max-width:260px;white-space:normal;" title="${String(it.submit_note).replace(/"/g,'&quot;')}"><i class="ri-information-line"></i> ${it.submit_note}</span>` : '')}
                     <button class="mcv-ab mcv-ab-detail open-day-btn"
                         data-month="${it.Month}" data-totalclaim="${nC}"
                         data-filledamt="${tot.TotFilledAmt||0}"

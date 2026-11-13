@@ -724,12 +724,9 @@ class EmployeeController extends Controller
                             $verifyResult = DB::connection($expenseConn)->select($sqlVerify, [$yearId, $employeeId, $month]);
                             $totVerifyAmt = !empty($verifyResult) ? (((array) $verifyResult[0])['TotVerifyAmt'] ?? '0') : '0';
 
-                            $submitBtn = 'N';
-                            if ((int) $month != $currentMonth) {
-                                if (((int) $month == $lastMonth && $currentDay <= $lastSubmissionDay) || $subPermission == 'Y') {
-                                    $submitBtn = 'Y';
-                                }
-                            }
+                            // SUBMIT-BTN-01: same rule as the submit itself
+                            $st = \App\Services\ClaimRules\MonthSubmit::state($expenseConn, (int) $companyId, (int) $yearId, (int) $employeeId, (int) $month, $subPermission);
+                            $submitBtn = $st['allowed'] ? 'Y' : 'N';
 
                             $openList[] = [
                                 'Month' => $month,
@@ -747,6 +744,7 @@ class EmployeeController extends Controller
                                     'TotVerifyAmt' => (string) $totVerifyAmt,
                                 ],
                                 'submit_btn' => $submitBtn,
+                                'submit_note' => $st['reason'],
                                 'ComId' => (string) $companyId,
                             ];
                         }
