@@ -103,6 +103,8 @@ html[data-sidebar="dark"] {
 html[data-sidebar="dark"] .app-menu { background: var(--vz-vertical-menu-bg) !important; border-right: 1px solid var(--vz-vertical-menu-border); }
 html[data-sidebar="dark"] .app-menu .nav-link.active, html[data-sidebar="dark"] .app-menu .nav-link[aria-expanded="true"] { background-color: var(--vz-vertical-menu-item-active-bg); border-radius: 6px; }
 html[data-sidebar="dark"] .app-menu .menu-dropdown { background: var(--vz-vertical-menu-bg) !important; }
+/* UX-01: the page you are on, in the side menu */
+html[data-sidebar="dark"] .app-menu .menu-dropdown .nav-link.active[aria-current="page"], html[data-sidebar="dark"] .app-menu .nav-link.menu-link.active[aria-current="page"] { font-weight: 700; box-shadow: inset 3px 0 0 #1e3a8a; }
 /* dark logo on the light menu */
 html[data-sidebar="dark"] .app-menu .logo-light { display: none !important; }
 html[data-sidebar="dark"] .app-menu .logo-dark { display: inline-block !important; }

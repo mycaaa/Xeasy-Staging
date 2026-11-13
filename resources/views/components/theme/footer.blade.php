@@ -81,7 +81,7 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
 <link rel="stylesheet" href="{{ asset('vendor/cdn/flatpickr@4.6.13/dist/flatpickr.min.css') }}">
 <script src="{{ asset('vendor/cdn/flatpickr@4.6.13/dist/flatpickr.min.js') }}"></script>
 <style>
-    /* ── Flatpickr Calendar Header ── */
+    /* ── Flatpickr Calendar Header ── (UI-02: navy text on the pastel header; it was white on pale blue) */
     .flatpickr-calendar {
         overflow: visible !important;
     }
@@ -96,26 +96,26 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
     /* Prev / Next arrows */
     .flatpickr-months .flatpickr-prev-month,
     .flatpickr-months .flatpickr-next-month {
-        color: rgba(255,255,255,0.85) !important;
-        fill:  rgba(255,255,255,0.85) !important;
+        color: #1e3a8a !important;
+        fill:  #1e3a8a !important;
     }
     .flatpickr-months .flatpickr-prev-month svg path,
     .flatpickr-months .flatpickr-next-month svg path {
-        fill: rgba(255,255,255,0.85) !important;
+        fill: #1e3a8a !important;
         transition: fill .15s;
     }
     .flatpickr-months .flatpickr-prev-month:hover svg path,
     .flatpickr-months .flatpickr-next-month:hover svg path {
-        fill: #fff !important;
+        fill: #001868 !important;
     }
     /* Month + Year text area */
     .flatpickr-current-month {
-        color: #fff !important;
+        color: #1e3a8a !important;
         overflow: visible !important;
     }
     /* Month native <select> */
     .flatpickr-current-month .flatpickr-monthDropdown-months {
-        color: #fff !important;
+        color: #1e3a8a !important;
         font-weight: 600;
         background: transparent !important;
         -webkit-appearance: none;
@@ -134,7 +134,7 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
         display: inline-flex;
         align-items: center;
         gap: 3px;
-        color: #fff;
+        color: #1e3a8a;
         font-size: 14px;
         font-weight: 600;
         font-family: inherit;
@@ -146,7 +146,7 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
         transition: background .15s;
     }
     .fp-year-btn:hover {
-        background: rgba(255,255,255,0.18);
+        background: #cbd8fd;
     }
     .fp-year-btn .fp-caret {
         font-size: 10px;
@@ -192,10 +192,10 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
     }
     /* Weekday row */
     .flatpickr-weekdays {
-        background: #001868cc !important;
+        background: #eef2ff !important;
     }
     span.flatpickr-weekday {
-        color: #fff !important;
+        color: #1e3a8a !important;
         font-weight: 600;
         background: transparent !important;
     }
@@ -387,6 +387,8 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
     })();
 </script>
 <script src="{{ URL::to('/') }}/assets/js/app.js"></script>
+<script>window.XEASY_LOGIN_URL = "{{ route('login') }}";</script>
+<script src="{{ URL::to('/') }}/custom/js/ux.js?v={{ filemtime(public_path('custom/js/ux.js')) }}"></script>
 </body>
 
 </html>
