@@ -203,11 +203,12 @@ class ClaimantController extends Controller
             if ($request->hasFile('photo') && $request->has('type')) {
                 $type = $request->type;
                 $empId = $request->emp_id;
-                $tempPunchId = $request->temp_punch_id;
+                $tempPunchId = (int) ($request->temp_punch_id ?: 0);
                 $yearId = session('year_id');
                 $companyId = session('company_id');
                 $url = LegacyApi::baseUrl().'/extract-data.php?value=extract_odo_data&YearId='.urlencode($yearId).'&tokenid='.LegacyApi::extractToken().'&ComId='.urlencode($companyId).'&empid='.urlencode($empId);
-                $response = LegacyApi::http()->attach($type, file_get_contents($request->file('photo')->path()), $request->file('photo')->getClientOriginalName())->post($url, ['temp_punch_id' => $tempPunchId]);
+                // OCR-OPTIONAL-01: the meter reader is optional; do not hold the screen for a minute when it is down
+                $response = LegacyApi::http(20)->attach($type, file_get_contents($request->file('photo')->path()), $request->file('photo')->getClientOriginalName())->post($url, ['temp_punch_id' => $tempPunchId]);
                 $decodedResponse = $response->json();
                 if (is_array($decodedResponse)) {
                     return response()->json(['success' => true, 'httpCode' => $response->status(), 'response' => $decodedResponse]);
@@ -222,7 +223,7 @@ class ClaimantController extends Controller
                 $companyId = session('company_id');
                 $billDate = $request->billDate;
                 $vehicleType = $request->vehicleType;
-                $tempPunchId = $request->temp_punch_id;
+                $tempPunchId = (int) ($request->temp_punch_id ?: 0);
                 $remark = $request->remark;
                 $openingReading = $request->openingReading;
                 $closingReading = $request->closingReading;
@@ -254,7 +255,10 @@ class ClaimantController extends Controller
                 if (is_array($decodedResponse) && isset($decodedResponse['msg']) && $decodedResponse['msg'] === 'Data updated successfully') {
                     return response()->json(['success' => true, 'httpCode' => $response->status(), 'response' => $decodedResponse]);
                 } else {
-                    return response()->json(['success' => false, 'message' => 'Invalid API response or error', 'raw' => $response->body()]);
+                    // the save's own message (date rule, duplicate, login ...) instead of a generic one
+                    $msg = is_array($decodedResponse) ? ($decodedResponse['msg'] ?? $decodedResponse['message'] ?? null) : null;
+
+                    return response()->json(['success' => false, 'message' => $msg ?: 'The odometer reading could not be saved (server answered '.$response->status().').']);
                 }
             }
 
@@ -981,7 +985,7 @@ class ClaimantController extends Controller
             $companyId = session('company_id');
             // BILLDATE-02: dd/mm/yyyy read day-first (strtotime read 05/08 as 8 May)
             $billDate = ClaimSubmissionValidator::parseDate($request->uploadBillDate) ?? date('Y-m-d', strtotime(str_replace('/', '-', (string) $request->uploadBillDate)));
-            $tempPunchId = $request->temp_punch_id ?? 0;
+            $tempPunchId = (int) ($request->temp_punch_id ?: 0); // OCR-OPTIONAL-01: empty when the bill was not read automatically
             $remark = $request->Rmk ?? '';
             $claimType = $request->claimtype;
             $amount = $request->amount;

@@ -705,9 +705,10 @@ $companyId = session('company_id');
             });
         }
 
-        $("#closingReading").on("input", function() {
+        $("#closingReading, #openingReading").on("input", function() {
             const opening = parseFloat($("#openingReading").val()) || 0;
-            const closing = parseFloat($(this).val()) || 0;
+            const closing = parseFloat($("#closingReading").val()) || 0;
+            if (!$("#closingReading").val()) { $("#totalKM").val(""); return; }
             const totalKM = closing - opening;
             $("#totalKM").val(totalKM >= 0 ? totalKM : "");
         });
@@ -763,6 +764,7 @@ $companyId = session('company_id');
                 data: formData,
                 contentType: false,
                 processData: false,
+                timeout: 20000, // OCR-OPTIONAL-01
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
@@ -783,11 +785,11 @@ $companyId = session('company_id');
                         const totalKM = closing - opening;
                         $("#totalKM").val(totalKM >= 0 ? totalKM : "");
                     } else {
-                        showMessage("Error: " + (response.message || "Unexpected response"), "danger", "#odometerModal");
+                        showMessage("The meter reading could not be read from the photo. Type the reading yourself and submit.", "warning", "#odometerModal");
                     }
                 },
                 error: function() {
-                    showMessage("Error uploading file", "danger", "#odometerModal");
+                    showMessage("Automatic meter reading is not available right now. Type the reading yourself and submit.", "warning", "#odometerModal");
                 },
                 complete: function() {
                     toggleLoading("#submitOdometerBtn", false);
@@ -2416,8 +2418,9 @@ $companyId = session('company_id');
                 data: formData,
                 contentType: false,
                 processData: false,
+                timeout: 20000, // OCR-OPTIONAL-01: never hold the form while the bill reader is slow or not connected
                 beforeSend: function() {
-                    $("#submitUploadClaimBtn").prop("disabled", true).text("Extracting...");
+                    $("#submitUploadClaimBtn").prop("disabled", true).text("Reading bill...");
                 },
                 success: function(response) {
                     if (response.success === "true" && response.data) {
@@ -2443,12 +2446,13 @@ $companyId = session('company_id');
                         $("#upload_temp_punch_id").val(response.data["temp_punch_id"] || "");
                         showMessage("Data extracted successfully.", "success", "#uploadClaimMessage");
                     } else {
-                        showMessage("Extraction failed. Try another file.", "danger", "#uploadClaimMessage");
+                        showMessage("The bill could not be read automatically. Enter the bill date and amount yourself and submit.", "warning", "#uploadClaimMessage");
                     }
                     $("#submitUploadClaimBtn").prop("disabled", false).text("Submit");
                 },
                 error: function() {
-                    showMessage("Error calling extract API.", "danger", "#uploadClaimMessage");
+                    // OCR-OPTIONAL-01: the bill reader is optional - the claim is submitted with the details typed in
+                    showMessage("Automatic bill reading is not available right now. Enter the bill date and amount yourself and submit.", "warning", "#uploadClaimMessage");
                     $("#submitUploadClaimBtn").prop("disabled", false).text("Submit");
                 }
             });

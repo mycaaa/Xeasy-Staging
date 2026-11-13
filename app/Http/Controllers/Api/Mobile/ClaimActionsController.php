@@ -580,10 +580,10 @@ class ClaimActionsController extends BaseMobileController
         $comId = $this->getComId($request);
         $expId = (int) $request->input('expid', 0);
         $billDate = $request->input('Billdate', '');
-        $amount = $request->input('amount', '0');
+        $amount = (float) ($request->input('amount') ?: 0); // OCR-OPTIONAL-01: no empty strings into number columns
         $remark = $request->input('remark') ?? '';
         $claimId = (int) $request->input('claim_id', 0);
-        $tempPunchId = $request->input('temp_punch_id') ?? '0';
+        $tempPunchId = (int) ($request->input('temp_punch_id') ?: 0); // empty when the bill was not read automatically
 
         if ($empId <= 0 || $yearId <= 0 || $comId <= 0) {
             return $this->error('Parameter Missing!');
@@ -961,7 +961,7 @@ class ClaimActionsController extends BaseMobileController
         $vehicleType = $request->input('vehicleType', '');
         $remark = $request->input('remark', '');
         $odomtrOpening = $request->input('odomtr_opening', '');
-        $tempPunchId = $request->input('temp_punch_id', '');
+        $tempPunchId = (int) ($request->input('temp_punch_id') ?: 0); // OCR-OPTIONAL-01
         $offlineOpeningFilepath = $request->input('offline_opening_filepath', '');
         $offlineExpId = $request->input('offline_exp_id', '');
 
@@ -1085,7 +1085,7 @@ class ClaimActionsController extends BaseMobileController
         $offlineClosingFilepath = $request->input('offline_clossing_filepath', '');
         $offlineOpeningFilepath = $request->input('offline_opening_filepath', '');
         $offlineExpId = $request->input('offline_exp_id', '');
-        $tempPunchId = $request->input('temp_punch_id', '');
+        $tempPunchId = (int) ($request->input('temp_punch_id') ?: 0); // OCR-OPTIONAL-01
         $remark = $request->input('remark', '');
 
         if ($empId <= 0 || $yearId <= 0 || $comId <= 0 || empty($dateFor)) {
