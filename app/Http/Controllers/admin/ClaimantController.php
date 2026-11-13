@@ -179,12 +179,13 @@ class ClaimantController extends Controller
 
     public function getOdometerData(Request $request)
     {
-        $billDate = $request->date ?? date('Y-m-d');
+        // DATE-KEEP-01: the form sends d-m-Y; the claim table holds Y-m-d (the lookup never found a back-dated reading)
+        $billDate = ClaimSubmissionValidator::parseDate((string) ($request->date ?? '')) ?? date('Y-m-d');
         $employeeId = session('employee_id');
         $yearId = session('year_id');
         $companyId = session('company_id');
         $table = ExpenseClaim::tableName($yearId);
-        $existingData = DB::table($table)->where('BillDate', $billDate)->where('ClaimId', 7)->where('CrBy', $employeeId)->where('ClaimStatus', '!=', 'Deactivate')->first();
+        $existingData = DB::connection(session('expense_connection') ?: config('database.default'))->table($table)->where('BillDate', $billDate)->where('ClaimId', 7)->where('CrBy', $employeeId)->where('ClaimStatus', '!=', 'Deactivate')->first();
         $apiUrl = LegacyApi::baseUrl()."/{$companyId}/common.php?value=Current_date_odo_details&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&tokenid=".LegacyApi::webToken()."&date=".urlencode($billDate);
         try {
             $response = LegacyApi::http()->get($apiUrl);

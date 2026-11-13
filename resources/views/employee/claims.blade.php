@@ -571,11 +571,20 @@ $companyId = session('company_id');
         });
 
         $("#openOdometerBtn").on("click", function() {
-            loadOdometerData("{{ date('Y-m-d') }}");
             // ODO-FY-01: back-dated odometer readings - any day of the current financial year up to today
             initClaimDatePicker("#billDate", { minDate: "{{ \App\Services\ClaimRules\ClaimSubmissionValidator::odometerMinDate() }}" });
+            loadOdometerData("{{ date('d-m-Y') }}");
             $("#odometerModal").modal('show');
         });
+        // DATE-KEEP-01: the odometer date always shows (and is sent as) the day chosen, in d-m-Y
+        function setOdoDate(date) {
+            let d = String(date || "");
+            const iso = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (iso) d = iso[3] + "-" + iso[2] + "-" + iso[1];
+            const fp = document.querySelector("#billDate")._flatpickr;
+            if (fp) { fp.setDate(d, false, "d-m-Y"); } else { $("#billDate").val(d); }
+        }
+        let odoReq = 0;
         // the "Odometer" button on My Claims opens this page with ?odometer=1
         if (new URLSearchParams(window.location.search).get("odometer") === "1") {
             setTimeout(function () { $("#openOdometerBtn").trigger("click"); }, 300);
@@ -589,6 +598,7 @@ $companyId = session('company_id');
         });
 
         function loadOdometerData(date) {
+            const req = ++odoReq;
             $.ajax({
                 url: "{{ route('odometer.data') }}",
                 type: "GET",
@@ -596,8 +606,9 @@ $companyId = session('company_id');
                     date: date
                 },
                 success: function(response) {
+                    if (req !== odoReq) return; // DATE-KEEP-01: an older reply (e.g. for today) never overwrites the date picked since
                     if (response.success) {
-                        $("#billDate").val(date);
+                        setOdoDate(date);
                         const apiData = response.apiData;
                         const existingData = response.existingData;
                         const currentDateOdoDetails = response.apiData.CurrentDate_Odo_Details;
@@ -647,6 +658,7 @@ $companyId = session('company_id');
                             }
                         } else {
                             $("#odometerForm")[0].reset();
+                            setOdoDate(date); // DATE-KEEP-01: reset() put the date back to today
                             $("#temp_punch_id").val(0);
                             $("#startPhotoPreview").hide();
                             $("#endPhotoPreview").hide();
@@ -917,8 +929,10 @@ $companyId = session('company_id');
             }
         });
 
+        $("#claimdate").on("focus", function() { $(this).data("prev", $(this).val()); });
         $("#claimdate").on("change", function() {
             const billDate = $(this).val();
+            const prevDate = $(this).data("prev") || "";
             const employeeID = $("#daEmployeeID").val();
             if (!billDate) return;
             $.ajax({
@@ -932,11 +946,11 @@ $companyId = session('company_id');
                 success: function(response) {
                     if (response.status === 'sunday') {
                         if (!confirm('The selected bill date falls on a Sunday. Do you want to proceed?')) {
-                            $("#claimdate").val("{{ date('d-m-Y') }}");
+                            { const fpc = document.querySelector("#claimdate")._flatpickr; fpc ? fpc.setDate(prevDate, false) : $("#claimdate").val(prevDate); } // DATE-KEEP-01: back to the date chosen before, not today
                         }
                     } else if (response.status === 'holiday') {
                         if (!confirm('The selected bill date falls on a holiday. Do you want to proceed?')) {
-                            $("#claimdate").val("{{ date('d-m-Y') }}");
+                            { const fpc = document.querySelector("#claimdate")._flatpickr; fpc ? fpc.setDate(prevDate, false) : $("#claimdate").val(prevDate); } // DATE-KEEP-01: back to the date chosen before, not today
                         }
                     }
                 }

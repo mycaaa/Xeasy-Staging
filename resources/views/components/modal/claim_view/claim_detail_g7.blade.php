@@ -11,7 +11,7 @@ $totalFinance = 0;
             class="form-control"
             id="bill_date"
             name="bill_date"
-            value="{{ \App\Helpers\CommonHelper::toDisplayFormat($expense_detail->BillDate ?? now()->format('d-m-Y')) }}"
+            value="{{ \App\Helpers\CommonHelper::toDisplayFormat($expense_detail->BillDate ?? '') }}"
             placeholder="Enter Bill Date">
     </div>
     <div class="col-md-6 mb-1">

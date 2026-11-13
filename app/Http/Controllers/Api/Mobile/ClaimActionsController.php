@@ -990,8 +990,9 @@ class ClaimActionsController extends BaseMobileController
 
         try {
             $file = $request->file('opening_img');
-            $billDate = date('Y-m-d', strtotime($dateFor));
-            $billMonth = date('m', strtotime($dateFor));
+            // DATE-KEEP-01: day first (15-05-2026 / 15/05/2026 / 2026-05-15); strtotime read 05/08 as 8 May
+            $billDate = \App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($dateFor) ?? date('Y-m-d', strtotime($dateFor));
+            $billMonth = date('m', strtotime($billDate));
 
             // Upload image to S3 (UAT R-01: through a batch, so a failed DB write deletes it again)
             $mili = sprintf('%03d', (microtime(true) - floor(microtime(true))) * 1000);
@@ -1109,8 +1110,9 @@ class ClaimActionsController extends BaseMobileController
         $uploadsTable = $this->uploadsTable($yearId);
 
         try {
-            $billDate = date('Y-m-d', strtotime($dateFor));
-            $billMonth = date('m', strtotime($dateFor));
+            // DATE-KEEP-01: day first (15-05-2026 / 15/05/2026 / 2026-05-15); strtotime read 05/08 as 8 May
+            $billDate = \App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($dateFor) ?? date('Y-m-d', strtotime($dateFor));
+            $billMonth = date('m', strtotime($billDate));
 
             // UAT R-01: opening (optional) and closing images are stored all-or-nothing; a
             // failed opening image is no longer skipped silently.
