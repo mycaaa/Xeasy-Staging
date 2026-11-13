@@ -840,9 +840,9 @@ class HomeController extends Controller
             ->whereBetween('e.BillDate', [$startDate, $endDate])
             ->where('e.BillDate', '!=', '0000-00-00')
             ->whereNotNull('e.BillDate')
-            ->where('e.FinancedBy', '!=', '0')
-            ->where('e.FilledOkay', 1)
-            ->whereNotIn('e.ClaimStatus', ['Draft', 'Submitted', 'Deactivate']);
+            // DASH-UI-01: "Top 10 Expense Filled" = most filled (punched) amount; it counted only claims already
+            // paid and ranked by number of claims, so the table was empty until the month was paid
+            ->whereNotIn('e.ClaimStatus', ['Draft', 'Submitted', 'Deactivate', 'Deactivat']);
         if ($sameDay === true) {
             $query->whereRaw('DATE(e.BillDate) = DATE(e.CrDate)');
         } elseif ($sameDay === false) {
@@ -866,7 +866,7 @@ class HomeController extends Controller
                 DB::raw('MIN(e.BillDate) as first_bill_date'),
                 DB::raw('MAX(e.BillDate) as last_bill_date')
             )
-            ->orderByDesc('claim_count')
+            ->orderByDesc('filled_total_amount')
             ->limit($limit)
             ->get();
     }

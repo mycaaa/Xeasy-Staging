@@ -124,3 +124,13 @@ span.flatpickr-weekday { color: var(--px-primary-tx) !important; }
 .flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { color: var(--px-primary-tx) !important; fill: var(--px-primary-tx) !important; }
 .flatpickr-months .flatpickr-prev-month svg path, .flatpickr-months .flatpickr-next-month svg path { fill: var(--px-primary-tx) !important; }
 .flatpickr-current-month, .flatpickr-current-month .cur-month, .flatpickr-current-month input.cur-year, .flatpickr-monthDropdown-months { color: var(--px-primary-tx) !important; }
+
+/* UX-02: action badges and icon links inside tables were 15 px tall with 9 px text - too small to read or tap */
+table.dataTable td a.badge, table.table td a.badge, table.dataTable td button.badge, table.table td button.badge {
+    font-size: 11px !important; padding: 5px 9px !important; line-height: 1.2; min-height: 24px;
+    display: inline-flex; align-items: center; gap: 3px;
+}
+table.dataTable td > a:has(> i:only-child), table.table td > a:has(> i:only-child) {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 26px; min-height: 26px; border-radius: 6px;
+}
+table.dataTable td > a:has(> i:only-child):hover, table.table td > a:has(> i:only-child):hover { background: var(--px-primary-bg); }

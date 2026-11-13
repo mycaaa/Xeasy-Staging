@@ -95,17 +95,19 @@
     display: flex; flex-direction: column; align-items: center; gap: 10px; color: #94a3b8;
     font-size: .82rem; font-weight: 500;
 }
+/* UX-02: compact empty state (one line, not a 150 px box) */
 .mcv-empty {
-    text-align: center; padding: 50px 24px;
-    background: #fff; border-radius: 14px;
-    border: 2px dashed #e2e8f0;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px 18px;
+    background: #fafbfd; border-radius: 10px;
+    border: 1px dashed #dbe2ec;
     width: 100%; flex-shrink: 0;
 }
 .mcv-empty-icon {
-    width: 60px; height: 60px;
-    background: #f1f5f9; border-radius: 50%;
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: #eef2f7; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 14px; font-size: 1.6rem; color: #94a3b8;
+    font-size: 1rem; color: #94a3b8;
 }
 .mcv-empty p { color: #64748b; font-size: .83rem; font-weight: 500; margin: 0; }
 
@@ -770,14 +772,21 @@
 <div class="container-fluid">
 <div class="mcv-root">
 
-    {{-- Top Marquee Banner (matches Flutter HomePage marquee notification) --}}
-    <div class="mcv-marquee-wrap" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:.78rem;color:#92400e;font-weight:600;">
-        <span style="display:inline-flex;align-items:center;gap:4px;background:#fef3c7;padding:2px 8px;border-radius:6px;color:#b45309;font-weight:700;flex-shrink:0;">
-            <i class="ri-notification-3-line"></i> Notice
+    {{-- UX-02: the due date as plain text (the scrolling banner cut the sentence off and never named the date) --}}
+    @php
+        try { $mcvDueDay = (int) \App\Models\SubmissionSetting::getLastDay((int) session('company_id', 1)); } catch (\Throwable $e) { $mcvDueDay = 0; }
+        $mcvPrev = now('Asia/Kolkata')->subMonthNoOverflow();
+    @endphp
+    <div class="mcv-notice" role="note" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.8rem;color:#78350f;">
+        <i class="ri-calendar-event-line" style="color:#b45309;font-size:1rem;" aria-hidden="true"></i>
+        <span>
+            @if ($mcvDueDay > 0)
+                Submit <strong>{{ $mcvPrev->format('F') }}</strong> claims by <strong>{{ $mcvDueDay }} {{ now('Asia/Kolkata')->format('F') }}</strong>.
+            @else
+                Submit each month's claims before the due date.
+            @endif
+            Attach clear photos of bills and odometer readings.
         </span>
-        <marquee behavior="scroll" direction="left" scrollamount="4" style="flex:1;">
-            Please submit all claims before the cutoff date. Ensure odometer reading photos and receipts are attached clearly.
-        </marquee>
     </div>
 
     {{-- Top Bar with Quick Actions --}}

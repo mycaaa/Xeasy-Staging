@@ -66,6 +66,9 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
 <script src="{{ asset('vendor/cdn/datatables.net-fixedcolumns@4.3.0/js/dataTables.fixedColumns.min.js') }}"></script>
 <script src="{{ asset('vendor/cdn/datatables.net-buttons@2.2.2/js/buttons.print.min.js') }}"></script>
 <script src="{{ asset('vendor/cdn/datatables.net-buttons@2.2.2/js/buttons.html5.min.js') }}"></script>
+{{-- UX-01: shared fixes; loaded before the page scripts so the table defaults apply to every list --}}
+<script>window.XEASY_LOGIN_URL = "{{ route('login') }}";</script>
+<script src="{{ URL::to('/') }}/custom/js/ux.js?v={{ filemtime(public_path('custom/js/ux.js')) }}"></script>
 {{-- PERF-06: pdfmake (about 2 MB) is only needed for the PDF export button; load it after the page is up --}}
 <script>
 (function () {
@@ -387,8 +390,6 @@ if (document.querySelector('lord-icon')) { var li = document.createElement('scri
     })();
 </script>
 <script src="{{ URL::to('/') }}/assets/js/app.js"></script>
-<script>window.XEASY_LOGIN_URL = "{{ route('login') }}";</script>
-<script src="{{ URL::to('/') }}/custom/js/ux.js?v={{ filemtime(public_path('custom/js/ux.js')) }}"></script>
 </body>
 
 </html>

@@ -313,6 +313,17 @@ $(document).ready(function () {
               });
     }
 
+    // DASH-UI-01: short rupee amounts for chart axes (₹2.4Cr, ₹18.5L, ₹40K)
+    function shortINR(v) {
+        const n = Number(v || 0), a = Math.abs(n);
+        if (a >= 1e7) return "₹" + (n / 1e7).toFixed(a >= 1e8 ? 0 : 1).replace(/\.0$/, "") + "Cr";
+        if (a >= 1e5) return "₹" + (n / 1e5).toFixed(a >= 1e6 ? 0 : 1).replace(/\.0$/, "") + "L";
+        if (a >= 1e3) return "₹" + Math.round(n / 1e3) + "K";
+        return "₹" + Math.round(n);
+    }
+    // stages in order, light to dark: Filled, Verified, Approved, Financed
+    const STAGE_COLORS = ["#b4c5f6", "#7f9ae6", "#4569cc", "#1e3a8a"];
+
     function getChartColorsArray(e) {
         if ($("#" + e).length) {
             var theme =
@@ -745,134 +756,35 @@ $(document).ready(function () {
     }
 
     function chartRenderMonthlyExpense(monthlyTotals) {
-        if (
-            expenseMonthlyChart &&
-            typeof expenseMonthlyChart.destroy === "function"
-        ) {
+        if (expenseMonthlyChart && typeof expenseMonthlyChart.destroy === "function") {
             expenseMonthlyChart.destroy();
         }
-        var expenseChartColors = getChartColorsArray("expense-monthly-chart");
+        // DASH-UI-01: the four stages side by side per month on one rupee axis
+        const pick = (k) => monthlyTotals.map((item) => Number(item[k] || 0));
         var options = {
             series: [
-                {
-                    name: "Filled Total",
-                    type: "bar",
-                    data: monthlyTotals.map((item) => item.FilledTotal || 0),
-                },
-                {
-                    name: "Verified Total",
-                    type: "bar",
-                    data: monthlyTotals.map((item) => item.VerifiedTotal || 0),
-                },
-                {
-                    name: "Approved Total",
-                    type: "bar",
-                    data: monthlyTotals.map((item) => item.ApprovedTotal || 0),
-                },
-                {
-                    name: "Financed Total",
-                    type: "area",
-                    data: monthlyTotals.map((item) => item.FinancedTotal || 0),
-                },
+                { name: "Filled", data: pick("FilledTotal") },
+                { name: "Verified", data: pick("VerifiedTotal") },
+                { name: "Approved", data: pick("ApprovedTotal") },
+                { name: "Financed", data: pick("FinancedTotal") },
             ],
-            chart: {
-                height: 374,
-                type: "line",
-                toolbar: {
-                    show: false,
-                },
-            },
-            stroke: {
-                curve: "smooth",
-                dashArray: [0, 0, 0, 3],
-                width: [0, 0, 0, 1],
-            },
-            fill: {
-                opacity: [1, 1, 1, 0.1],
-            },
-            markers: {
-                size: [0, 0, 0, 4],
-                strokeWidth: 2,
-                hover: {
-                    size: 4,
-                },
-            },
+            chart: { height: 374, type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+            plotOptions: { bar: { columnWidth: monthlyTotals.length > 6 ? "70%" : "45%", borderRadius: 3, borderRadiusApplication: "end" } },
+            dataLabels: { enabled: false },
+            stroke: { show: true, width: 2, colors: ["transparent"] },
+            colors: STAGE_COLORS,
             xaxis: {
-                categories: monthlyTotals.map((item) => item.MonthName || ""),
-                axisTicks: {
-                    show: false,
-                },
-                axisBorder: {
-                    show: false,
-                },
+                categories: monthlyTotals.map((item) => String(item.MonthName || "").slice(0, 3)),
+                axisTicks: { show: false },
+                axisBorder: { show: false },
             },
-            grid: {
-                show: true,
-                xaxis: {
-                    lines: {
-                        show: true,
-                    },
-                },
-                yaxis: {
-                    lines: {
-                        show: false,
-                    },
-                },
-                padding: {
-                    top: 0,
-                    right: -2,
-                    bottom: 15,
-                    left: 10,
-                },
-            },
-            legend: {
-                show: true,
-                horizontalAlign: "center",
-                offsetX: 0,
-                offsetY: -5,
-                markers: {
-                    width: 9,
-                    height: 9,
-                    radius: 6,
-                },
-                itemMargin: {
-                    horizontal: 10,
-                    vertical: 0,
-                },
-            },
-            plotOptions: {
-                bar: {
-                    columnWidth: "30%",
-                    barHeight: "70%",
-                },
-            },
-            colors: expenseChartColors,
-            tooltip: {
-                shared: true,
-                y: [
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                ],
-            },
+            yaxis: { forceNiceScale: true, labels: { formatter: (v) => shortINR(v) } },
+            grid: { borderColor: "#eef1f6", strokeDashArray: 3, padding: { left: 6, right: 6 } },
+            legend: { show: true, position: "bottom", horizontalAlign: "center", markers: { width: 10, height: 10, radius: 3 } },
+            tooltip: { shared: true, intersect: false, y: { formatter: (v) => formatCurrency(v) } },
+            noData: { text: "No claims in this period" },
         };
-        expenseMonthlyChart = new ApexCharts(
-            document.querySelector("#expense-monthly-chart"),
-            options
-        );
+        expenseMonthlyChart = new ApexCharts(document.querySelector("#expense-monthly-chart"), options);
         expenseMonthlyChart.render();
     }
 
@@ -884,183 +796,43 @@ $(document).ready(function () {
         if (departmentChart && typeof departmentChart.destroy === "function") {
             departmentChart.destroy();
         }
-        var chartMultiColors = getChartColorsArray("multi_chart");
+        // DASH-UI-01: this year and last year on the same rupee axis (they had separate axes, 0-5 against
+        // 0-60 lakh, so the bars could not be compared); the change in % is in the tooltip
+        const cur = departmentTotals.map((item) => Number(item["TotalFinancedTAmt_Y" + yearId] || 0));
+        const prev = departmentTotals.map((item) => Number(item["TotalFinancedTAmt_Y" + previousYearId] || 0));
+        const change = (i) => (prev[i] ? (((cur[i] - prev[i]) / prev[i]) * 100).toFixed(1) + "% vs last year" : "no spend last year");
         var multiOptions = {
             series: [
-                {
-                    name: "Current Year",
-                    type: "column",
-                    data: departmentTotals.map(
-                        (item) => item["TotalFinancedTAmt_Y" + yearId] || 0
-                    ),
-                },
-                {
-                    name: "Previous Year",
-                    type: "column",
-                    data: departmentTotals.map(
-                        (item) =>
-                            item["TotalFinancedTAmt_Y" + previousYearId] || 0
-                    ),
-                },
-                {
-                    name: "Variation (%)",
-                    type: "line",
-                    data: departmentTotals.map((item) => {
-                        var current = item["TotalFinancedTAmt_Y" + yearId] || 0;
-                        var previous =
-                            item["TotalFinancedTAmt_Y" + previousYearId] || 0;
-                        return previous
-                            ? (((current - previous) / previous) * 100).toFixed(
-                                  2
-                              )
-                            : 0;
-                    }),
-                },
+                { name: "Last year", data: prev },
+                { name: "This year", data: cur },
             ],
-            chart: {
-                height: 350,
-                type: "line",
-                stacked: false,
-                toolbar: {
-                    show: false,
-                },
-            },
-            dataLabels: {
-                enabled: false,
-            },
-            stroke: {
-                width: [1, 1, 4],
-            },
+            chart: { height: 350, type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+            plotOptions: { bar: { columnWidth: "65%", borderRadius: 2, borderRadiusApplication: "end" } },
+            dataLabels: { enabled: false },
+            stroke: { show: true, width: 1, colors: ["transparent"] },
+            colors: ["#b4c5f6", "#1e3a8a"],
             xaxis: {
-                categories: departmentTotals.map(
-                    (item) => item.department_code || "-"
-                ),
-                labels: {
-                    rotate: -45,
-                    rotateAlways: true,
-                    trim: false,
-                    style: {
-                        fontSize: "11px",
-                    },
-                },
-                tooltip: {
-                    enabled: true,
-                },
+                categories: departmentTotals.map((item) => item.department_code || "-"),
+                labels: { rotate: -45, rotateAlways: departmentTotals.length > 10, trim: false, style: { fontSize: "11px" } },
+                axisTicks: { show: false },
             },
-            yaxis: [
-                {
-                    axisTicks: {
-                        show: true,
-                    },
-                    axisBorder: {
-                        show: true,
-                        color: chartMultiColors[0],
-                    },
-                    labels: {
-                        style: {
-                            colors: chartMultiColors[0],
-                        },
-                    },
-                    title: {
-                        text: "Current Year Expenses",
-                        style: {
-                            color: chartMultiColors[0],
-                            fontWeight: 600,
-                        },
-                    },
-                    tooltip: {
-                        enabled: true,
-                    },
-                },
-                {
-                    seriesName: "Previous Year",
-                    opposite: true,
-                    axisTicks: {
-                        show: true,
-                    },
-                    axisBorder: {
-                        show: true,
-                        color: chartMultiColors[1],
-                    },
-                    labels: {
-                        style: {
-                            colors: chartMultiColors[1],
-                        },
-                    },
-                    title: {
-                        text: "Previous Year Expenses",
-                        style: {
-                            color: chartMultiColors[1],
-                            fontWeight: 600,
-                        },
-                    },
-                },
-                {
-                    seriesName: "Variation",
-                    opposite: true,
-                    axisTicks: {
-                        show: true,
-                    },
-                    axisBorder: {
-                        show: true,
-                        color: chartMultiColors[2],
-                    },
-                    labels: {
-                        style: {
-                            colors: chartMultiColors[2],
-                        },
-                    },
-                    title: {
-                        text: "Variation (%)",
-                        style: {
-                            color: chartMultiColors[2],
-                            fontWeight: 600,
-                        },
-                    },
-                    formatter: (val) => formatCurrency(val.toFixed(2)) + "%",
-                },
-            ],
+            yaxis: { forceNiceScale: true, labels: { formatter: (v) => shortINR(v) } },
+            grid: { borderColor: "#eef1f6", strokeDashArray: 3 },
+            legend: { position: "bottom", horizontalAlign: "center", markers: { width: 10, height: 10, radius: 3 } },
             tooltip: {
-                fixed: {
-                    enabled: true,
-                    position: "topLeft",
-                    offsetY: 30,
-                    offsetX: 60,
+                shared: true,
+                intersect: false,
+                x: {
+                    formatter: (v, o) => {
+                        const d = departmentTotals[o && o.dataPointIndex] || {};
+                        return (d.department_name || v) + (o && o.dataPointIndex != null ? " — " + change(o.dataPointIndex) : "");
+                    },
                 },
-                y: [
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                    {
-                        formatter: (val) =>
-                            val !== undefined ? formatCurrency(val) : val,
-                    },
-                    {
-                        formatter: (val) =>
-                            val !== undefined
-                                ? formatCurrency(val.toFixed(2)) + "%"
-                                : val,
-                    },
-                ],
+                y: { formatter: (v) => formatCurrency(v) },
             },
-            legend: {
-                horizontalAlign: "center",
-                position: "bottom",
-                fontSize: "14px",
-                fontWeight: 500,
-                markers: {
-                    width: 12,
-                    height: 12,
-                    radius: 12,
-                },
-            },
-            colors: chartMultiColors,
+            noData: { text: "No financed claims in this period" },
         };
-        departmentChart = new ApexCharts(
-            document.querySelector("#multi_chart"),
-            multiOptions
-        );
+        departmentChart = new ApexCharts(document.querySelector("#multi_chart"), multiOptions);
         departmentChart.render();
     }
 
@@ -1068,126 +840,42 @@ $(document).ready(function () {
         if (claimTypeChart && typeof claimTypeChart.destroy === "function") {
             claimTypeChart.destroy();
         }
-        var claimTypeColors = getChartColorsArray("claim-type-chart");
+        // DASH-UI-01: claim types are categories, not a timeline: horizontal bars, biggest first, full names
+        const rows = claimTypeTotals
+            .map((item) => ({
+                name: item.ClaimName || item.ClaimCode || "-",
+                f: Number(item.FilledTotal || 0), v: Number(item.VerifiedTotal || 0),
+                a: Number(item.ApprovedTotal || 0), fin: Number(item.FinancedTotal || 0),
+            }))
+            .filter((r) => r.f || r.v || r.a || r.fin)
+            .sort((x, y) => y.f - x.f);
+        // the 12 biggest types, the rest as one bar (the full list is in the table behind the icon)
+        if (rows.length > 13) {
+            const rest = rows.splice(12);
+            rows.push(rest.reduce((t, r) => ({ name: "Other " + rest.length + " types", f: t.f + r.f, v: t.v + r.v, a: t.a + r.a, fin: t.fin + r.fin }), { f: 0, v: 0, a: 0, fin: 0 }));
+        }
+        const el = document.querySelector("#claim-type-chart");
+        el.style.height = Math.max(320, rows.length * 34 + 90) + "px";
         var claimTypeOptions = {
             series: [
-                {
-                    name: "Filled",
-                    type: "area",
-                    data: claimTypeTotals.map((item) =>
-                        parseFloat(item.FilledTotal || 0)
-                    ),
-                },
-                {
-                    name: "Verified",
-                    type: "bar",
-                    data: claimTypeTotals.map((item) =>
-                        parseFloat(item.VerifiedTotal || 0)
-                    ),
-                },
-                {
-                    name: "Approved",
-                    type: "line",
-                    data: claimTypeTotals.map((item) =>
-                        parseFloat(item.ApprovedTotal || 0)
-                    ),
-                },
-                {
-                    name: "Financed",
-                    type: "line",
-                    data: claimTypeTotals.map((item) =>
-                        parseFloat(item.FinancedTotal || 0)
-                    ),
-                },
+                { name: "Filled", data: rows.map((r) => r.f) },
+                { name: "Verified", data: rows.map((r) => r.v) },
+                { name: "Approved", data: rows.map((r) => r.a) },
+                { name: "Financed", data: rows.map((r) => r.fin) },
             ],
-            chart: {
-                height: 370,
-                type: "line",
-                toolbar: {
-                    show: false,
-                },
-            },
-            stroke: {
-                curve: "smooth",
-                width: [2, 0, 2.2, 2.2],
-                dashArray: [0, 0, 5, 3],
-            },
-            fill: {
-                opacity: [0.2, 1, 1, 1],
-            },
-            markers: {
-                size: [4, 0, 5, 5],
-                hover: {
-                    size: 6,
-                },
-            },
-            xaxis: {
-                categories: claimTypeTotals.map((item) => item.ClaimCode),
-                axisTicks: {
-                    show: false,
-                },
-                axisBorder: {
-                    show: false,
-                },
-                labels: {
-                    rotate: -45,
-                    style: {
-                        fontSize: "12px",
-                    },
-                },
-            },
-            grid: {
-                show: true,
-                xaxis: {
-                    lines: {
-                        show: true,
-                    },
-                },
-                yaxis: {
-                    lines: {
-                        show: true,
-                    },
-                },
-                padding: {
-                    top: 0,
-                    right: -2,
-                    bottom: 15,
-                    left: 10,
-                },
-            },
-            legend: {
-                show: true,
-                horizontalAlign: "center",
-                offsetX: 0,
-                offsetY: -5,
-                markers: {
-                    width: 9,
-                    height: 9,
-                    radius: 6,
-                },
-                itemMargin: {
-                    horizontal: 10,
-                    vertical: 0,
-                },
-            },
-            colors: claimTypeColors,
-            plotOptions: {
-                bar: {
-                    columnWidth: "30%",
-                },
-            },
-            tooltip: {
-                shared: true,
-                y: {
-                    formatter: (val) =>
-                        val != null ? formatCurrency(val) : val,
-                },
-            },
+            chart: { height: Math.max(320, rows.length * 34 + 90), type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+            plotOptions: { bar: { horizontal: true, barHeight: "78%", borderRadius: 2, borderRadiusApplication: "end" } },
+            dataLabels: { enabled: false },
+            stroke: { show: true, width: 1, colors: ["transparent"] },
+            colors: STAGE_COLORS,
+            xaxis: { categories: rows.map((r) => r.name), labels: { formatter: (v) => shortINR(v) } },
+            yaxis: { labels: { maxWidth: 220, style: { fontSize: "12px" } } },
+            grid: { borderColor: "#eef1f6", strokeDashArray: 3, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+            legend: { position: "top", horizontalAlign: "left", markers: { width: 10, height: 10, radius: 3 } },
+            tooltip: { shared: true, intersect: false, y: { formatter: (v) => formatCurrency(v) } },
+            noData: { text: "No claims in this period" },
         };
-        claimTypeChart = new ApexCharts(
-            document.querySelector("#claim-type-chart"),
-            claimTypeOptions
-        );
+        claimTypeChart = new ApexCharts(el, claimTypeOptions);
         claimTypeChart.render();
     }
 

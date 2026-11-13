@@ -239,5 +239,5 @@
 @endsection @push('scripts')
     <script src="assets/libs/apexcharts/apexcharts.min.js"></script>
     <script src="{{ asset('vendor/cdn/chart.js@2.9.4/dist/Chart.js') }}"></script>
-    <script src="{{ asset('custom/js/pages/home.js') }}"></script>
+    <script src="{{ asset('custom/js/pages/home.js') }}?v={{ filemtime(public_path('custom/js/pages/home.js')) }}"></script>
 @endpush

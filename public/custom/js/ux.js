@@ -74,6 +74,9 @@
             notify('This table could not be loaded. Refresh the page; if it keeps happening, tell the Xeasy team which page it was.');
         };
         $.extend(true, $.fn.dataTable.defaults, {
+            // UX-02: 25 rows a page (10 meant 30+ pages on the verifier queue); pages that set their own keep it
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
             language: {
                 emptyTable: 'Nothing to show yet.',
                 zeroRecords: 'No matching records. Try a different search or filter.',
@@ -100,8 +103,8 @@
 
     function start() {
         setTitle(markActiveMenu());
-        tables();
         sessionExpiry();
     }
+    tables(); // now, before the page scripts create their tables
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
