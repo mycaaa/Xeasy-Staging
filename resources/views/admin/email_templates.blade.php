@@ -318,7 +318,7 @@
 @endsection
 @push('scripts')
 <script src="{{ asset('custom/js/tinymce/tinymce.min.js') }}"></script>
-    <script src="{{ asset('custom/js/pages/email_templates.js') }}"></script>
+    <script src="{{ asset('custom/js/pages/email_templates.js') }}?v={{ filemtime(public_path('custom/js/pages/email_templates.js')) }}"></script>
     <script>
     // Notification Schedule Management
     $(document).ready(function() {

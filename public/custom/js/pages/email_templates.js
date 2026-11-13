@@ -11,7 +11,7 @@ $(document).ready(function () {
 
     tinymce.init({
         selector: "#body_html",
-        plugins: "lists table preview paste",
+        plugins: "lists table preview", // paste is built into TinyMCE 6+ (the plugin file no longer exists)
         toolbar:
             "bold italic underline | alignleft aligncenter alignright | bullist numlist | link image | table | preview",
         height: 250,
