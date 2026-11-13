@@ -1086,8 +1086,10 @@ class VerifierController extends Controller
             // 2. Already updated RatePerKM on the expense claim record (> 0)
             // 3. System calculated rate
             // RKM-RATE-01 (10 Nov 2026): the rate is always the employee's eligible rate on the trip date
+            $manualRate = false;
             if (config('claim_rules.running_km.manual_rate', false) && $request->filled('rate') && (float) $request->rate > 0) {
                 $rate = (float) $request->rate;
+                $manualRate = true;
             } else {
                 $rate = $systemRate > 0 ? $systemRate : (float) ($expense->RatePerKM ?? 0);
             }
@@ -1099,7 +1101,10 @@ class VerifierController extends Controller
             $filledAmt = (float) ($expense->FilledTAmt ?? 0) > 0 ? $expense->FilledTAmt : $totAmt;
             // Q-02: verified above claimed needs a reason
             $expense->ExpId = (int) $request->expId;
-            if ($capMsg = \App\Services\Claims\StageCap::check(session('expense_connection'), (int) $yearId, $expense, $totAmt, 'verify', (string) $request->input('verifyremark', $request->input('remark', '')), 'running_km_verify')) {
+            // RKM-VERIFY-01 (13 Nov 2026): the amount here is km x the employee's eligible rate (worked out by the system,
+            // RKM-RATE-01), so it may be above what the app put as claimed; that needs no remark - this screen has none,
+            // and such claims could not be verified at all. A rate typed by hand still needs the reason.
+            if ($manualRate && $capMsg = \App\Services\Claims\StageCap::check(session('expense_connection'), (int) $yearId, $expense, $totAmt, 'verify', (string) $request->input('verifyremark', $request->input('remark', '')), 'running_km_verify')) {
                 return response()->json(['success' => false, 'message' => $capMsg, 'remark_required' => true], 422);
             }
             $verifyUpdate = [

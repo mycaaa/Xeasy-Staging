@@ -145,7 +145,6 @@
                                                 </th>
                                                 <th rowspan="2" scope="col" style="align-content: center;">2W/4W</th>
                                                 <th rowspan="2" scope="col" style="align-content: center;">Update</th>
-                                                <th rowspan="2" scope="col" style="align-content: center;">Verify</th>
                                                 <th rowspan="2" scope="col" style="align-content: center;">Details</th>
                                                 @if(isSuperAdmin())
                                                 <th rowspan="2" scope="col" style="align-content: center; min-width: 130px;">
@@ -155,6 +154,8 @@
                                                     </div>
                                                 </th>
                                                 @endif
+                                                {{-- RKM-VERIFY-01: Verify is the last column --}}
+                                                <th rowspan="2" scope="col" style="align-content: center;">Verify</th>
                                             </tr>
                                             <tr>
                                                 <th scope="col" style="align-content: center;">Opn. Img</th>
@@ -593,11 +594,11 @@
                     { data: "amount_column", className: "text-center", searchable: false, orderable: false },
                     { data: "vehicle_type",  className: "text-center", searchable: false, orderable: false },
                     { data: "update_action", className: "text-center", searchable: false, orderable: false },
-                    { data: "verify_action", className: "text-center", searchable: false, orderable: false },
                     { data: "details_action",className: "text-center", searchable: false, orderable: false }
                     @if(isSuperAdmin())
                     ,{ data: "deactivate_action", className: "text-center", searchable: false, orderable: false }
                     @endif
+                    ,{ data: "verify_action", className: "text-center", searchable: false, orderable: false } // RKM-VERIFY-01: last column
                 ];
 
                 let columnDefs = [];
