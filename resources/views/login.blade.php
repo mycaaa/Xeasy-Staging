@@ -15,15 +15,19 @@
     <link href="{{ URL::to('/') }}/assets/css/icons.min.css" rel="stylesheet" type="text/css" />
     <style>
         :root {
-            --navy: #0a1d63;
-            --navy-2: #13297a;
-            --navy-line: rgba(255, 255, 255, .16);
-            --ink: #141b2d;
+            /* PASTEL-01 palette (assets/css/pastel.css) */
+            --navy: #1e3a8a;          /* pastel primary text */
+            --navy-2: #172f73;
+            --sky: #dde6ff;           /* pastel primary background */
+            --sky-bd: #c2d1fb;
+            --sky-hv: #cbd8fd;
+            --navy-line: #c2d1fb;
+            --ink: #1f2937;
             --muted: #5b6478;
-            --paper: #f4f6fb;
-            --line: #d6dce8;
-            --field: #2e8b57;
-            --marigold: #f2b43c;
+            --paper: #f7f9fe;
+            --line: #d7dbe3;
+            --field-bg: #d7f3e6; --field-tx: #065f46; --field-bd: #b5e6cf;
+            --sun-bg: #fdefd2; --sun-tx: #7a4500; --sun-bd: #f8dca3;
             --danger: #b42318;
             --radius: 10px;
         }
@@ -41,8 +45,8 @@
 
         /* ── left: what Xeasy is, and the path every claim takes ── */
         .story {
-            background: var(--navy);
-            color: #fff;
+            background: var(--sky);
+            color: var(--navy);
             padding: 44px 56px;
             display: flex;
             flex-direction: column;
@@ -52,11 +56,11 @@
         .story::after { /* faint rows, like a sown field seen from above */
             content: "";
             position: absolute; inset: 0;
-            background: repeating-linear-gradient(-28deg, transparent 0 46px, rgba(255,255,255,.035) 46px 48px);
+            background: repeating-linear-gradient(-28deg, transparent 0 46px, rgba(30,58,138,.045) 46px 48px);
             pointer-events: none;
         }
         .story > * { position: relative; z-index: 1; }
-        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--navy); }
         .brand img { width: 64px; height: 64px; object-fit: contain; margin: -8px; }
         .brand span { font-weight: 700; font-size: 15px; opacity: .85; }
         .story h2 {
@@ -67,7 +71,7 @@
             margin: auto 0 14px;
             max-width: 15ch;
         }
-        .story .lede { margin: 0 0 36px; max-width: 42ch; color: rgba(255,255,255,.76); font-size: 16px; }
+        .story .lede { margin: 0 0 36px; max-width: 42ch; color: #3b4f8f; font-size: 16px; }
 
         .path { list-style: none; margin: 0 0 auto; padding: 0; max-width: 360px; }
         .path li {
@@ -75,19 +79,19 @@
             padding-bottom: 14px; position: relative; font-size: 14.5px;
         }
         .path li::before { /* the line joining the stages */
-            content: ""; position: absolute; left: 10px; top: 18px; bottom: -2px; width: 2px; background: var(--navy-line);
+            content: ""; position: absolute; left: 10px; top: 18px; bottom: -2px; width: 2px; background: #b4c5f6;
         }
         .path li:last-child::before { display: none; }
         .path .dot {
             width: 22px; height: 22px; border-radius: 50%;
-            border: 2px solid rgba(255,255,255,.55); background: var(--navy);
-            display: grid; place-items: center; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8);
+            border: 2px solid #9fb3ef; background: #fff;
+            display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--navy);
         }
-        .path li:first-child .dot { background: var(--marigold); border-color: var(--marigold); color: var(--navy); }
-        .path li:last-child .dot { background: var(--field); border-color: var(--field); color: #fff; }
+        .path li:first-child .dot { background: var(--sun-bg); border-color: var(--sun-bd); color: var(--sun-tx); }
+        .path li:last-child .dot { background: var(--field-bg); border-color: var(--field-bd); color: var(--field-tx); }
         .path b { display: block; font-weight: 600; }
-        .path small { color: rgba(255,255,255,.6); font-size: 13px; }
-        .story .foot { margin-top: 32px; font-size: 12.5px; color: rgba(255,255,255,.55); }
+        .path small { color: #4d5f9a; font-size: 13px; }
+        .story .foot { margin-top: 32px; font-size: 12.5px; color: #5a6aa0; }
 
         /* ── right: the form ── */
         .panel { display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
@@ -121,7 +125,7 @@
             transition: background .15s, color .15s;
         }
         .companies label:hover { color: var(--ink); }
-        .companies input:checked + label { background: var(--navy); color: #fff; }
+        .companies input:checked + label { background: var(--sky); color: var(--navy); box-shadow: inset 0 0 0 1.5px var(--sky-bd); }
         .companies input:focus-visible + label { outline: 3px solid rgba(19, 41, 122, .35); outline-offset: 1px; }
 
         .pass { position: relative; }
@@ -138,18 +142,18 @@
         .check input { width: 17px; height: 17px; accent-color: var(--navy); }
 
         .btn {
-            width: 100%; height: 48px; border: 0; border-radius: var(--radius);
-            background: var(--navy); color: #fff; font: inherit; font-weight: 700; font-size: 15.5px; cursor: pointer;
+            width: 100%; height: 48px; border: 1.5px solid var(--sky-bd); border-radius: var(--radius);
+            background: var(--sky); color: var(--navy); font: inherit; font-weight: 700; font-size: 15.5px; cursor: pointer;
             transition: background .15s, transform .05s;
         }
-        .btn:hover { background: var(--navy-2); }
+        .btn:hover { background: var(--sky-hv); }
         .btn:active { transform: translateY(1px); }
         .btn:focus-visible { outline: 3px solid rgba(19, 41, 122, .4); outline-offset: 2px; }
         .btn[disabled] { opacity: .7; cursor: progress; }
 
         .notice { margin: 0 0 20px; padding: 12px 14px; border-radius: var(--radius); font-size: 14px; }
-        .notice.err { background: #fdecea; color: #7a1a12; }
-        .notice.ok { background: #e8f5ee; color: #14532d; }
+        .notice.err { background: #fde2e2; color: #9b1c1c; border: 1px solid #f8c4c4; }
+        .notice.ok { background: var(--field-bg); color: var(--field-tx); border: 1px solid var(--field-bd); }
         .small { margin-top: 22px; font-size: 13px; color: var(--muted); text-align: center; }
         .small a { color: var(--navy-2); font-weight: 600; }
 
@@ -181,7 +185,7 @@
     <div class="shell">
         <aside class="story" aria-label="About Xeasy">
             <a href="{{ URL::to('/') }}" class="brand">
-                <img src="{{ URL::to('/') }}/custom/xeasy_logo_ligth.png" alt="Xeasy">
+                <img src="{{ URL::to('/') }}/custom/xeasy_logo_dark.png" alt="Xeasy">
                 <span>Expense claims for VNR Seeds</span>
             </a>
             <h2>Every claim, from bill to payment.</h2>
