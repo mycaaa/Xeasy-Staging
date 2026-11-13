@@ -495,6 +495,21 @@ class ClaimSubmissionValidator
      * year the claim is filed in (a bill from another year cannot be stored in this year's
      * tables). Empty dates are left to the form's own required-field check.
      */
+    /** ODO-FY-01: first day an odometer reading may be dated on the web form (1 April of the session's year), d-m-Y. */
+    public static function odometerMinDate(): string
+    {
+        try {
+            $start = app(self::class)->fyStartYear((int) session('year_id', 0), session('expense_connection'));
+        } catch (\Throwable $e) {
+            $start = 0;
+        }
+        if ($start <= 0) {
+            $start = (int) date('n') >= 4 ? (int) date('Y') : (int) date('Y') - 1;
+        }
+
+        return sprintf('01-04-%04d', $start);
+    }
+
     public function billDate($date, ?int $yearId = null, ?string $connection = null): array
     {
         if (! $this->enabled() || ! config('claim_rules.bill_date.enabled', true)) {

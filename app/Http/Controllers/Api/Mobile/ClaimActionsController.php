@@ -977,6 +977,13 @@ class ClaimActionsController extends BaseMobileController
             return $this->error('Opening Image Missing!');
         }
 
+        // ODO-FY-01 (13 Nov 2026): a back-dated odometer is accepted for any date of the claim's financial year up to
+        // today (late entries still go through the back-date approval); another year or a future date is refused.
+        if ($odoDateErr = \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->billDate($dateFor, (int) $yearId, $this->getExpenseConnection($comId)))) {
+            return $this->error(str_replace('Bill date', 'Odometer date', $odoDateErr));
+        }
+
+
         $conn = $this->getExpenseConnection($comId);
         $claimsTable = $this->claimsTable($yearId);
         $uploadsTable = $this->uploadsTable($yearId);
@@ -1090,6 +1097,11 @@ class ClaimActionsController extends BaseMobileController
 
         if (!$request->hasFile('closing_img')) {
             return $this->error('Closing Image Missing!');
+        }
+
+        // ODO-FY-01: same date rule as the opening reading
+        if ($odoDateErr = \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->billDate($dateFor, (int) $yearId, $this->getExpenseConnection($comId)))) {
+            return $this->error(str_replace('Bill date', 'Odometer date', $odoDateErr));
         }
 
         $conn = $this->getExpenseConnection($comId);

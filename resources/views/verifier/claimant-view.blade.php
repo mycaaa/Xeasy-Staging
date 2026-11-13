@@ -796,7 +796,7 @@
             <a href="{{ url('/new-claim') }}" class="mcv-btn-h" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;" title="DA Claim">
                 <i class="ri-restaurant-line"></i> DA Claim
             </a>
-            <a href="{{ url('/odometer') }}" class="mcv-btn-h" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;" title="Odometer Claim">
+            <a href="{{ url('/new-claim') }}?odometer=1" class="mcv-btn-h" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;" title="Odometer Claim">
                 <i class="ri-motorbike-line"></i> Odometer
             </a>
             <a href="{{ url('/new-claim') }}" class="mcv-btn-h mcv-btn-new" title="Upload Bill">

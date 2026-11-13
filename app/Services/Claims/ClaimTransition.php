@@ -47,7 +47,7 @@ class ClaimTransition
         } else {
             $q->whereIn('ExpId', array_map('intval', (array) $claims));
         }
-        $rows = $q->get(['ExpId', 'ClaimStatus', 'CrBy', 'ClaimId', 'odomtr_opening', 'odomtr_closing', 'FilledBy']);
+        $rows = $q->get(['ExpId', 'ClaimStatus', 'CrBy', 'ClaimId', 'odomtr_opening', 'odomtr_closing', 'FilledBy', 'ClaimAtStep', 'ClaimMonth']);
         if ($rows->isEmpty()) {
             return [];
         }
@@ -76,6 +76,14 @@ class ClaimTransition
                 $why = "{$from} -> {$to} not allowed for {$role}";
             } elseif (! self::actorHolds($role, $user, $actorEmp, (int) $r->CrBy)) {
                 $why = "actor {$actorEmp} is not {$role} for employee {$r->CrBy}";
+            }
+            // REVERT-EDIT-01 (13 Nov 2026): the verifier reverted the month ("Revert to Pending" puts every claim back at
+            // step 3) after the approver had approved some claims. Those claims stay "Approved" and could not be
+            // verified again. Allowed while the claim is back at step 3 and the approver has not submitted the month.
+            if ($why !== null && $process === 'vnr' && $role === 'verifier' && $to === 'Verified' && $from === 'Approved'
+                && (int) ($r->ClaimAtStep ?? 99) <= 3 && self::actorHolds($role, $user, $actorEmp, (int) $r->CrBy)
+                && ! self::monthApproverSubmitted($db, $yearId, (int) $r->CrBy, (int) ($r->ClaimMonth ?? 0))) {
+                $why = null;
             }
             if ($why !== null && $from === $to) {
                 $why = null; // same status again (re-save): not a transition
@@ -127,6 +135,20 @@ class ClaimTransition
         }
 
         return self::guard($conn, (int) $m[1], $claims, $to, $role, $source, $remark, $mode, $actorEmp, $companyId);
+    }
+
+    /** The approver did the final submit of this month (monthexpensefinal.Approved_Date set). */
+    private static function monthApproverSubmitted($db, int $yearId, int $empId, int $month): bool
+    {
+        if ($month <= 0) {
+            return true;
+        }
+        try {
+            return $db->table("y{$yearId}_monthexpensefinal")->where('EmployeeID', $empId)->where('Month', $month)->where('YearId', $yearId)
+                ->whereNotNull('Approved_Date')->where('Approved_Date', '>', '1970-01-01')->exists();
+        } catch (\Throwable $e) {
+            return true;
+        }
     }
 
     public static function norm($status): string

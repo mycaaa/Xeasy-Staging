@@ -2074,8 +2074,12 @@ $(document).ready(function () {
             "data-modal-cgid": cgId,
             "data-modal-empid": empId,
         });
-        // APPR-RO-01: opened from an approver screen (or the dashboard) -> documents and data entry are view-only
-        const readOnly = String(modal.attr("data-readonly-page")) === "1" || $(this).closest("#dayModal, #rmDayModal").length > 0;
+        // APPR-RO-01: opened from an approver screen (or the dashboard) -> documents and data entry are view-only.
+        // REVERT-EDIT-01: never for the claimant's own claim - a claim returned / reverted to the claimant must stay
+        // editable from the dashboard (the server still decides what may change at which stage).
+        const viewer = String(modal.attr("data-viewer-empid") || "");
+        const ownClaim = viewer !== "" && viewer !== "0" && String(empId || "") === viewer;
+        const readOnly = !ownClaim && (String(modal.attr("data-readonly-page")) === "1" || $(this).closest("#dayModal, #rmDayModal, #approver-tab").length > 0);
         modal.attr("data-readonly", readOnly ? "1" : "0");
         window.xeasyClaimReadOnly(readOnly);
         $("#expIdValue").text(expId);

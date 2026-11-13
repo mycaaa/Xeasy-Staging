@@ -485,6 +485,7 @@ $companyId = session('company_id');
             flatpickr(selector, {
                 dateFormat: opts.format || "d-m-Y",
                 enableYearSelection: true,
+                minDate: opts.minDate || null,
                 maxDate: today,
                 defaultDate: opts.noDefault ? null : today,
                 onReady() {
@@ -571,9 +572,14 @@ $companyId = session('company_id');
 
         $("#openOdometerBtn").on("click", function() {
             loadOdometerData("{{ date('Y-m-d') }}");
-            initClaimDatePicker("#billDate");
+            // ODO-FY-01: back-dated odometer readings - any day of the current financial year up to today
+            initClaimDatePicker("#billDate", { minDate: "{{ \App\Services\ClaimRules\ClaimSubmissionValidator::odometerMinDate() }}" });
             $("#odometerModal").modal('show');
         });
+        // the "Odometer" button on My Claims opens this page with ?odometer=1
+        if (new URLSearchParams(window.location.search).get("odometer") === "1") {
+            setTimeout(function () { $("#openOdometerBtn").trigger("click"); }, 300);
+        }
 
         $("#billDate").on("change", function() {
             const selectedDate = $(this).val();

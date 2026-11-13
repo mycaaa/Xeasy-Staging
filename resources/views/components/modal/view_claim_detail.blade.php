@@ -1,4 +1,5 @@
     <div class="modal fade" id="claimDetailModal" data-bs-backdrop="static" data-modal-expid="" data-modal-empid=""
+        data-viewer-empid="{{ (int) session('employee_id') }}"
         data-readonly-page="{{ (request()->is('approver', 'approver/*', 'vnr/approver*', 'vvnr/approver*', 'nursery/approver*', 'approver-dashboard*', 'dashboard', 'employee-report') || request()->routeIs('employee.dashboard')) ? 1 : 0 }}"
         data-modal-claimid="" data-modal-cgid="" tabindex="-1" aria-labelledby="claimDetailModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen">
