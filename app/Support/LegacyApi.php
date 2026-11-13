@@ -93,8 +93,18 @@ class LegacyApi
     {
         try {
             $token = session('token_id');
+            // WEB-TOKEN-01: the token kept at web login goes stale when the employee logs in on the app
+            // (LoginController writes a new one); use the employee's current token
+            $emp = (int) (session('employee_id') ?? 0);
+            if ($emp > 0) {
+                $current = \Illuminate\Support\Facades\DB::connection(session('hrims_connection') ?: 'hrims')
+                    ->table('hrm_employee')->where('EmployeeID', $emp)->value('xeasy_tokenid');
+                if (is_string($current) && strlen(trim($current)) > 5) {
+                    $token = trim($current);
+                }
+            }
         } catch (\Throwable $e) {
-            return null;
+            $token = $token ?? null;
         }
 
         return (is_string($token) && strlen(trim($token)) > 5) ? trim($token) : null;

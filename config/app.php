@@ -149,7 +149,10 @@ return [
     'sso_jwt_key' => env('SSO_JWT_KEY', ''),
     'sso_jwt_require_exp' => (bool) env('SSO_JWT_REQUIRE_EXP', false),
 
-    'internal_api_key' => env('INTERNAL_API_KEY', ''),
+    // WEB-TOKEN-01 (13 Nov 2026): without INTERNAL_API_KEY in .env the web screens' calls to this app's own claim API
+    // fell back to the employee's app login token, which changes whenever the employee logs in on the phone
+    // ("Invalid Employee!" on bill upload). A key derived from APP_KEY is used then; it never leaves the server.
+    'internal_api_key' => env('INTERNAL_API_KEY') ?: (env('APP_KEY') ? hash_hmac('sha256', 'xeasy-internal-relay', (string) env('APP_KEY')) : ''),
     'cron_key' => env('CRON_KEY', ''),
 
     // SCHED-01: scheduler switches
