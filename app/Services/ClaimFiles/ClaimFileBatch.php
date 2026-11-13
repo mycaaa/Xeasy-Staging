@@ -29,9 +29,10 @@ class ClaimFileBatch
      * Store one uploaded file at the mobile app's path Expense/{yearId}/{empId}/{name}
      * (same formula as S3Service::generateS3Path). Returns the stored file name.
      */
-    public function putMobile($file, int $yearId, int $empId, string $name, string $field = ''): string
+    public function putMobile($file, int $yearId, int $empId, string $name, string $field = '', ?int $companyId = null): string
     {
-        $this->put("Expense/{$yearId}/{$empId}/{$name}", $file, $field, $name);
+        // S3-FOLDER-01: the company's folder (VNR xeasy/, VVNR xeasy_vvnr/) - was always Expense/
+        $this->put(\App\Support\ClaimStorage::path($yearId, $empId, $name, $companyId), $file, $field, $name);
 
         return $name;
     }

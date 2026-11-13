@@ -145,7 +145,7 @@ class UpiProof
             $s3 = (string) config('filesystems.disks.s3.bucket') !== '';
             $disk = $s3 ? 's3' : 'local';
             $name = 'UPI_'.$expId.'_'.date('dmyHis').ClaimFileBatch::uniqueSuffix().'.'.$ext;
-            $base = $companyId === 11 ? 'VVNR_Expense' : 'Expense';
+            $base = \App\Support\ClaimStorage::prefix($companyId); // S3-FOLDER-01
             $path = $s3 ? "{$base}/{$claim->ClaimYearId}/{$claim->CrBy}/{$name}" : "upi_proof/{$companyId}/{$yearId}/{$claim->CrBy}/{$name}";
 
             $files = new ClaimFileBatch($disk);

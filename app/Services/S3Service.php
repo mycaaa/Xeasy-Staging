@@ -54,6 +54,8 @@ class S3Service
     public function fileExists(string $path): bool
     {
         try {
+            $path = \App\Support\ClaimStorage::resolve($path); // S3-FOLDER-01: new or old company folder
+
             return $this->disk->exists($path);
         } catch (\Exception $e) {
             Log::warning('S3Service fileExists error: ' . $e->getMessage());
@@ -69,6 +71,7 @@ class S3Service
     public function getFileViewUrl(string $path): string
     {
         try {
+            $path = \App\Support\ClaimStorage::resolve($path); // S3-FOLDER-01: new or old company folder
             // S3-SEC-01: a private bucket (AWS_PRIVATE_BUCKET=true, public access blocked) gets a signed link that
             // expires; the open URL is kept only for the bucket that is still public
             if (config('filesystems.disks.s3.driver') === 's3' && config('filesystems.disks.s3.private_bucket')) {
@@ -86,7 +89,7 @@ class S3Service
      */
     public function generateS3Path(int $yearId, int $empId, string $fileName): string
     {
-        return "Expense/{$yearId}/{$empId}/{$fileName}";
+        return \App\Support\ClaimStorage::path($yearId, $empId, $fileName); // S3-FOLDER-01
     }
 
     /**

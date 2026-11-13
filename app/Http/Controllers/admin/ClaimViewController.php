@@ -893,7 +893,7 @@ class ClaimViewController extends Controller
     protected function getExpenseBasePath(): string
     {
         $companyId = session('company_id');
-        return ($companyId == 11) ? 'VVNR_Expense' : 'Expense';
+        return \App\Support\ClaimStorage::prefix((int) $companyId); // S3-FOLDER-01 (old files found via ClaimStorage::resolve)
     }
 
     protected function getBackupFolder(): string
@@ -908,6 +908,7 @@ class ClaimViewController extends Controller
             return null;
         }
         $disk = Storage::disk('s3');
+        $path = \App\Support\ClaimStorage::resolve($path); // S3-FOLDER-01: new or old company folder
         if (!$disk->exists($path)) {
             return null;
         }
@@ -942,7 +943,7 @@ class ClaimViewController extends Controller
      */
     private function candidateFilePaths(int $cgId, string $basePath, $claimYearId, $claimId, $crBy, string $fileName): array
     {
-        $prefixes = array_unique(array_filter([$basePath, 'Expense']));
+        $prefixes = array_unique(array_filter(array_merge([$basePath], \App\Support\ClaimStorage::prefixes()))); // S3-FOLDER-01
         $paths = [];
         foreach ($prefixes as $prefix) {
             if ($cgId == 7) {

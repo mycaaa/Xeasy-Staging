@@ -600,7 +600,7 @@ class OdometerContinuityReportController extends Controller
 
         $fileName = ltrim($fileName, '/');
         $companyId = session('company_id', 1);
-        $basePath = ($companyId == 11) ? 'VVNR_Expense' : 'Expense';
+        $basePath = \App\Support\ClaimStorage::prefix((int) $companyId); // S3-FOLDER-01
 
         try {
             return app(\App\Services\S3Service::class)->getFileViewUrl("{$basePath}/{$yearId}/{$empId}/{$fileName}");

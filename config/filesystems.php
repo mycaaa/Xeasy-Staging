@@ -2,6 +2,17 @@
 
 return [
 
+    // S3-FOLDER-01: folder of new claim files per company (App\Support\ClaimStorage); old files stay in Expense/
+    // (VNR, Nursery) and VVNR_Expense/ (VVNR) and are still found there
+    'claim_prefixes' => [
+        1 => env('CLAIM_FILES_PREFIX_VNR', 'xeasy'),
+        11 => env('CLAIM_FILES_PREFIX_VVNR', 'xeasy_vvnr'),
+    ],
+    'claim_prefix_default' => env('CLAIM_FILES_PREFIX_DEFAULT', 'xeasy'),
+    // look for a file under the other folders when it is not at the path asked for
+    'claim_resolve' => env('CLAIM_FILES_RESOLVE', true),
+
+
     /*
     |--------------------------------------------------------------------------
     | Default Filesystem Disk

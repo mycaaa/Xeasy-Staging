@@ -126,7 +126,7 @@ class UploadFingerprint
     /** Read a stored attachment for the backfill (S3 path of the app, then the public URL disk). */
     public static function fetch(int $yearId, int $empId, string $name): ?array
     {
-        $path = "Expense/{$yearId}/{$empId}/{$name}";
+        $path = \App\Support\ClaimStorage::resolve("Expense/{$yearId}/{$empId}/{$name}"); // S3-FOLDER-01
         try {
             if (Storage::disk('s3')->exists($path)) {
                 return [$path, Storage::disk('s3')->get($path)];

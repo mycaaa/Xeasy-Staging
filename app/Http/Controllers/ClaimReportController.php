@@ -415,7 +415,7 @@ class ClaimReportController extends Controller
     {
         $companyId = session('company_id');
 
-        return ($companyId == 11) ? 'VVNR_Expense' : 'Expense';
+        return \App\Support\ClaimStorage::prefix((int) $companyId); // S3-FOLDER-01 (old files found via ClaimStorage::resolve)
     }
 
     protected function getBackupFolder(): string
@@ -431,6 +431,7 @@ class ClaimReportController extends Controller
             return null;
         }
         $disk = Storage::disk('s3');
+        $path = \App\Support\ClaimStorage::resolve($path); // S3-FOLDER-01: new or old company folder
         if (! $disk->exists($path)) {
             return null;
         }
