@@ -267,6 +267,16 @@ class AdvanceController extends BaseMobileController
         $remark = $request->input('remark', '');
         $approverAmount = $request->input('approver_amount', $advanceRequest->amount);
 
+        // ADV-AMT-02: only the approver at their own pending stage may change the amount, and only
+        // downwards from the amount approved so far; Finance and repeat calls keep the amount on record
+        $current = (float) ($advanceRequest->approver_amount ?? 0) > 0 ? (float) $advanceRequest->approver_amount : (float) $advanceRequest->amount;
+        $stageStatus = ['L1' => 'Pending', 'L2' => 'L1_Approved'][$role] ?? null;
+        if ($stageStatus === null || ($advanceRequest->status ?? null) !== $stageStatus) {
+            $approverAmount = $current;
+        } elseif ((float) $approverAmount <= 0 || (float) $approverAmount - $current > 0.01) {
+            return $this->error('Approved amount cannot exceed ' . number_format($current, 2) . '.');
+        }
+
         if ($action === 'approve') {
             $newStatus = $role === 'L1' ? 'L1_Approved' : ($role === 'L2' ? 'Approved' : 'Finance_Approved');
 

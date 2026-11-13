@@ -1003,21 +1003,36 @@ class AdvanceApprovalController extends Controller
                     ->exists();
 
                 if ($alreadyApproved) {
+                    // ADV-AMT-02: once approved, the amount is fixed; a second call cannot change it
+                    if ($approverAmount) {
+                        $stored = (float) AdvanceActivityApproval::where('approver_id', $approverId)
+                            ->where('approver_status', AdvanceActivityApproval::STATUS_APPROVED)
+                            ->whereIn('advance_request_activity_id', $requestEmployee->activities()->pluck('id'))
+                            ->sum('approver_amount');
+                        if (\App\Support\AdvanceAmount::differs($stored, $approverAmount)) {
+                            throw new Exception('This advance is already approved; the amount cannot be changed after approval.');
+                        }
+                    }
                     return true;
                 }
 
                 throw new Exception("No pending activities found for employee ID {$employeeId} and approver ID {$approverId}");
             }
 
-            $totalAmount = $activities->sum('amount');
+            // ADV-AMT-02: the approver may lower the amount carried from the earlier stage, never raise it
+            $carried = [];
+            foreach ($activities as $a) {
+                $carried[$a->id] = \App\Support\AdvanceAmount::carried($a);
+            }
+            $totalAmount = array_sum($carried);
             $finalAmount = $approverAmount ?: $totalAmount;
-            if ($finalAmount > $totalAmount) {
-                throw new Exception('Approval amount cannot exceed total activities amount');
+            if ($finalAmount - $totalAmount > \App\Support\AdvanceAmount::TOLERANCE) {
+                throw new Exception('Approval amount cannot exceed the amount approved so far (' . number_format($totalAmount, 2) . ')');
             }
             // Approve all activities for this employee
             foreach ($activities as $activity) {
                 // Calculate proportional amount for this activity
-                $activityApprovalAmount = $activities->count() > 1 ? ($activity->amount / $totalAmount) * $finalAmount : $finalAmount;
+                $activityApprovalAmount = $activities->count() > 1 && $totalAmount > 0 ? round(($carried[$activity->id] / $totalAmount) * $finalAmount, 2) : $finalAmount;
                 // Get pending approval for this approver and activity at current level
                 $approval = AdvanceActivityApproval::where('advance_request_activity_id', $activity->id)
                     ->where('approver_id', $approverId)
@@ -1269,15 +1284,19 @@ class AdvanceApprovalController extends Controller
             if (!$approval) {
                 $alreadyApproved = AdvanceActivityApproval::where('advance_request_activity_id', $activityId)->where('approver_id', $approverId)->where('approver_status', AdvanceActivityApproval::STATUS_APPROVED)->first();
                 if ($alreadyApproved) {
+                    // ADV-AMT-02: once approved, the amount is fixed
+                    if ($approverAmount && \App\Support\AdvanceAmount::differs($alreadyApproved->approver_amount, $approverAmount)) {
+                        throw new Exception('This advance is already approved; the amount cannot be changed after approval.');
+                    }
                     return $request->load(['employees.activities.approvals', 'actions']);
                 }
                 throw new Exception("No pending approval found for approver ID {$approverId} at level {$activity->current_approval_level} for activity ID {$activityId}");
             }
-            // Validate approval amount
-            $maxAmount = $activity->amount;
+            // ADV-AMT-02: the approver may lower the amount carried from the earlier stage, never raise it
+            $maxAmount = \App\Support\AdvanceAmount::carried($activity);
             $finalAmount = $approverAmount ?: $maxAmount;
-            if ($finalAmount > $maxAmount) {
-                throw new Exception('Approval amount cannot exceed activity amount');
+            if ($finalAmount - $maxAmount > \App\Support\AdvanceAmount::TOLERANCE) {
+                throw new Exception('Approval amount cannot exceed the amount approved so far (' . number_format($maxAmount, 2) . ')');
             }
             // Update approval
             $approval->update(['approver_status' => AdvanceActivityApproval::STATUS_APPROVED, 'approver_amount' => $finalAmount, 'approver_remark' => $remarks, 'approver_date' => now()->toDateString()]);

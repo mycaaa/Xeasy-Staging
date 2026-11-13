@@ -1372,10 +1372,10 @@
             <div class="mb-3">
                 <label class="form-label">Approved Amount (₹)</label>
                 <input type="number" class="form-control form-control-sm" id="approvalAmount" 
-                       value="${lastApprovedAmount}" min="0" step="0.01" required
+                       value="${lastApprovedAmount}" min="0" step="0.01" required data-max="${lastApprovedAmount}"
                        maxlength="6" oninput="updateAmountCounter(this)">
                 <div class="d-flex justify-content-between mt-1">
-                    <small class="text-muted">Maximum 6 digits allowed</small>
+                    <small class="text-muted">You can lower the amount now; it cannot be changed after you approve.</small>
                     <small class="text-muted" id="amountCounter">0/6</small>
                 </div>
             </div>
@@ -1484,7 +1484,8 @@
 
         if (action === 'approve') {
             const amount = parseFloat($('#approvalAmount').val());
-            const totalAmount = request.total_pending_amount || request.total_amount || 0;
+            // ADV-AMT-02: the cap is the amount carried from the earlier stage (the asked amount at the first stage)
+            const totalAmount = parseFloat($('#approvalAmount').data('max')) || request.total_pending_amount || request.total_amount || 0;
             
             if (!amount || amount <= 0) {
                 showModalMessage('Please enter a valid approved amount greater than 0', 'warning');
@@ -1495,7 +1496,7 @@
                 return;
             }
             if (amount > totalAmount) {
-                showModalMessage(`Approved amount (${formatAmount(amount)}) cannot exceed the requested amount (${formatAmount(totalAmount)})`, 'warning');
+                showModalMessage(`Approved amount (${formatAmount(amount)}) cannot exceed ${formatAmount(totalAmount)}`, 'warning');
                 return;
             }
             

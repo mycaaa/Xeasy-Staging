@@ -2844,13 +2844,8 @@
         function generateFinanceApprovalModal(request, action) {
             let lastApprovedAmount = 0;
             if (request.activities && request.activities.length > 0) {
-                lastApprovedAmount = request.activities.reduce((sum, activity) => {
-                    if (activity.approvals && activity.approvals.length > 0) {
-                        const lastApproval = activity.approvals[activity.approvals.length - 1];
-                        return sum + (parseFloat(lastApproval.approver_amount) || 0);
-                    }
-                    return sum + (parseFloat(activity.amount) || 0);
-                }, 0);
+                // ADV-AMT-02: the amount the approvers approved (fixed from here on)
+                lastApprovedAmount = Math.round(request.activities.reduce((sum, activity) => sum + currentAdvanceAmount(activity), 0) * 100) / 100;
             }
 
             let approvalLevelInfo = '';
@@ -2912,13 +2907,13 @@
             const actionClass = action === 'approve' ? 'btn-success' : 'btn-danger';
             const amountField = action === 'approve' ? `
                         <div class="mb-3">
-                            <label class="form-label">Finance Approved Amount (₹)</label>
-                            <input type="number" class="form-control form-control-sm" id="financeApprovalAmount"
-                                   value="${lastApprovedAmount}" min="0" step="0.01" required maxlength="6"
-                                   data-original-amount="${lastApprovedAmount}"
-                                   oninput="updateFinanceAmountCounter(this); checkFinanceAmountChanged(this);" onkeypress="return validateFinanceAmountInput(event)">
+                            <label class="form-label">Approved Amount (₹)</label>
+                            <input type="number" class="form-control form-control-sm bg-light" id="financeApprovalAmount"
+                                   value="${lastApprovedAmount}" min="0" step="0.01" required maxlength="6" readonly
+                                   data-original-amount="${lastApprovedAmount}">
                             <div class="mt-1">
-                                <small id="financeAmountCounter" class="text-muted">0/6 digits</small>
+                                <small class="text-muted">Set by the approver; it cannot be changed at Finance. Reject or revert if it is wrong.</small>
+                                <small id="financeAmountCounter" class="text-muted d-none">0/6 digits</small>
                                 <div id="financeAmountError" class="text-danger" style="display: none; font-size: 0.75rem;"></div>
                             </div>
                         </div>

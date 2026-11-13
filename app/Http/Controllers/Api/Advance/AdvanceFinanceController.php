@@ -276,7 +276,15 @@ class AdvanceFinanceController extends Controller
             if ($activities->isEmpty()) {
                 throw new Exception("No approved activities ready for finance found for employee ID {$employeeId}");
             }
-            $totalAmount = $activities->sum('amount');
+            // ADV-AMT-02: Finance approves the amount the approvers approved; it cannot be changed here
+            $carried = [];
+            foreach ($activities as $a) {
+                $carried[$a->id] = \App\Support\AdvanceAmount::carried($a);
+            }
+            $totalAmount = array_sum($carried);
+            if ($fxPaidRate <= 0 && $approvedAmount && \App\Support\AdvanceAmount::differs($approvedAmount, $totalAmount)) {
+                throw new Exception('The amount cannot be changed at Finance. Approved amount is ' . number_format($totalAmount, 2) . '.');
+            }
             // FX-53: a foreign-currency advance paid at the actual rate (one activity at a time)
             $fxPaid = null;
             if ($fxPaidRate > 0) {
@@ -294,7 +302,7 @@ class AdvanceFinanceController extends Controller
             // Process all activities for this employee
             foreach ($activities as $activity) {
                 // Calculate proportional amount for this activity
-                $activityApprovalAmount = $activities->count() > 1 ? ($activity->amount / $totalAmount) * $finalAmount : $finalAmount;
+                $activityApprovalAmount = $fxPaid === null ? $carried[$activity->id] : ($activities->count() > 1 ? ($activity->amount / $totalAmount) * $finalAmount : $finalAmount);
                 // Update activity
                 $upd = ['finance_id' => $financeUserId, 'finance_approved_amount' => $activityApprovalAmount, 'finance_status' => AdvanceRequestActivity::FINANCE_STATUS_APPROVED, 'finance_remark' => $remarks, 'finance_date' => now()->toDateString()];
                 if ($fxPaid !== null) {
@@ -412,11 +420,10 @@ class AdvanceFinanceController extends Controller
             if ($activity->finance_status !== 'Pending') {
                 throw new Exception("Activity has already been processed by finance. Status: {$activity->finance_status}");
             }
-            // Calculate final approved amount
-            $maxAmount = $activity->amount;
-            $finalAmount = $approvedAmount ?: $maxAmount;
-            if ($finalAmount > $maxAmount) {
-                throw new Exception('Finance approved amount cannot exceed activity amount');
+            // ADV-AMT-02: Finance approves the amount the approvers approved; it cannot be changed here
+            $finalAmount = \App\Support\AdvanceAmount::carried($activity);
+            if ($approvedAmount && \App\Support\AdvanceAmount::differs($approvedAmount, $finalAmount)) {
+                throw new Exception('The amount cannot be changed at Finance. Approved amount is ' . number_format($finalAmount, 2) . '.');
             }
             // Update activity
             $activity->update(['finance_id' => $financeUserId, 'finance_approved_amount' => $finalAmount, 'finance_status' => AdvanceRequestActivity::FINANCE_STATUS_APPROVED, 'finance_remark' => $remarks, 'finance_date' => now()->toDateString()]);
@@ -1926,6 +1933,11 @@ class AdvanceFinanceController extends Controller
                         }
                     }
                     // Update activity for payment release
+                    // ADV-AMT-02: the release pays the Finance-approved amount on record, not a figure sent by the screen
+                    if (\App\Support\AdvanceAmount::differs($financeApprovedAmount, $activity->finance_approved_amount)) {
+                        \Log::warning('ADV-AMT-02: release amount from the screen ignored', ['activity' => $activity->id, 'sent' => $financeApprovedAmount, 'approved' => (float) $activity->finance_approved_amount]);
+                    }
+                    $financeApprovedAmount = (float) $activity->finance_approved_amount;
                     $activity->update(['payment_status' => AdvanceRequestActivity::PAYMENT_STATUS_READY, 'payment_amount' => $financeApprovedAmount, 'payment_released_date' => now(), 'payment_released_by' => $userId, 'payment_batch_id' => $paymentBatchId]);
                     \App\Support\PaymentChangeLog::diff($activity->getConnectionName() ?: config('database.default'), $activity->getTable(), $pclBefore, 'advance', 'advance_release', "Batch {$paymentBatchId}"); // PAY-LOG-01
                     // Update advance request if all activities are released
