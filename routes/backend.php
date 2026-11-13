@@ -216,6 +216,7 @@ Route::middleware('auth')->group(function () {
         Route::get('expense-head-mappings/expense-heads', [ExpenseHeadMappingController::class, 'getExpenseHeads'])->name('expense-head-mappings.expense-heads');
     });
     Route::middleware('permission:vendor_management')->group(function () {
+        Route::get('vendors/data', [VendorListController::class, 'data'])->name('vendors.data'); // PERF-07
         Route::resource('vendors', VendorListController::class)->except(['create', 'show']); // UAT-03: these actions do not exist
         Route::get('vendor-types', [VendorTypeController::class, 'getVendorTypes']);
     });

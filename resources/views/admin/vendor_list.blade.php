@@ -44,7 +44,7 @@
                                 <div class="dropdown-menu dropdown-menu-end">
                                     <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url()->current() }}?status={{ $status }}&request_status={{ $requestStatus }}&vendor_type_id=all">
                                         <span>All</span>
-                                        <span>({{ $vendors->count() }})</span>
+                                        <span>({{ $filteredCount }})</span>
                                     </a>
                                     @foreach ($vendorTypes as $type)
                                     <a class="dropdown-item d-flex justify-content-between align-items-center" href="{{ url()->current() }}?status={{ $status }}&request_status={{ $requestStatus }}&vendor_type_id={{ $type->id }}">
@@ -110,7 +110,9 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <table id="vendorTable"
+                        {{-- PERF-07: rows load from vendors/data a page at a time, newest first --}}
+                        <table id="vendorTable" data-can-view="{{ auth()->user()->can('vendor_list') ? 1 : 0 }}"
+                            data-status="{{ $status }}" data-request-status="{{ $requestStatus }}" data-vendor-type-id="{{ $vendorTypeId }}"
                             class="table nowrap dt-responsive align-middle table-hover table-bordered"
                             style="width: 100%;">
                             <thead class="table-light">
@@ -128,57 +130,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @can('vendor_list')
-                                @foreach ($vendors as $key => $vendor)
-                                @can("view vendor {$vendor->id}")
-                                <tr>
-                                    <td>{{ $key + 1 }}</td>
-                                    <td style="text-align: left">{{ $vendor->vendor_name }}</td>
-                                    <td>{{ ucfirst($vendor->vendor_type) }}</td>
-                                    <td>{{ $vendor->contact_person ?? '-' }}</td>
-                                    <td>{{ $vendor->contact_number ?? '-' }}</td>
-                                    <td>{{ $vendor->email ?? '-' }}</td>
-                                    <td>{{ $vendor->gst_no ?? '-' }}</td>
-                                    <td>
-                                        @if ($vendor->status == '1')
-                                        <span class="badge bg-success-subtle text-success badge-border">Active</span>
-                                        @else
-                                        <span class="badge bg-danger-subtle text-danger badge-border">Inactive</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if ($vendor->request_status == 'P')
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                        @elseif ($vendor->request_status == 'A')
-                                        <span class="badge bg-success">Approved</span>
-                                        @elseif ($vendor->request_status == 'R')
-                                        <span class="badge bg-danger">Rejected</span>
-                                        @elseif ($vendor->request_status == 'H')
-                                        <span class="badge bg-info text-dark">Hold</span>
-                                        @else
-                                        <span class="badge bg-secondary">-</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @can("update vendor {$vendor->id}")
-
-                                        <button type="button" data-bs-toggle="modal"
-                                            data-bs-target="#vendorModal"
-                                            class="btn btn-primary btn-sm edit-vendor"
-                                            data-id="{{ $vendor->id }}"><i class="ri-edit-2-fill"></i></button>
-
-                                        @endcan
-                                    </td>
-                                </tr>
-                                @endcan
-                                @endforeach
-                                @else
+                                @cannot('vendor_list')
                                 <tr>
                                     <td colspan="10" class="text-center">
                                         <span class="text-danger">You do not have permission to view the Vendor List.</span>
                                     </td>
                                 </tr>
-                                @endcan
+                                @endcannot
                             </tbody>
                         </table>
                     </div>
@@ -289,5 +247,5 @@
     </div>
     @endsection
     @push('scripts')
-    <script src="{{ asset('custom/js/pages/vendor_list.js') }}"></script>
+    <script src="{{ asset('custom/js/pages/vendor_list.js') }}?v={{ filemtime(public_path('custom/js/pages/vendor_list.js')) }}"></script>
     @endpush

@@ -1,13 +1,56 @@
 $(document).ready(function () {
-    $("#vendorTable").DataTable({
-        ordering: false,
-        searching: true,
-        paging: true,
-        info: true,
-        lengthChange: true,
-        pageLength: 10,
-        lengthMenu: [10, 25, 50, 100],
-    });
+    // PERF-07: rows come from the server a page at a time (newest first); search runs on the server
+    const $vt = $("#vendorTable");
+    const esc = (v) => $("<div>").text(v == null ? "" : String(v)).html();
+    const statusBadge = (s) => s === "1"
+        ? '<span class="badge bg-success-subtle text-success badge-border">Active</span>'
+        : '<span class="badge bg-danger-subtle text-danger badge-border">Inactive</span>';
+    const requestBadges = {
+        P: '<span class="badge bg-warning text-dark">Pending</span>',
+        A: '<span class="badge bg-success">Approved</span>',
+        R: '<span class="badge bg-danger">Rejected</span>',
+        H: '<span class="badge bg-info text-dark">Hold</span>',
+    };
+    if (String($vt.data("can-view")) === "1") {
+        $vt.DataTable({
+            serverSide: true,
+            processing: true,
+            ordering: false,
+            searching: true,
+            searchDelay: 400,
+            paging: true,
+            info: true,
+            lengthChange: true,
+            pageLength: 10,
+            lengthMenu: [10, 25, 50, 100],
+            ajax: {
+                url: "/vendors/data",
+                data: function (d) {
+                    d.status = $vt.data("status");
+                    d.request_status = $vt.data("request-status");
+                    d.vendor_type_id = $vt.data("vendor-type-id");
+                    delete d.columns; // not used by the server; keeps the request short
+                },
+            },
+            columns: [
+                { data: "sno" },
+                { data: "vendor_name", className: "text-start", render: esc },
+                { data: "vendor_type", render: esc },
+                { data: "contact_person", render: esc },
+                { data: "contact_number", render: esc },
+                { data: "email", render: esc },
+                { data: "gst_no", render: esc },
+                { data: "status", render: statusBadge },
+                { data: "request_status", render: (r) => requestBadges[r] || '<span class="badge bg-secondary">-</span>' },
+                {
+                    data: "id",
+                    render: (id, t, row) => row.can_edit
+                        ? '<button type="button" data-bs-toggle="modal" data-bs-target="#vendorModal" class="btn btn-primary btn-sm edit-vendor" data-id="' + esc(id) + '"><i class="ri-edit-2-fill"></i></button>'
+                        : "",
+                },
+            ],
+        });
+    }
 
     function loadVendorTypes(selectedType = "others") {
         $.ajax({

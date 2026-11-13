@@ -17,27 +17,10 @@ class VendorListController extends Controller
         $status = request('status', 'active');
         $requestStatus = request('request_status', 'all');
         $vendorTypeId = request('vendor_type_id', 'all');
-        $vendorListQuery = VendorList::query();
 
-        // Filter by status
-        if ($status === 'active') {
-            $vendorListQuery->where('status', '1');
-        } elseif ($status === 'inactive') {
-            $vendorListQuery->where('status', '0');
-        }
-
-        // Filter by request status
-        if ($requestStatus !== 'all') {
-            $vendorListQuery->where('request_status', $requestStatus);
-        }
-
-        // Filter by vendor type
-        if ($vendorTypeId !== 'all') {
-            $vendorListQuery->where('vendor_type_id', $vendorTypeId);
-        }
-
-        // Fetch vendors with their vendor type
-        $vendors = $vendorListQuery->with('vendorType')->get();
+        // PERF-07: the rows now come from vendors/data a page at a time (the page used to carry
+        // every vendor, about 4.8 MB of HTML, with a permission check per row)
+        $filteredCount = $this->filtered($status, $requestStatus, $vendorTypeId)->count();
 
         // Fetch request status counts
         $requestCounts = VendorList::selectRaw("
@@ -62,8 +45,96 @@ class VendorListController extends Controller
             }])
             ->get(['id', 'vendor_type']);
 
-        return view('admin.vendor_list', compact('vendors', 'status', 'requestStatus', 'vendorTypeId', 'requestCounts', 'vendorTypes'));
+        return view('admin.vendor_list', compact('filteredCount', 'status', 'requestStatus', 'vendorTypeId', 'requestCounts', 'vendorTypes'));
     }
+
+    private function filtered(string $status, string $requestStatus, string $vendorTypeId)
+    {
+        $q = VendorList::query();
+        if ($status === 'active') {
+            $q->where('status', '1');
+        } elseif ($status === 'inactive') {
+            $q->where('status', '0');
+        }
+        if ($requestStatus !== 'all') {
+            $q->where('request_status', $requestStatus);
+        }
+        if ($vendorTypeId !== 'all') {
+            $q->where('vendor_type_id', $vendorTypeId);
+        }
+        return $q;
+    }
+
+    /** Vendor ids named in the user's "<action> vendor <id>" permissions; null = every vendor (Super Admin). */
+    private function vendorIdsFor($user, string $action): ?array
+    {
+        if ($user->hasRole('Super Admin')) {
+            return null;
+        }
+        $ids = [];
+        foreach ($user->getAllPermissions() as $perm) {
+            if (preg_match('/^' . $action . ' vendor (\d+)$/', $perm->name, $m)) {
+                $ids[] = (int) $m[1];
+            }
+        }
+        return $ids;
+    }
+
+    /** PERF-07: one page of the vendor table (DataTables server-side), newest first. */
+    public function data(Request $request)
+    {
+        $user = Auth::user();
+        $draw = (int) $request->input('draw', 1);
+        if (! $user || ! $user->can('vendor_list')) {
+            return response()->json(['draw' => $draw, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [], 'error' => 'You do not have permission to view the Vendor List.']);
+        }
+
+        $q = $this->filtered((string) $request->input('status', 'active'), (string) $request->input('request_status', 'all'), (string) $request->input('vendor_type_id', 'all'));
+        $viewIds = $this->vendorIdsFor($user, 'view');
+        if ($viewIds !== null) {
+            $q->whereIn('id', $viewIds ?: [0]);
+        }
+        $total = (clone $q)->count();
+
+        $search = trim((string) data_get($request->input('search'), 'value', ''));
+        if ($search !== '') {
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
+            $q->where(function ($w) use ($like) {
+                foreach (['vendor_name', 'vendor_type', 'contact_person', 'contact_number', 'email', 'gst_no'] as $col) {
+                    $w->orWhere($col, 'like', $like);
+                }
+            });
+        }
+        $filtered = $search === '' ? $total : (clone $q)->count();
+
+        $start = max(0, (int) $request->input('start', 0));
+        $length = (int) $request->input('length', 10);
+        $length = $length < 1 ? 10 : min($length, 100);
+
+        $rows = $q->orderByDesc('id')->skip($start)->take($length)
+            ->get(['id', 'vendor_name', 'vendor_type', 'contact_person', 'contact_number', 'email', 'gst_no', 'status', 'request_status']);
+
+        $updateIds = $this->vendorIdsFor($user, 'update');
+        $data = [];
+        foreach ($rows as $i => $v) {
+            $data[] = [
+                'sno' => $start + $i + 1,
+                'id' => $v->id,
+                'vendor_name' => $v->vendor_name,
+                'vendor_type' => ucfirst((string) $v->vendor_type),
+                'contact_person' => $v->contact_person ?: '-',
+                'contact_number' => $v->contact_number ?: '-',
+                'email' => $v->email ?: '-',
+                'gst_no' => $v->gst_no ?: '-',
+                'status' => (string) $v->status,
+                'request_status' => (string) $v->request_status,
+                'can_edit' => $updateIds === null || in_array((int) $v->id, $updateIds, true),
+            ];
+        }
+
+        return response()->json(['draw' => $draw, 'recordsTotal' => $total, 'recordsFiltered' => $filtered, 'data' => $data]);
+    }
+
     public function vendorList($type = null)
     {
         $vendors = VendorList::getActiveVendorsByType($type, false);
