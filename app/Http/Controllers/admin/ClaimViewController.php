@@ -1833,6 +1833,21 @@ class ClaimViewController extends Controller
      * or payment teams (or Super Admin), or by the claimant on their own claim. A reporting manager (or anyone
      * else) only views them. Returns an error response, or null when allowed.
      */
+    /** LATE-PUNCH-01: only for claims not yet punched (uploaded / draft); editing a punched claim is not blocked. */
+    private function latePunchBlock(int $expId, int $yearId): ?string
+    {
+        if ($expId <= 0 || $yearId <= 0) {
+            return null;
+        }
+        $conn = (string) session('expense_connection');
+        $status = DB::connection($conn)->table(ExpenseClaim::tableName($yearId))->where('ExpId', $expId)->value('ClaimStatus');
+        if (! in_array((string) $status, ['', 'Submitted', 'Draft', 'Open'], true)) {
+            return null;
+        }
+
+        return \App\Services\ClaimRules\LateClaim::punchBlock($conn, $yearId, $expId, (int) session('company_id', 1));
+    }
+
     private function refuseClaimEdit($expId)
     {
         $user = auth()->user();
@@ -1873,6 +1888,11 @@ class ClaimViewController extends Controller
         $totalApproved = $request->input('totalApproved') ?? $totalVerified;
         $totalFinance = $request->input('totalFinance') ?? $totalVerified;
         $formDataArray = $this->prepareFormData($request->input('formData'));
+
+        // LATE-PUNCH-01: a bill uploaded after its month's due date is punched only after the GM's / admin's approval
+        if ($lateMsg = $this->latePunchBlock((int) $expId, (int) $yearId)) {
+            return $this->jsonError($lateMsg, 422);
+        }
 
         // Duplicate punch check: same employee, same ClaimId, same BillDate, different ExpId
         if ($cgId == 1) {
@@ -2891,6 +2911,9 @@ class ClaimViewController extends Controller
             'claimid' => 'required|integer',
         ]);
         $fYearId = session('year_id');
+        if ($lateMsg = $this->latePunchBlock((int) $request->expid, (int) $fYearId)) { // LATE-PUNCH-01
+            return $this->jsonError($lateMsg, 422);
+        }
         $table = "y{$fYearId}_expenseclaims";
         // B-01: data-punching status change, checked against the transition table and logged
         \App\Services\Claims\ClaimTransition::guard(session('expense_connection'), (int) $fYearId, fn ($q) => $q->where('ExpId', (int) $request->expid)->where('AttachTo', 0)->where('ClaimStatus', '!=', 'Deactivate'), 'Filled', 'punching', 'punch_filled');

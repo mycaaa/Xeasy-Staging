@@ -1140,6 +1140,12 @@ Route::middleware(['auth', 'role_or_permission:Super Admin|Admin|Ledger Summary|
 Route::get('/advance-adjustment-report', [\App\Http\Controllers\AdvanceAdjustmentReportController::class, 'index'])->name('reports.advance-adjustment');
 Route::get('/advance-adjustment-report/export', [\App\Http\Controllers\AdvanceAdjustmentReportController::class, 'export'])->name('reports.advance-adjustment.export');
 
+// ── LATE-PUNCH-01: bills uploaded after their month's due date, approved by the GM / admin before punching ──
+Route::middleware('auth')->group(function () {
+    Route::get('/late-bills', [\App\Http\Controllers\admin\LateClaimApprovalController::class, 'index'])->name('late.bills');
+    Route::post('/late-bills/decide', [\App\Http\Controllers\admin\LateClaimApprovalController::class, 'decide'])->name('late.bills.decide');
+});
+
 // ── BTC-01: Bill To Company process ─────────────────────────────────────────
 Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/', [\App\Http\Controllers\admin\BtcController::class, 'index'])->name('index');

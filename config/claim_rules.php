@@ -145,6 +145,11 @@ return [
     'bill_age' => [
         'max_days' => (int) env('CLAIM_RULES_MAX_BILL_AGE_DAYS', 0),
     ],
+    // LATE-PUNCH-01: a bill uploaded after its month's due date (cut-off below) is punched only after the GM's or an
+    // admin's approval (VVNR: admin). Upload itself is always allowed within the financial year.
+    'late_punch' => [
+        'enabled' => env('CLAIM_RULES_LATE_PUNCH', true),
+    ],
     'cutoff' => [
         // month submit refused after the last submission day of the following month, unless the
         // month has SubPermission = 'Y'. The day comes from Settings > Submission settings
