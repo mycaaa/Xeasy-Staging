@@ -27,8 +27,7 @@ class S3Check extends Command
     {
         $cfg = config('filesystems.disks.s3');
         if (($cfg['driver'] ?? '') !== 's3') {
-            $this->info('Claim files are kept on this server (CLAIM_FILES_LOCAL=true); no bucket to check.');
-            return self::SUCCESS;
+            return $this->checkLocal((string) ($cfg['root'] ?? storage_path('app/s3_local')));
         }
         $bucket = (string) ($cfg['bucket'] ?? '');
         $this->line('Bucket: '.($bucket ?: '(not set)').'  region: '.($cfg['region'] ?? '?').'  private: '.(! empty($cfg['private_bucket']) ? 'yes' : 'no'));
@@ -83,6 +82,34 @@ class S3Check extends Command
         $ok ? $this->info('Bucket ready for testing.') : $this->error('Bucket NOT ready - see above.');
 
         return $ok ? self::SUCCESS : self::FAILURE;
+    }
+
+    /** FILES-PERM-01: CLAIM_FILES_LOCAL=true - can this user (run it as the web user) store, read and delete a file? */
+    private function checkLocal(string $root): int
+    {
+        $user = function_exists('posix_geteuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? '?') : get_current_user();
+        $this->line("Claim files are kept on this server in {$root} (CLAIM_FILES_LOCAL=true); checking as user {$user}.");
+        $why = \App\Support\FileStoreDiagnosis::localProblem($root, 'Expense/'.date('Y').'/healthcheck');
+        if ($why) {
+            $this->error('  '.$why);
+            $this->error('Uploads will fail. Fix: chgrp -R www-data storage && find storage -type d -exec chmod 2775 {} + && chmod -R g+rw storage');
+            return self::FAILURE;
+        }
+        $disk = Storage::disk('s3');
+        $key = 'xeasy-healthcheck/'.now()->format('YmdHis').'_'.bin2hex(random_bytes(4)).'.txt';
+        try {
+            $this->check('write', fn () => $disk->put($key, 'Xeasy file check') !== false);
+            $this->check('read back', fn () => $disk->get($key) === 'Xeasy file check');
+            $disk->delete($key);
+            $this->check('delete', fn () => ! $disk->exists($key));
+            $disk->deleteDirectory('xeasy-healthcheck');
+        } catch (\Throwable $e) {
+            $this->error('  '.$e->getMessage().' - '.(\App\Support\FileStoreDiagnosis::localProblem($root, 'xeasy-healthcheck') ?? 'see storage/logs'));
+            return self::FAILURE;
+        }
+        $this->info('File storage ready.');
+
+        return self::SUCCESS;
     }
 
     private function check(string $what, callable $fn): void

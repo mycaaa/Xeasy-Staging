@@ -86,7 +86,12 @@ class ClaimFileBatch
             $ok = false;
         }
         if (! $ok) {
-            Log::error('Claim file store returned false', ['path' => $path, 'disk' => $this->disk]);
+            // FILES-PERM-01: record why (folder permissions / disk space / bucket) so the server log shows the cause
+            $cfg = (array) config("filesystems.disks.{$this->disk}");
+            $why = ($cfg['driver'] ?? '') === 'local'
+                ? \App\Support\FileStoreDiagnosis::localProblem((string) ($cfg['root'] ?? ''), $path)
+                : 'bucket '.($cfg['bucket'] ?? '(none)').(empty($cfg['key']) ? ' - no AWS key set' : '');
+            Log::error('Claim file store returned false', ['path' => $path, 'disk' => $this->disk, 'driver' => $cfg['driver'] ?? '?', 'reason' => $why]);
             throw new ClaimFileException('File upload failed: the claim was not saved. Please try again in a few minutes.');
         }
         $this->stored[] = ['field' => $field, 'name' => $name, 'path' => $path, 'preexisting' => $preexisting];

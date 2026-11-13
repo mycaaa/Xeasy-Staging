@@ -89,12 +89,19 @@ step "PHP packages (composer, no dev packages)"
 
 # ---------------------------------------------------------------- 5. folders and permissions
 step "Folders and permissions"
-mkdir -p storage/app/public storage/framework/{cache,sessions,views,testing} storage/logs bootstrap/cache s3_local
+# FILES-PERM-01 (13 Nov 2026): bill / odometer files live in storage/app/s3_local (CLAIM_FILES_LOCAL=true), not in a
+# top-level s3_local folder. The web user must be able to create sub-folders there, and files written by this
+# script (logs, compiled views) must stay writable by the web user: group = web user, set-group-id folders, umask 002.
+umask 002
+mkdir -p storage/app/public storage/app/s3_local storage/framework/{cache,sessions,views,testing} storage/logs bootstrap/cache
 if [ "$(id -u)" = 0 ] || id -nG | grep -qw "$WEB_USER"; then
-  chgrp -R "$WEB_USER" storage bootstrap/cache s3_local 2>/dev/null || warn "could not set group $WEB_USER on storage (run once as root)"
+  chgrp -R "$WEB_USER" storage bootstrap/cache 2>/dev/null || warn "could not set group $WEB_USER on storage (run once as root)"
+else
+  warn "this user is not in group $WEB_USER: the web server may not be able to write storage/ (uploads fail). Run once as root, or add this user to $WEB_USER."
 fi
-chmod -R ug+rwX storage bootstrap/cache s3_local
-chmod 750 s3_local
+chmod -R ug+rwX storage bootstrap/cache
+find storage bootstrap/cache -type d -exec chmod g+s {} + 2>/dev/null || true
+chmod 2770 storage/app/s3_local
 chmod 640 .env
 [ -e public/storage ] || art storage:link
 
@@ -152,5 +159,13 @@ code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/login" || tru
 echo "Login page: $code"
 crontab -l 2>/dev/null | grep -q "$APP_DIR.*schedule:run" || crontab -u "$WEB_USER" -l 2>/dev/null | grep -q "$APP_DIR.*schedule:run" || \
   warn "Scheduler not in cron yet. Add for user $WEB_USER:  * * * * * cd $APP_DIR && $PHP artisan schedule:run >> storage/logs/scheduler.log 2>&1"
+# FILES-PERM-01: can the web server store a bill? (runs the check as the web user when possible)
+if [ "$(id -un)" = "$WEB_USER" ]; then
+  art files:s3-check || warn "claim files cannot be stored - uploads will fail (see above)"
+elif sudo -n -u "$WEB_USER" true 2>/dev/null; then
+  sudo -n -u "$WEB_USER" "$PHP" artisan files:s3-check || warn "claim files cannot be stored by $WEB_USER - uploads will fail (see above)"
+else
+  warn "could not run the file-storage check as $WEB_USER; run:  sudo -u $WEB_USER $PHP artisan files:s3-check"
+fi
 git log -1 --format='Deployed %h %s' 2>/dev/null || true
 echo "Done."
