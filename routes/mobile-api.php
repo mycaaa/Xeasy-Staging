@@ -216,6 +216,36 @@ $handlePrintDetails = function (\Illuminate\Http\Request $request, $comId = null
     return app(\App\Http\Controllers\admin\PrintDetailsEmpController::class)->generate($request);
 };
 
+// APP-LEDGER-01 (13 Nov 2026): the app's Ledger screen opened the old PHP page accsummary.php, which the new
+// server does not have ("Not Found" in the app). It is served here from the web account summary. Unlike the other
+// legacy pages it always needs the app login (X-Xeasy-Empid / X-Xeasy-Token headers sent by the app 1.9.0+) and the
+// viewer must be the employee, someone above the employee in the reporting chain, or their approver.
+$handleAccSummary = function (\Illuminate\Http\Request $request, $comId = null) {
+    $target = (int) $request->input('e', 0);
+    $via = $request->attributes->get('api_auth_via');
+    $self = (int) $request->attributes->get('api_auth_empid');
+    $ok = $target > 0 && (
+        ($via === 'mobile_token' && ($self === $target || in_array($self, \App\Support\RecordAccess::managersOf($target), true) || \App\Support\RecordAccess::approvedFor($self, $target)))
+        || ($via === 'session' && auth()->check() && \App\Support\RecordAccess::canViewEmployee(auth()->user(), $target))
+    );
+    if (! $ok) {
+        $msg = $via === null ? 'Please update the Xeasy app and log in again to see the ledger.' : 'You cannot see the ledger of this employee.';
+
+        return response('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;padding:24px;color:#374151"><h3>Ledger</h3><p>'.e($msg).'</p></body>', $via === null ? 401 : 403);
+    }
+    $company = (int) ($comId ?? $request->input('CompanyId', $request->input('c', 1))) ?: 1;
+    session(['expense_connection' => \App\Helpers\DatabaseSwitcher::getExpenseConnection($company), 'company_id' => $company]);
+    if ($request->filled('y')) {
+        session(['year_id' => (int) $request->input('y')]);
+    }
+
+    return app(\App\Http\Controllers\AccountSummaryController::class)->index($request);
+};
+Route::get('accsummary.php', $handleAccSummary);
+Route::get('{comId}/accsummary.php', $handleAccSummary)->where('comId', '[0-9]+');
+// APP-PDF-01: the app's VVNR expense PDF is requested under api/11/api/
+Route::match(['get', 'post'], '{comId}/api/pdfexpense.php', $handlePrintDetails)->where('comId', '[0-9]+');
+
 Route::match(['get', 'post'], 'pdfexpense.php', $handlePrintDetails);
 Route::match(['get', 'post'], 'printdetailsemp.php', $handlePrintDetails);
 Route::match(['get', 'post'], '{comId}/pdfexpense.php', $handlePrintDetails)->where('comId', '[0-9]+');
