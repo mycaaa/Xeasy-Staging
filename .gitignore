@@ -35,3 +35,4 @@
 !/database/sql/*.sql
 !/database/schema/*.sql
 !/tests/reconciliation/*.sql
+/storage/framework/deploy.lock

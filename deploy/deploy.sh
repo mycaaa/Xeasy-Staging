@@ -11,6 +11,8 @@
 #   --skip-migrate    do not run migrations
 #   --backup          run scripts/backup/xeasy_backup.sh before migrating (needs /etc/xeasy-backup.conf)
 #   --yes             do not ask for confirmation
+#   --plesk           run from Plesk Git "additional deployment actions" (implies --no-pull --yes; Plesk has already
+#                     put the new files in place). See deploy/PLESK_AUTO_DEPLOY.md.
 #
 # Environment overrides: PHP=/usr/bin/php8.3  COMPOSER=/usr/local/bin/composer  WEB_USER=www-data  BRANCH=main
 #
@@ -21,18 +23,37 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
-PHP="${PHP:-php}"
-COMPOSER="${COMPOSER:-composer}"
-WEB_USER="${WEB_USER:-www-data}"
+# DEPLOY-AUTO-01: on Plesk the PHP binaries live in /opt/plesk/php/<ver>/bin and the site runs as the subscription user
+if [ -z "${PHP:-}" ]; then
+  PHP=php
+  for v in 8.4 8.3 8.2; do [ -x "/opt/plesk/php/$v/bin/php" ] && { PHP="/opt/plesk/php/$v/bin/php"; break; }; done
+fi
+if [ -z "${COMPOSER:-}" ]; then
+  if command -v composer >/dev/null; then COMPOSER=composer
+  elif [ -f /usr/lib/plesk-9.0/composer.phar ]; then COMPOSER="$PHP /usr/lib/plesk-9.0/composer.phar"
+  elif [ -f "$HOME/composer.phar" ]; then COMPOSER="$PHP $HOME/composer.phar"
+  else COMPOSER=composer; fi
+fi
+if [ -z "${WEB_USER:-}" ]; then
+  if [ -d /usr/local/psa ] || ! id www-data >/dev/null 2>&1; then WEB_USER="$(id -un)"; else WEB_USER=www-data; fi
+fi
 BRANCH="${BRANCH:-}"
 FIRST=0; PULL=1; MIGRATE=1; BACKUP=0; YES=0
 for a in "$@"; do
   case "$a" in
     --first-run) FIRST=1 ;; --no-pull) PULL=0 ;; --skip-migrate) MIGRATE=0 ;; --backup) BACKUP=1 ;; --yes) YES=1 ;;
+    --plesk) PULL=0; YES=1 ;;
     -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "Unknown option $a"; exit 2 ;;
   esac
 done
+
+# two pushes close together: the second deploy waits for the first instead of running over it
+LOCK="$APP_DIR/storage/framework/deploy.lock"
+mkdir -p "$APP_DIR/storage/framework" 2>/dev/null || true
+[ -w "$APP_DIR/storage/framework" ] || LOCK="/tmp/xeasy-deploy-$(id -un).lock"
+exec 9>"$LOCK"
+command -v flock >/dev/null && { flock -w 600 9 || { echo "STOP: another deploy is still running" >&2; exit 1; }; }
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 fail() { printf '\033[31mSTOP: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -49,7 +70,7 @@ for e in pdo_mysql mbstring xml curl zip gd intl bcmath fileinfo openssl tokeniz
   "$PHP" -m | grep -qi "^$e$" || missing="$missing $e"
 done
 [ -z "$missing" ] || fail "PHP extensions missing:$missing (e.g. apt install php-<name>)"
-command -v "$COMPOSER" >/dev/null || fail "composer not found (https://getcomposer.org/download/)"
+command -v ${COMPOSER%% *} >/dev/null || fail "composer not found (https://getcomposer.org/download/)"
 command -v git >/dev/null || PULL=0
 echo "PHP $("$PHP" -r 'echo PHP_VERSION;'), app folder $APP_DIR, web user $WEB_USER"
 
@@ -85,7 +106,7 @@ trap '[ "$LIVE_BEFORE" = 1 ] && "$PHP" artisan up >/dev/null 2>&1; echo "Deploy 
 
 # ---------------------------------------------------------------- 4. packages
 step "PHP packages (composer, no dev packages)"
-"$COMPOSER" install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+$COMPOSER install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
 
 # ---------------------------------------------------------------- 5. folders and permissions
 step "Folders and permissions"
