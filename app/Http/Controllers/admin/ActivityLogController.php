@@ -18,13 +18,14 @@ class ActivityLogController extends Controller
             ->orderBy('name')
             ->get();
 
-        $modules = DB::table('activity_log')
+        // PERF-02: the filter lists change rarely; read them once every 10 minutes, not on every page load
+        $modules = \Illuminate\Support\Facades\Cache::remember('activity_log_modules', 600, fn () => DB::table('activity_log')
             ->select('log_name')->distinct()->orderBy('log_name')
-            ->pluck('log_name')->filter()->values();
+            ->pluck('log_name')->filter()->values());
 
-        $events = DB::table('activity_log')
+        $events = \Illuminate\Support\Facades\Cache::remember('activity_log_events', 600, fn () => DB::table('activity_log')
             ->select('event')->distinct()->orderBy('event')
-            ->pluck('event')->filter()->values();
+            ->pluck('event')->filter()->values());
 
         return view('admin.activity-logs', compact('users', 'modules', 'events'));
     }

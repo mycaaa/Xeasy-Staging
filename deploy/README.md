@@ -46,7 +46,7 @@ Then, as root, once:
 
 ```bash
 cp deploy/apache-xeasy.vnrseeds.co.in.conf /etc/apache2/sites-available/   # edit the path and PHP version in it
-a2enmod rewrite headers proxy_fcgi setenvif ssl && a2ensite apache-xeasy.vnrseeds.co.in && systemctl reload apache2
+a2enmod rewrite headers deflate proxy_fcgi setenvif ssl && a2ensite apache-xeasy.vnrseeds.co.in && systemctl reload apache2
 certbot --apache -d xeasy.vnrseeds.co.in
 crontab -u www-data -e                # add the line below
 ```

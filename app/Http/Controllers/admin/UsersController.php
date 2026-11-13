@@ -113,11 +113,11 @@ class UsersController extends Controller
     public function userActivityData(Request $request)
     {
         $baseQuery = UserLog::query();
-        if ($request->filled('date_from') && $request->filled('date_to')) {
-            $dateFrom = $request->date_from . ' 00:00:00';
-            $dateTo = $request->date_to . ' 23:59:59';
-            $baseQuery->whereBetween('user_logs.timestamp', [$dateFrom, $dateTo]);
-        }
+        // PERF-03: without a date range the page loaded the whole login history (11 MB, 45 s);
+        // default to the screen's own default (from the first of last month to today)
+        $dateFrom = $request->filled('date_from') ? $request->date_from : now()->subMonthNoOverflow()->startOfMonth()->toDateString();
+        $dateTo = $request->filled('date_to') ? $request->date_to : now()->toDateString();
+        $baseQuery->whereBetween('user_logs.timestamp', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
         if ($request->filled('user_ids')) {
             $userIds = is_array($request->user_ids) ? $request->user_ids : explode(',', $request->user_ids);
             $baseQuery->whereIn('user_logs.user_id', $userIds);

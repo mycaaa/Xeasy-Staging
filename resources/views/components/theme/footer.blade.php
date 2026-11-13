@@ -63,8 +63,15 @@
 <script src="{{ asset('vendor/cdn/datatables.net-fixedcolumns@4.3.0/js/dataTables.fixedColumns.min.js') }}"></script>
 <script src="{{ asset('vendor/cdn/datatables.net-buttons@2.2.2/js/buttons.print.min.js') }}"></script>
 <script src="{{ asset('vendor/cdn/datatables.net-buttons@2.2.2/js/buttons.html5.min.js') }}"></script>
-<script src="{{ asset('vendor/cdn/pdfmake@0.1.53/build/vfs_fonts.js') }}"></script>
-<script src="{{ asset('vendor/cdn/pdfmake@0.1.53/build/pdfmake.min.js') }}"></script>
+{{-- PERF-06: pdfmake (about 2 MB) is only needed for the PDF export button; load it after the page is up --}}
+<script>
+(function () {
+    function add(src, next) { var s = document.createElement('script'); s.src = src; s.onload = next || null; document.body.appendChild(s); }
+    function load() { if (window.pdfMake && window.pdfMake.createPdf) return;
+        add("{{ asset('vendor/cdn/pdfmake@0.1.53/build/pdfmake.min.js') }}", function () { add("{{ asset('vendor/cdn/pdfmake@0.1.53/build/vfs_fonts.js') }}"); }); }
+    if (document.readyState === 'complete') { setTimeout(load, 300); } else { window.addEventListener('load', function () { setTimeout(load, 300); }); }
+})();
+</script>
 <script src="{{ asset('vendor/cdn/jquery-toast-plugin@1.3.2/dist/jquery.toast.min.js') }}"></script>
 <script src="{{ asset('vendor/cdn/sweetalert2@11.26.25/dist/sweetalert2.all.min.js') }}"></script>
 {{-- Flatpickr - Global Load --}}

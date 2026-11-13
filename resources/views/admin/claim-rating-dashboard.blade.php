@@ -218,9 +218,30 @@ function renderStars(r, s) {
 
 function rBadge(stars, days) { return '<span class="badge" style="background:'+starColors[stars]+';font-size:9px;">'+stars+'★ '+days+'d</span>'; }
 
+// PERF-04: the server sends one employee list and [employee, month, [[rule, stars, days], ...]] per claim
+function expandCompact(d) {
+    const rules = d.rules || [];
+    d.claims = (d.claims_c || []).map(function(row) {
+        const e = d.emps[row[0]] || [];
+        const ratings = {};
+        row[2].forEach(function(t) {
+            const r = rules[t[0]] || {};
+            ratings[r.stage_key] = {stars: t[1], days: t[2], role: r.responsible_role, stage_label: r.stage_label};
+        });
+        return {employee_id: e[0], emp_code: e[1], employee_name: e[2], department: e[3], month: row[1], ratings: ratings};
+    });
+    delete d.claims_c;
+    return d;
+}
+const DETAIL_ROWS = 300; // rows drawn per group; the averages always use every claim
+function moreRow(total, cols) {
+    return total > DETAIL_ROWS ? '<tr><td colspan="'+cols+'" class="text-center text-muted">Showing '+DETAIL_ROWS+' of '+total+' rows. Narrow the filters to see the rest.</td></tr>' : '';
+}
+
 function loadRatings() {
     $('#leaderboardBody').html('<tr><td colspan="7" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></td></tr>');
-    $.get('{{ route("admin.claim.rating.ratings") }}', getFilters(), function(res) {
+    $.get('{{ route("admin.claim.rating.ratings") }}', Object.assign(getFilters(), {compact: 1}), function(res) {
+        if (res.success && res.data && res.data.compact) res.data = expandCompact(res.data);
         if (!res.success || !res.data.claims || !res.data.claims.length) {
             $('#leaderboardBody').html('<tr><td colspan="7" class="text-center py-3 text-muted">No data found.</td></tr>');
             $('#groupedContent, #roleWiseContent').html('<div class="text-center py-3 text-muted">No data</div>');
@@ -272,11 +293,12 @@ function renderGrouped(by) {
         h+='<div class="group-detail" id="group-'+gi+'"><table class="table table-sm table-bordered mb-0" style="font-size:10px;"><thead style="background:#e8f4fd;"><tr><th>Employee</th><th>Mon</th>';
         rules.forEach(function(r){h+='<th class="text-center" title="'+r.stage_label+'">'+r.stage_label.substring(0,15)+'</th>';});
         h+='</tr></thead><tbody>';
-        g.items.forEach(function(c){
+        g.items.slice(0, DETAIL_ROWS).forEach(function(c){
             h+='<tr><td><strong>'+c.emp_code+'</strong> '+c.employee_name+'</td><td>'+monthNames[(c.month||1)-1]+'</td>';
             rules.forEach(function(r){const rt=c.ratings[r.stage_key]; h+='<td class="text-center">'+(rt?rBadge(rt.stars,rt.days):'—')+'</td>';});
             h+='</tr>';
         });
+        h+=moreRow(g.items.length, rules.length+2);
         h+='</tbody></table></div></div>';
     });
     $('#groupedContent').html(h||'<div class="text-center py-3 text-muted">No data</div>');
@@ -299,9 +321,10 @@ function renderRoleWise(filter) {
         h+='<div><i class="'+(roleIcons[role]||'ri-star-line')+'" style="color:'+roleColors[role]+';"></i> <strong>'+(roleLabels[role]||role)+'</strong> <small class="text-muted">('+g.cnt+')</small></div>';
         h+='<div><span class="fw-bold" style="color:'+col+';font-size:15px;">'+avg+'</span> '+renderStars(+avg,12)+'</div></div>';
         h+='<table class="table table-sm table-bordered mb-0" style="font-size:10px;"><thead><tr style="background:#fafafa;"><th>Employee</th><th>Dept</th><th>Mon</th><th>Stage</th><th class="text-center">Days</th><th class="text-center">Rating</th></tr></thead><tbody>';
-        g.items.sort(function(a,b){return b.stars-a.stars;}).forEach(function(it){
+        g.items.sort(function(a,b){return b.stars-a.stars;}).slice(0, DETAIL_ROWS).forEach(function(it){
             h+='<tr><td><strong>'+it.ec+'</strong> '+it.n+'</td><td>'+(it.d||'-')+'</td><td>'+monthNames[(it.mo||1)-1]+'</td><td>'+it.st+'</td><td class="text-center">'+it.days+'d</td><td class="text-center">'+rBadge(it.stars,it.days)+'</td></tr>';
         });
+        h+=moreRow(g.items.length, 6);
         h+='</tbody></table></div>';
     });
     $('#roleWiseContent').html(h||'<div class="text-center py-3 text-muted">No data</div>');

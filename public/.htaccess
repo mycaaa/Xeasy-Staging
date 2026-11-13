@@ -23,3 +23,18 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# PERF-06: compress text answers and let browsers keep the static libraries.
+# Paths with the version in them (vendor/cdn/<package>@<version>/) never change: one year.
+# Third-party libraries, images and fonts: 7 days. Everything else keeps ETag checks.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#^/vendor/cdn/[^/]+@[^/]+/#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+    <ElseIf "%{REQUEST_URI} =~ m#^/assets/(libs|images|fonts)/# || %{REQUEST_URI} =~ m#\.(woff2?|ttf|eot|png|jpe?g|gif|svg|ico|webp)$#">
+        Header set Cache-Control "public, max-age=604800"
+    </ElseIf>
+</IfModule>

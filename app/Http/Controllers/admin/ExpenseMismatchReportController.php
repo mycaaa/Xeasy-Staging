@@ -139,11 +139,18 @@ class ExpenseMismatchReportController extends Controller
 
             $mismatches = [];
 
+            // PERF-05: the bill lines and the names in one query per 1,000 claims instead of one per claim
+            $detailsByExp = [];
+            foreach ($claims->pluck('ExpId')->unique()->chunk(1000) as $chunk) {
+                foreach (DB::connection(session('expense_connection'))->table($detailsTable)
+                    ->whereIn('ExpId', $chunk->values()->all())->get(['ExpId', 'Title', 'Amount']) as $d) {
+                    $detailsByExp[$d->ExpId][] = $d;
+                }
+            }
+            $employeesById = [];
+
             foreach ($claims as $claim) {
-                $details = DB::connection(session('expense_connection'))
-                    ->table($detailsTable)
-                    ->where('ExpId', $claim->ExpId)
-                    ->get();
+                $details = $detailsByExp[$claim->ExpId] ?? [];
 
                 $detailMap = [];
                 foreach ($details as $detail) {
@@ -182,10 +189,13 @@ class ExpenseMismatchReportController extends Controller
                 }
 
                 if (!empty($claimMismatches)) {
-                    $employee = DB::connection(session('hrims_connection'))
-                        ->table('hrm_employee')
-                        ->where('EmployeeID', $claim->CrBy)
-                        ->first(['EmpCode', 'Fname', 'Sname', 'Lname']);
+                    if (!array_key_exists($claim->CrBy, $employeesById)) {
+                        $employeesById[$claim->CrBy] = DB::connection(session('hrims_connection'))
+                            ->table('hrm_employee')
+                            ->where('EmployeeID', $claim->CrBy)
+                            ->first(['EmpCode', 'Fname', 'Sname', 'Lname']);
+                    }
+                    $employee = $employeesById[$claim->CrBy];
 
                     $mismatches[] = [
                         'exp_id' => $claim->ExpId,

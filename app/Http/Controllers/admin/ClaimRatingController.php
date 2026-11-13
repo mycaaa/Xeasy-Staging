@@ -196,9 +196,14 @@ class ClaimRatingController extends Controller
             'months' => $request->input('months', [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]),
             'function_id' => $request->input('function_id'),
             'department_id' => $request->input('department_id'),
+            'compact' => $request->boolean('compact'),
         ];
 
-        $data = $service->calculateRatings($filters);
+        // PERF-04: about 30 s to work out a full year; keep the answer for 10 minutes (file cache, it is a few MB)
+        $key = 'claim_ratings:' . md5(json_encode([session('expense_connection'), \App\Support\CurrentYear::id(), session('company_id'), $filters]));
+        $data = $filters['compact']
+            ? \Illuminate\Support\Facades\Cache::store('file')->remember($key, 600, fn () => $service->calculateRatings($filters))
+            : $service->calculateRatings($filters);
 
         if (isset($data['error'])) {
             return response()->json(['success' => false, 'message' => $data['error'], 'data' => ['claims' => [], 'role_summary' => [], 'rules' => [], 'total_claims' => 0]]);
@@ -219,7 +224,8 @@ class ClaimRatingController extends Controller
             'department_id' => $request->input('department_id'),
         ];
 
-        $data = $service->getEmployeeRatingSummary($filters);
+        $key = 'claim_ratings_emp:' . md5(json_encode([session('expense_connection'), \App\Support\CurrentYear::id(), session('company_id'), $filters]));
+        $data = \Illuminate\Support\Facades\Cache::store('file')->remember($key, 600, fn () => $service->getEmployeeRatingSummary($filters));
 
         // If error returned (no rules defined)
         if (isset($data['error'])) {

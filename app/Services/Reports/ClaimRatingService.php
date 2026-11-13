@@ -109,6 +109,15 @@ class ClaimRatingService
         $hrimsDb = DB::connection($this->hrimsConn)->getDatabaseName();
         $months = $filters['months'] ?? [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
         $isVVNR = ($this->companyId == 11);
+        // PERF-04: compact = the dashboard's shape (one employee list + one small array per claim);
+        // the full shape for a year is about 235 MB of JSON
+        $compact = !empty($filters['compact']);
+        $ruleIdx = [];
+        foreach ($rules->values() as $i => $r) {
+            $ruleIdx[$r->stage_key] = $i;
+        }
+        $emps = [];
+        $empPos = [];
 
         // Get individual claims from expenseclaims table
         $query = DB::connection($this->expenseConn)
@@ -173,6 +182,16 @@ class ClaimRatingService
             $claimCounts[$key] = ($claimCounts[$key] ?? 0) + 1;
         }
 
+        // PERF-04: plain copies of the rules for the loop (Eloquent attribute access per claim per rule was most of the 30 s)
+        $plainRules = [];
+        foreach ($rules as $r) {
+            $o = (object) $r->getAttributes();
+            $o->eff_ts = (!empty($o->effective_date) && \App\Support\ZeroDate::has($o->effective_date)) ? strtotime((string) $o->effective_date) : null;
+            $o->min_claims = (int) ($o->min_claims ?? 0);
+            $o->limits = [(int) $o->star_5_max_days, (int) $o->star_4_max_days, (int) $o->star_3_max_days, (int) $o->star_2_max_days];
+            $plainRules[] = $o;
+        }
+
         // Calculate ratings per individual claim
         $results = [];
         $roleSummary = [];
@@ -189,10 +208,12 @@ class ClaimRatingService
                 ? $claim->DateOfSubmit
                 : (!empty($claim->FilledDate) && \App\Support\ZeroDate::has($claim->FilledDate) ? $claim->FilledDate : $claim->CrDate);
 
-            foreach ($rules as $rule) {
+            $submitTs = null;
+            foreach ($plainRules as $rule) {
                 // Skip rule if claim was submitted before the rule's effective date
-                if (!empty($rule->effective_date) && \App\Support\ZeroDate::has($rule->effective_date)) {
-                    if (strtotime($claimSubmitDate) < strtotime($rule->effective_date)) {
+                if ($rule->eff_ts !== null) {
+                    $submitTs ??= strtotime((string) $claimSubmitDate);
+                    if ($submitTs < $rule->eff_ts) {
                         $debugSkipped++;
                         continue;
                     }
@@ -212,7 +233,19 @@ class ClaimRatingService
                 }
                 [$days, $from, $to] = $span;
 
-                $stars = $rule->calculateRating($days);
+                // same as ClaimRatingRule::calculateRating
+                $stars = $days <= $rule->limits[0] ? 5 : ($days <= $rule->limits[1] ? 4 : ($days <= $rule->limits[2] ? 3 : ($days <= $rule->limits[3] ? 2 : 1)));
+                if ($compact) {
+                    $claimRatings[] = [$ruleIdx[$rule->stage_key] ?? 0, $stars, $days];
+                    $role = $rule->responsible_role;
+                    if (!isset($roleSummary[$role])) {
+                        $roleSummary[$role] = ['total_stars' => 0, 'count' => 0, 'by_star' => [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0]];
+                    }
+                    $roleSummary[$role]['total_stars'] += $stars;
+                    $roleSummary[$role]['count']++;
+                    $roleSummary[$role]['by_star'][$stars]++;
+                    continue;
+                }
                 $personId = $this->ratedPersonId($rule->responsible_role, $rule->stage_key, $claim);
                 $claimRatings[$rule->stage_key] = [
                     'days' => $days,
@@ -236,7 +269,14 @@ class ClaimRatingService
                 $roleSummary[$role]['by_star'][$stars]++;
             }
 
-            if (!empty($claimRatings)) {
+            if (!empty($claimRatings) && $compact) {
+                $eid = (int) $claim->EmployeeID;
+                if (!isset($empPos[$eid])) {
+                    $empPos[$eid] = count($emps);
+                    $emps[] = [$eid, $claim->EmpCode, trim(preg_replace('/\s+/', ' ', (string) $claim->employee_name)), $claim->department_name];
+                }
+                $results[] = [$empPos[$eid], (int) $claim->Month, $claimRatings];
+            } elseif (!empty($claimRatings)) {
                 $results[] = [
                     'exp_id' => $claim->ExpId,
                     'employee_id' => $claim->EmployeeID,
@@ -251,7 +291,7 @@ class ClaimRatingService
         }
 
         // M-06: names of the rated people (verifier, approver, finance, data entry) from HRIMS
-        $ids = array_values(array_filter(array_keys($personIds)));
+        $ids = $compact ? [] : array_values(array_filter(array_keys($personIds)));
         $names = [];
         foreach (array_chunk($ids, 1000) as $chunk) {
             foreach (DB::connection($this->hrimsConn)->table('hrm_employee')->whereIn('EmployeeID', $chunk)
@@ -259,19 +299,32 @@ class ClaimRatingService
                 $names[(int) $e->EmployeeID] = trim(preg_replace('/\s+/', ' ', "{$e->Fname} {$e->Sname} {$e->Lname}")).($e->EmpCode ? " ({$e->EmpCode})" : '');
             }
         }
-        foreach ($results as &$res) {
-            foreach ($res['ratings'] as &$r) {
-                $r['person_name'] = $names[$r['person_id']] ?? null;
+        if (! $compact) {
+            foreach ($results as &$res) {
+                foreach ($res['ratings'] as &$r) {
+                    $r['person_name'] = $names[$r['person_id']] ?? null;
+                }
+                unset($r);
             }
-            unset($r);
+            unset($res);
         }
-        unset($res);
 
         // Calculate averages per role
         foreach ($roleSummary as $role => &$summary) {
             $summary['avg_stars'] = $summary['count'] > 0
                 ? round($summary['total_stars'] / $summary['count'], 2)
                 : 0;
+        }
+
+        if ($compact) {
+            return [
+                'compact' => 1,
+                'claims_c' => $results,
+                'emps' => $emps,
+                'role_summary' => $roleSummary,
+                'rules' => $rules->values()->toArray(),
+                'total_claims' => count($results),
+            ];
         }
 
         return [
@@ -369,18 +422,18 @@ class ClaimRatingService
      */
     public function getEmployeeRatingSummary(array $filters = []): array
     {
-        $ratingData = $this->calculateRatings($filters);
+        $ratingData = $this->calculateRatings(['compact' => true] + $filters);
         if (isset($ratingData['error'])) return $ratingData;
 
         $employeeSummary = [];
 
-        foreach ($ratingData['claims'] as $claim) {
-            $empId = $claim['employee_id'];
+        foreach ($ratingData['claims_c'] as [$pos, $month, $ratings]) {
+            [$empId, $code, $name, $dept] = $ratingData['emps'][$pos];
             if (!isset($employeeSummary[$empId])) {
                 $employeeSummary[$empId] = [
-                    'emp_code' => $claim['emp_code'],
-                    'employee_name' => $claim['employee_name'],
-                    'department' => $claim['department'],
+                    'emp_code' => $code,
+                    'employee_name' => $name,
+                    'department' => $dept,
                     'total_stars' => 0,
                     'total_ratings' => 0,
                     'claims_count' => 0,
@@ -389,8 +442,8 @@ class ClaimRatingService
 
             $employeeSummary[$empId]['claims_count']++;
             // Include all stage ratings for this employee's claims
-            foreach ($claim['ratings'] as $rating) {
-                $employeeSummary[$empId]['total_stars'] += $rating['stars'];
+            foreach ($ratings as [, $stars]) {
+                $employeeSummary[$empId]['total_stars'] += $stars;
                 $employeeSummary[$empId]['total_ratings']++;
             }
         }

@@ -99,13 +99,24 @@ if (!function_exists('getMenuTree')) {
                 continue;
             }
             if (!empty($menu->permission_name)) {
+                if ($permissionCache === []) {
+                    // PERF-01: one query (cached 10 min) for the whole menu instead of one per menu item
+                    $permissionCache = \Illuminate\Support\Facades\Cache::remember('menu_permission_map', 600, function () {
+                        $map = [];
+                        $rows = DB::connection('expense')->table('permissions')->orderBy('id')->get(['name', 'permission_key']);
+                        foreach ($rows as $p) {
+                            if (!empty($p->permission_key) && !isset($map[$p->permission_key])) {
+                                $map[$p->permission_key] = $p->name;
+                            }
+                        }
+                        foreach ($rows as $p) {
+                            $map[$p->name] = $map[$p->name] ?? $p->name;
+                        }
+                        return $map ?: ['__none__' => '__none__'];
+                    });
+                }
                 if (!isset($permissionCache[$menu->permission_name])) {
-                    $permissionModel = new Permission();
-                    $permissionModel->setConnection('expense');
-                    $permission = $permissionModel->where(function ($query) use ($menu) {
-                        $query->where('permission_key', $menu->permission_name)->orWhere('name', $menu->permission_name);
-                    })->first();
-                    $permissionCache[$menu->permission_name] = $permission ? $permission->name : $menu->permission_name;
+                    $permissionCache[$menu->permission_name] = $menu->permission_name;
                 }
                 if (!Auth::user()->can($permissionCache[$menu->permission_name])) {
                     continue;
