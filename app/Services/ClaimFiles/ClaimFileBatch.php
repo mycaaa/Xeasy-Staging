@@ -86,13 +86,32 @@ class ClaimFileBatch
             $ok = false;
         }
         if (! $ok) {
+            // STORE-WHY-01: with 'throw' => false the disk only says false. Retry once through the driver, which throws
+            // with the storage service's own reason (access denied, no such bucket, wrong region, folder not writable).
+            $driverError = null;
+            try {
+                Storage::disk($this->disk)->getDriver()->write($path, $contents);
+                $ok = true;
+            } catch (\Throwable $e) {
+                $prev = $e->getPrevious();
+                $driverError = trim($e->getMessage().($prev ? ' | '.$prev->getMessage() : ''));
+                if ($prev instanceof \Aws\Exception\AwsException) {
+                    $driverError = ($prev->getAwsErrorCode() ?: 'AWS error').': '.($prev->getAwsErrorMessage() ?: $prev->getMessage());
+                }
+            }
+        }
+        if (! $ok) {
             // FILES-PERM-01: record why (folder permissions / disk space / bucket) so the server log shows the cause
             $cfg = (array) config("filesystems.disks.{$this->disk}");
             $why = ($cfg['driver'] ?? '') === 'local'
                 ? \App\Support\FileStoreDiagnosis::localProblem((string) ($cfg['root'] ?? ''), $path)
-                : 'bucket '.($cfg['bucket'] ?? '(none)').(empty($cfg['key']) ? ' - no AWS key set' : '');
-            Log::error('Claim file store returned false', ['path' => $path, 'disk' => $this->disk, 'driver' => $cfg['driver'] ?? '?', 'reason' => $why]);
-            throw new ClaimFileException('File upload failed: the claim was not saved. Please try again in a few minutes.');
+                : 'bucket '.($cfg['bucket'] ?? '(none)').' region '.($cfg['region'] ?? '?').(empty($cfg['key']) ? ' - no AWS key set' : '');
+            $ref = strtoupper(substr(sha1(uniqid('', true)), 0, 8));
+            Log::error('Claim file store returned false', ['ref' => $ref, 'path' => $path, 'disk' => $this->disk, 'driver' => $cfg['driver'] ?? '?', 'reason' => $why, 'storage_error' => $driverError]);
+            $user = auth()->user();
+            $admin = $user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['Super Admin', 'Admin']);
+            $detail = $admin ? ' Reason: '.mb_substr((string) ($driverError ?: $why), 0, 220).'.' : '';
+            throw new ClaimFileException("File upload failed: the claim was not saved (ref {$ref}).{$detail} Please try again in a few minutes; if it repeats, send the ref to the Xeasy team.");
         }
         $this->stored[] = ['field' => $field, 'name' => $name, 'path' => $path, 'preexisting' => $preexisting];
         UploadFingerprint::record($path, $name, $contents); // FILE-FP-01
