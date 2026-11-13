@@ -162,4 +162,9 @@ return [
     // SEC-03: password for the git command panel (empty = panel disabled). Never in code.
     'git_panel_password' => env('GIT_PANEL_PASSWORD', ''),
 
+    // PERF-10: measure every request (Server-Timing header) and log the ones slower than this to
+    // storage/logs/slow-requests.log; "php artisan perf:slow-pages" lists them
+    'perf_measure' => env('PERF_MEASURE', true),
+    'perf_slow_ms' => (int) env('PERF_SLOW_MS', 1500),
+
 ];

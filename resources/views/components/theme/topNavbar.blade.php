@@ -7,8 +7,8 @@
             </div>
             <div class="modal-body">
                 <div class="mt-2 text-center">
-                    <lord-icon src="https://cdn.lordicon.com/gsqxdxog.json" trigger="loop"
-                        colors="primary:#f7b84b,secondary:#f06548" style="width:100px;height:100px"></lord-icon>
+                    {{-- PERF-09: plain icon; the animated one loaded a 310 KB script and an outside file on every page --}}
+                    <i class="ri-delete-bin-line text-danger" style="font-size:64px" aria-hidden="true"></i>
                     <div class="mt-4 pt-2 fs-15 mx-4 mx-sm-5">
                         <h4>Are you sure ?</h4>
                         <p class="text-muted mx-4 mb-0">Are you sure you want to remove this Notification ?</p>
@@ -120,7 +120,7 @@
                 @if(\App\Services\SystemAlertsService::isAllowedUser(auth()->user()))
                 @inject('alertsService', 'App\Services\SystemAlertsService')
                 @php
-                    $sysAlertsSummary = $alertsService->getNotificationSummary();
+                    $sysAlertsSummary = $alertsService->cachedNotificationSummary(); // PERF-08
                     $totCount     = $sysAlertsSummary['total_count'] ?? 0;
                     $transCount   = $sysAlertsSummary['vvnr_transfers_count'] ?? 0;
                     $joinCount    = $sysAlertsSummary['new_joinings_count'] ?? 0;

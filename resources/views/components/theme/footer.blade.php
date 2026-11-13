@@ -52,7 +52,10 @@
 <script src="{{ URL::to('/') }}/assets/libs/simplebar/simplebar.min.js"></script>
 <script src="{{ URL::to('/') }}/assets/libs/node-waves/waves.min.js"></script>
 <script src="{{ URL::to('/') }}/assets/libs/feather-icons/feather.min.js"></script>
-<script src="{{ URL::to('/') }}/assets/js/pages/plugins/lord-icon-2.1.0.js"></script>
+{{-- PERF-09: the animated-icon library (310 KB) only on pages that show one --}}
+<script>
+if (document.querySelector('lord-icon')) { var li = document.createElement('script'); li.src = "{{ URL::to('/') }}/assets/js/pages/plugins/lord-icon-2.1.0.js"; document.body.appendChild(li); }
+</script>
 <script src="{{ URL::to('/') }}/custom/js/main.js?v={{ filemtime(public_path('custom/js/main.js')) }}"></script>
 <script src="{{ URL::to('/') }}/js/ehome-dashboard.js?v={{ filemtime(public_path('js/ehome-dashboard.js')) }}"></script>
 <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>

@@ -46,6 +46,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // LV-S08 / S-03: year, employee and claim ids must be numbers on every route
         $middleware->append(\App\Http\Middleware\ValidateIdInput::class);
+        // PERF-10: Server-Timing header and the slow-request log (php artisan perf:slow-pages)
+        $middleware->prepend(\App\Http\Middleware\MeasureRequestTime::class);
         // Enable CORS for API routes
         $middleware->api(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,

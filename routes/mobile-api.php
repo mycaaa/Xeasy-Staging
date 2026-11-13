@@ -241,6 +241,29 @@ $handleAccSummary = function (\Illuminate\Http\Request $request, $comId = null) 
 
     return app(\App\Http\Controllers\AccountSummaryController::class)->index($request);
 };
+// S3-FOLDER-01 (13 Nov 2026): a claim file by name for the app (VVNR claim screens used fixed links to the old live
+// server). Looks in the company's storage folder (xeasy / xeasy_vvnr) and the old "Expense" folder, then redirects to a
+// short-lived link. Same access rule as the ledger: the employee, their managers or approver, or staff on the web.
+$handleClaimFile = function (\Illuminate\Http\Request $request, $comId = null) {
+    $target = (int) $request->input('e', 0);
+    $year = (int) $request->input('y', 0);
+    $name = basename((string) $request->input('f', ''));
+    $via = $request->attributes->get('api_auth_via');
+    $self = (int) $request->attributes->get('api_auth_empid');
+    $ok = $target > 0 && $year > 0 && $name !== '' && (
+        ($via === 'mobile_token' && ($self === $target || in_array($self, \App\Support\RecordAccess::managersOf($target), true) || \App\Support\RecordAccess::approvedFor($self, $target)))
+        || ($via === 'session' && auth()->check() && \App\Support\RecordAccess::canViewEmployee(auth()->user(), $target))
+    );
+    abort_unless($ok, $via === null ? 401 : 403);
+    $company = (int) ($comId ?? $request->input('c', 1)) ?: 1;
+    $path = \App\Support\ClaimStorage::resolve(\App\Support\ClaimStorage::path($year, $target, $name, $company));
+    $s3 = app(\App\Services\S3Service::class);
+    abort_unless($s3->fileExists($path), 404);
+
+    return redirect()->away($s3->getFileViewUrl($path));
+};
+Route::get('claim-file.php', $handleClaimFile);
+Route::get('{comId}/claim-file.php', $handleClaimFile)->where('comId', '[0-9]+');
 Route::get('accsummary.php', $handleAccSummary);
 Route::get('{comId}/accsummary.php', $handleAccSummary)->where('comId', '[0-9]+');
 // APP-PDF-01: the app's VVNR expense PDF is requested under api/11/api/

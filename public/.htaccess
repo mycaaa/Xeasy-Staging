@@ -26,7 +26,9 @@
 
 # PERF-06: compress text answers and let browsers keep the static libraries.
 # Paths with the version in them (vendor/cdn/<package>@<version>/) never change: one year.
-# Third-party libraries, images and fonts: 7 days. Everything else keeps ETag checks.
+# Third-party libraries, images and fonts: 7 days.
+# PERF-09: our own CSS / JS linked with ?v=<file time> (the address changes when the file does): one year;
+# without it: one hour, so the browser stops re-asking for every file on every page. Everything else keeps ETag checks.
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
 </IfModule>
@@ -36,5 +38,11 @@
     </If>
     <ElseIf "%{REQUEST_URI} =~ m#^/assets/(libs|images|fonts)/# || %{REQUEST_URI} =~ m#\.(woff2?|ttf|eot|png|jpe?g|gif|svg|ico|webp)$#">
         Header set Cache-Control "public, max-age=604800"
+    </ElseIf>
+    <ElseIf "%{REQUEST_URI} =~ m#\.(css|js)$# && %{QUERY_STRING} =~ m#(^|&)v=\d+#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </ElseIf>
+    <ElseIf "%{REQUEST_URI} =~ m#^/(assets|custom|js|css)/.*\.(css|js)$#">
+        Header set Cache-Control "public, max-age=3600"
     </ElseIf>
 </IfModule>

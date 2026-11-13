@@ -45,6 +45,20 @@ class SystemAlertsService
     /**
      * Get combined notification summary and preview lists.
      */
+    /**
+     * PERF-08 (13 Nov 2026): the bell in the top bar ran ~10 HR / expense queries on every page for admins and
+     * verifiers. The same company sees the same alerts, so the top bar reuses the summary for 10 minutes.
+     */
+    public function cachedNotificationSummary(): array
+    {
+        $key = 'sys_alerts_summary:'.session('company_id', 1).':'.session('expense_connection', 'expense');
+        try {
+            return \Illuminate\Support\Facades\Cache::remember($key, 600, fn () => $this->getNotificationSummary());
+        } catch (\Throwable $e) {
+            return $this->getNotificationSummary();
+        }
+    }
+
     public function getNotificationSummary(): array
     {
         $companyId = session('company_id', 1);
