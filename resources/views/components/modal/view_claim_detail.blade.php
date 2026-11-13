@@ -1,4 +1,5 @@
     <div class="modal fade" id="claimDetailModal" data-bs-backdrop="static" data-modal-expid="" data-modal-empid=""
+        data-readonly-page="{{ (request()->is('approver', 'approver/*', 'vnr/approver*', 'vvnr/approver*', 'nursery/approver*', 'approver-dashboard*', 'dashboard', 'employee-report') || request()->routeIs('employee.dashboard')) ? 1 : 0 }}"
         data-modal-claimid="" data-modal-cgid="" tabindex="-1" aria-labelledby="claimDetailModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
@@ -101,8 +102,10 @@
                         );
                         // Dashboard = view-only mode: no action buttons shown
                         $isDashboard = request()->is('employee-report') || request()->is('dashboard') || request()->routeIs('employee.dashboard') || request()->routeIs('dashboard');
+                        // APPR-RO-01 (13 Nov 2026): the approver screens show the documents and the punched data view-only
+                        $isApproverPage = request()->is('approver', 'approver/*', 'vnr/approver*', 'vvnr/approver*', 'nursery/approver*', 'approver-dashboard*');
                     @endphp
-                    @if (!$isDashboard)
+                    @if (!$isDashboard && !$isApproverPage)
                         @if ($isDeactivatedPage && $isAdminUser)
                             <button type="button" class="btn btn-sm btn-success" id="modalRevertDeactivatedBtn"
                                 title="Revert this deactivated claim back to Uploaded">

@@ -1168,6 +1168,9 @@ class ClaimViewController extends Controller
             'image'    => 'required|file|mimes:jpg,jpeg,png,gif,bmp,webp,pdf|max:10240',
             'sequence' => 'nullable|integer',
         ]);
+        if ($refused = $this->refuseClaimEdit($request->input('expid'))) { // APPR-RO-01
+            return $refused;
+        }
 
         $yearId    = session('year_id');
         $expId     = $request->input('expid');
@@ -1825,8 +1828,35 @@ class ClaimViewController extends Controller
         return response()->json($varieties);
     }
 
+    /**
+     * APPR-RO-01 (13 Nov 2026): punched data and claim documents are changed only by the data entry, verification
+     * or payment teams (or Super Admin), or by the claimant on their own claim. A reporting manager (or anyone
+     * else) only views them. Returns an error response, or null when allowed.
+     */
+    private function refuseClaimEdit($expId)
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return $this->jsonError('Please log in again.', 401);
+        }
+        if ((method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['Super Admin', 'Admin']))
+            || collect(['section_data_punching', 'section_verifier', 'verifier_verifier_screen', 'payment_section', 'finance'])->contains(fn ($p) => $user->can($p))) {
+            return null;
+        }
+        $owner = \App\Support\RecordAccess::claimOwner((int) $expId, (int) session('year_id'), (string) session('expense_connection'));
+        if ($owner !== null && (int) $owner === (int) \App\Support\RecordAccess::selfId($user)) {
+            return null;
+        }
+        \Illuminate\Support\Facades\Log::warning('APPR-RO-01: claim edit refused', ['user' => $user->id, 'exp_id' => $expId, 'path' => request()->path()]);
+
+        return $this->jsonError('You can view this claim but not change it. Changes are made by the data entry or verification team.', 403);
+    }
+
     public function uploadClaimFiles(Request $request)
     {
+        if ($refused = $this->refuseClaimEdit($request->input('expid'))) {
+            return $refused;
+        }
         $yearId = session('year_id');
         // RET-01: no punching in an archived (read-only) year
         if (\App\Services\Retention\RecordRetention::isArchived((string) session('expense_connection'), (int) $yearId)) {

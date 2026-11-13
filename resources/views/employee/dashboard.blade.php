@@ -1338,7 +1338,7 @@
 @push('scripts')
 <script src="{{ URL::to('/') }}/assets/libs/apexcharts/apexcharts.min.js"></script>
 <script src="{{ asset('vendor/cdn/chart.js@4.4.0/dist/chart.umd.js') }}"></script>
-<script src="{{ asset('custom/js/pages/claim.js') }}"></script>
+<script src="{{ asset('custom/js/pages/claim.js') }}?v={{ filemtime(public_path('custom/js/pages/claim.js')) }}"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // DASHBOARD VIEW-ONLY: disable all form controls in the claim modal

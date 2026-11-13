@@ -1,3 +1,42 @@
+/* APPR-RO-01 (13 Nov 2026): view-only claim detail (approver screens / dashboard). Every field of the data entry
+ * form (and anything added to it later, such as the participant editor) is disabled, the claim type cannot be
+ * switched, documents cannot be uploaded, and the save / action buttons are hidden. Viewing, zooming and paging
+ * through the documents still work. The server refuses changes from these users anyway (claim transitions). */
+(function () {
+    let observer = null;
+    function lock(root) {
+        $(root).find("input, select, textarea, button").not(".ro-keep, [name=view_mode], .chat-input, [id*=chat], [id*=Chat]").each(function () {
+            const $el = $(this);
+            if ($el.is("button") && !$el.is("[type=submit], .btn-success, .btn-danger, .btn-warning, .btn-primary, .btn-info, [id*=save], [id*=Save], [id*=add], [id*=Add], [id*=remove], [id*=Remove], [class*=remove], [class*=delete], [class*=add-]")) { return; }
+            $el.prop("disabled", true).attr("data-ro-locked", "1");
+        });
+        $(root).find("[contenteditable=true]").attr("contenteditable", "false").attr("data-ro-locked", "1");
+    }
+    window.xeasyClaimReadOnly = function (on) {
+        const $m = $("#claimDetailModal");
+        if (!$m.length) { return; }
+        if (observer) { observer.disconnect(); observer = null; }
+        $m.toggleClass("claim-view-only", !!on);
+        $m.find("#claimImageUploadWrapper").toggleClass("d-none", !!on);
+        $m.find("#sltClaimTypeList").prop("disabled", !!on);
+        $m.find("#saveBtn, #denyBtn, #holdBtn, #draftBtn, #filledBtn, #modalDeactivateClaimBtn, #revertUploadedBtn, #modalRevertDeactivatedBtn").toggleClass("d-none", !!on);
+        $m.find(".claim-ro-badge").remove();
+        if (!on) {
+            $m.find("[data-ro-locked]").prop("disabled", false).removeAttr("data-ro-locked");
+            return;
+        }
+        $m.find(".modal-title").first().append('<span class="claim-ro-badge badge bg-secondary ms-2" title="Approvers see the documents and the punched figures; changes are made by data entry or the verifier">View only</span>');
+        const form = document.getElementById("dataEntryForm");
+        lock(form);
+        $m.find(".modal-body .form-section, #paxEditorContainer, [id^=pax], [id*=Pax]").each(function () { lock(this); });
+        if (form && window.MutationObserver) {
+            observer = new MutationObserver(function () { lock(form); });
+            observer.observe(form, { childList: true, subtree: true });
+        }
+    };
+    $(document).on("hidden.bs.modal", "#claimDetailModal", function () { if (observer) { observer.disconnect(); observer = null; } });
+})();
+
 $(document).ready(function () {
     let uploadedFiles = [];
     let currentFileIndex = 0;
@@ -1900,6 +1939,7 @@ $(document).ready(function () {
                                 window.initClaimDetailForm();
                                 console.log('✅ Claim detail form initialized');
                             }
+                            window.xeasyClaimReadOnly(String($("#claimDetailModal").attr("data-readonly")) === "1"); // APPR-RO-01
                         }, 100);
                     } else {
                         $("#dataEntryForm").html(
@@ -2034,6 +2074,10 @@ $(document).ready(function () {
             "data-modal-cgid": cgId,
             "data-modal-empid": empId,
         });
+        // APPR-RO-01: opened from an approver screen (or the dashboard) -> documents and data entry are view-only
+        const readOnly = String(modal.attr("data-readonly-page")) === "1" || $(this).closest("#dayModal, #rmDayModal").length > 0;
+        modal.attr("data-readonly", readOnly ? "1" : "0");
+        window.xeasyClaimReadOnly(readOnly);
         $("#expIdValue").text(expId);
         // Populate the claim-type dropdown (async, for UI only — does NOT trigger load)
         claimTypeList(claimid);
