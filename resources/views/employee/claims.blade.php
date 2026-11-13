@@ -476,6 +476,37 @@ $companyId = session('company_id');
             }
         }
 
+        // UPLOAD-SIZE-01 helpers
+        const XEASY_POST_MAX = {{ (int) \App\Support\UploadLimits::postMaxBytes() }};
+        function xeasyFormDataBytes(fd) { let n = 0; for (const [, v] of fd.entries()) { n += (v instanceof Blob) ? v.size : String(v).length; } return n; }
+        function xeasyShrinkImage(file) {
+            return new Promise(function (resolve) {
+                if (!(file instanceof File) || !/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size < 900 * 1024) { resolve(file); return; }
+                const url = URL.createObjectURL(file); const img = new Image();
+                img.onload = function () {
+                    const max = 1800, k = Math.min(1, max / Math.max(img.width, img.height));
+                    const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+                    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+                    c.toBlob(function (b) { resolve(b && b.size < file.size ? new File([b], file.name.replace(/\.(png|webp)$/i, ".jpg"), { type: "image/jpeg" }) : file); }, "image/jpeg", 0.82);
+                };
+                img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+                img.src = url;
+            });
+        }
+        function xeasyShrinkFormData(fd) {
+            const entries = [...fd.entries()];
+            return Promise.all(entries.map(([k, v]) => (v instanceof File ? xeasyShrinkImage(v) : Promise.resolve(v)).then(x => [k, x])))
+                .then(list => { const out = new FormData(); list.forEach(([k, v]) => v instanceof File ? out.append(k, v, v.name) : out.append(k, v)); return out; });
+        }
+        function xeasyUploadError(xhr) {
+            if (xhr.status === 419) return "The page has expired (or the files were too large for the server). Refresh the page and try again; if it repeats, upload smaller files.";
+            if (xhr.status === 413) return "The files are too large for the server. Upload fewer pages or smaller files.";
+            if (xhr.status === 401 || xhr.status === 302) return "You have been logged out. Please log in again.";
+            if (xhr.status === 0) return "No connection to the server. Check the network and try again.";
+            const j = xhr.responseJSON || {};
+            return (j.msg || j.message || "Server error while submitting the claim") + (j.ref ? " (ref " + j.ref + ")" : "") + " [" + xhr.status + "]";
+        }
+
         function initClaimDatePicker(selector, opts) {
             if (document.querySelector(selector)._flatpickr) {
                 document.querySelector(selector)._flatpickr.destroy();
@@ -2767,10 +2798,19 @@ $companyId = session('company_id');
             //------------------------------------------
             // AJAX SUBMIT
             //------------------------------------------
+            // UPLOAD-SIZE-01: phone photos are shrunk in the browser (the server limits the whole request; above it PHP
+            // drops the form and the claim failed with "Server error"); a request still too large is stopped here
+            xeasyShrinkFormData(formData).then(function (fd) {
+            const total = xeasyFormDataBytes(fd);
+            if (XEASY_POST_MAX > 0 && total > XEASY_POST_MAX * 0.95) {
+                showMessage("The files are too large together (" + (total / 1048576).toFixed(1) + " MB; the server accepts up to "
+                    + (XEASY_POST_MAX / 1048576).toFixed(0) + " MB). Upload fewer pages or smaller PDFs.", "danger", "#uploadClaimMessage");
+                return;
+            }
             $.ajax({
                 url: "{{ route('claim.upload.submit') }}",
                 type: "POST",
-                data: formData,
+                data: fd,
                 contentType: false,
                 processData: false,
                 beforeSend: function() {
@@ -2796,12 +2836,13 @@ $companyId = session('company_id');
                     }
                 },
                 error: function(xhr) {
-                    console.error("Server Error", xhr.responseText);
-                    showMessage("Server error occurred while submitting claim.", "danger", "#uploadClaimMessage");
+                    console.error("Server Error", xhr.status, xhr.responseText);
+                    showMessage(xeasyUploadError(xhr), "danger", "#uploadClaimMessage");
                 },
                 complete: function() {
                     $("#submitUploadClaimBtn").prop("disabled", false).text("Submit");
                 }
+            });
             });
 
         });

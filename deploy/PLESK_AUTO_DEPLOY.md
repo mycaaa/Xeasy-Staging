@@ -71,3 +71,18 @@ leave it (Plesk's OPcache revalidates changed files within a few seconds by defa
 
 Same setup on the live subscription, with **Deployment mode: Manual** until a release is approved, then
 *Deploy now* in Plesk. Never point the live site at a branch that receives test pushes.
+
+## PHP upload limits (bill photos)
+
+Plesk's PHP defaults (post_max_size 8M, upload_max_filesize 2M) are too small for several phone photos in one
+claim; above them PHP drops the whole form and the claim fails ("page expired" / "server error"). The web screen
+now shrinks photos before upload, but PDFs and the app send files as they are. Plesk > xeasy > **PHP Settings**:
+
+| Setting | Value |
+|---|---|
+| upload_max_filesize | 20M |
+| post_max_size | 60M |
+| max_file_uploads | 20 |
+| memory_limit | 512M |
+
+and, if nginx is in front (Plesk > Apache & nginx Settings > Additional nginx directives): `client_max_body_size 60m;`

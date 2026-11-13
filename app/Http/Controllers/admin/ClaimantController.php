@@ -986,6 +986,12 @@ class ClaimantController extends Controller
             $claimType = $request->claimtype;
             $amount = $request->amount;
             // Tracker rules run here too, so a configured external relay target cannot bypass them.
+            // UPLOAD-SIZE-01: a file above the server's per-file limit arrives as an upload error, not as a file
+            foreach (Arr::flatten($request->allFiles()) as $f) {
+                if ($f instanceof \Illuminate\Http\UploadedFile && ! $f->isValid()) {
+                    return response()->json(['status' => 'error', 'msg' => "File \"{$f->getClientOriginalName()}\" was not received: ".$f->getErrorMessage().' Upload a smaller file.']);
+                }
+            }
             $ruleError = ClaimSubmissionValidator::first(app(ClaimSubmissionValidator::class)->validateBillRequest($request));
             if ($ruleError !== null) {
                 return response()->json(['status' => 'error', 'msg' => $ruleError]);
@@ -1076,8 +1082,12 @@ class ClaimantController extends Controller
             }
 
             return response()->json(['status' => 'error', 'msg' => $result['msg'] ?? 'Failed to submit claim.']);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'msg' => 'There is some problem in your request.']);
+        } catch (\Throwable $e) {
+            // UPLOAD-SIZE-01: any failure is logged with a reference the user can quote
+            $ref = strtoupper(substr(sha1(uniqid('', true)), 0, 8));
+            \Illuminate\Support\Facades\Log::error('submitUploadClaim failed', ['ref' => $ref, 'emp' => session('employee_id'), 'error' => $e->getMessage(), 'at' => $e->getFile().':'.$e->getLine()]);
+
+            return response()->json(['status' => 'error', 'msg' => "The claim could not be saved (ref {$ref}). Please try again or send the ref to the Xeasy team."]);
         }
     }
 
