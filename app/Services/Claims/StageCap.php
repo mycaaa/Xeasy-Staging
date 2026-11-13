@@ -30,7 +30,9 @@ class StageCap
         $claimed = (float) ($claim->FilledTAmt ?? 0);
         $verified = (float) ($claim->VerifyTAmt ?? 0);
         if ($stage === 'approve') {
-            $b = $verified > 0 ? $verified : $claimed;
+            // APPR-RAISE-01 (13 Nov 2026): the approver may raise a reduced verified amount back up to the claimed
+            // amount; the ceiling is the higher of the two (the verifier may have corrected a claim up to policy)
+            $b = max($verified, $claimed);
         } else {
             $b = $claimed;
         }
@@ -65,10 +67,16 @@ class StageCap
         if ($stage === 'approve' && $basis !== null && $new > $basis + $tol
             && config('claim_rules.stage_caps.approve_never_above_claimed', true)) {
             self::log($conn, $yearId, $claim, $basis, $new, $stage, $remark, $source, 'refused_above_basis');
-            $what = ((float) ($claim->VerifyTAmt ?? 0)) > 0 ? 'verified' : 'claimed';
+            $what = ((float) ($claim->VerifyTAmt ?? 0)) > ((float) ($claim->FilledTAmt ?? 0)) ? 'verified' : 'claimed';
 
             return 'The approved amount ('.number_format($new, 2).') cannot be more than the '.$what.' amount ('
-                .number_format($basis, 2).'). The approver can keep or reduce the amount, not increase it.';
+                .number_format($basis, 2).'). The approver can raise the verified amount up to the claimed amount, not beyond.';
+        }
+        // APPR-RAISE-01: a raise above the verified amount (within the claimed amount) is allowed and logged for Finance
+        if ($stage === 'approve' && $basis !== null && (float) ($claim->VerifyTAmt ?? 0) > 0 && $new > (float) $claim->VerifyTAmt + $tol) {
+            self::log($conn, $yearId, $claim, (float) $claim->VerifyTAmt, $new, $stage, $remark, $source, 'approver_raised_within_claimed');
+
+            return null;
         }
         if ($basis === null || $new <= $basis + $tol) {
             return null;
