@@ -904,8 +904,16 @@
                     data: null,
                     width: '80px',
                     render: function(data, type, row) {
-                        const amount = row.total_pending_amount || row.total_amount || 0;
-                        return `<div class="amount-display">${formatAmount(amount)}</div>`;
+                        // ADV-AMT-01: a later approver sees the amount the previous level approved
+                        const asked = parseFloat(row.total_pending_amount || row.total_amount || 0);
+                        let amount = 0, any = false;
+                        (row.activities || []).forEach(a => {
+                            const ok = (a.approvals || []).filter(p => (p.approver_status || '').toLowerCase() === 'approved' && parseFloat(p.approver_amount) > 0);
+                            if (ok.length) { any = true; amount += parseFloat(ok[ok.length - 1].approver_amount); } else { amount += parseFloat(a.amount) || 0; }
+                        });
+                        if (!any) amount = asked;
+                        return `<div class="amount-display">${formatAmount(amount)}</div>` +
+                            (any && Math.abs(asked - amount) > 0.009 ? `<div class="text-muted" style="font-size:0.6rem;"><s>${formatAmount(asked)}</s> asked</div>` : '');
                     }
                 },
                 {

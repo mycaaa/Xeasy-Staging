@@ -1272,15 +1272,17 @@
                         title: 'Amount', data: null, width: '80px',
                         render: function (data, type, row) {
                             let amount = 0;
+                            let asked = 0;
                             if (row.activities && row.activities.length > 0) {
-                                amount = row.activities.reduce((sum, activity) => {
-                                    return sum + (parseFloat(activity.amount) || 0);
-                                }, 0);
+                                amount = row.activities.reduce((sum, activity) => sum + currentAdvanceAmount(activity), 0);
+                                asked = row.activities.reduce((sum, activity) => sum + (parseFloat(activity.amount) || 0), 0);
                             }
                             if (amount === 0) {
                                 amount = row.total_approved_amount || row.total_pending_amount || row.total_amount || 0;
                             }
-                            return '<div class="amount-display">' + formatAmount(amount) + '</div>';
+                            // ADV-AMT-01: show the approved amount; the amount asked for only when it differs
+                            return '<div class="amount-display">' + formatAmount(amount) + '</div>' +
+                                (asked && Math.abs(asked - amount) > 0.009 ? '<div class="text-muted" style="font-size:0.6rem;"><s>' + formatAmount(asked) + '</s> asked</div>' : '');
                         }
                     },
                     {
@@ -1565,15 +1567,17 @@
                         title: 'Amount', data: null, width: '80px',
                         render: function (data, type, row) {
                             let amount = 0;
+                            let asked = 0;
                             if (row.activities && row.activities.length > 0) {
-                                amount = row.activities.reduce((sum, activity) => {
-                                    return sum + (parseFloat(activity.amount) || 0);
-                                }, 0);
+                                amount = row.activities.reduce((sum, activity) => sum + currentAdvanceAmount(activity), 0);
+                                asked = row.activities.reduce((sum, activity) => sum + (parseFloat(activity.amount) || 0), 0);
                             }
                             if (amount === 0) {
                                 amount = row.total_approved_amount || row.total_pending_amount || row.total_amount || 0;
                             }
-                            return '<div class="amount-display">' + formatAmount(amount) + '</div>';
+                            // ADV-AMT-01: show the approved amount; the amount asked for only when it differs
+                            return '<div class="amount-display">' + formatAmount(amount) + '</div>' +
+                                (asked && Math.abs(asked - amount) > 0.009 ? '<div class="text-muted" style="font-size:0.6rem;"><s>' + formatAmount(asked) + '</s> asked</div>' : '');
                         }
                     },
                     {
@@ -1641,9 +1645,7 @@
                         render: function (data, type, row) {
                             let amount = 0;
                             if (row.activities && row.activities.length > 0) {
-                                amount = row.activities.reduce((sum, activity) => {
-                                    return sum + (parseFloat(activity.finance_approved_amount) || parseFloat(activity.amount) || 0);
-                                }, 0);
+                                amount = row.activities.reduce((sum, activity) => sum + currentAdvanceAmount(activity), 0); // ADV-AMT-01
                             }
                             return '<div class="amount-display">' + formatAmount(amount) + '</div>';
                         }
@@ -2745,7 +2747,7 @@
                     const varieties = activity.variety_names ? activity.variety_names.join(', ') : 'No varieties';
                     const purpose = activity.purpose || 'No purpose specified';
                     const status = activity.approval_status || activity.finance_status || 'Pending';
-                    const amount = activity.finance_approved_amount || activity.amount || 0;
+                    const amount = currentAdvanceAmount(activity); // ADV-AMT-01
 
                     content += `
                                 <tr>
@@ -2828,6 +2830,17 @@
                     `;
         }
 
+
+        // ADV-AMT-01 (13 Nov 2026): the amount a later stage works with is the last approved one:
+        // Finance-approved if set, else the last approver's amount, else the amount asked for.
+        function currentAdvanceAmount(activity) {
+            if (!activity) return 0;
+            const fin = parseFloat(activity.finance_approved_amount);
+            if (fin > 0) return fin;
+            const appr = (activity.approvals || []).filter(a => (a.approver_status || '').toLowerCase() === 'approved' && parseFloat(a.approver_amount) > 0);
+            if (appr.length) return parseFloat(appr[appr.length - 1].approver_amount);
+            return parseFloat(activity.amount) || 0;
+        }
         function generateFinanceApprovalModal(request, action) {
             let lastApprovedAmount = 0;
             if (request.activities && request.activities.length > 0) {
@@ -2972,7 +2985,7 @@
                                                                             ${activity.activity_type_name}
                                                                         </div>
                                                                         <div style="font-size: 0.7rem; color: #666;">
-                                                                            Amount: <span class="amount-display" style="font-size: 0.7rem;">${formatAmount(activity.amount)}</span>
+                                                                            Amount: <span class="amount-display" style="font-size: 0.7rem;">${formatAmount(currentAdvanceAmount(activity))}</span>${Math.abs(currentAdvanceAmount(activity) - (parseFloat(activity.amount) || 0)) > 0.009 ? ' <small class="text-muted">(asked <s>' + formatAmount(activity.amount) + '</s>)</small>' : ''}
                                                                         </div>
                                                                     </div>
                                                                     <div class="col-3">
