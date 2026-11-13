@@ -21,7 +21,7 @@ class KmCapApproval
         if (Schema::connection($conn)->hasTable(self::TABLE)) {
             return;
         }
-        Schema::connection($conn)->create(self::TABLE, function ($t) {
+        \App\Support\SafeTable::create($conn, self::TABLE, function ($t) {
             $t->id();
             $t->unsignedInteger('company_id')->default(1);
             $t->unsignedInteger('year_id');

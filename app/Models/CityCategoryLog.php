@@ -46,7 +46,7 @@ class CityCategoryLog extends Model
     {
         try {
             if (!Schema::connection($conn)->hasTable('city_category_logs')) {
-                Schema::connection($conn)->create('city_category_logs', function (Blueprint $table) {
+                \App\Support\SafeTable::create($conn, 'city_category_logs', function (Blueprint $table) {
                     $table->id();
                     $table->unsignedBigInteger('ccid')->nullable()->index();
                     $table->string('action', 50)->comment('Created, Updated, Deleted');

@@ -188,7 +188,7 @@ class DuplicateOdometer
     public static function markReviewed(string $conn, int $yearId, int $expId, ?int $by, string $remark): void
     {
         if (! Schema::connection($conn)->hasTable(self::REVIEW_TABLE)) {
-            Schema::connection($conn)->create(self::REVIEW_TABLE, function ($t) {
+            \App\Support\SafeTable::create($conn, self::REVIEW_TABLE, function ($t) {
                 $t->id();
                 $t->unsignedSmallInteger('year_id');
                 $t->unsignedBigInteger('exp_id');
@@ -219,7 +219,7 @@ class DuplicateOdometer
         if (Schema::connection($conn)->hasTable(self::LOG_TABLE)) {
             return;
         }
-        Schema::connection($conn)->create(self::LOG_TABLE, function ($t) {
+        \App\Support\SafeTable::create($conn, self::LOG_TABLE, function ($t) {
             $t->id();
             $t->unsignedSmallInteger('year_id');
             $t->unsignedBigInteger('exp_id');

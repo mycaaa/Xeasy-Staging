@@ -119,7 +119,7 @@ class PunchChangeTrack
         if (Schema::connection($conn)->hasTable(self::TABLE)) {
             return;
         }
-        Schema::connection($conn)->create(self::TABLE, function ($t) {
+        \App\Support\SafeTable::create($conn, self::TABLE, function ($t) {
             $t->id();
             $t->unsignedTinyInteger('company_id')->default(1);
             $t->unsignedSmallInteger('year_id');

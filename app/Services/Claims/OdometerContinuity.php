@@ -125,7 +125,7 @@ class OdometerContinuity
         if (Schema::connection($conn)->hasTable(self::TABLE)) {
             return;
         }
-        Schema::connection($conn)->create(self::TABLE, function ($t) {
+        \App\Support\SafeTable::create($conn, self::TABLE, function ($t) {
             $t->id();
             $t->unsignedSmallInteger('year_id');
             $t->unsignedBigInteger('exp_id');
