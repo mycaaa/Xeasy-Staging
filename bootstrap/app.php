@@ -33,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Mobile API routes (legacy API migration)
             // These serve under /api/ to match Flutter app's Config.MainUrl
             // LV-S04: login check (app token / session / internal key); acting employee = token's
-            Route::middleware(['api', \App\Http\Middleware\UnifiedApiResponse::class, \App\Http\Middleware\LegacyZeroDates::class, \App\Http\Middleware\MobileApiAuthenticate::class])
+            Route::middleware(['api', \App\Http\Middleware\UnifiedApiResponse::class, \App\Http\Middleware\LegacyZeroDates::class, \Illuminate\Cookie\Middleware\EncryptCookies::class, \App\Http\Middleware\StartSessionIfCookie::class, \App\Http\Middleware\MobileApiAuthenticate::class])
                 ->prefix('api')
                 ->group(base_path('routes/mobile-api.php'));
             

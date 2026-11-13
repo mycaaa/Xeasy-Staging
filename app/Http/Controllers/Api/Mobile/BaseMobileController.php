@@ -72,6 +72,12 @@ abstract class BaseMobileController extends Controller
             return DB::connection($this->getHrimsConnection())->table('hrm_employee')->where('EmployeeID', $empId)->first();
         }
 
+        // ADV-WEB-01: a logged-in web user calling these endpoints from a web screen, for themselves
+        if (! empty($empId) && \Illuminate\Support\Facades\Auth::guard('web')->check()
+            && (int) \Illuminate\Support\Facades\Auth::guard('web')->user()->employee_id === $empId) {
+            return DB::connection($this->getHrimsConnection())->table('hrm_employee')->where('EmployeeID', $empId)->first();
+        }
+
         if (empty($empId) || empty($tokenId)) {
             return null;
         }

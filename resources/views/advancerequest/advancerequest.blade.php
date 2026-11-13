@@ -280,7 +280,7 @@ $(document).ready(function() {
     const companyId = authData ? parseInt(authData.dataset.companyId) : 0;
     const fYearId = authData ? parseInt(authData.dataset.fyearId) : 0;
     const userId = authData ? parseInt(authData.dataset.userId) : 0;
-    const API_LOCAL_BASE_URL = "{{ config('app.api_local_base_url') }}";
+    const API_LOCAL_BASE_URL = "{{ url('api') }}";
     // API endpoints
   const apiEndpoints = {
     advance: `${API_LOCAL_BASE_URL}/advance`,

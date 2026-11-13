@@ -890,7 +890,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('system-configurations', SystemConfigurationController::class)->except(['show', 'create']);
     // Advance Finance Management
     // Routes for finance level advance request approvals
-    Route::middleware('permission:advance_finance_management')->group(function () {
+    // ADV-WEB-01 (13 Nov 2026): the permission advance_finance_management does not exist, so only Super Admin could open
+    // these screens; the menu ("Advance Approvals") gives them to Payment Section, which is what the route now checks.
+    Route::middleware('permission:payment_section')->group(function () {
         Route::get('advance/finance', [AdvanceFinanceController::class, 'index'])->name('advance.finance.index');
         Route::get('advance/finance/pending', [AdvanceFinanceController::class, 'pending'])->name('advance.finance.pending');
         Route::get('advance/finance/rejected', [AdvanceFinanceController::class, 'rejected'])->name('advance.finance.rejected');

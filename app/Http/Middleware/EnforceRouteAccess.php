@@ -43,4 +43,30 @@ class EnforceRouteAccess
 
         return $next($request);
     }
+
+    /**
+     * ADV-WEB-01: may this user open the page at $path? Same rules as handle(); used to show only the
+     * dashboard / menu links the user can open (an "Advance Report" button that ends in 403 looked unwired).
+     */
+    public static function allows(?\Illuminate\Contracts\Auth\Authenticatable $user, string $path): bool
+    {
+        if (! $user || ! config('route_access.enabled', true)) {
+            return (bool) $user;
+        }
+        $path = trim($path, '/');
+        foreach ((array) config('route_access.rules', []) as $rule) {
+            if (! preg_match($rule[0], $path)) {
+                continue;
+            }
+            foreach ((array) $rule[1] as $perm) {
+                if ($user->can($perm)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return true;
+    }
 }

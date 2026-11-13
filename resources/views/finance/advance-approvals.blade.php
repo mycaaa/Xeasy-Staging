@@ -836,7 +836,7 @@
         const yearId = {{ session('year_id', date('Y')) }};
         const comId = {{ session('company_id', 1) }};
         const API_BASE_URL = "{{ url('api') }}"; // runs in the browser: same host as the page (API_NEW_BASE_URL may be a server-internal address)
-        const API_LOCAL_BASE_URL = "{{ config('app.api_local_base_url') }}";
+        const API_LOCAL_BASE_URL = "{{ url('api') }}";
         // const apiBaseUrl = 'https://expensenew.vnrseeds.co.in/api/advance/finance';
         const apiBaseUrl = `${API_BASE_URL}/advance/finance`;
 

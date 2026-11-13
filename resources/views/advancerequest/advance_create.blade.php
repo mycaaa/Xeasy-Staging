@@ -324,9 +324,9 @@ $(document).ready(function() {
     const companyId = authData ? parseInt(authData.dataset.companyId) : 0;
     const fYearId = authData ? parseInt(authData.dataset.fyearId) : 0;
     const userId = authData ? parseInt(authData.dataset.userId) : 0;
-    const tokenId = 'e3KtB_sJQLCQezQ1WGLh5X:APA91bHX7e1CIKBdYyV2HoFQHI3zsWBALbhceWtkTv9ZiUrhVb0GqddBT-ChPPd8CCcHbyDni_3y7PF4Law8NWVSqUDzg6QwnN_LA-lUMB5D7AjjRx8mHEakFA6A5QHVegc_1a5LFB7i';
+    const tokenId = 'web-session'; // ADV-WEB-01: the web session is the login (the old hard-coded device token is removed); the endpoints still ask for a non-empty tokenid
     const API_BASE_URL = "{{ url('api') }}"; // runs in the browser: same host as the page (API_BASE_URL may be a server-internal address)
-    const API_LOCAL_BASE_URL = "{{ config('app.api_local_base_url') }}";
+    const API_LOCAL_BASE_URL = "{{ url('api') }}";
     // API endpoints - all external APIs
  const apiEndpoints = {
         checkAccess: `${API_BASE_URL}/advance_request.php`,
@@ -396,6 +396,7 @@ $(document).ready(function() {
         return 0;
     }
 
+    window.validateAmountInput = function (input) { return validateAmountInput(input); }; // ADV-WEB-01: used by oninput="" attributes
     function validateAmountInput(input) {
         const value = input.value.toString();
         const numericValue = parseFloat(value) || 0;
@@ -1268,61 +1269,62 @@ $(document).ready(function() {
         }
     });
 
+    // ADV-WEB-01 (13 Nov 2026): the self request posted the old mobile fields (value=submit_advance_request, ...)
+    // to /api/advance/draft, which takes {request, employees[]}: every web self request failed with 422.
+    // It now sends the same structure as the team request, for the logged-in employee.
     function submitSelfRequest() {
-        showLoading();
-        
-        const requestData = {
-            value: 'submit_advance_request',
-            empid: empId,
-            YearId: fYearId,
-            ComId: companyId,
-            tokenid: tokenId,
-            request_type: 'self',
-            advance_type: $('#advanceType').val() == 'Activity' ? '1' : $('#advanceType').val() == 'Expense' ? '2' : $('#advanceType').val() == 'Other'? '3' : '',
-            month: $('#month').val(),
-            purpose: $('#simplePurpose').val().trim(),
-            amount: parseFloat($('#selfAmount').val()),
-            employee_id: empId,
-            employee_name: empName,
-            employee_code: empCode,
-            department: department,
-            request_date: new Date().toISOString().split('T')[0]
+        const selectedAdvanceType = $('#advanceType').val();
+        const amount = parseFloat($('#selfAmount').val());
+        const purpose = ($('#simplePurpose').val() || '').trim();
+        if (!$('#month').val()) { showMessage('Please select month', 'warning'); return; }
+        if (!amount || amount <= 0) { showMessage('Please enter a valid amount', 'warning'); return; }
+        if (!purpose) { showMessage('Please enter purpose', 'warning'); return; }
+        const fx = xeasyFx.current();
+        if (fx.currency !== 'INR' && !(fx.rate > 0)) { showMessage('No ' + fx.currency + ' rate available: enter the rate', 'warning'); return; }
+        const inrAmount = fx.currency === 'INR' ? amount : Math.round(amount * fx.rate * 100) / 100;
+        if (inrAmount > 999999) { showMessage('Amount cannot exceed ₹999,999', 'warning'); return; }
+
+        const payload = {
+            user_id: empId,
+            request: {
+                month: parseInt($('#month').val()),
+                year_id: fYearId,
+                req_app_submit_id: parseInt(empId),
+                advance_type_id: selectedAdvanceType === 'Activity' ? 1 : selectedAdvanceType === 'Expense' ? 2 : selectedAdvanceType === 'Other' ? 3 : null
+            },
+            employees: [{
+                employee_id: parseInt(empId),
+                activities: [{
+                    activity_type_id: null,
+                    activity_crops_id: [],
+                    activity_variety_id: [],
+                    amount: inrAmount,
+                    ...xeasyFx.fields(amount),
+                    purpose: purpose,
+                    advance_type: selectedAdvanceType
+                }]
+            }]
         };
 
-        console.log('Submitting self request:', requestData);
-
+        showLoading();
         $.ajax({
             url: apiEndpoints.submitRequest,
             method: 'POST',
-            contentType: 'application/x-www-form-urlencoded',
-            data: requestData,
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
             success: function(response) {
                 hideLoading();
-                console.log('Submission Response:', response);
-                
-                let parsedResponse = response;
-                if (typeof response === 'string') {
-                    try {
-                        parsedResponse = JSON.parse(response);
-                    } catch (e) {
-                        showMessage('Error parsing response');
-                        return;
-                    }
-                }
-                
-                if (parsedResponse.code === 200 || parsedResponse.success === true) {
+                if (response.code === 200 || response.success === true) {
                     showMessage('Advance request submitted successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/advance/request/list';
-                    }, 1500);
+                    setTimeout(() => { window.location.href = '/advance-requests'; }, 1500);
                 } else {
-                    showMessage(parsedResponse.message || 'Failed to submit advance request', 'danger');
+                    showMessage(response.message || 'Failed to submit advance request', 'danger');
                 }
             },
-            error: function(xhr, status, error) {
+            error: function(xhr) {
                 hideLoading();
-                console.error('Submission Error:', error);
-                showMessage('Error submitting advance request. Please try again.', 'danger');
+                const r = xhr.responseJSON || {};
+                showMessage(r.message || 'Error submitting advance request. Please try again.', 'danger');
             }
         });
     }
@@ -1370,6 +1372,7 @@ function submitTeamRequest() {
         user_id: empId,
         request: {
             month: selectedMonth,
+            year_id: fYearId, // ADV-WEB-01: required by /advance/draft; was missing, so team requests failed with 422
             req_app_submit_id: empId
         },
         employees: []

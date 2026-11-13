@@ -3871,7 +3871,7 @@ class VerifierController extends Controller
             return true;
         }
 
-        $tokenId = 'e3KtB_sJQLCQezQ1WGLh5X:APA91bHX7e1CIKBdYyV2HoFQHI3zsWBALbhceWtkTv9ZiUrhVb0GqddBT-ChPPd8CCcHbyDni_3y7PF4Law8NWVSqUDzg6QwnN_LA-lUMB5D7AjjRx8mHEakFA6A5QHVegc_1a5LFB7i';
+        $tokenId = config('app.api_token_id'); // hard-coded device token removed (13 Nov 2026); not used below
         // Get activity fields locally (handles deactivated claim types too)
         $apiResponse = null;
         try {

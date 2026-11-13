@@ -824,7 +824,7 @@
         // ==========================================
         // GLOBAL VARIABLES
         // ==========================================
-        const API_LOCAL_BASE_URL = "{{ config('app.api_local_base_url') }}";
+        const API_LOCAL_BASE_URL = "{{ url('api') }}";
         const yearId = {{ session('year_id') }};
         let currentPaymentData = null;
 

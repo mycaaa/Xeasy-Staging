@@ -7,7 +7,7 @@
     $yearId = session("year_id", session("FYearId", 0));
     $company_id = session("company_id", session("CompanyId", 0));
     $employeeId = $user->employee_id ?? session('EmployeeID', session('employee_id', ''));
-    $apiBaseUrl = config('app.api_local_base_url', config('app.url'));
+    $apiBaseUrl = url('api');
 @endphp
 
 <div class="page-content">

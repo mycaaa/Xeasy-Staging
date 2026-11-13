@@ -2043,7 +2043,8 @@ $(document).ready(function () {
         
         // 🏨 Load PAX details for supported claim types (Lodging, Rail Fare, Meal, General)
         // Get year ID and company ID from page context
-        const yearId = modal.attr("data-year-id") || getCurrentYearId?.() || fYearId || $('#selYear').val() || $('input[name="YearId"]').val();
+        // ADV-WEB-01: getCurrentYearId / fYearId exist only on some pages; "getCurrentYearId?.()" still throws when it is not declared
+        const yearId = modal.attr("data-year-id") || (typeof getCurrentYearId === 'function' ? getCurrentYearId() : null) || (typeof fYearId !== 'undefined' ? fYearId : null) || $('#selYear').val() || $('input[name="YearId"]').val() || $('meta[name="xeasy-year-id"]').attr('content');
         const comId = $('#modalCompany').val() || $('meta[name="company-id"]').attr('content') || undefined;
         if (typeof initializePaxEditor === 'function' && yearId) {
             initializePaxEditor(expId, claimid, yearId, comId);

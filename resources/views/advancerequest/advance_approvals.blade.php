@@ -8,7 +8,7 @@
     $company_id = session("company_id");
     
     // Define API endpoints - you can configure these in .env file
-    $apiBaseUrl = config('app.api_local_base_url', config('app.url'));
+    $apiBaseUrl = url('api');
 @endphp
 
 <div class="page-content">
@@ -515,7 +515,7 @@
     const companyId = authData ? parseInt(authData.dataset.companyId) : 0;
     const yearId = authData ? parseInt(authData.dataset.fyearId) : 0;
     const userId = authData ? parseInt(authData.dataset.userId) : 0;
-    const apiBaseUrl = authData ? authData.dataset.apiBaseUrl : '{{ config("app.api_local_base_url", config("app.url")) }}';
+    const apiBaseUrl = authData ? authData.dataset.apiBaseUrl : '{{ url('api') }}';
     const csrfToken = authData ? authData.dataset.csrfToken : '';
     
     // API endpoints — relative paths, no base URL needed (same-origin requests)

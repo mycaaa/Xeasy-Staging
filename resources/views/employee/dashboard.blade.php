@@ -159,12 +159,14 @@
                                 </a>
                                 @endif
                                 {{-- Advance Report --}}
+@if(\App\Http\Middleware\EnforceRouteAccess::allows(auth()->user(), 'advance-requests/report'))
                                 <a href="{{ url('/advance-requests/report') }}" class="quick-action-btn text-center text-decoration-none">
                                     <div class="quick-action-icon bg-primary-subtle text-primary">
                                         <i class="ri-file-chart-line fs-20"></i>
                                     </div>
                                     <span class="fs-11 text-muted mt-1 d-block">Advance Report</span>
                                 </a>
+@endif
                                 {{-- Team Advance (Admin) --}}
                                 @php
                                     $canAccessAdminAdvance = (session('emp_role') !== 'E') && (
@@ -765,12 +767,14 @@
                                         <span class="fs-11 text-muted mt-1 d-block">Approvals</span>
                                     </a>
                                     @endif
+@if(\App\Http\Middleware\EnforceRouteAccess::allows(auth()->user(), 'advance-requests/report'))
                                     <a href="{{ url('/advance-requests/report') }}" class="quick-action-btn text-center text-decoration-none">
                                         <div class="quick-action-icon bg-primary-subtle text-primary">
                                             <i class="ri-file-chart-line fs-20"></i>
                                         </div>
                                         <span class="fs-11 text-muted mt-1 d-block">Advance Report</span>
                                     </a>
+@endif
                                     @if(!empty($canAccessAdminAdvance))
                                     <a href="{{ url('/advance/admin/submit') }}" class="quick-action-btn text-center text-decoration-none">
                                         <div class="quick-action-icon" style="background:#f5f0ff;">
