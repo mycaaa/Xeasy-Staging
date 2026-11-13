@@ -3495,6 +3495,10 @@ class VerifierController extends Controller
             if ($claimInfo && ($capMsg = \App\Services\Claims\StageCap::check(session('expense_connection'), (int) $yearId, $claimInfo, $verifyAmt, 'verify', $verifyRemark, 'verify_single'))) {
                 return response()->json(['success' => false, 'message' => $capMsg, 'remark_required' => true], 422);
             }
+            // LODGING-VERIFY-01: lodging limit by city tier is checked at verification
+            if ($claimInfo && ($eligMsg = app(\App\Services\ClaimRules\EligibilityCaps::class)->lodgingAtVerify(session('expense_connection'), (int) $yearId, (int) $expId, (int) $claimInfo->CrBy, (int) $claimInfo->ClaimId, (float) $verifyAmt, $verifyRemark))) {
+                return response()->json(['success' => false, 'message' => $eligMsg, 'remark_required' => true], 422);
+            }
             if (!$claimInfo) {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, null, 0);
 
@@ -3851,6 +3855,10 @@ class VerifierController extends Controller
         // Q-02: bulk verify carries no remark, so it may not verify above the claimed amount
         if ($claimInfo && ($capMsg = \App\Services\Claims\StageCap::check(session('expense_connection'), (int) $yearId, $claimInfo, $verifyAmt, 'verify', $verifyRemark, 'verify_bulk'))) {
             throw new \RuntimeException($capMsg);
+        }
+        // LODGING-VERIFY-01: bulk verify has no remark, so lodging above the city-tier limit is left for single verification
+        if ($claimInfo && ($eligMsg = app(\App\Services\ClaimRules\EligibilityCaps::class)->lodgingAtVerify(session('expense_connection'), (int) $yearId, (int) $expId, (int) $claimInfo->CrBy, (int) $claimInfo->ClaimId, (float) $verifyAmt, $verifyRemark))) {
+            throw new \RuntimeException('Claim #'.$expId.': '.$eligMsg);
         }
 
         if (!$claimInfo) {

@@ -1927,9 +1927,12 @@ class ClaimViewController extends Controller
         }
 
         // Lodging cap by city tier and annual km cap by grade (HR policy), override with a reason.
-        $eligMsg = app(\App\Services\ClaimRules\EligibilityCaps::class)->check(
+        // LODGING-VERIFY-01 (13 Nov 2026): not at data punching (no remark there) - the verifier's save checks the
+        // verified amount (or the claimed one when nothing is verified yet) and the verify remark is the reason.
+        $isPunchOnly = $request->input('is_data_punch') === '1' && $request->input('is_verifier') !== '1';
+        $eligMsg = $isPunchOnly ? null : app(\App\Services\ClaimRules\EligibilityCaps::class)->check(
             (string) session('expense_connection'), (int) $yearId, (int) $cgId, (int) $claimId, (int) $expId, (int) $empId,
-            $formDataArray, $totalAmount,
+            $formDataArray, (float) $totalVerified > 0 ? $totalVerified : $totalAmount,
             (string) $request->input('override_reason', $request->input('verify_remark', $request->input('VerifyTRemark', $request->input('remark', ''))))
         );
         if ($eligMsg) {

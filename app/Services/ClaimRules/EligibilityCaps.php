@@ -42,9 +42,34 @@ class EligibilityCaps
         return null;
     }
 
-    public function lodging(string $conn, int $yearId, int $expId, int $empId, array $form, float $amount, ?string $reason): ?string
+    /**
+     * LODGING-VERIFY-01 (13 Nov 2026): the lodging limit is checked when the claim is VERIFIED, not at data
+     * punching (punching has no remark field). Used by the verifier's Verify / bulk Verify: the city tier and
+     * nights come from the punched lodging details; the verified amount above the limit needs the verify remark.
+     */
+    public function lodgingAtVerify(string $conn, int $yearId, int $expId, int $empId, int $claimId, float $amount, ?string $reason): ?string
     {
-        $tier = $this->cityTier($conn, $form);
+        if ($claimId !== 1 || $empId <= 0 || $expId <= 0 || ! config('claim_rules.lodging_cap.enabled', true)) {
+            return null;
+        }
+        try {
+            $g = DB::connection($conn)->table(\App\Models\G1ExpenseFillData::tableName($yearId))->where('ExpId', $expId)
+                ->first(['CityCategory', 'StayDuration', 'Arrival', 'Departure']);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        $tier = strtoupper(trim((string) ($g->CityCategory ?? '')));
+        if (! $g || ! in_array($tier, ['A', 'B', 'C'], true)) {
+            return null;
+        }
+        $form = ['stay_duration' => $g->StayDuration, 'arrival_datetime' => $g->Arrival, 'departure_datetime' => $g->Departure];
+
+        return $this->lodging($conn, $yearId, $expId, $empId, $form, $amount, $reason, $tier);
+    }
+
+    public function lodging(string $conn, int $yearId, int $expId, int $empId, array $form, float $amount, ?string $reason, ?string $tierOverride = null): ?string
+    {
+        $tier = $tierOverride ?? $this->cityTier($conn, $form);
         if ($tier === null || $amount <= 0) {
             return null; // no tier yet: the save itself asks for the city
         }
@@ -180,7 +205,7 @@ class EligibilityCaps
             return null;
         }
 
-        return $what.'. Please enter the reason in the remark to send it for approval, or reduce the amount.';
+        return $what.'. Please enter the reason in the verified remark, or reduce the verified amount.';
     }
 
     /** City tier A/B/C from the company city master (same rule as the save: unknown city = C). */
