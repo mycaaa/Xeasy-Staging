@@ -62,14 +62,22 @@ class AuthController extends Controller
         if ($request->isMethod('get') && !$token) {
             // Get financial years for both companies to populate the dropdown
             // Default to VNR (company 1) financial years for initial load
-            DatabaseSwitcher::setCompanyConnections(1);
-            $vnr_financial_years = FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year']);
+            // LOGIN-UI-03: a company database that cannot be reached leaves that company's year list empty
+            // instead of failing the whole sign-in page
+            $years = function (int $company) {
+                try {
+                    DatabaseSwitcher::setCompanyConnections($company);
 
-            DatabaseSwitcher::setCompanyConnections(3);
-            $vnr_nursery_financial_years = FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year']);
+                    return FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year']);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Sign-in page: financial years of company {$company} not available: ".$e->getMessage());
 
-            DatabaseSwitcher::setCompanyConnections(11);
-            $vvnr_financial_years = FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year']);
+                    return collect();
+                }
+            };
+            $vnr_financial_years = $years(1);
+            $vnr_nursery_financial_years = $years(3);
+            $vvnr_financial_years = $years(11);
 
             // Reset to default connection
             DatabaseSwitcher::setCompanyConnections(1);
