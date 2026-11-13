@@ -139,9 +139,9 @@
         const prefilledData = {
             vendorId: "{{ $pd->Vendor_Id ?? 0 }}",
             vendorName: "{{ trim($pd->AgencyName ?? '') }}",
-            startId: "{{ $pd->Journey_Start_Id ?? 0 }}",
+            startId: "{{ \App\Models\CityCategory::canonicalId($pd->Journey_Start_Id ?? 0) }}",
             startName: "{{ trim($pd->JourneyStart ?? '') }}",
-            endId: "{{ $pd->Journey_End_Id ?? 0 }}",
+            endId: "{{ \App\Models\CityCategory::canonicalId($pd->Journey_End_Id ?? 0) }}",
             endName: "{{ trim($pd->JourneyEnd ?? '') }}",
         };
         loadAgencies();

@@ -208,7 +208,32 @@ class CityCategoryController extends Controller
         $newCityName = trim($request->city_name);
         $newCategory = trim($request->city_category);
 
+        // CITY-03: "Same city as" - group a misspelling under the correct city (takes its category)
+        $newAlias = $city->alias_of ?? null;
+        if (CityCategory::hasAliases() && $request->has('alias_of')) {
+            $target = (int) $request->input('alias_of');
+            if ($target > 0) {
+                $t = CityCategory::find($target);
+                if (! $t || $t->ccid === $city->ccid) {
+                    return response()->json(['success' => false, 'message' => 'Choose a different, existing city.'], 422);
+                }
+                if ($t->alias_of) {
+                    $t = CityCategory::find($t->alias_of) ?: $t;   // always point at the correct city itself
+                }
+                if (CityCategory::where('alias_of', $city->ccid)->exists()) {
+                    return response()->json(['success' => false, 'message' => "Other names are grouped under '{$city->city_name}'; it cannot itself be grouped."], 422);
+                }
+                $newAlias = $t->ccid;
+                $newCategory = $t->city_category;
+            } else {
+                $newAlias = null;
+            }
+        }
+
         $changes = [];
+        if ((int) ($city->alias_of ?? 0) !== (int) ($newAlias ?? 0)) {
+            $changes[] = $newAlias ? "Grouped under '" . CityCategory::find($newAlias)->city_name . "'" : 'No longer grouped';
+        }
         if ($city->city_name !== $newCityName) {
             $changes[] = "City Name: '{$city->city_name}' &rarr; '{$newCityName}'";
         }
@@ -226,6 +251,9 @@ class CityCategoryController extends Controller
 
         $city->city_name     = $newCityName;
         $city->city_category = $newCategory;
+        if (CityCategory::hasAliases()) {
+            $city->alias_of = $newAlias;
+        }
         $city->save();
 
         $crby = session('emp_id', session('employee_id', auth()->id() ?? 0));
@@ -513,11 +541,8 @@ class CityCategoryController extends Controller
      */
     public function cityList($category = null)
     {
-        if ($category) {
-            $cities = CityCategory::getCitiesByCategory($category);
-        } else {
-            $cities = CityCategory::orderBy('city_name')->get();
-        }
+        // CITY-03: misspelled names are grouped under the correct city and not listed separately
+        $cities = CityCategory::listWithAliases($category ?: null);
         return $this->jsonSuccess($cities, 'Cities fetched successfully.');
     }
 }

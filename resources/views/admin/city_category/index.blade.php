@@ -181,6 +181,9 @@
                                         <div class="d-flex align-items-center">
                                             <i class="ri-map-pin-line text-muted me-2 fs-15"></i>
                                             <span class="fw-semibold text-dark">{{ $city->city_name }}</span>
+                                            @if (!empty($city->alias_of))
+                                                <span class="badge bg-light text-muted border ms-2" title="Misspelling grouped under the correct city; not shown in drop-downs">same as {{ optional(\App\Models\CityCategory::find($city->alias_of))->city_name ?? ('#'.$city->alias_of) }}</span>
+                                            @endif
                                         </div>
                                     </td>
                                     <td class="text-center">
@@ -203,6 +206,8 @@
                                                     data-id="{{ $city->ccid }}"
                                                     data-name="{{ $city->city_name }}"
                                                     data-category="{{ $city->city_category }}"
+                                                    data-alias-of="{{ $city->alias_of ?? '' }}"
+                                                    data-alias-name="{{ !empty($city->alias_of) ? (optional(\App\Models\CityCategory::find($city->alias_of))->city_name ?? '') : '' }}"
                                                     title="Edit City">
                                                 <i class="ri-edit-2-line"></i>
                                             </button>
@@ -310,6 +315,13 @@
                     </div>
 
                     <input type="hidden" id="modalCityCategory" name="city_category">
+
+                    <!-- CITY-03: group a misspelling under the correct city -->
+                    <div class="mb-1" id="aliasGroup">
+                        <label for="modalAliasOf" class="form-label fw-semibold">Same city as <span class="text-muted fw-normal">(only for a misspelled name)</span></label>
+                        <select class="form-select" id="modalAliasOf" style="width:100%"></select>
+                        <div class="form-text">A misspelled name is grouped under the correct city: it stops showing in the drop-downs, takes that city's category, and old claims keep their record.</div>
+                    </div>
                 </div>
 
                 <div class="modal-footer bg-light px-4 py-3">
@@ -444,6 +456,7 @@ $(document).ready(function() {
         $('#customCategoryGroup').hide();
         $('#modalCityCategory').val('');
         $('#modalCityCategorySelect').val('');
+        $('#aliasGroup').hide();
         $('#cityModal').modal('show');
     });
 
@@ -475,8 +488,32 @@ $(document).ready(function() {
             $('#modalCityCategory').val(category);
         }
 
+        // CITY-03: "Same city as" (correct cities only, searched on the server)
+        const $alias = $('#modalAliasOf');
+        $alias.empty();
+        const aliasOf = $(this).data('alias-of');
+        if (aliasOf) { $alias.append(new Option($(this).data('alias-name') || ('#' + aliasOf), aliasOf, true, true)); }
+        $('#aliasGroup').show();
+        initAliasSelect(id);
+
         $('#cityModal').modal('show');
     });
+
+    function initAliasSelect(selfId) {
+        const $alias = $('#modalAliasOf');
+        if ($alias.data('select2')) { $alias.select2('destroy'); }
+        $alias.select2({
+            dropdownParent: $('#cityModal'), allowClear: true, placeholder: '— not a misspelling —', minimumInputLength: 2,
+            ajax: {
+                url: "{{ url('city-list') }}", dataType: 'json', delay: 250,
+                processResults: function (res, params) {
+                    const term = (params.term || '').toLowerCase();
+                    return { results: (res.data || []).filter(c => c.ccid != selfId && c.city_name.toLowerCase().includes(term)).slice(0, 50)
+                        .map(c => ({ id: c.ccid, text: c.city_name + ' - ' + c.city_category })) };
+                }
+            }
+        });
+    }
 
     // -------------------------------------------------------------
     // Submit Add / Edit Form
@@ -507,7 +544,8 @@ $(document).ready(function() {
             _token: "{{ csrf_token() }}",
             _method: method,
             city_name: $('#modalCityName').val().trim(),
-            city_category: categoryVal
+            city_category: categoryVal,
+            alias_of: $('#formMethod').val() === 'PUT' ? ($('#modalAliasOf').val() || '') : ''
         };
 
         $('#saveCityBtn').prop('disabled', true);

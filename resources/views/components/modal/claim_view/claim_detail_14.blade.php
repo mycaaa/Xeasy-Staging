@@ -174,9 +174,9 @@
         const prefilledData = {
             vendorId: "{{ $expense_detail->punching_data->Vendor_Id ?? 0 }}",
             vendorName: "{{ trim($expense_detail->punching_data->Agent ?? '') }}",
-            fromId: "{{ $expense_detail->punching_data->Journey_From_Id ?? 0 }}",
+            fromId: "{{ \App\Models\CityCategory::canonicalId($expense_detail->punching_data->Journey_From_Id ?? 0) }}",
             fromName: "{{ trim($expense_detail->punching_data->JourneyFrom ?? '') }}",
-            uptoId: "{{ $expense_detail->punching_data->Journey_Upto_Id ?? 0 }}",
+            uptoId: "{{ \App\Models\CityCategory::canonicalId($expense_detail->punching_data->Journey_Upto_Id ?? 0) }}",
             uptoName: "{{ trim($expense_detail->punching_data->JourneyUpto ?? '') }}",
         };
 

@@ -65,9 +65,9 @@
     $(document).ready(function() {
         const prefilledData = {
             bookingDate: "{{ \App\Helpers\CommonHelper::toDisplayFormat($expense_detail->punching_data->BookingDate ?? $expense_detail->BillDate ?? '') }}",
-            fromId: "{{ $expense_detail->punching_data->Journey_From_Id ?? 0 }}",
+            fromId: "{{ \App\Models\CityCategory::canonicalId($expense_detail->punching_data->Journey_From_Id ?? 0) }}",
             fromName: "{{ trim($expense_detail->punching_data->JourneyFrom ?? '') }}",
-            uptoId: "{{ $expense_detail->punching_data->Journey_Upto_Id ?? 0 }}",
+            uptoId: "{{ \App\Models\CityCategory::canonicalId($expense_detail->punching_data->Journey_Upto_Id ?? 0) }}",
             uptoName: "{{ trim($expense_detail->punching_data->JourneyUpto ?? '') }}",
             startDate: "{{ \App\Helpers\CommonHelper::toDisplayFormat($expense_detail->punching_data->JourneyStartDt ?? '') }}",
             endDate: "{{ \App\Helpers\CommonHelper::toDisplayFormat($expense_detail->punching_data->JourneyEndDt ?? '') }}",

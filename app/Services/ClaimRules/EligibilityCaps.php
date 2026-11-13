@@ -199,7 +199,10 @@ class EligibilityCaps
 
             return strtoupper(trim((string) ($row->city_category ?? 'C'))) ?: 'C';
         }
-        $row = DB::connection($conn)->table('city_category')->where('ccid', (int) $cityId)->first(['city_category']);
+        $row = DB::connection($conn)->table('city_category')->where('ccid', (int) $cityId)->first();
+        if ($row && ! empty($row->alias_of)) { // CITY-03: a grouped misspelling takes the correct city's tier
+            $row = DB::connection($conn)->table('city_category')->where('ccid', (int) $row->alias_of)->first() ?: $row;
+        }
         $t = strtoupper(trim((string) ($row->city_category ?? '')));
 
         return in_array($t, ['A', 'B', 'C'], true) ? $t : null;

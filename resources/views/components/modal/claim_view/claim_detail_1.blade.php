@@ -905,7 +905,7 @@
         $('#arrival_datetime, #departure_datetime').on('change', calculateDuration);
 
         const prefilledCity = {
-            ccid: @json($expense_detail->punching_data->ccid ?? ''),
+            ccid: @json(\App\Models\CityCategory::canonicalId($expense_detail->punching_data->ccid ?? '')), // CITY-03: a grouped misspelling selects the correct city
             cityName: @json($expense_detail->punching_data->CityName ?? ''),
             cityCategory: @json($expense_detail->punching_data->CityCategory ?? ''),
         };

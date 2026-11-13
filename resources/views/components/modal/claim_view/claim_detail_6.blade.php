@@ -165,7 +165,7 @@ $(document).ready(function() {
             $sel.empty().append('<option value="">Select City</option>');
             let matched = false;
             cities.forEach(function(c) {
-                const isSelected = c.city_name === savedName ? "selected" : "";
+                const isSelected = (c.city_name === savedName || (savedName && (c.aliases || []).includes(String(savedName).trim()))) ? "selected" : ""; // CITY-03
                 if (isSelected) matched = true;
                 $sel.append(`<option value="${c.city_name}" ${isSelected}>${c.city_name}</option>`);
             });

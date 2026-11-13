@@ -3105,7 +3105,14 @@ class ClaimViewController extends Controller
                     $q->where('city_name', 'LIKE', "%{$search}%")->orWhere('city_category', 'LIKE', "%{$search}%");
                 });
             }
-            $cities = $query->limit(100)->get();
+            if (\App\Models\CityCategory::hasAliases()) {
+                // CITY-03: a search that hits a grouped misspelling returns the correct city, each city once
+                $ids = (clone $query)->addSelect('alias_of')->limit(300)->get()->map(fn ($r) => (int) ($r->alias_of ?: $r->ccid))->unique()->take(100)->values()->all();
+                $cities = DB::connection(session('expense_connection'))->table('city_category')->whereIn('ccid', $ids ?: [0])
+                    ->select('ccid', 'city_name', 'city_category')->orderBy('city_name')->get();
+            } else {
+                $cities = $query->limit(100)->get();
+            }
             return response()->json(['success' => true, 'cities' => $cities]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error fetching cities: ' . $e->getMessage()], 500);
