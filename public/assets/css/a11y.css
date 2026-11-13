@@ -7,3 +7,15 @@ a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible, 
 .skip-link { position: absolute; left: -9999px; top: 0; z-index: 10000; background: #fff; color: #1d4ed8; padding: 6px 10px; }
 .skip-link:focus { left: 8px; top: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* UX-13NOV: hard-to-read tiny text (inline 9-10px and .fs-10) raised to 11px */
+.fs-10, [style*="font-size:9px"], [style*="font-size: 9px"], [style*="font-size:10px"], [style*="font-size: 10px"], [style*="font-size:8px"] { font-size: 11px !important; }
+/* UX-13NOV: back-to-top button smaller, and room at the end of the page so it does not cover the last figures */
+#back-to-top { width: 36px; height: 36px; bottom: 16px; right: 16px; opacity: .85; border-radius: 50%; }
+.page-content { padding-bottom: 72px !important; }
+/* UX-13NOV: the menu button always shows the menu icon (the theme turned it into an arrow) */
+.hamburger-icon.open { transform: none !important; }
+.hamburger-icon.open span { transform: none !important; left: 0 !important; transition-delay: 0s !important; }
+.hamburger-icon.open span:nth-child(1) { top: 0 !important; width: 80% !important; }
+.hamburger-icon.open span:nth-child(2) { top: 6px !important; width: 100% !important; }
+.hamburger-icon.open span:nth-child(3) { top: auto !important; bottom: 0 !important; width: 60% !important; }

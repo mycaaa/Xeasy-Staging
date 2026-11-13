@@ -4,7 +4,7 @@
 @section('content')
 <style>
     .hc-card { border: 1px solid #dfe5ee; border-radius: 10px; overflow: hidden; }
-    .hc-head { background: #0b3a6e; color: #fff; padding: 10px 16px; font-weight: 600; font-size: 1.05rem; }
+    .hc-head { background: #dde6ff; color: #1e3a8a; padding: 10px 16px; font-weight: 600; font-size: 1.05rem; }
     .hc-note { background: #fff6d6; border: 1px solid #f0d78c; border-radius: 8px; padding: 10px 12px; font-size: .85rem; }
     .hc-panel { display: none; }
     .hc-panel.active { display: block; }

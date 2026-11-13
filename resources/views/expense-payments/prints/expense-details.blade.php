@@ -13,7 +13,7 @@
         table { width:100%; border-collapse:collapse; margin-top:10px; }
         th, td { border:1px solid #333; padding:6px; }
         th { background:#0b5c5c; color:#fff; }
-        .subhead th { background:#1565c0; }
+        .subhead th { background:#dde6ff; color: #1e3a8a;}
         .center { text-align:center; }
         .right { text-align:right; }
         .total { background:#e6e6a8; font-weight:bold; }
@@ -122,7 +122,7 @@
 @if($format == 2)
 <table>
     <tr>
-        <th colspan="6" style="background:#1565c0;color:#fff;text-align:left;">
+        <th colspan="6" style="background:#dde6ff;color:#1e3a8a;text-align:left;">
             EXPENSE TYPE : TRAVEL (TRV)
         </th>
     </tr>

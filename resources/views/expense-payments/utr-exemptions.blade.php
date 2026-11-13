@@ -4,14 +4,14 @@
 @push('styles')
     <style>
         .estable { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .estable th { background-color: #15648C; color: #fff; padding: 8px 4px; text-align: center; border: 1px solid #ddd; white-space: nowrap; }
+        .estable th { background-color: #dde6ff; color: #1e3a8a; padding: 8px 4px; text-align: center; border: 1px solid #ddd; white-space: nowrap; }
         .estable td { padding: 6px 4px; border: 1px solid #ddd; vertical-align: middle; }
         .estable tbody tr:hover { background-color: #f5f5f5; }
         .grp-title { font-size: 13px; font-weight: 600; margin: 18px 0 6px; }
         .num { text-align: right; font-variant-numeric: tabular-nums; }
         .ff-form input { font-size: 11px; padding: 2px 4px; height: 26px; }
-        .badge-done { background: #198754; color: #fff; }
-        .badge-open { background: #dc3545; color: #fff; }
+        .badge-done { background: #d7f3e6; color: #065f46; }
+        .badge-open { background: #fde2e2; color: #9b1c1c; }
     </style>
 @endpush
 

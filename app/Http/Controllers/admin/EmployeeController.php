@@ -158,7 +158,7 @@ class EmployeeController extends Controller
                     $deptId = (int) ($emp->department_id ?? 0);
                     
                     $code = $emp->EmpCode_New ?? $emp->EmpCode ?? '';
-                    $emp->image_url = $code ? "https://vnrseeds.co.in/file-view/Employee_Image/{$companyId}/{$code}.jpg" : '';
+                    $emp->image_url = $code ? config('app.employee_photo_base') . "/{$companyId}/{$code}.jpg" : '';
                     $emp->is_management = ($deptId === 18) || str_starts_with($grade, 'MG');
                     $emp->company_name = \App\Helpers\DatabaseSwitcher::getCompanyName($emp->companyid ?? 1);
                     $emp->emp_code = $code;
@@ -308,7 +308,7 @@ class EmployeeController extends Controller
                     $deptId = (int) ($emp->department_id ?? 0);
                     $code   = $emp->EmpCode_New ?? $emp->EmpCode ?? '';
 
-                    $emp->image_url    = $code ? "https://vnrseeds.co.in/file-view/Employee_Image/{$companyId}/{$code}.jpg" : '';
+                    $emp->image_url    = $code ? config('app.employee_photo_base') . "/{$companyId}/{$code}.jpg" : '';
                     $emp->is_management = ($deptId === 18) || str_starts_with($grade, 'MG');
                     $emp->company_name  = \App\Helpers\DatabaseSwitcher::getCompanyName($emp->companyid ?? 1);
                     $emp->emp_code      = $code;
@@ -642,11 +642,24 @@ class EmployeeController extends Controller
                 'ComId' => $companyId,
                 'tokenid' => $tokenId,
             ]);
-            if ($r->successful() && ($r->json('Code') === '300')) {
+            if ($r->successful() && ((string) $r->json('Code') === '300')) {
                 $drafts = $r->json('Draft_list', []);
             }
         } catch (\Exception $e) {
             Log::error('eHome Draftlist: ' . $e->getMessage());
+        }
+        // DASH-NUM-01: same list as the dashboard's Drafts card; when the call back to this app fails, read it directly
+        if (empty($drafts) && \App\Support\LegacyApi::isOwn()) {
+            try {
+                $dr = \Illuminate\Http\Request::create('/api/common.php', 'GET', ['value' => 'Draftlist', 'empid' => $employeeId, 'YearId' => $yearId, 'ComId' => $companyId]);
+                $dr->headers->set('X-Xeasy-Internal', (string) config('app.internal_api_key'));
+                $dj = json_decode((new \App\Http\Controllers\Api\Mobile\ClaimListController())->handleDraftlist($dr)->getContent(), true);
+                if ((string) ($dj['Code'] ?? '') === '300') {
+                    $drafts = $dj['Draft_list'] ?? [];
+                }
+            } catch (\Throwable $e) {
+                Log::warning('eHome Draftlist direct: ' . $e->getMessage());
+            }
         }
 
         // ── Open list ──
@@ -658,7 +671,7 @@ class EmployeeController extends Controller
                 'ComId' => $companyId,
                 'tokenid' => $tokenId,
             ]);
-            if ($r->successful() && ($r->json('Code') === '300')) {
+            if ($r->successful() && ((string) $r->json('Code') === '300')) {
                 $openList = $r->json('Open_list', []);
                 // Filter strictly to current FY YearId
                 $openList = array_values(array_filter($openList, function ($item) use ($yearId) {
@@ -768,7 +781,7 @@ class EmployeeController extends Controller
                     'tokenid' => $tokenId,
                 ]);
             }
-            if ($r->successful() && ($r->json('Code') === '300')) {
+            if ($r->successful() && ((string) $r->json('Code') === '300')) {
                 $closeList = $r->json('Close_list', []);
                 // Filter strictly to current FY YearId
                 $closeList = array_values(array_filter($closeList, function ($item) use ($yearId) {
@@ -980,7 +993,7 @@ class EmployeeController extends Controller
                 'tokenid' => $tokenId,
             ]);
 
-            if ($r->successful() && ($r->json('Code') === '300')) {
+            if ($r->successful() && ((string) $r->json('Code') === '300')) {
                 return response()->json([
                     'success' => true,
                     'data' => $r->json('DayWiseDetails', []),

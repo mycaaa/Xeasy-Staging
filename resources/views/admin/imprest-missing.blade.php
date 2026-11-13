@@ -181,7 +181,7 @@
             @else
             <div class="table-responsive">
                 <table class="table table-hover table-bordered align-middle mb-0" style="font-size:13px;">
-                    <thead class="table" style="background-color: #15648C; color: white;">
+                    <thead class="table" style="background-color: #dde6ff; color: #1e3a8a;">
                         <tr>
                             <th class="text-center" style="width:45px;">#</th>
                             <th>Employee Name</th>

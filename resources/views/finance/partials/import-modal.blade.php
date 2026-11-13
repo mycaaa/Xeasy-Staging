@@ -3,7 +3,7 @@
 <div class="modal fade" id="importConfirmationModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #155997; color: white;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title">
                     <i class="fa fa-upload"></i> Import Payment Confirmation
                 </h5>

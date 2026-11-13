@@ -47,7 +47,7 @@
                 </div>
                 <button type="button"
                     class="btn btn-sm px-3 fs-16 header-item vertical-menu-btn topnav-hamburger material-shadow-none"
-                    id="topnav-hamburger-icon" style="margin-top: 12px">
+                    id="topnav-hamburger-icon" style="margin-top: 12px" aria-label="Show or hide the menu" title="Menu">
                     <span class="hamburger-icon">
                         <span></span>
                         <span></span>
@@ -92,12 +92,12 @@
             <div class="d-flex align-items-center">
                 <button type="button"
                     class="btn btn-icon btn-topbar material-shadow-none btn-ghost-secondary rounded-circle"
-                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Fullscreen" data-toggle="fullscreen">
+                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Fullscreen" aria-label="Fullscreen" data-toggle="fullscreen">
                     <i class='bx bx-fullscreen fs-22'></i>
                 </button>
                 <button type="button"
                     class="btn btn-icon btn-topbar material-shadow-none btn-ghost-secondary rounded-circle light-dark-mode"
-                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Dark Mode">
+                    data-bs-toggle="tooltip" data-bs-placement="bottom" title="Toggle Dark Mode" aria-label="Toggle dark mode">
                     <i class='bx bx-moon fs-22'></i>
                 </button>
                 <div class="ms-1 header-item d-none d-sm-flex">
@@ -105,7 +105,7 @@
 
                     <button type="button" id="clearCacheBtn"
                         class="btn btn-icon btn-topbar material-shadow-none btn-ghost-secondary rounded-circle"
-                        title="Clear Cache" data-bs-toggle="tooltip" data-bs-placement="bottom">
+                        title="Refresh (clear cache)" aria-label="Refresh (clear cache)" data-bs-toggle="tooltip" data-bs-placement="bottom">
                         <i class='bx bx-revision fs-22'></i>
                     </button>
                     @can('git_command_panel')
@@ -134,7 +134,7 @@
                 <div class="dropdown topbar-head-dropdown ms-1 header-item" id="notificationDropdown">
                     <button type="button"
                         class="btn btn-icon btn-topbar material-shadow-none btn-ghost-secondary rounded-circle"
-                        id="page-header-notifications-dropdown" data-bs-toggle="dropdown"
+                        id="page-header-notifications-dropdown" data-bs-toggle="dropdown" aria-label="Notifications" title="Notifications"
                         data-bs-auto-close="outside" aria-haspopup="true" aria-expanded="false">
                         <i class='bx bx-bell fs-22'></i>
                         @if($totCount > 0)
@@ -306,7 +306,7 @@
                 {{-- Company/Year Switcher Button --}}
                 <button type="button"
                     class="btn btn-topbar material-shadow-none btn-ghost-secondary rounded-circle d-flex align-items-center gap-1"
-                    data-bs-toggle="modal" data-bs-target="#companyYearModal" title="Switch Company/Year">
+                    data-bs-toggle="modal" data-bs-target="#companyYearModal" title="Switch Company/Year" aria-label="Switch company or year">
                     <i class='ri-building-line fs-22'></i>
                     <span class="d-none d-lg-inline-block fs-12 fw-medium text-truncate" style="max-width: 120px;">
                         {{ session('company_name', 'Company') }} | {{ session('year_value', 'FY') }}
@@ -315,12 +315,12 @@
 
                 <div class="dropdown ms-sm-3 header-item topbar-user">
                     <button type="button" class="btn material-shadow-none" style="padding: 0 5px"
-                        id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true"
+                        id="page-header-user-dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-label="Profile menu"
                         aria-expanded="false">
                         <span class="d-flex align-items-center">
                             <img class="rounded-circle header-profile-user"
-                                src="{{ session('profile_img') ?: ('https://vnrseeds.co.in/file-view/Employee_Image/' . session('company_id', 1) . '/' . session('emp_code') . '.jpg') }}"
-                                onerror="this.src='{{ asset('custom/no_user.png') }}'" alt="Header Avatar">
+                                src="{{ session('profile_img') ?: (config('app.employee_photo_base') . '/' . session('company_id', 1) . '/' . session('emp_code') . '.jpg') }}"
+                                onerror="this.onerror=null;this.src='{{ asset('custom/no_user.png') }}'" alt="Profile photo" decoding="async">
                             <span class="text-start ms-xl-2">
                                 <span class="d-none d-xl-inline-block ms-1 fw-medium user-name-text">
                                     {{ session('emp_name') ?: (Auth::user()?->name ?? 'User') }}

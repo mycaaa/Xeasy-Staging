@@ -30,7 +30,8 @@
     <link href="{{ URL::to('/') }}/assets/css/icons.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ URL::to('/') }}/assets/css/app.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ URL::to('/') }}/assets/css/custom.min.css" rel="stylesheet" type="text/css" />
-    <link href="{{ URL::to('/') }}/assets/css/a11y.css" rel="stylesheet" type="text/css" /><!-- U-03 -->
+    <link href="{{ URL::to('/') }}/assets/css/pastel.css?v={{ filemtime(public_path('assets/css/pastel.css')) }}" rel="stylesheet" type="text/css" /><!-- PASTEL-01 -->
+    <link href="{{ URL::to('/') }}/assets/css/a11y.css?v={{ filemtime(public_path('assets/css/a11y.css')) }}" rel="stylesheet" type="text/css" /><!-- U-03 -->
     <meta name="xeasy-year-id" content="{{ (int) session('year_id') }}"><!-- PAX-YEAR-01 -->
     <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{ asset('vendor/cdn/datatables.net-bs5@1.11.5/css/dataTables.bootstrap5.min.css') }}" />

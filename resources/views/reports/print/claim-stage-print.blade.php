@@ -30,7 +30,7 @@
         .kpi-card { text-align: center; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #f8f9fa; }
         .kpi-card .value { font-size: 20px; font-weight: bold; }
         .kpi-card .label { font-size: 9px; color: #666; margin-top: 2px; }
-        .print-btn { position: fixed; top: 10px; right: 10px; padding: 8px 20px; background: #15648C; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; z-index: 999; }
+        .print-btn { position: fixed; top: 10px; right: 10px; padding: 8px 20px; background: #dde6ff; color: #1e3a8a; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; z-index: 999; }
         .print-btn:hover { background: #0d4a6b; }
     </style>
 </head>

@@ -4,7 +4,7 @@
 <div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
-            <div class="modal-header py-2" style="background-color: #15648C; color: white;">
+            <div class="modal-header py-2" style="background-color: #dde6ff; color: #1e3a8a;">
                 <h6 class="modal-title text-white fw-bold d-flex align-items-center">
                     <i class="fa fa-user-circle me-2"></i> Employee Financial Details &mdash; <span id="empModalHeaderName" class="ms-1 fw-normal"></span>
                 </h6>
@@ -32,7 +32,7 @@
 <div class="modal fade" id="balanceAdjustmentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #15648C; color: white;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title text-white">Adjust Ledger Balance</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -77,7 +77,7 @@
 <div class="modal fade" id="snapshotModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #15648C; color: white; padding: 10px 15px;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a; padding: 10px 15px;">
                 <h5 class="modal-title text-white">
                     <i class="fa fa-calendar"></i>
                     Employee Balance &mdash; <span id="snapshotModalDateLabel"></span>

@@ -4,7 +4,7 @@
 @section('styles')
 <style>
     .rf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .rf-table th { background: #15648C; color: #fff; padding: 6px; font-size: 11px; border: 1px solid #ddd; white-space: nowrap; }
+    .rf-table th { background: #dde6ff; color: #1e3a8a; padding: 6px; font-size: 11px; border: 1px solid #ddd; white-space: nowrap; }
     .rf-table td { padding: 5px 6px; border: 1px solid #ddd; vertical-align: top; }
     .rf-table td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .rf-note { color: #4b5563; font-size: 12px; }

@@ -304,8 +304,8 @@
         }
 
         .filter-active {
-            background-color: #0d6efd !important;
-            color: white !important;
+            background-color: #dde6ff !important;
+            color: #1e3a8a !important;
         }
 
         .quick-filter {

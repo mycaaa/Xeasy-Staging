@@ -569,7 +569,7 @@ class AuthController extends Controller
             Session::put('designation_name', $employeeData->DesigName ?? '');
             Session::put('mobile_no', $employeeData->OfficialMobile ?? '');
             Session::put('reporting_name', $employeeData->ReportingName ?? '');
-            Session::put('profile_img', 'https://vnrseeds.co.in/file-view/Employee_Image/' . $companyId . '/' . $empCodeVal . '.jpg');
+            Session::put('profile_img', config('app.employee_photo_base') . '/' . $companyId . '/' . $empCodeVal . '.jpg');
 
             // Store the complete employee data array for easy access
             Session::put('employee_details', [
@@ -588,7 +588,7 @@ class AuthController extends Controller
                 'DesigName' => $employeeData->DesigName ?? '',
                 'MobileNo' => $employeeData->OfficialMobile ?? '',
                 'ReportingName' => $employeeData->ReportingName ?? '',
-                'ProfileImg' => 'https://vnrseeds.co.in/file-view/Employee_Image/' . $companyId . '/' . $empCodeVal . '.jpg'
+                'ProfileImg' => config('app.employee_photo_base') . '/' . $companyId . '/' . $empCodeVal . '.jpg'
             ]);
         } else {
             Session::put('emp_code', $empCodeVal);
@@ -596,7 +596,7 @@ class AuthController extends Controller
             Session::put('emp_role', $effectiveRoleCode);
             $profileImg = ($user && $user->is_guest)
                 ? asset('assets/images/users/avatar-1.jpg')
-                : ('https://vnrseeds.co.in/file-view/Employee_Image/' . $companyId . '/' . $empCodeVal . '.jpg');
+                : (config('app.employee_photo_base') . '/' . $companyId . '/' . $empCodeVal . '.jpg');
             Session::put('profile_img', $profileImg);
             Session::put('is_guest', (bool) ($user->is_guest ?? false));
 

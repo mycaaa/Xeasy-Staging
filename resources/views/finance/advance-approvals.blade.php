@@ -39,8 +39,8 @@
         }
 
         .table th {
-            background-color: #155997;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             font-weight: 600;
             font-size: 0.7rem;
             padding: 6px 8px;
@@ -110,8 +110,8 @@
             font-size: 0.55rem;
             padding: 1px 4px;
             border-radius: 3px;
-            background-color: #dc3545;
-            color: #fff;
+            background-color: #fde2e2;
+            color: #9b1c1c;
             margin-left: 4px;
             font-weight: 600;
             vertical-align: middle;
@@ -119,8 +119,8 @@
 
         /* Action buttons */
         .btn-approve {
-            background-color: #28a745;
-            color: white;
+            background-color: #d7f3e6;
+            color: #065f46;
             border: none;
             border-radius: 3px;
             padding: 2px 6px;
@@ -129,13 +129,13 @@
         }
 
         .btn-approve:hover {
-            background-color: #218838;
-            color: white;
+            background-color: #d7f3e6;
+            color: #065f46;
         }
 
         .btn-reject {
-            background-color: #dc3545;
-            color: white;
+            background-color: #fde2e2;
+            color: #9b1c1c;
             border: none;
             border-radius: 3px;
             padding: 2px 6px;
@@ -144,13 +144,13 @@
         }
 
         .btn-reject:hover {
-            background-color: #c82333;
-            color: white;
+            background-color: #fde2e2;
+            color: #9b1c1c;
         }
 
         .btn-detail {
-            background-color: #155997;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border: none;
             border-radius: 3px;
             padding: 2px 6px;
@@ -159,8 +159,8 @@
         }
 
         .btn-detail:hover {
-            background-color: #0d3d66;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
         }
 
         /* Detail view styling */
@@ -225,8 +225,8 @@
         }
 
         .activity-count {
-            background-color: #155997;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-radius: 8px;
             padding: 1px 5px;
             font-size: 0.6rem;
@@ -287,8 +287,8 @@
 
         /* Finance specific styling */
         .finance-badge {
-            background-color: #17a2b8;
-            color: white;
+            background-color: #d8f1fb;
+            color: #0b5a7a;
             font-size: 0.65rem;
             padding: 2px 6px;
             border-radius: 8px;
@@ -478,34 +478,34 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Employee</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Crops</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Varieties</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Purpose</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Actions</th>
                                 </tr>
                             </thead>
@@ -562,37 +562,37 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Select</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Employee</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Crops</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Varieties</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Purpose</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Approved Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -616,34 +616,34 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Employee</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Crops</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Varieties</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Purpose</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Rejected Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -675,28 +675,28 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Employee</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Released Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Status</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -727,34 +727,34 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Employee</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Transaction Ref</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Payment Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Confirmation Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Status</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -780,25 +780,25 @@
                             <thead>
                                 <tr>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Sr.No</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Beneficiary</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Instructed Amount</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Reason</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Status</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Created Date</th>
                                     <th
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                             </thead>
@@ -2175,7 +2175,7 @@
                         <div class="modal fade" id="unsettledDetailsModal" tabindex="-1">
                             <div class="modal-dialog modal-xl">
                                 <div class="modal-content">
-                                    <div class="modal-header" style="background-color: #dc3545; color: white;">
+                                    <div class="modal-header" style="background-color: #fde2e2; color: #9b1c1c;">
                                         <h5 class="modal-title text-white">
                                             <i class="fa fa-exclamation-triangle"></i> Payment Mismatch Details
                                         </h5>
@@ -2455,7 +2455,7 @@
                         <div class="modal fade" id="paymentDetailsModal" tabindex="-1">
                             <div class="modal-dialog modal-xl">
                                 <div class="modal-content">
-                                    <div class="modal-header" style="background-color: #155997; color: white;">
+                                    <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                                         <h5 class="modal-title text-white">
                                             <i class="fa fa-file-text-o"></i> Confirmed Payment Details
                                         </h5>
@@ -2812,7 +2812,7 @@
                         <div class="modal fade" id="detailModal" tabindex="-1">
                             <div class="modal-dialog modal-xl">
                                 <div class="modal-content">
-                                    <div class="modal-header" style="background-color: #155997; color: white;">
+                                    <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                                         <h5 class="modal-title">
                                             <i class="fa fa-file-text-o"></i> Request Details - ${type.charAt(0).toUpperCase() + type.slice(1)}
                                         </h5>

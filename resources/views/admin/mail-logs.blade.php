@@ -70,7 +70,7 @@
                         </div>
                     </div>
                     <div class="col-md-2 d-flex gap-1">
-                        <button class="btn btn-sm flex-fill" id="btnSearch" style="background:#15648C;color:white;">
+                        <button class="btn btn-sm flex-fill" id="btnSearch" style="background:#dde6ff;color:#1e3a8a;">
                             <i class="ri-search-line me-1"></i>Search
                         </button>
                         <button class="btn btn-outline-secondary btn-sm" id="btnClear">
@@ -96,7 +96,7 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm table-hover align-middle mb-0" style="font-size:11px;">
-                        <thead style="background:#15648C;color:white;">
+                        <thead style="background:#dde6ff;color:#1e3a8a;">
                             <tr>
                                 <th style="width:30px;">#</th>
                                 <th>From</th>
@@ -135,7 +135,7 @@
 <div class="modal fade" id="emailBodyModal" tabindex="-1" style="z-index:1060;">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header py-2" style="background:#15648C;color:white;">
+            <div class="modal-header py-2" style="background:#dde6ff;color:#1e3a8a;">
                 <h6 class="modal-title mb-0"><i class="ri-mail-open-line me-1"></i><span id="modalSubject">Email Content</span></h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -154,8 +154,8 @@
 <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
 <style>
     .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
-        background-color: #15648C !important;
-        color: #ffffff !important;
+        background-color: #dde6ff !important;
+        color: #1e3a8a !important;
         border: none !important;
         font-size: 10px !important;
         padding: 1px 6px !important;
@@ -182,8 +182,8 @@
         padding: 4px 8px !important;
     }
     #emailBodyModal .modal-header {
-        background: #15648C !important;
-        color: #ffffff !important;
+        background: #dde6ff !important;
+        color: #1e3a8a !important;
     }
     #emailBodyModal .modal-header .modal-title,
     #emailBodyModal .modal-header .modal-title span {
@@ -361,7 +361,7 @@ function loadMails(page) {
                 '<td style="max-width:130px;" class="text-truncate" title="' + designation + '">' + designation + '</td>' +
                 '<td class="fw-semibold" style="max-width:200px;" title="' + (email.subject||'') + '">' + (email.subject || '-') + '</td>' +
                 '<td style="white-space:nowrap;">' + date + '</td>' +
-                '<td class="text-center"><button class="btn btn-xs btn-view-email" data-id="' + email.id + '" data-subject="' + (email.subject||'').replace(/"/g,'&quot;') + '" data-to="' + (email.to||'') + '" data-from="' + (email.from||'') + '" data-date="' + date + '" style="font-size:10px;padding:1px 6px;background:#15648C;color:white;border:none;border-radius:3px;"><i class="ri-eye-line"></i></button></td>' +
+                '<td class="text-center"><button class="btn btn-xs btn-view-email" data-id="' + email.id + '" data-subject="' + (email.subject||'').replace(/"/g,'&quot;') + '" data-to="' + (email.to||'') + '" data-from="' + (email.from||'') + '" data-date="' + date + '" style="font-size:10px;padding:1px 6px;background:#dde6ff;color:#1e3a8a;border:none;border-radius:3px;"><i class="ri-eye-line"></i></button></td>' +
                 '</tr>';
         });
         $('#mailLogBody').html(html);

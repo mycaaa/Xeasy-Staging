@@ -224,7 +224,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm align-middle text-center mb-0" id="stageSummaryTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>Claim Status</th>
                                         <th id="thMonths"></th>
@@ -267,7 +267,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0" id="pendingDetailTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>EmpCode</th>
@@ -350,7 +350,7 @@
                     <div class="card-body p-2">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0" id="mgmtTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>EmpCode</th>
@@ -378,7 +378,7 @@
                     <div class="card-body p-2">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0" id="imprestTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>EC</th>
@@ -419,7 +419,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-3" id="employeeWiseTATTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>EC</th>
@@ -472,7 +472,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-3" id="claimWiseTATTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>Claim Type</th>
@@ -513,7 +513,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm align-middle mb-0" id="submissionReturnTable">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>Employee Code</th>
@@ -549,7 +549,7 @@
 <div class="modal fade" id="stageDetailModal" tabindex="-1" aria-labelledby="stageDetailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header" style="background:#15648C;color:white;">
+            <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                 <h5 class="modal-title text-white" id="stageDetailModalLabel">
                     <i class="ri-list-check-2 me-1"></i>Stage Detail
                 </h5>
@@ -840,7 +840,7 @@ function loadDeptSummary() {
         const sortedMonths = fyOrder.filter(m => allMonths.has(m));
 
         let html = '<table class="table table-bordered table-sm align-middle text-center mb-0">';
-        html += '<thead style="background:#15648C;color:white;"><tr><th>Function</th><th>Department</th>';
+        html += '<thead style="background:#dde6ff;color:#1e3a8a;"><tr><th>Function</th><th>Department</th>';
         sortedMonths.forEach(m => { html += '<th>' + monthNames[m-1] + '</th>'; });
         html += '<th>Grand Total</th></tr></thead><tbody>';
 
@@ -1408,10 +1408,10 @@ function loadCourierStatus() {
         });
 
         let html = '<table class="table table-bordered table-sm align-middle text-center mb-0">';
-        html += '<thead><tr style="background:#15648C;color:white;">';
+        html += '<thead><tr style="background:#dde6ff;color:#1e3a8a;">';
         html += '<th rowspan="2">Function name</th><th rowspan="2">Department</th>';
         html += '<th colspan="2">Posting date</th><th rowspan="2">Grand Total</th><th colspan="2">%</th>';
-        html += '</tr><tr style="background:#15648C;color:white;"><th>No</th><th>Yes</th><th>No</th><th>Yes</th></tr></thead><tbody>';
+        html += '</tr><tr style="background:#dde6ff;color:#1e3a8a;"><th>No</th><th>Yes</th><th>No</th><th>Yes</th></tr></thead><tbody>';
 
         let grandNo = 0, grandYes = 0, grandTotal = 0;
 

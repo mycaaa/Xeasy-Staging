@@ -9,7 +9,7 @@
 
     /* ── Header ── */
     .page-header {
-        background: #15648C; color: #fff;
+        background: #dde6ff; color: #1e3a8a;
         padding: 10px 14px; border-radius: 5px 5px 0 0;
         display: flex; align-items: center; justify-content: space-between;
         margin-bottom: 0;
@@ -42,20 +42,20 @@
     /* ── Table ── */
     .km-table { width: 100%; border-collapse: collapse; font-size: 11px; }
     .km-table th {
-        background: #15648C; color: #fff;
+        background: #dde6ff; color: #1e3a8a;
         padding: 5px 4px; text-align: center;
         border: 1px solid #0d4f70; white-space: nowrap;
         font-size: 10px;
     }
-    .km-table th.sub-th { background: #1a7aab; font-size: 9px; }
-    .km-table th.gt-th  { background: #0d4f70; }
+    .km-table th.sub-th { background: #dde6ff; font-size: 9px; color: #1e3a8a;}
+    .km-table th.gt-th  { background: #dde6ff; color: #1e3a8a;}
     .km-table td {
         padding: 4px 4px; border: 1px solid #ddd;
         text-align: right; white-space: nowrap;
     }
     .km-table td.yr-cell { font-weight: 700; text-align: left; background: #f5f5f5; white-space: nowrap; }
     .km-table td.total-cell { background: #fff8e1; font-weight: 700; }
-    .km-table tr.grand-row td { background: #15648C; color: #fff; font-weight: 700; text-align: center; }
+    .km-table tr.grand-row td { background: #dde6ff; color: #1e3a8a; font-weight: 700; text-align: center; }
     .km-table tr:nth-child(even) td:not(.yr-cell):not(.total-cell) { background: #fafafa; }
     .km-table .zero { color: #ccc; }
 

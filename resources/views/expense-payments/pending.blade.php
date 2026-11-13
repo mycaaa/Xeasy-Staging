@@ -19,9 +19,8 @@
         }
 
         .activity-balance-container::-webkit-scrollbar-thumb {
-            background: #15648C;
-            border-radius: 2px;
-        }
+            background: #dde6ff;
+            border-radius: 2px; color: #1e3a8a;}
 
         .balance-card {
             transition: all 0.3s ease;
@@ -89,8 +88,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 4px 2px;
             text-align: center;
             vertical-align: middle;
@@ -118,15 +117,15 @@
         }
 
         .btn-primary {
-            background-color: #007bff;
+            background-color: #dde6ff;
             border-color: #007bff;
-            color: white;
+            color: #1e3a8a;
         }
 
         .btn-success {
-            background-color: #28a745;
+            background-color: #d7f3e6;
             border-color: #28a745;
-            color: white;
+            color: #065f46;
             padding: 4px 12px;
         }
 
@@ -253,8 +252,8 @@
         }
 
         .pagination li.active span {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-color: #007bff;
         }
 
@@ -420,72 +419,72 @@
                             <thead class="sticky-top">
                                 <tr>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         S.No</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:300px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:300px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Claimant</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         EmpCode</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Grade</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Status</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Total<br>Claims</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Print</th>
                                     <th colspan="4"
-                                        style="font-size: 10px;text-align:center;background-color: #15648C;color:white">
+                                        style="font-size: 10px;text-align:center;background-color: #dde6ff;color:#1e3a8a">
                                         Finance Amount</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:200px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:200px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity Opr Balance</th>
                                     <th colspan="4"
-                                        style="font-size: 10px;text-align:center;background-color: #15648C;color:white">
+                                        style="font-size: 10px;text-align:center;background-color: #dde6ff;color:#1e3a8a">
                                         Advance Adjustment</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:150px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:150px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Activity Balance</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:80px;vertical-align:middle;background-color: #15648C;color:white" title="B-04: DA (DA@HQ / DAOutStation@HQ) is excluded unless grade id > 67">
+                                        style="font-size: 10px;width:80px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a" title="B-04: DA (DA@HQ / DAOutStation@HQ) is excluded unless grade id > 67">
                                         Actual Expense<br><small>(excl. DA*)</small></th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:80px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:80px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Payable Amount (After Adjustment)<br><small>(excl. DA*)</small></th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Fixed Imprest</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Account Summary</th>
                                     <th rowspan="2"
-                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size: 10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Action</th>
                                 </tr>
                                 <tr>
-                                    <th style="font-size: 10px;width:80px;background-color: #15648C;color:white">Activity
+                                    <th style="font-size: 10px;width:80px;background-color: #dde6ff;color:#1e3a8a">Activity
                                     </th>
-                                    <th style="font-size: 10px;width:80px;background-color: #15648C;color:white">DA</th>
-                                    <th style="font-size: 10px;width:80px;background-color: #15648C;color:white">Expense
+                                    <th style="font-size: 10px;width:80px;background-color: #dde6ff;color:#1e3a8a">DA</th>
+                                    <th style="font-size: 10px;width:80px;background-color: #dde6ff;color:#1e3a8a">Expense
                                     </th>
-                                    <th style="font-size: 10px;width:80px;background-color: #15648C;color:white">Total</th>
-                                    <th style="font-size: 10px;width:115px;background-color: #15648C;color:white">Activity
+                                    <th style="font-size: 10px;width:80px;background-color: #dde6ff;color:#1e3a8a">Total</th>
+                                    <th style="font-size: 10px;width:115px;background-color: #dde6ff;color:#1e3a8a">Activity
                                         Adv</th>
-                                    <th style="font-size: 10px;width:115px;background-color: #15648C;color:white">Expense
+                                    <th style="font-size: 10px;width:115px;background-color: #dde6ff;color:#1e3a8a">Expense
                                         Adv</th>
-                                    {{-- <th style="font-size: 10px;width:115px;background-color: #15648C;color:white">Carried Adv</th> --}}
-                                    <th style="font-size: 10px;width:100px;background-color: #e65100;color:white">Other Adj
+                                    {{-- <th style="font-size: 10px;width:115px;background-color: #dde6ff;color:#1e3a8a">Carried Adv</th> --}}
+                                    <th style="font-size: 10px;width:100px;background-color: #fdefd2;color:#7a4500">Other Adj
                                     </th>
-                                    <th style="font-size: 10px;width:80px;background-color: #15648C;color:white">Total Adj
+                                    <th style="font-size: 10px;width:80px;background-color: #dde6ff;color:#1e3a8a">Total Adj
                                     </th>
                                 </tr>
                             </thead>
@@ -1016,7 +1015,7 @@
                             @for ($p = 1; $p <= $totalPages; $p++)
                                 @if ($p == $currentPage)
                                     <span
-                                        style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #007bff; color: white;">{{ $p }}</span>
+                                        style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #dde6ff; color: #1e3a8a;">{{ $p }}</span>
                                 @else
                                     <a href="{{ $paginatedRecords->url($p) }}&{{ $queryString }}"
                                         style="margin: 0 2px; padding: 6px 12px; border: 1px solid #ddd; color: #007bff; text-decoration: none;">{{ $p }}</a>

@@ -88,7 +88,7 @@
                 {{-- Data Table --}}
                 {{-- <div class="table-responsive">
                     <table class="table table-sm table-bordered table-hover" id="fyTable" style="font-size:10px;">
-                        <thead style="background:#15648C;color:white;" id="fyTableHead">
+                        <thead style="background:#dde6ff;color:#1e3a8a;" id="fyTableHead">
                             <tr>
                                 <th>#</th>
                                 <th>Emp Code</th>

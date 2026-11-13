@@ -116,7 +116,7 @@
                 </div>
                 <div class="table-responsive" id="resultsContainer" style="display:none;">
                     <table class="table table-bordered table-sm table-hover mb-0" id="mismatchTable">
-                        <thead style="background-color:#15648C; color:white; font-size:11px;">
+                        <thead style="background-color:#dde6ff; color:#1e3a8a; font-size:11px;">
                             <tr>
                                 <th>#</th>
                                 <th>Emp Code</th>
@@ -154,7 +154,7 @@
 <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background-color:#15648C; color:white;">
+            <div class="modal-header" style="background-color:#dde6ff; color:#1e3a8a;">
                 <h6 class="modal-title" id="detailModalLabel">
                     <i class="ri-file-list-3-line me-1"></i> Mismatch Detail - ExpId: <span id="modalExpId"></span>
                 </h6>

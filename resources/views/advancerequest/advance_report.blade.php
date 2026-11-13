@@ -123,7 +123,7 @@
                                     </select>
                                 </div>
                                 <div class="col-md-5 d-flex gap-2">
-                                    <button id="applyFilters" class="btn btn-primary btn-sm flex-fill" style="background-color: #155997; border-color: #155997;">
+                                    <button id="applyFilters" class="btn btn-primary btn-sm flex-fill" style="background-color: #dde6ff; border-color: #155997; color: #1e3a8a;">
                                         <i class="ri-filter-3-line align-middle me-1"></i> Apply Filters
                                     </button>
                                     <button id="resetFilters" class="btn btn-outline-secondary btn-sm" title="Reset all filters">
@@ -145,13 +145,13 @@
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="stats-card" style="background: linear-gradient(135deg, #17a2b8 0%, #117a8b 100%);">
+                                <div class="stats-card" style="background: #d8f1fb; color: #0b5a7a;">
                                     <h6>Total Employees</h6>
                                     <div class="value" id="totalEmployees">0</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="stats-card" style="background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);">
+                                <div class="stats-card" style="background: #fdefd2; color: #7a4500;">
                                     <h6>Total Requests</h6>
                                     <div class="value" id="totalRequests">0</div>
                                 </div>
@@ -194,21 +194,21 @@
                                     </tr>
                                 </tbody>
                                 <tfoot>
-                                    <tr style="font-weight: 700; background-color: #155997; color: white;">
-                                        <td colspan="2" class="text-end" style="background-color: #155997; color: white;">Grand Total:</td>
-                                        <td class="text-center" id="totalJan" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalFeb" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalMar" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalApr" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalMay" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalJun" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalJul" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalAug" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalSep" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalOct" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalNov" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="totalDec" style="background-color: #155997; color: white;">₹0</td>
-                                        <td class="text-center" id="grandTotalFooter" style="background-color: #0d3d66; color: #fff; font-weight: 800;">₹0</td>
+                                    <tr style="font-weight: 700; background-color: #dde6ff; color: #1e3a8a;">
+                                        <td colspan="2" class="text-end" style="background-color: #dde6ff; color: #1e3a8a;">Grand Total:</td>
+                                        <td class="text-center" id="totalJan" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalFeb" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalMar" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalApr" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalMay" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalJun" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalJul" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalAug" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalSep" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalOct" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalNov" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="totalDec" style="background-color: #dde6ff; color: #1e3a8a;">₹0</td>
+                                        <td class="text-center" id="grandTotalFooter" style="background-color: #dde6ff; color: #1e3a8a; font-weight: 800;">₹0</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -240,8 +240,8 @@
     }
 
     .stats-card {
-        background: linear-gradient(135deg, #155997 0%, #0d3d66 100%);
-        color: white;
+        background: #dde6ff;
+        color: #1e3a8a;
         padding: 14px 16px;
         border-radius: 8px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
@@ -265,8 +265,8 @@
     }
 
     #activityTable thead th {
-        background-color: #155997;
-        color: #ffffff;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         font-weight: 600;
         font-size: 0.72rem;
         padding: 7px 6px;
@@ -1127,7 +1127,7 @@
             <div class="modal fade" id="monthDetailModal" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow">
-                        <div class="modal-header py-2 px-3 text-white" style="background-color: #155997;">
+                        <div class="modal-header py-2 px-3 text-white" style="background-color: #dde6ff; color: #1e3a8a;">
                             <h5 class="modal-title fs-14 fw-semibold text-white d-flex align-items-center gap-2">
                                 <i class="ri-calendar-event-line fs-16"></i> ${activityName} - ${monthName}
                                 <span class="badge bg-light text-primary ms-2">${formatAmount(monthData.month_total)}</span>
@@ -1142,7 +1142,7 @@
 
             modalHtml += `
                 <div class="submitter-section mb-3 shadow-sm rounded overflow-hidden border">
-                    <div class="submitter-header p-2 px-3 text-white" style="background: linear-gradient(135deg, #155997 0%, #0d3d66 100%);">
+                    <div class="submitter-header p-2 px-3 text-white" style="background: #dde6ff; color: #1e3a8a;">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <strong style="font-size: 0.85rem;">

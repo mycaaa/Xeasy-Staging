@@ -110,7 +110,7 @@ class DashboardController extends Controller
 
         // Verifier stats (verified by me)
         $verifierStats = $isVerifier
-            ? $this->getVerifierStats($employeeId, $table)
+            ? $this->getVerifierStats($employeeId, $table, $currentMonth)
             : null;
 
         // Missing Imprest list — shown in Verifier tab for verifiers
@@ -118,7 +118,7 @@ class DashboardController extends Controller
 
         // Finance stats (financed by me)
         $financeStats = $isFinance
-            ? $this->getFinanceStats($employeeId, $table)
+            ? $this->getFinanceStats($employeeId, $table, $currentMonth)
             : null;
 
         // Top 10 ratings - role-specific
@@ -454,7 +454,7 @@ class DashboardController extends Controller
     /**
      * Verifier stats - claims verified by me (VerifyBy = employeeId)
      */
-    private function getVerifierStats($employeeId, $table)
+    private function getVerifierStats($employeeId, $table, ?int $month = null)
     {
         try {
             $db = $this->expenseDb();
@@ -466,7 +466,7 @@ class DashboardController extends Controller
                     SUM(CASE WHEN VerifyBy = ? AND VerifyDate != '0000-00-00' THEN 1 ELSE 0 END) as verified_by_me,
                     COALESCE(SUM(CASE WHEN VerifyBy = ? AND VerifyDate != '0000-00-00' THEN VerifyTAmt ELSE 0 END), 0) as verified_amount,
                     SUM(CASE WHEN VerifyBy = ? AND VerifyDate != '0000-00-00' AND ClaimMonth = ? THEN 1 ELSE 0 END) as verified_this_month
-                ", [$employeeId, $employeeId, $employeeId, now()->month])
+                ", [$employeeId, $employeeId, $employeeId, $month ?: now()->month]) // DASH-NUM-01: the month picked on the dashboard
                 ->first();
 
             return $stats ?: (object) [
@@ -485,7 +485,7 @@ class DashboardController extends Controller
     /**
      * Finance stats - claims financed by me (FinancedBy = employeeId)
      */
-    private function getFinanceStats($employeeId, $table)
+    private function getFinanceStats($employeeId, $table, ?int $month = null)
     {
         try {
             $db = $this->expenseDb();
@@ -497,7 +497,7 @@ class DashboardController extends Controller
                     SUM(CASE WHEN FinancedBy = ? AND FinancedDate != '0000-00-00' THEN 1 ELSE 0 END) as financed_by_me,
                     COALESCE(SUM(CASE WHEN FinancedBy = ? AND FinancedDate != '0000-00-00' THEN FinancedTAmt ELSE 0 END), 0) as financed_amount,
                     SUM(CASE WHEN FinancedBy = ? AND FinancedDate != '0000-00-00' AND ClaimMonth = ? THEN 1 ELSE 0 END) as financed_this_month
-                ", [$employeeId, $employeeId, $employeeId, now()->month])
+                ", [$employeeId, $employeeId, $employeeId, $month ?: now()->month]) // DASH-NUM-01: the month picked on the dashboard
                 ->first();
 
             return $stats ?: (object) [
@@ -748,6 +748,8 @@ class DashboardController extends Controller
                     'e.CrDate',
                     'e.DateEntryRemark',
                     'e.VerifyTAmt',
+                    'e.VerifyBy',
+                    'e.VerifyDate',
                     'ct.ClaimName',
                     'ct.cgId'
                 )
@@ -767,9 +769,14 @@ class DashboardController extends Controller
                 $monthClaims = $monthGroups[$month];
                 $totalClaims = $monthClaims->count();
                 $totalFilledAmt = $monthClaims->sum('FilledTAmt');
-                $totalVerifiedAmt = $monthClaims->sum('VerifyTAmt');
+                // DASH-NUM-01: "verified" = checked by the verifier (status or VerifyBy/VerifyDate); FilledOkay = 1 is
+                // only the employee's own confirmation of the punched figures and is reported as "confirmed"
+                $verifiedClaims = $monthClaims->filter(fn ($c) => in_array($c->ClaimStatus, ['Verified', 'Approved', 'Financed', 'Payment', 'Close'], true)
+                    || ((int) ($c->VerifyBy ?? 0) > 0 && \App\Support\ZeroDate::has($c->VerifyDate ?? null)));
+                $totalVerifiedAmt = $verifiedClaims->sum('VerifyTAmt');
                 $totalDenied = $monthClaims->where('FilledOkay', 2)->count();
-                $totalVerified = $monthClaims->where('FilledOkay', 1)->count();
+                $totalVerified = $verifiedClaims->count();
+                $totalConfirmed = $monthClaims->where('FilledOkay', 1)->count();
 
                 // Check if month is submitted/closed
                 $monthStatus = $db->table('y' . $yearId . '_monthexpensefinal')
@@ -827,6 +834,7 @@ class DashboardController extends Controller
                         'TotFilledAmt' => (string) round($totalFilledAmt),
                         'TotDeniedClaims' => (string) $totalDenied,
                         'TotVerifiedClaims' => (string) $totalVerified,
+                        'TotConfirmedClaims' => (string) $totalConfirmed,
                     ],
                     'TotalVerify_Claim_with_Amount' => [
                         'TotClaim' => (string) $totalVerified,
@@ -1168,9 +1176,12 @@ class DashboardController extends Controller
             $isMonthVerified = !empty($mef?->Verified_Date) && \App\Support\ZeroDate::has($mef->Verified_Date);
             $isMonthApproved = !empty($mef?->Approved_Date) && \App\Support\ZeroDate::has($mef->Approved_Date);
 
-            // Verified count
+            // Verified count. DASH-NUM-01: FilledOkay = 1 only means the bill was punched correctly, not that
+            // the verifier verified it, so it no longer counts here (it showed "Verified" on Filled claims)
             $verifiedCount = $submittedClaims->filter(function($c) use ($isMonthVerified) {
-                return $isMonthVerified || $c->FilledOkay == 1 || $c->ClaimStatus === 'Verified';
+                return $isMonthVerified
+                    || in_array($c->ClaimStatus, ['Verified', 'Approved', 'Financed', 'Payment', 'Close'], true)
+                    || ((int) ($c->VerifyBy ?? 0) > 0 && \App\Support\ZeroDate::has($c->VerifyDate ?? null));
             })->count();
 
             // Approved count

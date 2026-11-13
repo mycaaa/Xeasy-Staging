@@ -76,9 +76,8 @@
         height: 8px;
     }
     #employeeClaimsModal .employee-claims-scroll-container::-webkit-scrollbar-thumb {
-        background: #15648c;
-        border-radius: 4px;
-    }
+        background: #dde6ff;
+        border-radius: 4px; color: #1e3a8a;}
     #employeeClaimsModal .employee-claims-scroll-container::-webkit-scrollbar-track {
         background: #f1f1f1;
     }
@@ -86,15 +85,15 @@
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #15648C !important;
-        color: white !important;
+        background-color: #dde6ff !important;
+        color: #1e3a8a !important;
     }
     #employeeClaimsModal .claim-table thead tr:nth-child(2) th {
         position: sticky;
         top: 26px;
         z-index: 9;
-        background-color: #15648C !important;
-        color: white !important;
+        background-color: #dde6ff !important;
+        color: #1e3a8a !important;
     }
 </style>
     {{-- Sticky Eligibility List button --}}
@@ -102,7 +101,7 @@
        target="_blank"
        style="position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:1050;
               writing-mode:vertical-rl;text-orientation:mixed;
-              background:#405189;color:#fff;padding:12px 8px;
+              background:#dde6ff;color:#1e3a8a;padding:12px 8px;
               border-radius:6px 0 0 6px;font-size:12px;font-weight:600;
               text-decoration:none;letter-spacing:.5px;box-shadow:-2px 0 8px rgba(0,0,0,.15);">
         Eligibility List
@@ -125,7 +124,7 @@
                         <div class="px-3 py-2" style="background:#f0f4ff;border-bottom:1px solid #c7d4f0;">
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div style="width:34px;height:34px;border-radius:50%;background:#405189;color:#fff;
+                                    <div style="width:34px;height:34px;border-radius:50%;background:#dde6ff;color:#1e3a8a;
                                                 display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">
                                         {{ strtoupper(substr($empInfo->FullName ?? 'E', 0, 1)) }}
                                     </div>
@@ -464,44 +463,44 @@
                         <table class="table table-striped table-bordered align-middle claim-table table-hover mb-0">
                           <thead>
     <tr>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">#</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Exp ID</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Claim</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Bill Dt</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Upload Dt</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">#</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Exp ID</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Claim</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Bill Dt</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Upload Dt</th>
 
-        <th colspan="4" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white;text-align:center;">Claim</th>
-        <th colspan="4" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white;text-align:center;">Verify</th>
-        <th colspan="3" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white;text-align:center;">Approve</th>
-        <th colspan="3" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white;text-align:center;">Finance</th>
+        <th colspan="4" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;text-align:center;">Claim</th>
+        <th colspan="4" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;text-align:center;">Verify</th>
+        <th colspan="3" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;text-align:center;">Approve</th>
+        <th colspan="3" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;text-align:center;">Finance</th>
 
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Status</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Odometer</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Backdate</th>
-        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Action</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Status</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Odometer</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Backdate</th>
+        <th rowspan="2" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Action</th>
     </tr>
     <tr>
         {{-- Claim (4) --}}
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Amt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Remark</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">CI Verify</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Filled OK</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Amt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Remark</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">CI Verify</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Filled OK</th>
 
         {{-- Verify (4) --}}
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Flag</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Amt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Dt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Remark</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Flag</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Amt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Dt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Remark</th>
 
         {{-- Approve (3) --}}
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Amt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Dt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Remark</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Amt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Dt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Remark</th>
 
         {{-- Finance (3) --}}
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Amt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Dt</th>
-        <th style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Remark</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Amt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Dt</th>
+        <th style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Remark</th>
     </tr>
 </thead>
                             <tbody id="employeeClaimsTableBody">

@@ -172,7 +172,7 @@
         {{-- Report Table --}}
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between py-2"
-                style="background:#15648C;">
+                style="background:#dde6ff; color: #1e3a8a;">
                 <h6 class="mb-0 text-white"><i class="ri-table-line me-1"></i>Report Data</h6>
                 <div class="d-flex align-items-center gap-2">
                     <input type="text" id="tableSearch" class="form-control form-control-sm"
@@ -197,7 +197,7 @@
                 <div id="tableWrapper" style="display:none; overflow-x:auto; max-height:70vh; overflow-y:auto;">
                     <table class="table table-sm table-bordered mb-0" id="reportTable"
                         style="font-size:11px; min-width:1600px;">
-                        <thead style="background:#15648C; color:#fff; position:sticky; top:0; z-index:5;">
+                        <thead style="background:#dde6ff; color:#1e3a8a; position:sticky; top:0; z-index:5;">
                             <tr>
                                 <th style="min-width:40px;">#</th>
                                 <th style="min-width:75px;">Company</th>

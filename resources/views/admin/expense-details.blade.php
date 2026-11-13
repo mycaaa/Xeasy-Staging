@@ -50,8 +50,8 @@
         }
 
         thead th {
-            background-color: #007bff;
-            color: #fff;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px;
             font-size: 13px;
         }

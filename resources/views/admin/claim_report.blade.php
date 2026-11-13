@@ -109,8 +109,8 @@
             max-width: 95vw;
         }
         #additionalFiltersCanvas .offcanvas-header {
-            background: #00175f;
-            color: #ffffff;
+            background: #dde6ff;
+            color: #1e3a8a;
             padding: 1rem 1.25rem;
         }
         #additionalFiltersCanvas .offcanvas-header .offcanvas-title {

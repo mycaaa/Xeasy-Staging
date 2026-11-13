@@ -91,16 +91,16 @@
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered align-middle mb-0" id="notShowingTable" style="width:100%">
                         <thead class="table-light">
-                            <tr class="text-nowrap" style="background-color: #15648C; color: white;">
-                                <th style="width: 40px; background-color: #15648C; color: white;">#</th>
-                                <th style="background-color: #15648C; color: white;">Month</th>
-                                <th style="background-color: #15648C; color: white;">Employee Code</th>
-                                <th style="background-color: #15648C; color: white;">Employee Name</th>
-                                <th style="background-color: #15648C; color: white;">Claim Details</th>
-                                <th style="background-color: #15648C; color: white;">Courier Date (DMS)</th>
-                                <th style="background-color: #15648C; color: white;">Receive Date for Verification</th>
-                                <th style="background-color: #15648C; color: white;">Payment Date of Previous Month</th>
-                                <th style="text-align: center; width: 100px; background-color: #15648C; color: white;">Action</th>
+                            <tr class="text-nowrap" style="background-color: #dde6ff; color: #1e3a8a;">
+                                <th style="width: 40px; background-color: #dde6ff; color: #1e3a8a;">#</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Month</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Employee Code</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Employee Name</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Claim Details</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Courier Date (DMS)</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Receive Date for Verification</th>
+                                <th style="background-color: #dde6ff; color: #1e3a8a;">Payment Date of Previous Month</th>
+                                <th style="text-align: center; width: 100px; background-color: #dde6ff; color: #1e3a8a;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="notShowingTableBody">

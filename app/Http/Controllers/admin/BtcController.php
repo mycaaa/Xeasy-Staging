@@ -285,6 +285,65 @@ class BtcController extends Controller
         return \Maatwebsite\Excel\Facades\Excel::download($export, 'BTC_Boarding_Pass_Pending_'.now()->format('Ymd').'.xlsx');
     }
 
+    /**
+     * BOARDING-02 (13 Nov 2026): boarding passes for air tickets booked directly by the company (BTC cases).
+     * Desk users (DMS / Finance / admin) see every company booking; anyone else sees their own trips.
+     * Newest travel date first; filter pending / received / all.
+     */
+    public function boardingPasses(Request $request)
+    {
+        $user = auth()->user();
+        $desk = collect(['btc.dms', 'btc.finance', 'btc.admin'])->contains(fn ($p) => $user->can($p));
+        $show = in_array($request->input('show'), ['pending', 'received', 'all'], true) ? $request->input('show') : 'pending';
+        $q = BtcCase::where('company_id', (int) session('company_id', 1))->where('boarding_pass_required', 1)
+            ->whereNotIn('status', ['cancelled', 'rejected', 'draft']);
+        if (! $desk) {
+            $q->where('employee_id', (int) ($user->employee_id ?? 0));
+        }
+        $counts = ['pending' => (clone $q)->whereNull('boarding_pass_received_on')->count(), 'received' => (clone $q)->whereNotNull('boarding_pass_received_on')->count()];
+        if ($show === 'pending') {
+            $q->whereNull('boarding_pass_received_on');
+        } elseif ($show === 'received') {
+            $q->whereNotNull('boarding_pass_received_on');
+        }
+        if ($term = trim((string) $request->input('q'))) {
+            $q->where(function ($w) use ($term) {
+                foreach (['case_no', 'pnr', 'travel_sector', 'emp_name', 'emp_code', 'vendor_name'] as $col) {
+                    $w->orWhere($col, 'like', '%'.addcslashes($term, '%_\\').'%');
+                }
+            });
+        }
+        $cases = $q->with(['files' => fn ($f) => $f->where('kind', 'boarding_pass')])
+            ->orderByDesc('travel_date')->orderByDesc('id')->paginate(25)->withQueryString();
+
+        return view('admin.btc.boarding-passes', compact('cases', 'desk', 'show', 'counts'));
+    }
+
+    /** BOARDING-02: upload a boarding pass for one booking (the traveller, or the DMS / Finance desk); marks it received. */
+    public function boardingPassUpload(Request $request, int $id)
+    {
+        $c = BtcCase::findOrFail($id);
+        $user = auth()->user();
+        $this->authorizeView($c, $user);
+        abort_unless((int) $c->boarding_pass_required === 1, 404);
+        $request->validate(['file' => 'required|file|max:5120|mimes:pdf,jpg,jpeg,png'], ['file.required' => 'Choose the boarding pass file (PDF or photo).']);
+        $f = $request->file('file');
+        $path = $f->storeAs("btc/{$c->company_id}/{$c->id}", 'boarding_pass_'.now()->format('YmdHis').'.'.strtolower($f->getClientOriginalExtension()), 'local');
+        DB::transaction(function () use ($c, $f, $path, $user) {
+            BtcCaseFile::create(['btc_case_id' => $c->id, 'kind' => 'boarding_pass', 'file_path' => $path,
+                'file_name' => mb_substr($f->getClientOriginalName(), 0, 255), 'mime' => $f->getMimeType(), 'uploaded_by' => $user->id]);
+            $first = ! $c->boarding_pass_received_on;
+            if ($first) {
+                $c->boarding_pass_received_on = now()->toDateString();
+                $c->save();
+            }
+            \App\Models\BtcCaseLog::create(['btc_case_id' => $c->id, 'action' => 'boarding_pass', 'from_status' => $c->status, 'to_status' => $c->status,
+                'remark' => $first ? 'Boarding pass uploaded' : 'Another boarding pass file added', 'user_id' => $user->id, 'user_name' => mb_substr((string) $user->name, 0, 150)]);
+        });
+
+        return back()->with('success', "Boarding pass saved for {$c->case_no}.");
+    }
+
     public function approverSearch(Request $request)
     {
         $s = trim((string) $request->input('q'));

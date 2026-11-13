@@ -1,0 +1,84 @@
+/* PASTEL-01 (13 Nov 2026): solid colours replaced by pastel shades on every page.
+ * Loaded after the theme (app.min.css / custom.min.css). Pastel background + dark text of the same hue keeps
+ * text contrast at 7:1 or better. The dark sidebar and the top bar keep their colours (brand and menu contrast).
+ * To go back: remove the <link> to this file in components/theme/header.blade.php and auth/login.blade.php. */
+:root {
+    --px-primary-bg: #dde6ff; --px-primary-bd: #c2d1fb; --px-primary-tx: #1e3a8a; --px-primary-hv: #cbd8fd;
+    --px-success-bg: #d7f3e6; --px-success-bd: #b5e6cf; --px-success-tx: #065f46; --px-success-hv: #c3ecd9;
+    --px-warning-bg: #fdefd2; --px-warning-bd: #f8dca3; --px-warning-tx: #7a4500; --px-warning-hv: #fbe5b6;
+    --px-danger-bg:  #fde2e2; --px-danger-bd:  #f8c4c4; --px-danger-tx:  #9b1c1c; --px-danger-hv:  #fbd0d0;
+    --px-info-bg:    #d8f1fb; --px-info-bd:    #b3e2f5; --px-info-tx:    #0b5a7a; --px-info-hv:    #c3e9f8;
+    --px-secondary-bg: #eceef3; --px-secondary-bd: #d7dbe3; --px-secondary-tx: #374151; --px-secondary-hv: #e1e4ea;
+    --px-dark-bg:    #e3e6ee; --px-dark-bd:    #c9cfdc; --px-dark-tx:    #111827; --px-dark-hv:    #d6dae4;
+}
+
+/* ── Buttons (solid only; outline / soft / ghost / link keep their look) ── */
+.btn-primary, .btn-success, .btn-warning, .btn-danger, .btn-info, .btn-secondary, .btn-dark { box-shadow: none !important; }
+.btn-primary   { background-color: var(--px-primary-bg) !important;   border-color: var(--px-primary-bd) !important;   color: var(--px-primary-tx) !important; }
+.btn-success   { background-color: var(--px-success-bg) !important;   border-color: var(--px-success-bd) !important;   color: var(--px-success-tx) !important; }
+.btn-warning   { background-color: var(--px-warning-bg) !important;   border-color: var(--px-warning-bd) !important;   color: var(--px-warning-tx) !important; }
+.btn-danger    { background-color: var(--px-danger-bg) !important;    border-color: var(--px-danger-bd) !important;    color: var(--px-danger-tx) !important; }
+.btn-info      { background-color: var(--px-info-bg) !important;      border-color: var(--px-info-bd) !important;      color: var(--px-info-tx) !important; }
+.btn-secondary { background-color: var(--px-secondary-bg) !important; border-color: var(--px-secondary-bd) !important; color: var(--px-secondary-tx) !important; }
+.btn-dark      { background-color: var(--px-dark-bg) !important;      border-color: var(--px-dark-bd) !important;      color: var(--px-dark-tx) !important; }
+.btn-primary:hover, .btn-primary:focus, .btn-primary.active, .btn-primary:active { background-color: var(--px-primary-hv) !important; color: var(--px-primary-tx) !important; }
+.btn-success:hover, .btn-success:focus, .btn-success.active, .btn-success:active { background-color: var(--px-success-hv) !important; color: var(--px-success-tx) !important; }
+.btn-warning:hover, .btn-warning:focus, .btn-warning.active, .btn-warning:active { background-color: var(--px-warning-hv) !important; color: var(--px-warning-tx) !important; }
+.btn-danger:hover, .btn-danger:focus, .btn-danger.active, .btn-danger:active     { background-color: var(--px-danger-hv) !important;  color: var(--px-danger-tx) !important; }
+.btn-info:hover, .btn-info:focus, .btn-info.active, .btn-info:active             { background-color: var(--px-info-hv) !important;    color: var(--px-info-tx) !important; }
+.btn-secondary:hover, .btn-secondary:focus, .btn-secondary:active                { background-color: var(--px-secondary-hv) !important; color: var(--px-secondary-tx) !important; }
+.btn-dark:hover, .btn-dark:focus, .btn-dark:active                               { background-color: var(--px-dark-hv) !important;    color: var(--px-dark-tx) !important; }
+.btn-primary .label-icon, .btn-success .label-icon, .btn-warning .label-icon, .btn-danger .label-icon, .btn-info .label-icon { background-color: rgba(0,0,0,.06) !important; color: inherit !important; }
+.btn-primary:disabled, .btn-success:disabled, .btn-warning:disabled, .btn-danger:disabled, .btn-info:disabled { opacity: .6; }
+
+/* ── Badges and solid background utilities ── */
+.badge.bg-primary,   .bg-primary:not(.progress-bar):not(.navbar-menu):not(.app-menu)   { background-color: var(--px-primary-bg) !important;   color: var(--px-primary-tx) !important; }
+.badge.bg-success,   .bg-success:not(.progress-bar)   { background-color: var(--px-success-bg) !important;   color: var(--px-success-tx) !important; }
+.badge.bg-warning,   .bg-warning:not(.progress-bar)   { background-color: var(--px-warning-bg) !important;   color: var(--px-warning-tx) !important; }
+.badge.bg-danger,    .bg-danger:not(.progress-bar):not(.topbar-badge)    { background-color: var(--px-danger-bg) !important;    color: var(--px-danger-tx) !important; }
+.badge.bg-info,      .bg-info:not(.progress-bar)      { background-color: var(--px-info-bg) !important;      color: var(--px-info-tx) !important; }
+.badge.bg-secondary, .bg-secondary:not(.progress-bar) { background-color: var(--px-secondary-bg) !important; color: var(--px-secondary-tx) !important; }
+.badge.bg-dark,      .bg-dark:not(.progress-bar)      { background-color: var(--px-dark-bg) !important;      color: var(--px-dark-tx) !important; }
+.text-bg-primary { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; }
+.text-bg-success { background-color: var(--px-success-bg) !important; color: var(--px-success-tx) !important; }
+.text-bg-warning { background-color: var(--px-warning-bg) !important; color: var(--px-warning-tx) !important; }
+.text-bg-danger  { background-color: var(--px-danger-bg) !important;  color: var(--px-danger-tx) !important; }
+.text-bg-info    { background-color: var(--px-info-bg) !important;    color: var(--px-info-tx) !important; }
+/* white text placed on a (now pastel) background takes that pastel's dark text */
+.bg-primary.text-white, .bg-primary .text-white, .bg-primary .text-light, .btn-primary .text-white { color: var(--px-primary-tx) !important; }
+.bg-success.text-white, .bg-success .text-white, .bg-success .text-light, .btn-success .text-white { color: var(--px-success-tx) !important; }
+.bg-warning.text-white, .bg-warning .text-white, .bg-warning .text-light, .btn-warning .text-white { color: var(--px-warning-tx) !important; }
+.bg-danger.text-white, .bg-danger .text-white, .bg-danger .text-light, .btn-danger .text-white { color: var(--px-danger-tx) !important; }
+.bg-info.text-white, .bg-info .text-white, .bg-info .text-light, .btn-info .text-white { color: var(--px-info-tx) !important; }
+.bg-secondary.text-white, .bg-secondary .text-white, .bg-secondary .text-light, .btn-secondary .text-white { color: var(--px-secondary-tx) !important; }
+.bg-dark.text-white, .bg-dark .text-white, .bg-dark .text-light, .btn-dark .text-white { color: var(--px-dark-tx) !important; }
+/* the notification count on the bell stays a small solid alert */
+.badge.topbar-badge.bg-danger, .topbar-badge { background-color: #e5484d !important; color: #fff !important; }
+
+/* ── Alerts (solid fills) ── */
+.alert-primary { background-color: var(--px-primary-bg) !important; border-color: var(--px-primary-bd) !important; color: var(--px-primary-tx) !important; }
+.alert-success { background-color: var(--px-success-bg) !important; border-color: var(--px-success-bd) !important; color: var(--px-success-tx) !important; }
+.alert-warning { background-color: var(--px-warning-bg) !important; border-color: var(--px-warning-bd) !important; color: var(--px-warning-tx) !important; }
+.alert-danger  { background-color: var(--px-danger-bg) !important;  border-color: var(--px-danger-bd) !important;  color: var(--px-danger-tx) !important; }
+.alert-info    { background-color: var(--px-info-bg) !important;    border-color: var(--px-info-bd) !important;    color: var(--px-info-tx) !important; }
+
+/* ── Nav pills / active tabs / pagination ── */
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; }
+.page-item.active .page-link { background-color: var(--px-primary-bg) !important; border-color: var(--px-primary-bd) !important; color: var(--px-primary-tx) !important; }
+
+/* ── SweetAlert buttons ── */
+.swal2-styled.swal2-confirm { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; border: 1px solid var(--px-primary-bd) !important; }
+.swal2-styled.swal2-cancel  { background-color: var(--px-secondary-bg) !important; color: var(--px-secondary-tx) !important; border: 1px solid var(--px-secondary-bd) !important; }
+.swal2-styled.swal2-deny    { background-color: var(--px-danger-bg) !important; color: var(--px-danger-tx) !important; border: 1px solid var(--px-danger-bd) !important; }
+
+/* ── Screens with their own solid headers ── */
+.eh-header         { background: var(--px-secondary-bg) !important; color: var(--px-secondary-tx) !important; }
+.eh-header-open    { background: var(--px-info-bg) !important;      color: var(--px-info-tx) !important; }
+.eh-header-closed  { background: var(--px-success-bg) !important;   color: var(--px-success-tx) !important; }
+.table-dark, .table-dark > tr > th, thead.table-dark th { background-color: var(--px-dark-bg) !important; color: var(--px-dark-tx) !important; border-color: var(--px-dark-bd) !important; }
+.table-primary, .table-primary > th, .table-primary > td { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; }
+.table-success, .table-success > th, .table-success > td { background-color: var(--px-success-bg) !important; color: var(--px-success-tx) !important; }
+.table-warning, .table-warning > th, .table-warning > td { background-color: var(--px-warning-bg) !important; color: var(--px-warning-tx) !important; }
+.table-danger,  .table-danger > th,  .table-danger > td  { background-color: var(--px-danger-bg) !important;  color: var(--px-danger-tx) !important; }
+.table-info,    .table-info > th,    .table-info > td    { background-color: var(--px-info-bg) !important;    color: var(--px-info-tx) !important; }
+.table-danger > * { --vz-table-bg: var(--px-danger-bg); }

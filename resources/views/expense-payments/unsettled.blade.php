@@ -16,8 +16,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 4px;
             text-align: center;
             vertical-align: middle;
@@ -42,33 +42,33 @@
         }
 
         .btn-primary {
-            background-color: #007bff;
+            background-color: #dde6ff;
             border-color: #007bff;
-            color: white;
+            color: #1e3a8a;
         }
 
         .btn-success {
-            background-color: #28a745;
+            background-color: #d7f3e6;
             border-color: #28a745;
-            color: white;
+            color: #065f46;
         }
 
         .btn-warning {
-            background-color: #ffc107;
+            background-color: #fdefd2;
             border-color: #ffc107;
             color: #000;
         }
 
         .btn-danger {
-            background-color: #dc3545;
+            background-color: #fde2e2;
             border-color: #dc3545;
-            color: white;
+            color: #9b1c1c;
         }
 
         .btn-info {
-            background-color: #17a2b8;
+            background-color: #d8f1fb;
             border-color: #17a2b8;
-            color: white;
+            color: #0b5a7a;
         }
 
         .month-select {
@@ -79,8 +79,8 @@
         }
 
         .badge-danger {
-            background-color: #dc3545;
-            color: white;
+            background-color: #fde2e2;
+            color: #9b1c1c;
             padding: 3px 8px;
             border-radius: 3px;
             font-size: 11px;
@@ -89,7 +89,7 @@
         }
 
         .badge-warning {
-            background-color: #ffc107;
+            background-color: #fdefd2;
             color: #000;
             padding: 3px 8px;
             border-radius: 3px;
@@ -99,8 +99,8 @@
         }
 
         .badge-success {
-            background-color: #28a745;
-            color: white;
+            background-color: #d7f3e6;
+            color: #065f46;
             padding: 3px 8px;
             border-radius: 3px;
             font-size: 11px;
@@ -109,8 +109,8 @@
         }
 
         .badge-info {
-            background-color: #17a2b8;
-            color: white;
+            background-color: #d8f1fb;
+            color: #0b5a7a;
             padding: 3px 8px;
             border-radius: 3px;
             font-size: 11px;
@@ -160,8 +160,8 @@
         }
 
         .pagination li.active span {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-color: #007bff;
         }
 
@@ -218,8 +218,8 @@
         }
 
         .section-title {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 12px;
             margin-top: 15px;
             margin-bottom: 10px;
@@ -262,8 +262,8 @@
         }
 
         .filter-badge {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 3px 8px;
             border-radius: 12px;
             font-size: 10px;
@@ -512,17 +512,17 @@
                     <table class="estable table table-bordered shadow">
                         <thead>
                             <tr>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:40px;">S.No</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px;">Employee Code</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:180px;">Employee Name</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:120px;">Payment Amount</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:120px;">Finance Amount</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px;">Paid Amount</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px;">Adjustment</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:120px;">Unsettled Date</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:250px;">Reason</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:80px;">Status</th>
-                                <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:140px;">Action</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:40px;">S.No</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px;">Employee Code</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:180px;">Employee Name</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:120px;">Payment Amount</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:120px;">Finance Amount</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px;">Paid Amount</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px;">Adjustment</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:120px;">Unsettled Date</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:250px;">Reason</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:80px;">Status</th>
+                                <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:140px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -674,7 +674,7 @@
     <div class="modal fade" id="viewPaymentModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background-color: #15648C; color: white;">
+                <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                     <h5 class="modal-title text-white">
                         <i class="fa fa-eye"></i> Unsettled Payment Details
                     </h5>
@@ -697,7 +697,7 @@
     <div class="modal fade" id="resolvePaymentModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background-color: #28a745; color: white;">
+                <div class="modal-header" style="background-color: #d7f3e6; color: #065f46;">
                     <h5 class="modal-title text-white">
                         <i class="fa fa-check-circle"></i> Resolve Unsettled Payment - Manual Adjustment
                     </h5>

@@ -15,8 +15,8 @@
         border: 1px solid #ccc;
     }
     .expense-details-container th {
-        background-color: #0062C4;
-        color: white;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         padding: 6px 4px;
         text-align: center;
         font-weight: bold;
@@ -40,8 +40,8 @@
         font-size: 12px;
     }
     .expense-details-container .group-header {
-        background-color: #0062C4;
-        color: white;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         padding: 8px;
         font-weight: bold;
         font-size: 12px;
@@ -129,8 +129,8 @@
         
         <table style="width:100%; border-collapse: collapse; font-size: 11px;">
             <thead>
-                <tr style="background-color: #0062C4; color: white;"></tr>
-                <tr style="background-color: #0062C4; color: white;">
+                <tr style="background-color: #dde6ff; color: #1e3a8a;"></tr>
+                <tr style="background-color: #dde6ff; color: #1e3a8a;">
                     <th style="padding: 6px; border: 1px solid #ccc; text-align: center;">Sn</th>
                     <th style="padding: 6px; border: 1px solid #ccc; text-align: center;">Date</th>
                     <th style="padding: 6px; border: 1px solid #ccc; text-align: center;">Remark</th>

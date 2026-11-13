@@ -10,8 +10,8 @@
             font-size: 12px;
         }
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 6px;
             font-size: 11px;
             text-align: center;
@@ -27,8 +27,8 @@
         .estable tbody tr:hover { background-color: #f5f5f5; }
 
         .snapshot-table th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             font-size: 11px;
             padding: 7px 6px;
             text-align: center;
@@ -84,7 +84,7 @@
         <div class="row mt-3">
             <div class="col-lg-12">
                 <div class="card shadow">
-                    <div class="card-header" style="background-color: #15648C; color: white; padding: 10px 15px;">
+                    <div class="card-header" style="background-color: #dde6ff; color: #1e3a8a; padding: 10px 15px;">
                         <div class="d-flex justify-content-between align-items-center">
                             <h5 class="mb-0 text-white">Employee Ledger Summary</h5>
                             <span class="badge badge-light">Year: {{ session('year_id', date('Y')) }}</span>

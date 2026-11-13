@@ -5,8 +5,8 @@
         body { font-family: 'DejaVu Sans', freeserif, sans-serif; font-size: 11px; }
         table { border-collapse: collapse; width: 100%; }
         th, td { border:1px solid #000; padding:4px; }
-        th { background:#0062C4; color:#fff; }
-        .title { background:#0062C4; color:#fff; padding:5px; font-weight:bold; }
+        th { background:#dde6ff; color:#1e3a8a; }
+        .title { background:#dde6ff; color:#1e3a8a; padding:5px; font-weight:bold; }
         .total { background:#FFFFB3; font-weight:bold; }
         .center { text-align:center; }
         .right { text-align:right; }

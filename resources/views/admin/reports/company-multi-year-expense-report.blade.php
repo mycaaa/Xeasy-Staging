@@ -33,10 +33,10 @@
         bottom: 0;
         width: 4px;
     }
-    .kpi-stat-primary::before { background: linear-gradient(180deg, #15648C, #0e4663); }
-    .kpi-stat-success::before { background: linear-gradient(180deg, #10b981, #059669); }
+    .kpi-stat-primary::before { background: #dde6ff; color: #1e3a8a;}
+    .kpi-stat-success::before { background: #d7f3e6; color: #065f46;}
     .kpi-stat-info::before    { background: linear-gradient(180deg, #0284c7, #0369a1); }
-    .kpi-stat-purple::before  { background: linear-gradient(180deg, #8b5cf6, #6d28d9); }
+    .kpi-stat-purple::before  { background: #ede7fe; color: #4c1d95;}
 
     .kpi-icon-bubble {
         width: 44px;

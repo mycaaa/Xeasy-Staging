@@ -210,7 +210,7 @@
 <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #155997; color: white;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title">
                     <i class="bi bi-file-text"></i> Request Details
                 </h5>
@@ -270,8 +270,8 @@
     }
 
     .table th {
-        background-color: #155997;
-        color: white;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         font-weight: 600;
         font-size: 0.7rem;
         padding: 6px 8px;
@@ -324,8 +324,8 @@
 
     /* Action buttons */
     .btn-approve {
-        background-color: #28a745;
-        color: white;
+        background-color: #d7f3e6;
+        color: #065f46;
         border: none;
         border-radius: 3px;
         padding: 2px 6px;
@@ -334,13 +334,13 @@
     }
 
     .btn-approve:hover {
-        background-color: #218838;
-        color: white;
+        background-color: #d7f3e6;
+        color: #065f46;
     }
 
     .btn-reject {
-        background-color: #dc3545;
-        color: white;
+        background-color: #fde2e2;
+        color: #9b1c1c;
         border: none;
         border-radius: 3px;
         padding: 2px 6px;
@@ -349,13 +349,13 @@
     }
 
     .btn-reject:hover {
-        background-color: #c82333;
-        color: white;
+        background-color: #fde2e2;
+        color: #9b1c1c;
     }
 
     .btn-detail {
-        background-color: #155997;
-        color: white;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         border: none;
         border-radius: 3px;
         padding: 2px 6px;
@@ -364,8 +364,8 @@
     }
 
     .btn-detail:hover {
-        background-color: #0d3d66;
-        color: white;
+        background-color: #dde6ff;
+        color: #1e3a8a;
     }
 
     /* Detail view styling */

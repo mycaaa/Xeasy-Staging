@@ -9,7 +9,7 @@
     .card-stat.total   { border-color: #0d6efd; }
     .card-stat .stat-num { font-size: 1.8rem; font-weight: 700; line-height: 1; }
     .card-stat .stat-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #6c757d; }
-    #logTable th { background: #15648C; color: #fff; font-size: 11px; white-space: nowrap; vertical-align: middle; }
+    #logTable th { background: #dde6ff; color: #1e3a8a; font-size: 11px; white-space: nowrap; vertical-align: middle; }
     #logTable td { font-size: 12px; vertical-align: middle; }
     #logTable tbody tr:hover { background: #f0f7ff; }
     .filter-card .form-label { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
@@ -200,7 +200,7 @@
 <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header" style="background:#15648C;">
+            <div class="modal-header" style="background:#dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title text-white">
                     <i class="ri-mail-open-line me-2"></i>Email Detail
                     <span class="badge bg-white text-dark ms-2 fw-normal" id="detailId"></span>

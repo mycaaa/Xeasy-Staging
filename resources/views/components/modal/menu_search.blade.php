@@ -82,7 +82,8 @@
             debounceTimer = setTimeout(function() {
                 const term = $searchInput.val().trim().toLowerCase();
                 filtered = term ?
-                    allMenus.filter(m => m.title.toLowerCase().includes(term)) :
+                    // MENU-01: match the address too (e.g. "btc", "boarding")
+                    allMenus.filter(m => ((m.title || '') + ' ' + (m.url || '')).toLowerCase().includes(term)) :
                     allMenus;
 
                 activeIdx = filtered.length ? 0 : -1;

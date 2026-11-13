@@ -31,8 +31,8 @@
         max-width: 95vw;
     }
     #{{ $drawerId }} .offcanvas-header, .organogram-filters-canvas .offcanvas-header {
-        background: #00175f;
-        color: #ffffff;
+        background: #dde6ff;
+        color: #1e3a8a;
         padding: 1rem 1.25rem;
     }
     #{{ $drawerId }} .offcanvas-header .offcanvas-title, .organogram-filters-canvas .offcanvas-header .offcanvas-title {
@@ -55,18 +55,18 @@
         border-color: #00175f;
     }
     .btn-apply-organogram-filters {
-        background-color: #00175f;
+        background-color: #dde6ff;
         border-color: #00175f;
-        color: #ffffff;
+        color: #1e3a8a;
         font-weight: 600;
         padding: 0.6rem 1rem;
         border-radius: 6px;
         transition: all 0.2s;
     }
     .btn-apply-organogram-filters:hover {
-        background-color: #001047;
+        background-color: #dde6ff;
         border-color: #001047;
-        color: #ffffff;
+        color: #1e3a8a;
     }
 </style>
 

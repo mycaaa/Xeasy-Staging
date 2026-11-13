@@ -13,7 +13,7 @@
         .logo-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9px; }
         th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; }
-        th { background-color: #15648C; color: white; font-weight: bold; font-size: 9px; }
+        th { background-color: #dde6ff; color: #1e3a8a; font-weight: bold; font-size: 9px; }
         .text-left { text-align: left; }
         .text-right { text-align: right; }
         .bold { font-weight: bold; }

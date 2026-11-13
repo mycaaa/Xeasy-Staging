@@ -250,22 +250,22 @@
                 <div class="card-body p-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover align-middle mb-0" id="claimWiseTable" style="width:100%; font-size:11px;">
-                            <thead class="table-light text-center" style="font-size:10px; background-color:#15648C; color:white;">
+                            <thead class="table-light text-center" style="font-size:10px; background-color:#dde6ff; color:#1e3a8a;">
                                 <tr>
-                                    <th style="background-color:#15648C; color:white; width:40px;">#</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Claimant</th>
-                                    <th style="background-color:#15648C; color:white; width:110px;">Claim Details</th>
-                                    <th style="background-color:#15648C; color:white; width:70px;">Amount</th>
-                                    <th style="background-color:#15648C; color:white; width:75px;">Status</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Who Filled</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Who Verified</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Who Approved</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Approved Date</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Courier Recv Date</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Payment Date</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Who Financed</th>
-                                    <th style="background-color:#15648C; color:white; width:65px;">Total TAT</th>
-                                    <th style="background-color:#15648C; color:white; width:60px;">Action</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:40px;">#</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Claimant</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:110px;">Claim Details</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:70px;">Amount</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:75px;">Status</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Who Filled</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Who Verified</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Who Approved</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Approved Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Courier Recv Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Payment Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Who Financed</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:65px;">Total TAT</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:60px;">Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -281,24 +281,24 @@
                 <div class="card-body p-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover align-middle mb-0" id="employeeSummaryTable" style="width:100%; font-size:11px;">
-                            <thead class="table-light text-center" style="font-size:10px; background-color:#15648C; color:white;">
+                            <thead class="table-light text-center" style="font-size:10px; background-color:#dde6ff; color:#1e3a8a;">
                                 <tr>
-                                    <th style="background-color:#15648C; color:white; width:40px;">#</th>
-                                    <th style="background-color:#15648C; color:white; width:140px;">Employee</th>
-                                    <th style="background-color:#15648C; color:white; width:70px;">Month</th>
-                                    <th style="background-color:#15648C; color:white; width:55px;">Claims</th>
-                                    <th style="background-color:#15648C; color:white; width:80px;">Claimed Amt</th>
-                                    <th style="background-color:#15648C; color:white; width:80px;">Verified Amt</th>
-                                    <th style="background-color:#15648C; color:white; width:80px;">Approved Amt</th>
-                                    <th style="background-color:#15648C; color:white; width:80px;">Financed Amt</th>
-                                    <th style="background-color:#15648C; color:white; width:75px;">Status</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Verifier</th>
-                                    <th style="background-color:#15648C; color:white; width:120px;">Approver</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Approved Date</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Courier Recv Date</th>
-                                    <th style="background-color:#15648C; color:white; width:95px;">Payment Date</th>
-                                    <th style="background-color:#15648C; color:white; width:130px;">Finance / Paid</th>
-                                    <th style="background-color:#15648C; color:white; width:65px;">Total TAT</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:40px;">#</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:140px;">Employee</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:70px;">Month</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:55px;">Claims</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:80px;">Claimed Amt</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:80px;">Verified Amt</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:80px;">Approved Amt</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:80px;">Financed Amt</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:75px;">Status</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Verifier</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:120px;">Approver</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Approved Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Courier Recv Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:95px;">Payment Date</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:130px;">Finance / Paid</th>
+                                    <th style="background-color:#dde6ff; color:#1e3a8a; width:65px;">Total TAT</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -317,7 +317,7 @@
 <div class="modal fade" id="actionTimelineModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content shadow-lg border-0">
-            <div class="modal-header text-white" style="background-color:#15648C;">
+            <div class="modal-header text-white" style="background-color:#dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title fw-bold" id="timelineModalTitle">
                     <i class="ri-history-line me-2"></i>Claim Action Audit Progression
                 </h5>

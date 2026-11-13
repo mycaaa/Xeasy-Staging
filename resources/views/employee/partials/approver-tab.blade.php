@@ -263,8 +263,8 @@
 .claim-card{border:none;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:12px;position:relative;transition:all .2s;background:#fff;}
 .claim-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);transform:translateY(-1px);}
 .claim-card .stripe{position:absolute;left:0;top:0;bottom:0;width:5px;}
-.claim-card .stripe.primary{background:linear-gradient(180deg,var(--vz-primary,#405189),rgba(var(--vz-primary-rgb,64,81,137),.7));}
-.claim-card .stripe.success{background:linear-gradient(180deg,var(--vz-success,#0ab39c),#56d4c8);}
+.claim-card .stripe.primary{background:#dde6ff; color: #1e3a8a;}
+.claim-card .stripe.success{background:#d7f3e6; color: #065f46;}
 .claim-card .card-body{padding:14px 14px 14px 20px;}
 .claim-card .emp-name{font-weight:700;font-size:14px;color:var(--vz-primary,#405189);}
 .claim-card .meta{font-size:11.5px;color:#666;margin-top:2px;}
@@ -420,7 +420,7 @@
                 </div>
             </div>
             <div class="card-body py-3 px-3">
-                <div class="alert py-2 px-3 mb-3 border-0" style="font-size:12px;background:linear-gradient(135deg,#fff3cd,#ffeeba);color:#856404;border-radius:8px;">
+                <div id="rmSubmitHint" class="alert py-2 px-3 mb-3 border-0" style="display:none;font-size:12px;background:linear-gradient(135deg,#fff3cd,#ffeeba);color:#856404;border-radius:8px;">
                     <i class="ri-error-warning-line me-1"></i>
                     If there are no changes in the approved amount, kindly click on submit button directly.
                 </div>
@@ -603,11 +603,11 @@
                 </h5>
                 <div class="d-flex align-items-center gap-3" style="font-size:10px;">
                     <div class="d-flex align-items-center gap-1">
-                        <span style="width:8px;height:8px;border-radius:2px;background:#3b82f6;display:inline-block;"></span>
+                        <span style="width:8px;height:8px;border-radius:2px;background:#dde6ff;display:inline-block; color: #1e3a8a;"></span>
                         <span class="text-muted">Amount</span>
                     </div>
                     <div class="d-flex align-items-center gap-1">
-                        <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#fdefd2;display:inline-block; color: #7a4500;"></span>
                         <span class="text-muted">Claims</span>
                     </div>
                 </div>
@@ -868,8 +868,13 @@
         return [];
     }
 
+    // DASH-DUP-01: one request at a time; a second call within a few seconds (page load + tab shown) reuses the first
+    let rmPendingXhr = null, rmPendingAt = 0, rmPendingKey = '';
     function loadRmPending(compKey, callback){
         compKey = compKey || activeCompany;
+        if (typeof callback !== 'function' && compKey === rmPendingKey && Date.now() - rmPendingAt < 5000) { return; }
+        if (rmPendingXhr && rmPendingXhr.abort) { rmPendingXhr.abort(); }
+        rmPendingKey = compKey; rmPendingAt = Date.now();
         const routes = companyApproverData[compKey] || activeRoutes;
         const coName = routes.name || compKey.toUpperCase();
         if(!routes || !routes.pendingList) {
@@ -879,10 +884,12 @@
 
         $('#rmPendingCards').html('<div class="text-center py-5"><div class="spinner-border spinner-border-sm text-primary"></div> <span class="text-muted ms-2">Loading pending claims for ' + coName + '...</span></div>');
 
-        $.getJSON(routes.pendingList).done(function(res){
+        rmPendingXhr = $.getJSON(routes.pendingList);
+        rmPendingXhr.done(function(res){
             let list = (res && res.Pending_list) ? res.Pending_list : [];
             list = Array.isArray(list) ? list : Object.values(list);
             $('#rmPendingCount').text(list.length);
+            $('#rmSubmitHint').toggle(list.length > 0);
             if (list.length > 0) {
                 $('#btnApproveClaimsBadge').text(list.length).show();
             } else {
@@ -890,7 +897,7 @@
             }
 
             if(!list.length){
-                $('#rmPendingCards').html('<div class="empty-state text-muted py-4 text-center"><i class="ri-checkbox-circle-line fs-24 text-success d-block mb-1"></i><p class="mb-0">No pending claims for approval in ' + coName + '</p></div>');
+                $('#rmPendingCards').html('<div class="empty-state text-muted py-4 text-center"><i class="ri-checkbox-circle-line fs-24 text-success d-block mb-1"></i><p class="mb-1 fw-semibold text-dark">Nothing waiting for you</p><p class="mb-0 fs-12">No team claims of ' + coName + ' are waiting for your approval.' + (compKey === 'vvnr' ? '' : ' Claims appear here after the verifier has verified them.') + '</p></div>');
                 if (typeof callback === 'function') callback();
                 return;
             }
@@ -958,6 +965,7 @@
             }
             if (typeof callback === 'function') callback();
         }).fail(function(xhr, status, error){
+            if (status === 'abort') { return; }
             console.error('Failed to load pending claims:', status, error);
             $('#rmPendingCount').text('0');
             $('#rmPendingCards').html('<div class="empty-state text-muted py-4 text-center"><i class="ri-error-warning-line fs-24 d-block mb-2 text-warning"></i><p>Failed to load pending claims for ' + coName + '</p></div>');
@@ -965,8 +973,7 @@
         });
     }
 
-    // Trigger load immediately and on tab shown
-    loadRmPending(activeCompany);
+    // Load once when the page is ready, and again when the tab is shown (skipped if just loaded)
     $(document).ready(function(){
         loadRmPending(activeCompany);
     });

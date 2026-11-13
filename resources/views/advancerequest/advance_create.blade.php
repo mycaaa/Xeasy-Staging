@@ -258,14 +258,12 @@
 }
 
 .btn-primary {
-    background-color: #155997;
-    border-color: #155997;
-}
+    background-color: #dde6ff;
+    border-color: #155997; color: #1e3a8a;}
 
 .btn-primary:hover {
-    background-color: #0d3d66;
-    border-color: #0d3d66;
-}
+    background-color: #dde6ff;
+    border-color: #0d3d66; color: #1e3a8a;}
 
 /* Select2 customization */
 .select2-container--default .select2-selection--multiple {

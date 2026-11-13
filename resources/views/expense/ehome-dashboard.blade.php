@@ -262,8 +262,8 @@
     }
 
     .eh-btn-okay {
-        background: #198754;
-        color: #fff;
+        background: #d7f3e6;
+        color: #065f46;
         border: none;
         border-radius: 4px;
         padding: 2px 9px;
@@ -272,8 +272,8 @@
     }
 
     .eh-btn-deny {
-        background: #dc3545;
-        color: #fff;
+        background: #fde2e2;
+        color: #9b1c1c;
         border: none;
         border-radius: 4px;
         padding: 2px 9px;
@@ -317,7 +317,7 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
                 <div class="d-flex align-items-center gap-2">
                     <div
-                        style="width:34px;height:34px;border-radius:50%;background:#405189;color:#fff;
+                        style="width:34px;height:34px;border-radius:50%;background:#dde6ff;color:#1e3a8a;
                             display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">
                         {{ strtoupper(substr($empInfo->FullName ?? 'E', 0, 1)) }}
                     </div>
@@ -491,7 +491,7 @@
                         <th>Month</th>
                         <th>Total Claims</th>
                         <th>Filled Amt</th>
-                        <th>Verified Amt</th>
+                        <th title="Punched amount confirmed by the employee; the verifier checks it after Submit">Confirmed Amt</th>
                         <th>Submit</th>
                         <th style="width:50px;">Print</th>
                     </tr>

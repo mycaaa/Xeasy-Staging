@@ -63,6 +63,9 @@ return [
     // device token passed to the old API on web approvals when the session has none (was a hard-coded token in 3 controllers)
     'api_token_id' => env('API_TOKEN_ID', ''),
 
+    // DASH-DUP-01: where employee photos are read from (the HR portal); a test host can point at its own copy
+    'employee_photo_base' => rtrim(env('EMPLOYEE_PHOTO_BASE', 'https://vnrseeds.co.in/file-view/Employee_Image'), '/'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

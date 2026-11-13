@@ -10,8 +10,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 6px;
             text-align: center;
             vertical-align: middle;
@@ -69,14 +69,14 @@
         }
 
         .pagination li.active span {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-color: #15648C;
         }
 
         .total-records-badge {
-            background: #15648C;
-            color: white;
+            background: #dde6ff;
+            color: #1e3a8a;
             padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
@@ -199,7 +199,7 @@
     <div class="modal fade" id="myModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header" style="background:#15648C;color:white;">
+                <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                     <h5 class="modal-title text-white"><i class="ri-file-text-line me-1"></i> Expense Claim Details</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>

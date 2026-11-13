@@ -99,7 +99,7 @@
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered table-hover align-middle w-100" id="vpTable">
                         <thead>
-                            <tr class="text-nowrap" style="background-color:#15648C;color:#fff;">
+                            <tr class="text-nowrap" style="background-color:#dde6ff;color:#1e3a8a;">
                                 <th>Month</th><th>Employee</th><th>Department</th><th>Reporting manager</th><th>Step</th><th class="text-end">Days</th>
                                 <th class="text-end">Step amount</th><th class="text-end">Claimed</th><th class="text-end">Approved</th><th class="text-end">Paid</th>
                                 <th class="text-end">Verified</th><th class="text-end">Difference</th><th>Dates</th><th>Note</th>

@@ -3,7 +3,7 @@
 <div class="modal fade" id="unsettledDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #dc3545; color: white;">
+            <div class="modal-header" style="background-color: #fde2e2; color: #9b1c1c;">
                 <h5 class="modal-title">
                     <i class="fa fa-exclamation-triangle"></i> Payment Mismatch Details
                 </h5>

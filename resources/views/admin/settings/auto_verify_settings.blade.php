@@ -856,7 +856,7 @@
         {{-- Interactive Live Simulation Box --}}
         <div class="collapse mb-4" id="simulationWidget">
             <div class="card shadow border border-primary border-opacity-25">
-                <div class="card-header d-flex justify-content-between align-items-center py-3" style="background-color: #15648C !important;">
+                <div class="card-header d-flex justify-content-between align-items-center py-3" style="background-color: #dde6ff !important; color: #1e3a8a;">
                     <h6 class="card-title mb-0 fw-bold" style="color: #ffffff !important;">
                         <i class="ri-play-circle-line me-2" style="color: #ffffff !important;"></i>Live Rule Simulation Preview (Dry-Run Engine)
                     </h6>
@@ -1012,7 +1012,7 @@
             <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 94vw;">
                 <div class="modal-content border-0 shadow">
                     {{-- Modal Header (e-Home theme) --}}
-                    <div class="modal-header d-flex justify-content-between align-items-center py-2 px-3" style="background: #15648C !important; color: #ffffff !important;">
+                    <div class="modal-header d-flex justify-content-between align-items-center py-2 px-3" style="background: #dde6ff !important; color: #1e3a8a !important;">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <i class="ri-file-text-line fs-5 text-white" style="color: #ffffff !important;"></i>
                             <h5 class="modal-title fw-bold text-white mb-0" id="claimDetailModalLabel" style="color: #ffffff !important;">

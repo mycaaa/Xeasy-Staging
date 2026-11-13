@@ -202,7 +202,7 @@
 
             // Header
             html += '<thead>';
-            html += '<tr style="background-color:#007bff; color:#fff; font-weight:bold;"><th rowspan="2">Year</th>';
+            html += '<tr style="background-color:#dde6ff; color:#1e3a8a; font-weight:bold;"><th rowspan="2">Year</th>';
             monthsOrder.forEach(function(m) {
                 html += '<th colspan="2">' + m + '</th>';
             });

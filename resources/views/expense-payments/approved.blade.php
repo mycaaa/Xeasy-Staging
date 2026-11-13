@@ -51,8 +51,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 4px;
             font-size: 10px;
             text-align: center;
@@ -166,7 +166,7 @@
         }
 
         .remark-badge {
-            background-color: #ffc107;
+            background-color: #fdefd2;
             color: #856404;
             padding: 2px 6px;
             border-radius: 3px;
@@ -323,50 +323,50 @@
                         <table class="estable table table-bordered shadow">
                             <thead class="thead-dark">
                                 <tr>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:20px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:20px">
                                         Select
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:30px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:30px">
                                         S.No
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:60px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:60px">
                                         Hold
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:200px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:200px">
                                         Claimant
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:50px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:50px">
                                         EmpCode
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:50px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:50px">
                                         Grade
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:10px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:10px">
                                         Status
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:50px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:50px">
                                         Month
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:60px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:60px">
                                         Total Claims
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px">
                                         Approved Amount
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px">
                                         Approved Date
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:100px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:100px">
                                         Print
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:60px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:60px">
                                         Account Summary
                                     </th>
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #15648C;color:white;width:200px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a;width:200px">
                                         Hold Remark
                                     </th>
                                     @if(isSuperAdmin())
-                                    <th style="font-size:10px;vertical-align:middle;background-color: #c82333;color:white;width:80px">
+                                    <th style="font-size:10px;vertical-align:middle;background-color: #fde2e2;color:#9b1c1c;width:80px">
                                         Action
                                     </th>
                                     @endif
@@ -503,7 +503,7 @@
 
                             @for($p = 1; $p <= $totalPages; $p++)
                                 @if($p == $currentPage)
-                                    <span style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #007bff; color: white;">{{ $p }}</span>
+                                    <span style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #dde6ff; color: #1e3a8a;">{{ $p }}</span>
                                 @else
                                     <a href="{{ request()->url() }}?page={{ $p }}&{{ $queryString }}"
                                         style="margin: 0 2px; padding: 6px 12px; border: 1px solid #ddd; color: #007bff;">{{ $p }}</a>

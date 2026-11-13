@@ -279,8 +279,8 @@
             background: #e9ecef;
         }
         #sheetTabsNav .nav-link.active {
-            background-color: #00175f;
-            color: #ffffff;
+            background-color: #dde6ff;
+            color: #1e3a8a;
         }
         #sheetTabsNav .nav-link.active .badge {
             background-color: rgba(255,255,255,0.2) !important;

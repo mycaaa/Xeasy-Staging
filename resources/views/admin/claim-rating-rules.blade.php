@@ -79,14 +79,14 @@
                                 </div>
                                 <div class="col">
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text" style="background:#FFC107;color:white;">⭐3</span>
+                                        <span class="input-group-text" style="background:#fdefd2;color:#7a4500;">⭐3</span>
                                         <input type="number" class="form-control" name="star_3_max_days" id="star3" placeholder="≤" min="0" required>
                                     </div>
                                     <small class="text-muted">≤ days</small>
                                 </div>
                                 <div class="col">
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text" style="background:#FF9800;color:white;">⭐2</span>
+                                        <span class="input-group-text" style="background:#fdefd2;color:#7a4500;">⭐2</span>
                                         <input type="number" class="form-control" name="star_2_max_days" id="star2" placeholder="≤" min="0" required>
                                     </div>
                                     <small class="text-muted">≤ days</small>
@@ -121,7 +121,7 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm align-middle mb-0">
-                        <thead style="background:#15648C;color:white;">
+                        <thead style="background:#dde6ff;color:#1e3a8a;">
                             <tr>
                                 <th>Stage</th>
                                 <th>Responsible</th>

@@ -40,8 +40,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 4px;
             font-size: 10px;
             text-align: center;
@@ -67,15 +67,15 @@
         }
 
         .btn-primary {
-            background-color: #007bff;
+            background-color: #dde6ff;
             border-color: #007bff;
-            color: white;
+            color: #1e3a8a;
         }
 
         .btn-success {
-            background-color: #28a745;
+            background-color: #d7f3e6;
             border-color: #28a745;
-            color: white;
+            color: #065f46;
             padding: 4px 12px;
         }
 
@@ -100,8 +100,8 @@
         }
 
         .badge-exported {
-            background-color: #28a745;
-            color: white;
+            background-color: #d7f3e6;
+            color: #065f46;
             padding: 3px 8px;
             border-radius: 3px;
             font-size: 10px;
@@ -109,7 +109,7 @@
         }
 
         .badge-pending {
-            background-color: #ffc107;
+            background-color: #fdefd2;
             color: #000;
             padding: 3px 8px;
             border-radius: 3px;
@@ -147,8 +147,8 @@
         }
 
         .pagination li.active span {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-color: #007bff;
         }
 
@@ -194,7 +194,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0px;">
                         <div><b style="font-size: 16px;">Instructed Payment List</b>
                         <!-- Add this button after the Payment Export button -->
-<a class="btn btn-sm btn-info ms-3" onclick="verifyPayments()" style="padding: 4px 12px; background-color: #17a2b8; border-color: #17a2b8; color: white;">
+<a class="btn btn-sm btn-info ms-3" onclick="verifyPayments()" style="padding: 4px 12px; background-color: #d8f1fb; border-color: #17a2b8; color: #0b5a7a;">
     <i class="fa fa-check-circle" aria-hidden="true"></i>
     <span style="color:#FFFFFF;">Verify Payments</span>
 </a>
@@ -272,47 +272,47 @@
                             <thead class="thead-dark">
                                 <tr>
                                     <th
-                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         S.No</th>
                                     {{-- <th
-                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Hold</th> --}}
                                     <th
-                                        style="font-size:10px;width:200px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:200px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Claimant</th>
                                     <th
-                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         EmpCode</th>
                                     <th
-                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Grade</th>
                                     <th
-                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Status</th>
                                     <th
-                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Month</th>
                                     <th
-                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Total Claims</th>
                                     <th
-                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Instructed Amount</th>
                                     <th
-                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Instructed Date</th>
                                     <th
-                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Print</th>
                                     <th rowspan="2"
-                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Export Status</th>
                                     <th
-                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                        style="font-size:10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                         Account Summary</th>
                                     @if(isSuperAdmin())
                                     <th
-                                        style="font-size:10px;width:80px;vertical-align:middle;background-color: #c82333;color:white">
+                                        style="font-size:10px;width:80px;vertical-align:middle;background-color: #fde2e2;color:#9b1c1c">
                                         Action</th>
                                     @endif
                                 </tr>
@@ -455,7 +455,7 @@
                             @for ($p = 1; $p <= $totalPages; $p++)
                                 @if ($p == $currentPage)
                                     <span
-                                        style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #007bff; color: white;">{{ $p }}</span>
+                                        style="margin: 0 2px; padding: 6px 12px; border: 1px solid #007bff; background-color: #dde6ff; color: #1e3a8a;">{{ $p }}</span>
                                 @else
                                     <a href="{{ request()->url() }}?page={{ $p }}&{{ $queryString }}"
                                         style="margin: 0 2px; padding: 6px 12px; border: 1px solid #ddd; color: #007bff; text-decoration: none;">{{ $p }}</a>

@@ -209,9 +209,15 @@
                         $kmCurrMonthName = $monthNames[$kmCurrMonth ?? ((int) now()->month)] ?? '';
                         $kmDrivenPrev = $odometerSummaryPrev['total_km'] ?? ($odometerSummary['total_km'] ?? 0);
                         $kmDrivenCurr = $odometerSummaryCurr['total_km'] ?? 0;
+                        // DASH-EMPTY-01: the vehicle sections only for people with vehicle (odometer) claims this year
+                        $hasVehicle = ($odometerTrend['ytd_driven'] ?? 0) > 0 || ($odometerSummary['total_km'] ?? 0) > 0
+                            || $kmDrivenPrev > 0 || $kmDrivenCurr > 0 || ($odometerSummary['opening_reading'] ?? 0) > 0;
+                        // DASH-EMPTY-01: the stage timeline only once a claim of the month has moved through a stage
+                        $tatHasData = collect(['submitted', 'finance_verification', 'reporting_manager', 'finance_approval', 'payment', 'total'])
+                            ->contains(fn ($k) => (float) ($stagewiseTAT[$k] ?? 0) > 0);
                     @endphp
                     <div class="row g-3 mb-3">
-                        <div class="col-xl-3 col-md-6">
+                        <div class="col-xl-3 col-6">
                             <div class="card card-animate overflow-hidden h-100 mb-0">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
@@ -231,7 +237,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-xl-3 col-md-6">
+                        <div class="col-xl-3 col-6">
                             <div class="card card-animate overflow-hidden h-100 mb-0">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center">
@@ -243,11 +249,11 @@
                                         <div class="flex-grow-1 ms-3">
                                             <p class="text-uppercase fw-semibold text-muted mb-1 fs-12">Claims ({{ $displayMonthName }})</p>
                                             <h4 class="mb-0">
-                                                {{ $monthClaimsSummary['total'] ?? 0 }} <span class="fs-13 fw-normal text-muted">Claims</span>
+                                                {{ number_format($monthClaimsSummary['total'] ?? 0) }} <span class="fs-13 fw-normal text-muted">{{ \Illuminate\Support\Str::plural('Claim', (int) ($monthClaimsSummary['total'] ?? 0)) }} submitted</span>
                                             </h4>
                                             <p class="mb-0 fs-11 mt-1">
                                                 @if(!empty($isVVNR))
-                                                    <span class="text-warning fw-semibold">{{ $monthClaimsSummary['draft'] ?? 0 }} Draft</span>
+                                                    <span class="text-warning fw-semibold">{{ $monthClaimsSummary['draft'] ?? 0 }} {{ \Illuminate\Support\Str::plural('Draft', (int) ($monthClaimsSummary['draft'] ?? 0)) }}</span>
                                                     <span class="text-muted">·</span>
                                                     <span class="text-primary fw-semibold">{{ $monthClaimsSummary['approved'] ?? 0 }} Approved</span>
                                                     @if(($monthClaimsSummary['verified'] ?? 0) > 0)
@@ -255,7 +261,7 @@
                                                         <span class="text-success fw-semibold">{{ $monthClaimsSummary['verified'] }} Verified</span>
                                                     @endif
                                                 @else
-                                                    <span class="text-warning fw-semibold">{{ $monthClaimsSummary['draft'] ?? 0 }} Draft</span>
+                                                    <span class="text-warning fw-semibold">{{ $monthClaimsSummary['draft'] ?? 0 }} {{ \Illuminate\Support\Str::plural('Draft', (int) ($monthClaimsSummary['draft'] ?? 0)) }}</span>
                                                     <span class="text-muted">·</span>
                                                     <span class="text-success fw-semibold">{{ $monthClaimsSummary['verified'] ?? 0 }} Verified</span>
                                                     @if(($monthClaimsSummary['denied'] ?? 0) > 0)
@@ -279,6 +285,10 @@
                                             </span>
                                         </div>
                                         <div class="flex-grow-1 ms-3">
+                                            @if(! $hasVehicle)
+                                                <p class="text-uppercase fw-semibold text-muted mb-1 fs-12">Kms Driven</p>
+                                                <p class="mb-0 text-muted fs-13">No vehicle (odometer) claims this year.</p>
+                                            @else
                                             <div class="row align-items-center g-2">
                                                 <div class="col-6 border-end pe-3">
                                                     <p class="text-uppercase fw-semibold text-muted mb-1 fs-12">
@@ -297,6 +307,7 @@
                                                     </h4>
                                                 </div>
                                             </div>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>
@@ -317,6 +328,12 @@
                                     </h4>
                                 </div>
                                 <div class="card-body">
+                                    @if(! $tatHasData)
+                                    <div class="text-center text-muted py-3">
+                                        <i class="ri-time-line fs-24 d-block mb-1"></i>
+                                        <p class="mb-0 fs-13">Turnaround times for {{ $monthNames[$displayMonth] ?? 'this month' }} appear once the month is submitted and moves through verification, approval and payment.</p>
+                                    </div>
+                                    @else
                                     <div class="tat-pipeline d-flex align-items-start justify-content-between flex-wrap">
                                         @php
                                             if (!empty($isVVNR)) {
@@ -359,6 +376,7 @@
                                             Total Claim Cycle TAT: {{ $stagewiseTAT['total'] }} Days
                                         </span>
                                     </div>
+                                    @endif
                                 </div>
                             </div>
 
@@ -536,6 +554,7 @@
                                 </div>
                             </div>
 
+                            @if($hasVehicle) {{-- DASH-EMPTY-01 --}}
                             {{-- Odometer Summary --}}
                             <div class="card">
                                 <div class="card-header align-items-center d-flex">
@@ -604,6 +623,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            @endif
 
                             {{-- Top 10 Performers (KEPT SAME) --}}
                             {{-- <div class="card">
@@ -790,7 +811,7 @@
                         {{-- Access Type Cards --}}
                         <div class="row g-3 mb-3">
                             @if($advActivity || $advExpense || $advOther)
-                            <div class="col-xl-4 col-md-6">
+                            <div class="col-xl-4 col-6">
                                 <div class="card h-100" style="border-left:4px solid #f59e0b;">
                                     <div class="card-body">
                                         <div class="d-flex align-items-center mb-3">
@@ -826,7 +847,7 @@
                             @endif
 
                             {{-- My Requests Summary (loaded via AJAX) --}}
-                            <div class="col-xl-4 col-md-6">
+                            <div class="col-xl-4 col-6">
                                 <div class="card h-100" style="border-left:4px solid #3b82f6;">
                                     <div class="card-body">
                                         <div class="d-flex align-items-center mb-3">
@@ -852,7 +873,7 @@
 
                             @if($advApprover)
                             {{-- Pending Approvals --}}
-                            <div class="col-xl-4 col-md-6">
+                            <div class="col-xl-4 col-6">
                                 <div class="card h-100" style="border-left:4px solid #22c55e;">
                                     <div class="card-body">
                                         <div class="d-flex align-items-center mb-3">
@@ -920,7 +941,7 @@
                         </div>
                         <div class="col-xl-8">
                             <div class="row">
-                                <div class="col-lg-3 col-md-6">
+                                <div class="col-lg-3 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -930,14 +951,14 @@
                                                     </span>
                                                 </div>
                                                 <div class="flex-grow-1 ms-3">
-                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Pending</p>
-                                                    <h4 class="mb-0">{{ $verifierStats->pending_verification ?? 0 }}</h4>
+                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Pending (all months)</p>
+                                                    <h4 class="mb-0">{{ number_format((int) ($verifierStats->pending_verification ?? 0)) }}</h4>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6">
+                                <div class="col-lg-3 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -948,13 +969,13 @@
                                                 </div>
                                                 <div class="flex-grow-1 ms-3">
                                                     <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Verified By Me</p>
-                                                    <h4 class="mb-0">{{ $verifierStats->verified_by_me ?? 0 }}</h4>
+                                                    <h4 class="mb-0">{{ number_format((int) ($verifierStats->verified_by_me ?? 0)) }}</h4>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6">
+                                <div class="col-lg-3 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -964,14 +985,14 @@
                                                     </span>
                                                 </div>
                                                 <div class="flex-grow-1 ms-3">
-                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">This Month</p>
-                                                    <h4 class="mb-0">{{ $verifierStats->verified_this_month ?? 0 }}</h4>
+                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Verified ({{ $displayMonthName }})</p>
+                                                    <h4 class="mb-0">{{ number_format((int) ($verifierStats->verified_this_month ?? 0)) }}</h4>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-3 col-md-6">
+                                <div class="col-lg-3 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -990,15 +1011,8 @@
                                 </div>
                             </div>
 
-                            {{-- Verifier Charts --}}
-                            <div class="card">
-                                <div class="card-header">
-                                    <h4 class="card-title mb-0">Verification Progress</h4>
-                                </div>
-                                <div class="card-body">
-                                    <div id="verifier-progress-chart" class="apex-charts" dir="ltr" style="height: 300px;"></div>
-                                </div>
-                            </div>
+                            {{-- DASH-EMPTY-01: the "Verification Progress" bar chart repeated the cards above on one scale
+                                 (17,000 pending next to 1 verified), so it is no longer drawn --}}
                         </div>
                         <div class="col-xl-4">
                             {{-- Missing Fixed Imprest Alert Card --}}
@@ -1107,7 +1121,7 @@
                                     <a href="{{ url('/expense-payments') }}" class="btn btn-warning btn-label waves-effect waves-light">
                                         <i class="ri-money-dollar-circle-line label-icon align-middle fs-16 me-2"></i>Payment Section
                                     </a>
-                                    <a href="{{ url('/finance/advance-approvals') }}" class="btn btn-soft-warning waves-effect waves-light">
+                                    <a href="{{ url('/finance/advance-approvals') }}" class="btn btn-outline-dark waves-effect waves-light">
                                         <i class="ri-hand-coin-line me-1"></i>Advance Approvals
                                     </a>
                                 </div>
@@ -1115,7 +1129,7 @@
                         </div>
                         <div class="col-xl-8">
                             <div class="row">
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-4 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -1125,14 +1139,14 @@
                                                     </span>
                                                 </div>
                                                 <div class="flex-grow-1 ms-3">
-                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Pending Finance</p>
-                                                    <h4 class="mb-0">{{ $financeStats->pending_finance ?? 0 }}</h4>
+                                                    <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Pending Finance (all months)</p>
+                                                    <h4 class="mb-0">{{ number_format((int) ($financeStats->pending_finance ?? 0)) }}</h4>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-4 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -1143,13 +1157,13 @@
                                                 </div>
                                                 <div class="flex-grow-1 ms-3">
                                                     <p class="text-uppercase fw-semibold fs-12 text-muted mb-1">Financed By Me</p>
-                                                    <h4 class="mb-0">{{ $financeStats->financed_by_me ?? 0 }}</h4>
+                                                    <h4 class="mb-0">{{ number_format((int) ($financeStats->financed_by_me ?? 0)) }}</h4>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-4 col-6">
                                     <div class="card card-animate">
                                         <div class="card-body">
                                             <div class="d-flex align-items-center">
@@ -1261,7 +1275,7 @@
     <div class="modal fade" id="dashDraftModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg" style="border-radius:16px; overflow:hidden;">
-                <div class="modal-header py-2 px-3 text-white" style="background: linear-gradient(135deg, #1a3a5c 0%, #15648C 100%);">
+                <div class="modal-header py-2 px-3 text-white" style="background: #dde6ff; color: #1e3a8a;">
                     <h5 class="modal-title fs-14 text-white d-flex align-items-center">
                         <i class="ri-file-text-line me-2"></i> Draft Bill Details
                     </h5>
@@ -1445,6 +1459,7 @@ $(document).ready(function() {
                 y: { formatter: function(val) { return val.toLocaleString('en-IN') + ' Kms'; } }
             }
         };
+        if (!document.querySelector("#odometer-trend-chart")) { return; } // DASH-EMPTY-01: hidden when there are no vehicle claims
         odometerChart = new ApexCharts(document.querySelector("#odometer-trend-chart"), odometerTrendOptions);
         odometerChart.render();
     }
@@ -1587,7 +1602,7 @@ $(document).ready(function() {
         xaxis: { categories: ['Claims'] },
         legend: { position: 'top' }
     };
-    new ApexCharts(document.querySelector("#verifier-progress-chart"), verifierProgressOptions).render();
+    if (document.querySelector("#verifier-progress-chart")) { new ApexCharts(document.querySelector("#verifier-progress-chart"), verifierProgressOptions).render(); }
     @endif
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -1974,6 +1989,7 @@ $(document).ready(function() {
             const verifiedAmt = monthData.TotalVerify_Claim_with_Amount.TotVerifyAmt;
             const deniedClaims = monthData.TotalFilled_Claim_with_Amount.TotDeniedClaims;
             const verifiedClaims = monthData.TotalFilled_Claim_with_Amount.TotVerifiedClaims;
+            const confirmedClaims = monthData.TotalFilled_Claim_with_Amount.TotConfirmedClaims || 0;
             const monthStatus = monthData.MonthStatus;
             const employeeId = monthData.EmployeeID || '{{ session("employee_id") }}';
             const isOpen = idx === 0; // First month expanded by default
@@ -2019,8 +2035,10 @@ $(document).ready(function() {
                     <div class="d-flex align-items-center mt-1 ms-4 ps-2">
                         <span class="text-muted fs-11">Verified Amt:</span>
                         <span class="fw-semibold text-success fs-11 ms-1">₹${Number(verifiedAmt).toLocaleString('en-IN')}</span>
-                        <span class="text-muted fs-11 ms-3">Verified:</span>
+                        <span class="text-muted fs-11 ms-3" title="Checked by the verifier">Verified:</span>
                         <span class="text-success fs-11 ms-1">${verifiedClaims}</span>
+                        <span class="text-muted fs-11 ms-2" title="Punched figures confirmed by you, not yet verified">Confirmed:</span>
+                        <span class="text-primary fs-11 ms-1">${confirmedClaims}</span>
                         <span class="text-muted fs-11 ms-2">Denied:</span>
                         <span class="text-danger fs-11 ms-1">${deniedClaims}</span>
                     </div>
@@ -2241,7 +2259,7 @@ $(document).ready(function() {
         <div class="modal fade" id="monthDetailModal" tabindex="-1">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content border-0">
-                    <div class="modal-header" style="background:#15648C;color:white;">
+                    <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                         <h5 class="modal-title"><i class="ri-calendar-line me-1"></i> ${monthName} — All Claims (${claims.length})</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
@@ -2338,8 +2356,10 @@ $(document).ready(function() {
         catch(e){ return d; }
     }
 
+    // DASH-DUP-01: the "my advances" list is read once and shared by the summary and the recent list
+    function advMyList() { return window.__advMyList || (window.__advMyList = $.getJSON('{{ url("/api/advance") }}')); }
     function loadAdvanceMyRequests() {
-        $.getJSON('{{ url("/api/advance") }}').done(function(res) {
+        advMyList().done(function(res) {
             const rows = (res.data || res.requests || (Array.isArray(res) ? res : [])).slice(0, 5);
             if (!rows.length) {
                 $('#advMyRequestsSummary').html('<p class="text-muted fs-12 mb-0 text-center">No requests found</p>');
@@ -2399,7 +2419,7 @@ $(document).ready(function() {
             rows.forEach(row => reqs.push(row));
         };
         $.when(
-            $.getJSON('{{ url("/api/advance") }}').done(done),
+            advMyList().done(done),
             $.getJSON('{{ url("/api/advance/expense") }}').done(done)
         ).always(function() {
             reqs.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
@@ -2517,10 +2537,9 @@ $(document).ready(function() {
 .month-stripe {
     width: 5px;
     height: 36px;
-    background: #405189;
+    background: #dde6ff;
     border-radius: 3px;
-    margin-right: 10px;
-}
+    margin-right: 10px; color: #1e3a8a;}
 .month-tile-header[aria-expanded="true"] .month-stripe {
     background: #45cb85;
 }
@@ -2647,9 +2666,8 @@ $(document).ready(function() {
 .draft-img-placeholder span { font-size: .66rem; font-weight: 600; color: #94a3b8; }
 .draft-accent-bar {
     height: 3px;
-    background: linear-gradient(90deg, #f59e0b, #fbbf24);
-    flex-shrink: 0;
-}
+    background: #fdefd2;
+    flex-shrink: 0; color: #7a4500;}
 .draft-extra-thumbs {
     display: flex;
     gap: 5px;
@@ -2719,9 +2737,9 @@ $(document).ready(function() {
     text-decoration: none;
 }
 .dab-view { background: #dbeafe; color: #1d4ed8; }
-.dab-view:hover { background: #1d4ed8; color: #fff; }
+.dab-view:hover { background: #dde6ff; color: #1e3a8a; }
 .dab-del  { background: #fee2e2; color: #dc2626; }
-.dab-del:hover  { background: #dc2626; color: #fff; }
+.dab-del:hover  { background: #fde2e2; color: #9b1c1c; }
 .sbg {
     display: inline-block;
     border-radius: 5px;

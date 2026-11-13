@@ -147,7 +147,7 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-bordered align-middle mb-0" style="font-size:12px;">
-                    <thead class="table" style="position:sticky;top:0;z-index:1; background-color: #15648C; color: white;">
+                    <thead class="table" style="position:sticky;top:0;z-index:1; background-color: #dde6ff; color: #1e3a8a;">
                         <tr>
                             <th class="text-center" style="width:45px;">#</th>
                             <th>Emp Code</th>

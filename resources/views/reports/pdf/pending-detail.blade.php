@@ -12,12 +12,12 @@
         .header .date { font-size: 9px; color: #666; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8px; }
         th, td { border: 1px solid #ccc; padding: 3px 5px; }
-        th { background-color: #15648C; color: white; font-weight: bold; text-align: center; }
+        th { background-color: #dde6ff; color: #1e3a8a; font-weight: bold; text-align: center; }
         td { vertical-align: top; }
         .text-center { text-align: center; }
         .separated { background-color: #FFEAEA; }
         .footer { text-align: center; margin-top: 15px; font-size: 8px; color: #999; }
-        .count-badge { display: inline-block; background: #15648C; color: white; padding: 1px 6px; border-radius: 3px; font-size: 8px; }
+        .count-badge { display: inline-block; background: #dde6ff; color: #1e3a8a; padding: 1px 6px; border-radius: 3px; font-size: 8px; }
     </style>
 </head>
 <body>

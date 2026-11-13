@@ -6,7 +6,7 @@
 @push('head')
     <meta name="robots" content="noindex, nofollow">
     <link href="{{ asset('assets/css/bootstrap.min.css') }}" rel="stylesheet">
-    <style>body{background:#f4f6fa}.wrap{max-width:980px;margin:24px auto;padding:0 16px}.head{background:#0b3a6e;color:#fff;border-radius:10px 10px 0 0;padding:14px 18px}</style>
+    <style>body{background:#f4f6fa}.wrap{max-width:980px;margin:24px auto;padding:0 16px}.head{background:#dde6ff;color:#1e3a8a;border-radius:10px 10px 0 0;padding:14px 18px}</style>
 @endpush
 
 @section('content')

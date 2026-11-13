@@ -820,8 +820,8 @@
         min-height: 31px;
     }
     .select2-container--default .select2-selection--multiple .select2-selection__choice {
-        background-color: #00175f;
-        color: #ffffff;
+        background-color: #dde6ff;
+        color: #1e3a8a;
         border: none;
         border-radius: 3px;
         padding: 0 5px;

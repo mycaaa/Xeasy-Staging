@@ -61,7 +61,7 @@
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-md">
         <div class="modal-content">
-            <div class="modal-header" style="background:#405189;">
+            <div class="modal-header" style="background:#dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title text-white" id="categoryModalLabel">
                     <i class="ri-folder-add-line me-1"></i> <span id="modalTitleText">Add Category</span>
                 </h5>

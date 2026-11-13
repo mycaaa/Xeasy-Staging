@@ -248,7 +248,7 @@
 <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #155997; color: white; padding: 8px 16px;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a; padding: 8px 16px;">
                 <h5 class="modal-title text-white" style="font-size: 14px; font-weight: 600;">
                     <i class="ri-file-text-line me-1" style="font-size: 14px;"></i>Request Details
                 </h5>
@@ -990,8 +990,8 @@ $(document).ready(function() {
 }
 
 #detailModal .modal-header {
-    background-color: #155997 !important;
-    color: white;
+    background-color: #dde6ff !important;
+    color: #1e3a8a;
     padding: 8px 16px;
 }
 
@@ -1015,14 +1015,14 @@ $(document).ready(function() {
 
 /* Badge Styling */
 .badge.bg-warning {
-    background-color: #f59e0b !important;
+    background-color: #fdefd2 !important;
     color: #7c2d12 !important;
     font-weight: 500;
 }
 
 .badge.bg-success {
-    background-color: #10b981 !important;
-    color: white !important;
+    background-color: #d7f3e6 !important;
+    color: #065f46 !important;
     font-weight: 500;
 }
 

@@ -11,9 +11,9 @@
     table { border-collapse: collapse; width: 100%; margin-bottom: 14px; table-layout: fixed; }
     th, td { border: 1px solid #999; padding: 2px 3px; vertical-align: middle; word-wrap: break-word; overflow: hidden; }
     thead { display: table-row-group; }
-    thead th { background: #0062C4; color: #fff; font-size: 7px; text-align: center; white-space: normal; word-wrap: break-word; }
+    thead th { background: #dde6ff; color: #1e3a8a; font-size: 7px; text-align: center; white-space: normal; word-wrap: break-word; }
     tbody td { font-size: 7px; }
-    .section-title { background: #0062C4; color: #fff; font-weight: bold; font-size: 10px;
+    .section-title { background: #dde6ff; color: #1e3a8a; font-weight: bold; font-size: 10px;
                      padding: 4px 8px; margin-bottom: 0; }
     .total-row td { background: #FFFFB3; font-weight: bold; }
     .right { text-align: right; }

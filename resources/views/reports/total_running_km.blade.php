@@ -4,22 +4,22 @@
 <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
 <style>
 .estable{width:100%;border-collapse:collapse;font-size:11px}
-.estable th{background:#15648C;color:#fff;padding:6px 4px;font-size:10px;text-align:center;vertical-align:middle;border:1px solid #ccc;white-space:nowrap}
-.estable th.sub-th{background:#1a7aab;font-size:9px}
+.estable th{background:#dde6ff;color:#1e3a8a;padding:6px 4px;font-size:10px;text-align:center;vertical-align:middle;border:1px solid #ccc;white-space:nowrap}
+.estable th.sub-th{background:#dde6ff;font-size:9px; color: #1e3a8a}
 .estable td{padding:5px 4px;border:1px solid #ddd;vertical-align:middle;font-size:11px}
 .estable tbody tr:hover{background:#f0f7ff}
-.estable .grand-total-row td{background:#15648C !important;color:#fff;font-weight:700;text-align:center;border:1px solid #0d4f70}
+.estable .grand-total-row td{background:#dde6ff !important;color:#1e3a8a;font-weight:700;text-align:center;border:1px solid #0d4f70}
 .estable .deactivated-row{background:#FFFFA6 !important}
 .td-num{text-align:right !important}.td-ctr{text-align:center !important}
 .summary-strip{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .summary-strip .s-item{background:#f0f7fb;border:1px solid #b8d9f0;border-radius:4px;padding:4px 10px;font-size:11px;color:#333}
 .summary-strip .s-item span{font-weight:700;color:#15648C}
-.offcanvas-header.header-ligth{background:#15648C}
+.offcanvas-header.header-ligth{background:#dde6ff; color: #1e3a8a}
 .offcanvas-header.header-ligth .offcanvas-title{color:#fff}
 .offcanvas-header.header-ligth .btn-close{filter:invert(1)}
 .select2-container{width:100% !important}
 .select2-container--default .select2-selection--multiple{min-height:34px;border-color:#ced4da;font-size:12px}
-.select2-container--default .select2-selection--multiple .select2-selection__choice{font-size:11px;background:#15648C;color:#fff;border:none;border-radius:2px;padding:1px 5px}
+.select2-container--default .select2-selection--multiple .select2-selection__choice{font-size:11px;background:#dde6ff;color:#1e3a8a;border:none;border-radius:2px;padding:1px 5px}
 .select2-container--default .select2-selection--multiple .select2-selection__choice__remove{color:#fff}
 </style>
 @endpush
@@ -295,14 +295,14 @@ $(function () {
         });
 
         if (vehicleType === '2W') {
-            r1 += '<th rowspan="2" style="background:#0d4f70;">Grand Total<br><small>2W</small></th>';
+            r1 += '<th rowspan="2" style="background:#dde6ff; color: #1e3a8a;">Grand Total<br><small>2W</small></th>';
         } else if (vehicleType === '4W') {
-            r1 += '<th rowspan="2" style="background:#0d4f70;">Grand Total<br><small>4W</small></th>';
+            r1 += '<th rowspan="2" style="background:#dde6ff; color: #1e3a8a;">Grand Total<br><small>4W</small></th>';
         } else {
-            r1 += '<th colspan="3" style="background:#0d4f70;">Grand Total</th>';
-            r2 += '<th class="sub-th" style="background:#0d4f70;">2W</th>' +
-                  '<th class="sub-th" style="background:#0d4f70;">4W</th>' +
-                  '<th class="sub-th" style="background:#0d4f70;">Total</th>';
+            r1 += '<th colspan="3" style="background:#dde6ff; color: #1e3a8a;">Grand Total</th>';
+            r2 += '<th class="sub-th" style="background:#dde6ff; color: #1e3a8a;">2W</th>' +
+                  '<th class="sub-th" style="background:#dde6ff; color: #1e3a8a;">4W</th>' +
+                  '<th class="sub-th" style="background:#dde6ff; color: #1e3a8a;">Total</th>';
         }
 
         var thead = '<tr>' + r1 + '</tr>';

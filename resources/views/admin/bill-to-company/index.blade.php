@@ -105,7 +105,7 @@
 <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header" style="background:#405189;">
+            <div class="modal-header" style="background:#dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title text-white" id="uploadModalLabel">
                     <i class="ri-file-upload-line me-1"></i> Upload Bill to Company
                 </h5>
@@ -218,7 +218,7 @@
 <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background:#405189;">
+            <div class="modal-header" style="background:#dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title text-white" id="viewModalLabel">
                     <i class="ri-eye-line me-1"></i> Bill Details
                 </h5>

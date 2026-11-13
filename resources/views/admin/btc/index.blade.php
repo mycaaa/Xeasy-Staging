@@ -9,7 +9,7 @@
     .btc-table td, .btc-table th { font-size: 12px; vertical-align: middle; }
     .btc-flow { font-size: 11px; color: #6b7280; }
     .btc-step { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #eef2ff; margin: 2px 0; }
-    .btc-step.done { background: #dcfce7; } .btc-step.now { background: #405189; color: #fff; }
+    .btc-step.done { background: #dcfce7; } .btc-step.now { background: #dde6ff; color: #1e3a8a; }
     .btc-log { font-size: 11px; border-left: 2px solid #c7d2fe; padding-left: 8px; margin-bottom: 6px; }
     .btc-label { font-size: 11px; color: #6b7280; margin-bottom: 0; }
     .btc-val { font-size: 13px; }

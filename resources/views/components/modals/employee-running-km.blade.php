@@ -17,7 +17,7 @@
 <div class="modal fade" id="empKmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header" style="background:#15648C;color:#fff;padding:10px 16px;">
+            <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;padding:10px 16px;">
                 <h5 class="modal-title mb-0 text-white" id="empKmModalTitle">
     <i class="ri-car-line me-1"></i> Running KM Detail
 </h5>

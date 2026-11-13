@@ -3,7 +3,7 @@
 <div class="modal fade" id="paymentDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #155997; color: white;">
+            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                 <h5 class="modal-title">
                     <i class="fa fa-file-text-o"></i> Confirmed Payment Details
                 </h5>

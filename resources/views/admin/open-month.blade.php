@@ -24,12 +24,12 @@
                                 <table class="table table-bordered table-hover align-middle" id="openMonthTable">
                                     <thead class="table-dark">
                                         <tr>
-                                            <th class="text-center" style="width:50px;font-size: 10px;vertical-align:middle;background-color: #15648C;color:white" >Sn</th>
-                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #15648C;color:white" >Code</th>
-                                            <th style="font-size: 10px;width:300px;vertical-align:middle;background-color: #15648C;color:white">Employee Name</th>
-                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #15648C;color:white" >Grade</th>
-                                            <th class="text-center" style="font-size: 10px;vertical-align:middle;background-color: #15648C;color:white">Available Months</h>
-                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #15648C;color:white; ">Open Month</th>
+                                            <th class="text-center" style="width:50px;font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a" >Sn</th>
+                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a" >Code</th>
+                                            <th style="font-size: 10px;width:300px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Employee Name</th>
+                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a" >Grade</th>
+                                            <th class="text-center" style="font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">Available Months</h>
+                                            <th class="text-center" style="width:80px;font-size: 10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a; ">Open Month</th>
                                         </tr>
                                     </thead>
                                     <tbody>

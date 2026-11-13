@@ -29,7 +29,7 @@
     font-size: .76rem; font-weight: 700; cursor: pointer;
     transition: all .18s ease; text-decoration: none; white-space: nowrap;
 }
-.mcv-btn-new { background: #15648C; color: #fff; box-shadow: 0 2px 8px rgba(21,100,140,.25); }
+.mcv-btn-new { background: #dde6ff; color: #1e3a8a; box-shadow: 0 2px 8px rgba(21,100,140,.25); }
 .mcv-btn-new:hover { background: #0d4a6a; color: #fff; transform: translateY(-1px); }
 .mcv-btn-ref { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 .mcv-btn-ref:hover { background: #e2e8f0; color: #15648C; }
@@ -77,14 +77,14 @@
     content: ''; position: absolute; top: 13px; left: 55%; right: -45%;
     height: 2px; background: #e2e8f0; z-index: 0;
 }
-.mcv-stage.done:not(:last-child)::after { background: #10b981; }
+.mcv-stage.done:not(:last-child)::after { background: #d7f3e6; color: #065f46;}
 .mcv-stage-dot {
     width: 26px; height: 26px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     background: #f1f5f9; border: 2px solid #e2e8f0; color: #94a3b8;
     font-size: .78rem; z-index: 1; flex-shrink: 0;
 }
-.mcv-stage.done .mcv-stage-dot { background: #10b981; border-color: #10b981; color: #fff; }
+.mcv-stage.done .mcv-stage-dot { background: #d7f3e6; border-color: #10b981; color: #065f46; }
 .mcv-stage-label { font-size: .62rem; font-weight: 700; color: #94a3b8; text-align: center; }
 .mcv-stage.done .mcv-stage-label { color: #1e293b; }
 .mcv-stage-date { font-size: .58rem; color: #94a3b8; }
@@ -162,9 +162,9 @@
 .mcv-accent {
     position: absolute; top: 0; left: 0; bottom: 0; width: 5px;
 }
-.mcv-accent-open   { background: linear-gradient(180deg, #10b981, #059669); }
-.mcv-accent-closed { background: linear-gradient(180deg, #7c3aed, #6d28d9); }
-.mcv-accent-draft  { background: linear-gradient(180deg, #f59e0b, #d97706); }
+.mcv-accent-open   { background: #d7f3e6; color: #065f46;}
+.mcv-accent-closed { background: #ede7fe; color: #4c1d95;}
+.mcv-accent-draft  { background: #fdefd2; color: #7a4500;}
 
 .mcv-month-badge {
     color: #fff; border-radius: 10px;
@@ -172,8 +172,8 @@
     letter-spacing: -.4px; flex-shrink: 0;
     min-width: 52px; text-align: center; line-height: 1.2;
 }
-.mcv-badge-open   { background: linear-gradient(135deg,#10b981,#059669); box-shadow: 0 2px 8px rgba(16,185,129,.3); }
-.mcv-badge-closed { background: linear-gradient(135deg,#7c3aed,#6d28d9); box-shadow: 0 2px 8px rgba(124,58,237,.3); }
+.mcv-badge-open   { background: #d7f3e6; box-shadow: 0 2px 8px rgba(16,185,129,.3); color: #065f46;}
+.mcv-badge-closed { background: #ede7fe; box-shadow: 0 2px 8px rgba(124,58,237,.3); color: #4c1d95;}
 
 .mcv-month-body { flex: 1; min-width: 0; }
 .mcv-month-row1 { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -215,16 +215,16 @@
     text-decoration: none; white-space: nowrap; border: 1px solid transparent;
 }
 .mcv-ab-detail { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-.mcv-ab-detail:hover { background: #2563eb; color: #fff; }
+.mcv-ab-detail:hover { background: #dde6ff; color: #1e3a8a; }
 .mcv-ab-print  { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
 .mcv-ab-print:hover  { background: #64748b; color: #fff; }
 .mcv-ab-km     { background: #f0fdf4; color: #059669; border-color: #a7f3d0; }
-.mcv-ab-km:hover     { background: #059669; color: #fff; }
+.mcv-ab-km:hover     { background: #d7f3e6; color: #065f46; }
 .mcv-ab-courier{ background: #fefce8; color: #ca8a04; border-color: #fde68a; }
 .mcv-ab-courier:hover{ background: #ca8a04; color: #fff; }
 .mcv-ab-courier.posted{ background: #f0fdf4; color: #059669; border-color: #a7f3d0; }
-.mcv-ab-submit { background: #10b981; color: #fff; border-color: #059669; box-shadow: 0 2px 6px rgba(16,185,129,.25); }
-.mcv-ab-submit:hover { background: #059669; color: #fff; transform: translateY(-1px); }
+.mcv-ab-submit { background: #d7f3e6; color: #065f46; border-color: #059669; box-shadow: 0 2px 6px rgba(16,185,129,.25); }
+.mcv-ab-submit:hover { background: #d7f3e6; color: #065f46; transform: translateY(-1px); }
 
 /* Status chips */
 .mcv-chip {
@@ -463,7 +463,7 @@
 .draft-img-placeholder span { font-size: .66rem; font-weight: 600; color: #94a3b8; }
 
 /* Amber accent bar below image */
-.draft-accent-bar { height: 3px; background: linear-gradient(90deg, #f59e0b, #fbbf24); flex-shrink: 0; }
+.draft-accent-bar { height: 3px; background: #fdefd2; flex-shrink: 0; color: #7a4500;}
 
 /* Extra thumbnails strip (img2, img3) */
 .draft-extra-thumbs { display: flex; gap: 5px; padding: 6px 12px 0; }
@@ -492,19 +492,18 @@
     transition: all .17s ease; text-decoration: none;
 }
 .dab-view { background: #dbeafe; color: #1d4ed8; }
-.dab-view:hover { background: #1d4ed8; color: #fff; }
+.dab-view:hover { background: #dde6ff; color: #1e3a8a; }
 .dab-del  { background: #fee2e2; color: #dc2626; }
-.dab-del:hover  { background: #dc2626; color: #fff; }
+.dab-del:hover  { background: #fde2e2; color: #9b1c1c; }
 
 /* ════════════════════════
    MODALS — PREMIUM & COMPACT IMAGES
    ════════════════════════ */
 .modal-content { border-radius: 16px !important; border: none !important; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 .mcv-mhdr {
-    background: linear-gradient(135deg, #1a3a5c 0%, #15648C 100%);
+    background: #dde6ff;
     padding: 16px 20px;
-    display: flex; align-items: center; gap: 12px;
-}
+    display: flex; align-items: center; gap: 12px; color: #1e3a8a;}
 .mcv-mhdr-icon {
     width: 34px; height: 34px;
     background: rgba(255,255,255,.18);
@@ -1082,8 +1081,8 @@ function renderOpenMonth(it, expanded) {
                         <span class="mcv-mi amt">Amt: <strong>${rp(tot.TotFilledAmt||0)}</strong></span>
                     </div>
                     <div class="mcv-month-row2">
-                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#10b981;"></span>Verified: <strong>${rp(vfy.TotVerifyAmt||0)}</strong></span>
-                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#3b82f6;"></span>Count: <strong>${nV}</strong></span>
+                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#d7f3e6; color: #065f46;"></span>Verified: <strong>${rp(vfy.TotVerifyAmt||0)}</strong></span>
+                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#dde6ff; color: #1e3a8a;"></span>Count: <strong>${nV}</strong></span>
                         <span class="mcv-sub mcv-sub-dc"><span class="mcv-sub-dot" style="background:#ef4444;"></span>Denied: <strong>${nD}</strong></span>
                     </div>
                 </div>
@@ -1206,8 +1205,8 @@ function renderClosedMonth(it, expanded) {
                         <span class="mcv-mi amt">Amt: <strong>${rp(it.Claim_Amount||0)}</strong></span>
                     </div>
                     <div class="mcv-month-row2">
-                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#10b981;"></span>Financed: <strong>${rp(it.Finance_Amount||0)}</strong></span>
-                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#3b82f6;"></span>Approved: <strong>${rp(it.Approved_Amount||0)}</strong></span>
+                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#d7f3e6; color: #065f46;"></span>Financed: <strong>${rp(it.Finance_Amount||0)}</strong></span>
+                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#dde6ff; color: #1e3a8a;"></span>Approved: <strong>${rp(it.Approved_Amount||0)}</strong></span>
                     </div>
                 </div>
             </div>

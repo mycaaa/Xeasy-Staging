@@ -224,7 +224,7 @@
 
 {{-- ================= TOTAL ================= --}}
 @if($totalOriginalAmount > 0)
-    <!-- <div style="margin-top:8px;padding:8px;background:#15648C;color:white;border-radius:3px;text-align:center;">
+    <!-- <div style="margin-top:8px;padding:8px;background:#dde6ff;color:#1e3a8a;border-radius:3px;text-align:center;">
         <div style="font-size:9px;opacity:0.9;">TOTAL REMAINING BALANCE</div>
         <div style="font-size:14px;font-weight:800;">
             ₹{{ number_format($totalOriginalAmount) }}

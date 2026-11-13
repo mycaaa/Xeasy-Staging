@@ -9,8 +9,8 @@
         font-size: 12px;
     }
     .comparison-table th {
-        background: #15648C;
-        color: #fff;
+        background: #dde6ff;
+        color: #1e3a8a;
         padding: 8px 6px;
         font-size: 11px;
         font-weight: 600;
@@ -99,8 +99,8 @@
     }
     .select2-container--default .select2-selection--multiple .select2-selection__choice {
         font-size: 11px;
-        background: #15648C;
-        color: #fff;
+        background: #dde6ff;
+        color: #1e3a8a;
         border: none;
         border-radius: 3px;
         padding: 1px 6px;
@@ -110,8 +110,8 @@
         margin-right: 4px;
     }
     .offcanvas-header.bg-theme {
-        background: #15648C;
-        color: #fff;
+        background: #dde6ff;
+        color: #1e3a8a;
     }
     .offcanvas-header.bg-theme .btn-close {
         filter: invert(1);

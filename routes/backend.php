@@ -1151,6 +1151,9 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/export/focus', [\App\Http\Controllers\admin\BtcController::class, 'focusExport'])->name('export.focus');
     Route::get('/export/boarding-pass', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassExport'])->name('export.boarding');
     Route::get('/approvers', [\App\Http\Controllers\admin\BtcController::class, 'approverSearch'])->name('approvers');
+    // BOARDING-02: boarding passes of company-booked air tickets
+    Route::get('/boarding-passes', [\App\Http\Controllers\admin\BtcController::class, 'boardingPasses'])->name('boarding.index');
+    Route::post('/boarding-passes/{id}', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassUpload'])->whereNumber('id')->name('boarding.upload');
     // BOARDING-01: vendor boarding-pass portal links (Finance)
     Route::get('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'links'])->name('vendor.links');
     Route::post('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'create'])->name('vendor.create');

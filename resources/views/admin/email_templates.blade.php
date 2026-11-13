@@ -180,7 +180,7 @@
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm align-middle" id="notificationTable">
-                            <thead style="background:#15648C;color:white;">
+                            <thead style="background:#dde6ff;color:#1e3a8a;">
                                 <tr>
                                     <th>#</th>
                                     <th>Notification Type</th>
@@ -205,7 +205,7 @@
     <div class="modal fade" id="editNotificationModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header" style="background:#15648C;color:white;">
+                <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                     <h5 class="modal-title text-white"><i class="ri-edit-line me-1"></i>Edit Notification Schedule</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -260,7 +260,7 @@
     <div class="modal fade" id="viewTemplateModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header" style="background:#15648C;color:white;">
+                <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                     <h5 class="modal-title text-white"><i class="ri-eye-line me-1"></i>View Email Template</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>

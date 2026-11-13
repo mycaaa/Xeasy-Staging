@@ -180,7 +180,7 @@
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0" style="font-size:11px;">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>Date & Time</th>
@@ -208,7 +208,7 @@
                     <div class="card-body p-2">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>Module (Log Name)</th>
@@ -234,7 +234,7 @@
                     <div class="card-body p-2">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th>#</th>
                                         <th>User</th>
@@ -262,7 +262,7 @@
 <div class="modal fade" id="detailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header" style="background:#15648C;color:white;">
+            <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                 <h5 class="modal-title text-white"><i class="ri-information-line me-1"></i>Activity Detail</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -510,7 +510,7 @@ $(document).on('click', '.btn-view-detail', function() {
 
         if (isSnapshot) {
             // 2-column snapshot view
-            html += '<thead><tr style="background:#405189;color:white;"><th style="width:40%;">Field</th><th>Value</th></tr></thead><tbody>';
+            html += '<thead><tr style="background:#dde6ff;color:#1e3a8a;"><th style="width:40%;">Field</th><th>Value</th></tr></thead><tbody>';
             diff.forEach(function(row) {
                 const rowBg     = row.type === 'info' ? 'background:#fff8e1;' : '';
                 const valDisplay = (row.new !== null && row.new !== undefined && row.new !== '')
@@ -522,11 +522,11 @@ $(document).on('click', '.btn-view-detail', function() {
             });
         } else {
             // 3-column before/after diff
-            html += '<thead><tr style="background:#405189;color:white;">';
+            html += '<thead><tr style="background:#dde6ff;color:#1e3a8a;">';
             html += '<th style="width:30%;">Field</th>';
             if (!isCreated && !isDeleted) {
-                html += '<th style="width:35%;background:#dc3545;">Before</th>';
-                html += '<th style="width:35%;background:#198754;">After</th>';
+                html += '<th style="width:35%;background:#fde2e2; color: #9b1c1c;">Before</th>';
+                html += '<th style="width:35%;background:#d7f3e6; color: #065f46;">After</th>';
             } else if (isCreated) {
                 html += '<th>Value</th>';
             } else {

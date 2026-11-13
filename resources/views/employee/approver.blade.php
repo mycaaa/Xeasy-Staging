@@ -423,8 +423,8 @@
 
         .custom-approver-tabs .nav-link.active {
 
-            background: #001868;
-            color: white;
+            background: #dde6ff;
+            color: #1e3a8a;
         }
 
         .custom-approver-tabs .nav-link:hover {
@@ -463,8 +463,8 @@
         .status-btn.pending.active,
         .status-btn.pending:hover {
 
-            background: #ffc107;
-            color: white;
+            background: #fdefd2;
+            color: #7a4500;
         }
 
         .status-btn.approved {
@@ -476,8 +476,8 @@
         .status-btn.approved.active,
         .status-btn.approved:hover {
 
-            background: #198754;
-            color: white;
+            background: #d7f3e6;
+            color: #065f46;
         }
 
         .status-btn.team {
@@ -495,8 +495,8 @@
 
         .table th {
 
-            background: #15648C !important;
-            color: white !important;
+            background: #dde6ff !important;
+            color: #1e3a8a !important;
             font-size: 13px;
             vertical-align: middle;
         }
@@ -541,8 +541,8 @@
         }
 
         .expense-lines-table th {
-            background: #15648C !important;
-            color: white !important;
+            background: #dde6ff !important;
+            color: #1e3a8a !important;
             font-size: 12px;
         }
 
@@ -2412,7 +2412,7 @@
                 '  @media print { body { padding: 10px; } }' +
                 '  table { width: 100%; border-collapse: collapse; }' +
                 '  th, td { border: 1px solid #dee2e6; padding: 6px 10px; font-size: 12px; }' +
-                '  th { background: #15648C !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+                '  th { background: #dde6ff !important; color: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
                 '  img { max-height: 60px; }' +
                 '</style>' +
                 '</head><body>' +
@@ -2486,7 +2486,7 @@
         function renderExcessRunningTable(data) {
             let html = `<div class="table-responsive">
                 <table class="table table-bordered table-hover table-sm align-middle" style="font-size:12px;">
-                    <thead style="background:#15648C;color:white;">
+                    <thead style="background:#dde6ff;color:#1e3a8a;">
                         <tr>
                             <th>#</th>
                             <th>Employee</th>
@@ -2576,7 +2576,7 @@
             <div class="modal fade" id="excessReviewModal" tabindex="-1" data-bs-backdrop="static">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable">
                     <div class="modal-content border-0">
-                        <div class="modal-header" style="background:#15648C;color:white;">
+                        <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                             <h5 class="modal-title text-white">
                                 <i class="ri-speed-line me-2"></i>${emp.FullName} (${emp.EmpCode}) — ${monthName}
                                 <span class="badge bg-danger ms-2">${totalKm} KM Total</span>

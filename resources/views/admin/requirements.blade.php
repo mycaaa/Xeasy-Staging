@@ -77,7 +77,7 @@
         <div class="card-header border-0 pb-0" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px 12px 0 0;">
             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width:44px;height:44px;background:#2563eb;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <div style="width:44px;height:44px;background:#dde6ff;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; color: #1e3a8a;">
                         <i class="ri-coins-line text-white" style="font-size:20px;"></i>
                     </div>
                     <div>
@@ -188,7 +188,7 @@
         <div class="card-header border-0 pb-0" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);border-radius:12px 12px 0 0;">
             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width:44px;height:44px;background:#7c3aed;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <div style="width:44px;height:44px;background:#ede7fe;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; color: #4c1d95;">
                         <i class="ri-group-line text-white" style="font-size:20px;"></i>
                     </div>
                     <div>
@@ -255,7 +255,7 @@
         <div class="card-header border-0 pb-0" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px 12px 0 0;">
             <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width:44px;height:44px;background:#d97706;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <div style="width:44px;height:44px;background:#fdefd2;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0; color: #7a4500;">
                         <i class="ri-file-chart-line text-white" style="font-size:20px;"></i>
                     </div>
                     <div>

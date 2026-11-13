@@ -39,8 +39,8 @@
         }
 
         .table th {
-            background-color: #155997;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             font-weight: 600;
             font-size: 0.7rem;
             padding: 6px 8px;
@@ -82,8 +82,8 @@
         }
 
         .btn-detail {
-            background-color: #155997;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border: none;
             border-radius: 3px;
             padding: 2px 6px;
@@ -92,8 +92,8 @@
         }
 
         .btn-detail:hover {
-            background-color: #0d3d66;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
         }
 
         /* Loading overlay */
@@ -183,14 +183,14 @@
                 <table id="paymentTable" class="table table-striped table-hover" style="width:100%">
                     <thead>
                         <tr>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Sr.No</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Employee</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Activity</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Month</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Amount</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Released Date</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Status</th>
-                            <th style="font-size: 10px; vertical-align: middle; background-color: #15648C; color: white;">Action</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Sr.No</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Employee</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Activity</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Month</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Amount</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Released Date</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Status</th>
+                            <th style="font-size: 10px; vertical-align: middle; background-color: #dde6ff; color: #1e3a8a;">Action</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -352,7 +352,7 @@
                             const empCode = row.employee_code || '-';
                             const department = row.department || '-';
                             const isDeactive = row.is_active === false || row.emp_status === 'D';
-                            const badge = isDeactive ? '<span style="font-size:0.55rem;padding:1px 4px;border-radius:3px;background-color:#dc3545;color:#fff;margin-left:4px;font-weight:600;">DEACTIVE</span>' : '';
+                            const badge = isDeactive ? '<span style="font-size:0.55rem;padding:1px 4px;border-radius:3px;background-color:#fde2e2;color:#9b1c1c;margin-left:4px;font-weight:600;">DEACTIVE</span>' : '';
                             const cls = isDeactive ? 'background-color:#fff0f0;border-left:3px solid #dc3545;' : '';
                             return '<div class="compact-row" style="padding:4px;' + cls + '">' +
                                 '<div class="employee-info">' + empName + badge + '</div>' +
@@ -556,7 +556,7 @@
                 <div class="modal fade" id="detailModal" tabindex="-1">
                     <div class="modal-dialog modal-xl">
                         <div class="modal-content">
-                            <div class="modal-header" style="background-color: #155997; color: white;">
+                            <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                                 <h5 class="modal-title">
                                     <i class="fa fa-file-text-o"></i> Payment Request Details
                                 </h5>

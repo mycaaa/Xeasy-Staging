@@ -97,7 +97,7 @@
                     <div class="card-body p-2">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm table-hover align-middle mb-0" id="leaderboardTable" style="font-size:11px;">
-                                <thead style="background:#15648C;color:white;">
+                                <thead style="background:#dde6ff;color:#1e3a8a;">
                                     <tr>
                                         <th class="text-center">#</th>
                                         <th>Employee</th>
@@ -169,7 +169,7 @@
 <div class="modal fade" id="lbDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header" style="background:#15648C;color:white;">
+            <div class="modal-header" style="background:#dde6ff;color:#1e3a8a;">
                 <h5 class="modal-title text-white"><i class="ri-star-smile-line me-1"></i>Rating Details</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>

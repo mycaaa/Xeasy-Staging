@@ -4,7 +4,7 @@
 @section('styles')
 <style>
     .fr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .fr-table th { background: #15648C; color: #fff; padding: 6px; font-size: 11px; border: 1px solid #ddd; white-space: nowrap; }
+    .fr-table th { background: #dde6ff; color: #1e3a8a; padding: 6px; font-size: 11px; border: 1px solid #ddd; white-space: nowrap; }
     .fr-table td { padding: 5px 6px; border: 1px solid #ddd; vertical-align: top; }
     .fr-table td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .fr-ok { color: #1b7a3d; } .fr-bad { color: #b42318; font-weight: 600; }

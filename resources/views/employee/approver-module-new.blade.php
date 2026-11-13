@@ -137,7 +137,7 @@
 .app-tab:hover:not(.active){background:rgba(var(--vz-primary-rgb,64,81,137),.08);color:var(--vz-primary,#405189);}
 .status-pill{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;text-decoration:none;color:#666;background:#f5f5f5;transition:all .2s;}
 .status-pill.active-pending{background:linear-gradient(135deg,#f7971e,#ffd200);color:#fff;box-shadow:0 2px 8px rgba(247,151,30,.3);}
-.status-pill.active-approved{background:linear-gradient(135deg,var(--vz-success,#0ab39c),#56d4c8);color:#fff;box-shadow:0 2px 8px rgba(10,179,156,.3);}
+.status-pill.active-approved{background:#d7f3e6;color:#065f46;box-shadow:0 2px 8px rgba(10,179,156,.3);}
 .status-pill:hover:not(.active-pending):not(.active-approved){background:#e9e9e9;}
 .action-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:25px;border:2px solid var(--vz-primary,#405189);background:#fff;color:var(--vz-primary,#405189);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;}
 .action-chip:hover{background:var(--vz-primary,#405189);color:#fff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(var(--vz-primary-rgb,64,81,137),.25);}
@@ -149,8 +149,8 @@
 .claim-card{border:none;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:12px;position:relative;transition:all .2s;}
 .claim-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);transform:translateY(-1px);}
 .claim-card .stripe{position:absolute;left:0;top:0;bottom:0;width:5px;}
-.claim-card .stripe.primary{background:linear-gradient(180deg,var(--vz-primary,#405189),rgba(var(--vz-primary-rgb,64,81,137),.7));}
-.claim-card .stripe.success{background:linear-gradient(180deg,var(--vz-success,#0ab39c),#56d4c8);}
+.claim-card .stripe.primary{background:#dde6ff; color: #1e3a8a;}
+.claim-card .stripe.success{background:#d7f3e6; color: #065f46;}
 .claim-card .card-body{padding:14px 14px 14px 20px;}
 .claim-card .emp-name{font-weight:700;font-size:15px;color:var(--vz-primary,#405189);}
 .claim-card .meta{font-size:12px;color:#666;margin-top:2px;}

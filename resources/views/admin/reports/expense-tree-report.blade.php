@@ -40,10 +40,10 @@
         bottom: 0;
         width: 5px;
     }
-    .kpi-finance::before  { background: linear-gradient(180deg, #10b981, #059669); }
-    .kpi-claims::before   { background: linear-gradient(180deg, #3b82f6, #1d4ed8); }
-    .kpi-approved::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
-    .kpi-scope::before    { background: linear-gradient(180deg, #8b5cf6, #6d28d9); }
+    .kpi-finance::before  { background: #d7f3e6; color: #065f46;}
+    .kpi-claims::before   { background: #dde6ff; color: #1e3a8a;}
+    .kpi-approved::before { background: #fdefd2; color: #7a4500;}
+    .kpi-scope::before    { background: #ede7fe; color: #4c1d95;}
 
     .kpi-icon-bubble {
         width: 46px;
@@ -236,9 +236,8 @@
     }
     .share-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, #15648C, #10b981);
-        border-radius: 10px;
-    }
+        background: #dde6ff;
+        border-radius: 10px; color: #1e3a8a;}
 
     /* Search Input */
     .tree-search-input {
@@ -265,8 +264,8 @@
         width: 460px;
     }
     #additionalFiltersCanvas .offcanvas-header {
-        background: #00175f;
-        color: #ffffff;
+        background: #dde6ff;
+        color: #1e3a8a;
         padding: 1rem 1.25rem;
     }
     #additionalFiltersCanvas .offcanvas-header .offcanvas-title {
@@ -289,18 +288,18 @@
         border-color: #00175f;
     }
     .btn-apply-filters {
-        background-color: #00175f;
+        background-color: #dde6ff;
         border-color: #00175f;
-        color: #ffffff;
+        color: #1e3a8a;
         font-weight: 600;
         padding: 0.6rem 1rem;
         border-radius: 6px;
         transition: all 0.2s;
     }
     .btn-apply-filters:hover {
-        background-color: #001047;
+        background-color: #dde6ff;
         border-color: #001047;
-        color: #ffffff;
+        color: #1e3a8a;
     }
 </style>
 <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
@@ -315,7 +314,7 @@
             <div class="col-md-6 col-12">
                 <div class="d-flex align-items-center gap-3">
                     <div class="rounded-3 d-flex align-items-center justify-content-center text-white"
-                         style="width: 44px; height: 44px; background: linear-gradient(135deg, #15648C, #0e4663); box-shadow: 0 4px 12px rgba(21,100,140,0.25);">
+                         style="width: 44px; height: 44px; background: #dde6ff; box-shadow: 0 4px 12px rgba(21,100,140,0.25); color: #1e3a8a;">
                         <i class="ri-git-merge-line fs-4"></i>
                     </div>
                     <div>

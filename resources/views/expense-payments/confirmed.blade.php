@@ -38,8 +38,8 @@
         }
 
         .estable th {
-            background-color: #15648C;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 8px 4px;
             font-size: 10px;
             text-align: center;
@@ -65,20 +65,20 @@
         }
 
         .btn-primary {
-            background-color: #007bff;
+            background-color: #dde6ff;
             border-color: #007bff;
-            color: white;
+            color: #1e3a8a;
         }
 
         .btn-success {
-            background-color: #28a745;
+            background-color: #d7f3e6;
             border-color: #28a745;
-            color: white;
+            color: #065f46;
             padding: 4px 12px;
         }
 
         .btn-edit {
-            background-color: #ffc107;
+            background-color: #fdefd2;
             border-color: #ffc107;
             color: #000;
             padding: 2px 6px;
@@ -160,8 +160,8 @@
         }
 
         .pagination li.active span {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             border-color: #007bff;
         }
 
@@ -202,8 +202,8 @@
         }
 
         .badge-active-filter {
-            background-color: #007bff;
-            color: white;
+            background-color: #dde6ff;
+            color: #1e3a8a;
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 10px;
@@ -338,43 +338,43 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th
-                                    style="font-size:10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     S.No</th>
                                 <th
-                                    style="font-size:10px;width:200px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:200px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Claimant</th>
                                 <th
-                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     EmpCode</th>
                                 <th
-                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Grade</th>
                                 <th
-                                    style="font-size:10px;width:10px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:10px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Status</th>
                                 <th
-                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:50px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Month</th>
                                 <th
-                                    style="font-size:10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Total Claims</th>
                                 <th
-                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Payment Amount</th>
                                 <th
-                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Payment Date</th>
                                 <th
-                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     UTR Number</th>
                                 <th
-                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Payment Remark</th>
                                 <th
-                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:100px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Print</th>
                                 <th
-                                    style="font-size:10px;width:60px;vertical-align:middle;background-color: #15648C;color:white">
+                                    style="font-size:10px;width:60px;vertical-align:middle;background-color: #dde6ff;color:#1e3a8a">
                                     Account Summary</th>
                             </tr>
                         </thead>
@@ -600,7 +600,7 @@
         aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content" style="width:100%">
-                <div class="modal-header" style="background-color: #155997; color: white;">
+                <div class="modal-header" style="background-color: #dde6ff; color: #1e3a8a;">
                     <h5 class="modal-title text-white" id="paymentDetailsModalLabel">
                         <i class="fa fa-file-text-o"></i> Confirmed Payment Details
                     </h5>

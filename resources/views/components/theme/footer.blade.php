@@ -83,11 +83,10 @@
         overflow: visible !important;
     }
     .flatpickr-months {
-        background: #001868 !important;
+        background: #dde6ff !important;
         border-radius: 5px 5px 0 0;
         padding: 2px 0;
-        overflow: visible !important;
-    }
+        overflow: visible !important; color: #1e3a8a;}
     .flatpickr-month {
         overflow: visible !important;
     }
@@ -120,8 +119,8 @@
         appearance: none;
     }
     .flatpickr-current-month .flatpickr-monthDropdown-months option {
-        background: #001868;
-        color: #fff;
+        background: #dde6ff;
+        color: #1e3a8a;
     }
     /* Hide the native numInputWrapper (up/down arrows + input) */
     .flatpickr-current-month .numInputWrapper {
@@ -184,8 +183,8 @@
         color: #001868;
     }
     .fp-year-panel ul li.active {
-        background: #001868;
-        color: #fff;
+        background: #dde6ff;
+        color: #1e3a8a;
         font-weight: 700;
     }
     /* Weekday row */
@@ -203,16 +202,15 @@
     }
     .flatpickr-day.today:hover,
     .flatpickr-day.today:focus {
-        background: #001868;
+        background: #dde6ff;
         border-color: #001868;
-        color: #fff;
+        color: #1e3a8a;
     }
     /* Selected day */
     .flatpickr-day.selected,
     .flatpickr-day.selected:hover {
-        background: #001868 !important;
-        border-color: #001868 !important;
-    }
+        background: #dde6ff !important;
+        border-color: #001868 !important; color: #1e3a8a;}
 </style>
 <script>
 (function () {
