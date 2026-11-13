@@ -82,3 +82,43 @@
 .table-danger,  .table-danger > th,  .table-danger > td  { background-color: var(--px-danger-bg) !important;  color: var(--px-danger-tx) !important; }
 .table-info,    .table-info > th,    .table-info > td    { background-color: var(--px-info-bg) !important;    color: var(--px-info-tx) !important; }
 .table-danger > * { --vz-table-bg: var(--px-danger-bg); }
+
+/* ── Side menu (PASTEL-02, 13 Nov 2026): the navy sidebar becomes a pastel blue with dark text ── */
+html[data-sidebar="dark"] {
+    --vz-vertical-menu-bg: #eaf0fd !important;
+    --vz-vertical-menu-border: #d6e0f8 !important;
+    --vz-vertical-menu-item-color: #334155 !important;
+    --vz-vertical-menu-item-bg: #d9e3fc !important;
+    --vz-vertical-menu-item-hover-color: #1e3a8a !important;
+    --vz-vertical-menu-item-active-color: #1e3a8a !important;
+    --vz-vertical-menu-item-active-bg: #d4defb !important;
+    --vz-vertical-menu-sub-item-color: #475569 !important;
+    --vz-vertical-menu-sub-item-hover-color: #1e3a8a !important;
+    --vz-vertical-menu-sub-item-active-color: #1e3a8a !important;
+    --vz-vertical-menu-title-color: #64748b !important;
+    --vz-twocolumn-menu-iconview-bg: #e1e8fb !important;
+    --vz-vertical-menu-box-shadow: 0 2px 6px rgba(30, 58, 138, .08) !important;
+    --vz-vertical-menu-dropdown-box-shadow: 0 2px 6px rgba(30, 58, 138, .10) !important;
+}
+html[data-sidebar="dark"] .app-menu { background: var(--vz-vertical-menu-bg) !important; border-right: 1px solid var(--vz-vertical-menu-border); }
+html[data-sidebar="dark"] .app-menu .nav-link.active, html[data-sidebar="dark"] .app-menu .nav-link[aria-expanded="true"] { background-color: var(--vz-vertical-menu-item-active-bg); border-radius: 6px; }
+html[data-sidebar="dark"] .app-menu .menu-dropdown { background: var(--vz-vertical-menu-bg) !important; }
+/* dark logo on the light menu */
+html[data-sidebar="dark"] .app-menu .logo-light { display: none !important; }
+html[data-sidebar="dark"] .app-menu .logo-dark { display: inline-block !important; }
+html[data-sidebar="dark"] #vertical-hover, html[data-sidebar="dark"] .app-menu .btn-vertical-sm-hover { color: #334155 !important; }
+
+/* ── Remaining navy blocks (PASTEL-02) ── */
+.offcanvas-header { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; }
+.offcanvas-header .offcanvas-title, .offcanvas-header .text-white, .offcanvas-header h5 { color: var(--px-primary-tx) !important; }
+.offcanvas-header .btn-close { filter: none !important; }
+.select2-container--default .select2-selection--multiple .select2-selection__choice { background-color: var(--px-primary-bg) !important; border-color: var(--px-primary-bd) !important; color: var(--px-primary-tx) !important; }
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color: var(--px-primary-tx) !important; border-right-color: var(--px-primary-bd) !important; }
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control:before, table.dataTable.dtr-inline.collapsed > tbody > tr > th.dtr-control:before { background-color: var(--px-primary-hv) !important; color: var(--px-primary-tx) !important; box-shadow: 0 0 0 1px var(--px-primary-bd) !important; }
+#close-chat:hover { background-color: var(--px-primary-hv) !important; color: var(--px-primary-tx) !important; }
+/* calendar: weekday row and the month arrows (white arrows were invisible on the pastel header) */
+.flatpickr-weekdays { background: var(--px-primary-bg) !important; }
+span.flatpickr-weekday { color: var(--px-primary-tx) !important; }
+.flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { color: var(--px-primary-tx) !important; fill: var(--px-primary-tx) !important; }
+.flatpickr-months .flatpickr-prev-month svg path, .flatpickr-months .flatpickr-next-month svg path { fill: var(--px-primary-tx) !important; }
+.flatpickr-current-month, .flatpickr-current-month .cur-month, .flatpickr-current-month input.cur-year, .flatpickr-monthDropdown-months { color: var(--px-primary-tx) !important; }
