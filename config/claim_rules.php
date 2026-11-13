@@ -12,6 +12,9 @@
 return [
     'enabled' => env('CLAIM_RULES_ENABLED', true),
 
+    // APPR-VER-01: VNR / Nursery reporting managers see a month's claims only after the verifier has verified it
+    'approver_after_verifier' => env('CLAIM_RULES_APPROVER_AFTER_VERIFIER', true),
+
     // Tracker #16: lodging bill above this amount needs an online payment receipt.
     'lodging' => [
         'claim_ids' => [1],
@@ -102,6 +105,8 @@ return [
         'tolerance' => (float) env('CLAIM_RULES_STAGE_CAPS_TOLERANCE', 1),   // rupees (rounding)
         // PAY-REMARK-01 (Finance 7 Nov 2026): a VNR approver who cuts the amount must give the reason
         'cut_needs_remark' => env('CLAIM_RULES_CUT_NEEDS_REMARK', true),
+        // APPR-CAP-01 (13 Nov 2026): the approver can never raise the amount: ceiling = verified (else claimed), no override
+        'approve_never_above_claimed' => env('CLAIM_RULES_APPROVE_NEVER_ABOVE_CLAIMED', true),
     ],
 
     // HARDCOPY-PAY-01 (Finance 7 Nov 2026): no payment while the previous month's hard copy is not received

@@ -47,7 +47,9 @@ class TeamListController extends BaseMobileController
             $ee = implode(',', $array_e);
 
             // Get pending month expense final records
-            $sql = "SELECT f.* FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL) ORDER BY Month ASC, EmployeeID";
+            // APPR-VER-01: VNR process - the month reaches the reporting manager after verification
+            $verifiedCond = \App\Support\ApproverAfterVerifier::applies($comId) ? ' AND ' . \App\Support\ApproverAfterVerifier::verifiedSql('f') : '';
+            $sql = "SELECT f.* FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL){$verifiedCond} ORDER BY Month ASC, EmployeeID";
             $results = DB::connection($expenseConn)->select($sql);
 
             if (empty($results)) {
@@ -132,6 +134,11 @@ class TeamListController extends BaseMobileController
 
         try {
             $expenseConn = $this->getExpenseConnection($comId);
+
+            // APPR-VER-01: this is the reporting manager's day view; VNR process opens after verification
+            if (\App\Support\ApproverAfterVerifier::applies($comId) && ! \App\Support\ApproverAfterVerifier::monthVerified($expenseConn, $yearId, $empId, $month)) {
+                return response()->json(['Code' => '100', 'msg' => \App\Support\ApproverAfterVerifier::MESSAGE]);
+            }
 
             $sql = "SELECT e.ExpId, e.ClaimYearId, e.ClaimId, e.CrBy, e.CrBy as EmployeeID, e.CrDate, e.BillDate, e.DateEntryRemark as EmpRemark, e.FilledTAmt, e.VerifyTAmt, e.TotKm, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2 FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND e.ClaimAtStep >= 3 AND ((e.ClaimId = 7 AND e.App_Odometer = 'Y') OR (e.ClaimId != 7)) ORDER BY BillDate ASC";
 

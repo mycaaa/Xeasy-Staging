@@ -59,6 +59,17 @@ class StageCap
         $basis = self::basis($claim, $stage);
         $new = (float) $newAmount;
         $tol = (float) config('claim_rules.stage_caps.tolerance', 1);
+        // APPR-CAP-01 (13 Nov 2026): the approver can keep or lower the amount, never raise it, reason or not:
+        // the ceiling is the verified amount (the verifier may correct a claim up to the policy rate), or the
+        // claimed amount when the claim is not verified
+        if ($stage === 'approve' && $basis !== null && $new > $basis + $tol
+            && config('claim_rules.stage_caps.approve_never_above_claimed', true)) {
+            self::log($conn, $yearId, $claim, $basis, $new, $stage, $remark, $source, 'refused_above_basis');
+            $what = ((float) ($claim->VerifyTAmt ?? 0)) > 0 ? 'verified' : 'claimed';
+
+            return 'The approved amount ('.number_format($new, 2).') cannot be more than the '.$what.' amount ('
+                .number_format($basis, 2).'). The approver can keep or reduce the amount, not increase it.';
+        }
         if ($basis === null || $new <= $basis + $tol) {
             return null;
         }

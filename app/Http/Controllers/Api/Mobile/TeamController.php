@@ -554,7 +554,7 @@ class TeamController extends BaseMobileController
         if ($ctx instanceof JsonResponse) {
             return $ctx;
         }
-        [$empId, $yearId, , $conn] = $ctx;
+        [$empId, $yearId, $comId, $conn] = $ctx;
 
         $team = $this->appraiseeIds($empId);
         if (empty($team)) {
@@ -564,6 +564,9 @@ class TeamController extends BaseMobileController
         $q = $db->table("y{$yearId}_monthexpensefinal")
             ->whereIn('EmployeeID', $team)->where('YearId', $yearId)
             ->where('Status', 'Closed')->where('Total_Claim', '>', 0);
+        if (\App\Support\ApproverAfterVerifier::applies((int) $comId)) {
+            $q->whereRaw(\App\Support\ApproverAfterVerifier::verifiedSql()); // APPR-VER-01
+        }
         $rows = $this->zeroDate($q, 'Approved_Date')->orderBy('Month')->orderBy('EmployeeID')->get();
         if ($rows->isEmpty()) {
             return $this->error('Data Not Available!');
@@ -594,10 +597,15 @@ class TeamController extends BaseMobileController
         if ($ctx instanceof JsonResponse) {
             return $ctx;
         }
-        [$empId, $yearId, , $conn, $month] = $ctx;
+        [$empId, $yearId, $comId, $conn, $month] = $ctx;
         $memberId = (int) ($request->input('memid') ?: $request->input('memempid') ?: $empId);
         if ($memberId !== $empId && !in_array($memberId, $this->appraiseeIds($empId), true)) {
             return $this->error('Invalid Employee!');
+        }
+        // APPR-VER-01: the reporting manager's day view opens after verification (VNR process)
+        if ($memberId !== $empId && \App\Support\ApproverAfterVerifier::applies((int) $comId)
+            && ! \App\Support\ApproverAfterVerifier::monthVerified($conn, $yearId, $memberId, $month)) {
+            return $this->error(\App\Support\ApproverAfterVerifier::MESSAGE);
         }
 
         $rows = $this->memberMonthClaims($conn, $yearId, $memberId, $month, 3);

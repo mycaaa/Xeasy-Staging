@@ -382,6 +382,10 @@ class ClaimActionsController extends BaseMobileController
                 return $this->error('Invalid Expense Id!');
             }
 
+            // APPR-LOCK-01: the approver may change their own amount until the month's final submit, not after
+            if ($lockMsg = $this->approverLocked($conn, (int) $yearId, $expCheck[0])) {
+                return $this->error($lockMsg);
+            }
             // Q-02: approved above verified (or claimed) needs a reason in the remark
             if ($capMsg = \App\Services\Claims\StageCap::check($conn, (int) $yearId, $expCheck[0], $amt, 'approve', (string) $apprRemark, 'app_claim_approved')) {
                 return $this->error($capMsg);
@@ -453,9 +457,13 @@ class ClaimActionsController extends BaseMobileController
         $claimsTable = $this->claimsTable($yearId);
         $g7Table = "y{$yearId}_g7_expensefilldata";
         try {
-            $claim = DB::connection($conn)->table($claimsTable)->where('ExpId', $expId)->first(['ExpId', 'CrBy', 'ClaimMonth', 'VerifyTAmt', 'FilledTAmt']);
+            $claim = DB::connection($conn)->table($claimsTable)->where('ExpId', $expId)->first(['ExpId', 'CrBy', 'ClaimMonth', 'VerifyTAmt', 'FilledTAmt', 'ClaimAtStep']);
             if (! $claim) {
                 return $this->error('Invalid Expense Id!');
+            }
+            // APPR-LOCK-01: the approver may change their own amount until the month's final submit, not after
+            if ($lockMsg = $this->approverLocked($conn, (int) $yearId, $claim)) {
+                return $this->error($lockMsg);
             }
             $columns = array_flip(\Illuminate\Support\Facades\Schema::connection($conn)->getColumnListing($g7Table));
             $g7Update = [];
@@ -1201,5 +1209,22 @@ class ClaimActionsController extends BaseMobileController
             Log::error('ClaimActionsController@handleUploadOdoClosing error: ' . $e->getMessage());
             return $this->error('Error: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * APPR-LOCK-01 (13 Nov 2026): once the approver has done the final submit of the month
+     * (monthexpensefinal.Approved_Date set, claims at step 5 or later), the approved amounts are fixed.
+     */
+    private function approverLocked($conn, int $yearId, object $claim): ?string
+    {
+        if ((int) ($claim->ClaimAtStep ?? 0) >= 5) {
+            return 'The month is already submitted by the approver; approved amounts cannot be changed now.';
+        }
+        $submitted = DB::connection($conn)->table("y{$yearId}_monthexpensefinal")
+            ->where('EmployeeID', (int) $claim->CrBy)->where('Month', (int) $claim->ClaimMonth)->where('YearId', $yearId)
+            ->whereNotNull('Approved_Date')->where('Approved_Date', '>', '1970-01-01')
+            ->exists();
+
+        return $submitted ? 'The month is already submitted by the approver; approved amounts cannot be changed now.' : null;
     }
 }

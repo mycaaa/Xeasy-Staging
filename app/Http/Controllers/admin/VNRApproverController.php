@@ -129,6 +129,7 @@ class VNRApproverController extends Controller
                         ->where(function ($q) {
                             $q->whereNull('Approved_Date')->orWhere('Approved_Date', '0000-00-00');
                         })
+                        ->when(\App\Support\ApproverAfterVerifier::applies((int) (session('company_id') ?: 1)), fn ($q) => $q->whereRaw(\App\Support\ApproverAfterVerifier::verifiedSql())) // APPR-VER-01
                         ->orderBy('Month', 'desc')
                         ->get();
 
@@ -167,6 +168,10 @@ class VNRApproverController extends Controller
     public function getApproverPendingDay(Request $request)
     {
         ini_set('max_execution_time', 300);
+        // APPR-VER-01: the reporting manager opens a month after the verifier has verified it
+        if ($block = $this->blockedBeforeVerification((int) $request->input('empid'), (int) $request->input('month'))) {
+            return $block;
+        }
         $data = $this->get($this->baseUrl(), array_merge($this->baseParams(), [
             'value' => 'Team_Pending_Claimlist_Day',
             'empid' => $request->input('empid'),
@@ -362,6 +367,14 @@ class VNRApproverController extends Controller
 
     public function getExpenseDetail(Request $request)
     {
+        // APPR-VER-01: a team member's claim opens for the reporting manager after verification
+        $expId = (int) $request->input('exp_id');
+        $yr = (int) session('year_id');
+        $conn = session('expense_connection') ?: 'expense';
+        $row = $expId > 0 && $yr > 0 ? \Illuminate\Support\Facades\DB::connection($conn)->table("y{$yr}_expenseclaims")->where('ExpId', $expId)->first(['CrBy', 'ClaimMonth']) : null;
+        if ($row && ($block = $this->blockedBeforeVerification((int) $row->CrBy, (int) $row->ClaimMonth))) {
+            return $block;
+        }
         $s = $this->sessionData();
         // Flutter passes the claimant's empId, not the approver's session empId
         $empId = $request->input('emp_id', $s['employeeId']);
@@ -555,5 +568,17 @@ class VNRApproverController extends Controller
             'raw_keys'      => array_keys($data),
             'filtered_month'=> $month,
         ]);
+    }
+
+    /** APPR-VER-01: the response refusing an unverified month to the reporting manager, or null. */
+    private function blockedBeforeVerification(int $memberId, int $month)
+    {
+        $companyId = (int) (session('company_id') ?: 1);
+        $viewer = (int) session('employee_id');
+        if ($memberId <= 0 || $month <= 0 || \App\Support\ApproverAfterVerifier::mayOpen($companyId, session('expense_connection') ?: 'expense', (int) session('year_id'), $viewer, $memberId, $month, auth()->user())) {
+            return null;
+        }
+        $msg = \App\Support\ApproverAfterVerifier::MESSAGE;
+        return response()->json(['Code' => '100', 'msg' => $msg, 'message' => $msg]);
     }
 }

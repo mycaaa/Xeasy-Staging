@@ -45,6 +45,13 @@ class ExpenseDetailController extends BaseMobileController
             $expense = (array) $expenseData[0];
             $claimId = (int) $expense['ClaimId'];
 
+            // APPR-VER-01: a reporting manager opens a team member's claim only after the month is verified
+            $webUser = \Illuminate\Support\Facades\Auth::guard('web')->user();
+            $viewer = $webUser ? (int) $webUser->employee_id : $empId;
+            if (! \App\Support\ApproverAfterVerifier::mayOpen($comId, $expenseConn, $yearId, $viewer, (int) ($expense['CrBy'] ?? 0), (int) ($expense['ClaimMonth'] ?? 0), $webUser)) {
+                return $this->error(\App\Support\ApproverAfterVerifier::MESSAGE);
+            }
+
             // 2. Get claim type info
             $claimTypeData = DB::connection($expenseConn)->select(
                 "SELECT cgId, ClaimName FROM claimtype WHERE ClaimId = ?",

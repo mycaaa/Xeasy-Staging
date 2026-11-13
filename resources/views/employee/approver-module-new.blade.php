@@ -122,7 +122,7 @@
 </div></div></div></div></div>
 
 {{-- Modals --}}
-<div class="modal fade" id="dayModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width:96vw;"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title" id="dayModalTitle">Claims</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="dayModalBody"></div></div></div></div>
+<div class="modal fade" id="dayModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-fullscreen"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title" id="dayModalTitle">Claims</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="dayModalBody"></div></div></div></div>
 <div class="modal fade" id="teamExpModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title"><i class="ri-team-line me-1"></i> Team All Expenses</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="teamExpBody"></div></div></div></div>
 <div class="modal fade" id="runKmModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title"><i class="ri-roadster-line me-1"></i> Team Running KM</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="runKmBody"></div></div></div></div>
 
@@ -190,6 +190,7 @@
 
 @push('scripts')
 <script src="{{ asset('custom/js/pages/claim.js') }}?v={{ time() }}"></script>
+<script src="{{ asset('custom/js/pages/approver-day-filters.js') }}?v={{ filemtime(public_path('custom/js/pages/approver-day-filters.js')) }}"></script>
 <script src="{{ asset('vendor/cdn/sweetalert2@11.26.25/dist/sweetalert2.all.min.js') }}"></script>
 <script>
 $(function(){
@@ -422,7 +423,7 @@ $(function(){
                 }
 
                 paxRowHtml = `<tr id="pax_row_${e(eid)}" class="pax-detail-row" style="display:none;background:#f8fafc;">
-                    <td colspan="13" class="p-3 border-top-0">
+                    <td colspan="14" class="p-3 border-top-0">
                         <div class="pax-card p-3 rounded-3 border bg-white shadow-sm">
                             <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom flex-wrap gap-2">
                                 <div>
@@ -446,7 +447,7 @@ $(function(){
                 </tr>`;
             }
 
-            rows+=`<tr><td class="text-center">${i+1}</td>
+            rows+=`<tr><td class="text-center">${ed?`<input type="checkbox" class="form-check-input apr-check" aria-label="Select claim ${e(eid)}">`:''}</td><td class="text-center">${i+1}</td>
             <td>
                 <a href="#" class="fw-semibold view-claim" data-expid="${e(eid)}" data-empid="${e(empId)}" data-claim-id="${e(d.ClaimId||d.claimId||d.cgId||'')}" data-cgid="${e(d.ClaimId||d.claimId||d.cgId||'')}">${e(cn)}</a>
                 <div class="text-muted" style="font-size:9px;">Exp #${e(eid)}</div>
@@ -462,7 +463,7 @@ $(function(){
             <td>${ed?`<input type="text" class="form-control form-control-sm amt-input ar" value="${e(d.ApprTRemark||d.ApprRemark||'')}" placeholder="Remark" aria-label="Remark">`:e(d.ApprTRemark||d.ApprRemark||'-')}</td>
             <td class="remark-col" style="min-width:130px;max-width:220px;">${empRmkContent}</td>
             <td class="text-center claim-status-cell">${isA?'<span class="badge bg-success">Done</span>':'<span class="badge bg-warning text-dark">Pending</span>'}</td>
-            <td class="text-center">${ed?`<button class="btn btn-sm btn-primary rounded-pill px-3 approve-one" data-expid="${e(eid)}" data-empid="${e(empId)}" data-month="${e(cM)}"><i class="ri-check-line"></i></button>`:''}</td></tr>` + paxRowHtml;
+            <td class="text-center">${ed?`<button class="btn btn-sm ${isA?'btn-outline-success':'btn-primary'} rounded-pill px-3 approve-one" data-expid="${e(eid)}" data-empid="${e(empId)}" data-month="${e(cM)}" title="${isA?'Update the approved amount (until final submit)':'Approve'}"><i class="${isA?'ri-refresh-line':'ri-check-line'}"></i></button>`:''}</td></tr>` + paxRowHtml;
         });
 
         // Total diff in footer
@@ -485,8 +486,14 @@ $(function(){
             <span><span class="badge bg-warning text-dark">Pending</span> not yet approved</span>
             <span><span class="badge bg-success">Done</span> approved</span>
         </div>`;
-        $('#dayModalBody').html(legendHtml + `<div class="table-responsive"><table class="table table-bordered table-hover day-tbl mb-0">
+        // APPR-BULK-01: tick claims (or all) and approve them in one go at the amounts shown
+        const bulkBar = ed ? `<div class="d-flex align-items-center gap-2 mb-2 px-1 apr-bulk-bar">
+            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 approve-selected" disabled><i class="ri-check-double-line me-1"></i>Approve selected (<span class="apr-sel-count">0</span>)</button>
+            <small class="text-muted">Tick the claims, or the box in the header for all. Until the final Submit you can change an approved amount and approve it again.</small>
+        </div>` : '';
+        $('#dayModalBody').html(legendHtml + bulkBar + `<div class="table-responsive"><table class="table table-bordered table-hover day-tbl mb-0">
             <thead class="table-light"><tr class="text-center align-middle" style="font-size:11.5px;">
+                <th style="width:32px;">${ed?'<input type="checkbox" class="form-check-input apr-check-all" title="Select all" aria-label="Select all claims">':''}</th>
                 <th style="width:35px;">#</th>
                 <th>Claim</th>
                 <th style="width:85px;">Date</th>
@@ -503,7 +510,7 @@ $(function(){
             </tr></thead>
             <tbody>${rows}</tbody>
             <tfoot class="table-light fw-bold"><tr>
-                <td colspan="4" class="text-end">Total</td>
+                <td colspan="5" class="text-end">Total</td>
                 <td class="text-end">₹${fa(tC)}</td>
                 <td class="text-end">₹${fa(tV)}</td>
                 <td class="text-end ${diffTotalClass}">${diffTotalText}</td>
@@ -513,6 +520,8 @@ $(function(){
             </tr></tfoot>
         </table></div>`);
 
+        // APPR-FILTER-01: column filters (full-screen view)
+        if(window.xeasyApproverFilters){window.xeasyApproverFilters.attach('#dayModalBody');}
         // Mark this employee+month as reviewed for submit validation
         if(ed){
             const cardKey=cE+'_'+cM;
@@ -520,30 +529,52 @@ $(function(){
         }
     }
     // ═══ APPROVE ONE ═══
-    $(document).on('click','.approve-one',function(){const $r=$(this).closest('tr'),eid=$(this).data('expid'),empId=$(this).data('empid'),mo=$(this).data('month'),amt=n($r.find('.aa').val()),rmk=$r.find('.ar').val()||'';
-        if(amt<=0){Swal.fire('Error','Enter valid amount.','warning');return;}
-        // Check if remark is required (amount differs from verified)
-        // VVNR-APPR-REM-01: a cut against the verified amount (or the claimed amount when not yet verified) needs a remark
+    // returns a promise: true when approved, false when refused (message shown unless quiet)
+    function approveRow($r, quiet){
+        const $b=$r.find('.approve-one'),eid=$b.data('expid'),empId=$b.data('empid'),mo=$b.data('month'),amt=n($r.find('.aa').val()),rmk=$r.find('.ar').val()||'';
+        const fail=(t,m,focus)=>{if(!quiet){Swal.fire(t,m,'warning');}if(focus){$r.find(focus).focus();}$r.addClass('table-danger');return $.Deferred().resolve(false,'#'+eid+': '+m).promise();};
+        if(amt<=0){return fail('Error','Enter valid amount.','.aa');}
         const vAmt=n($r.find('.claim-verified-cell').text());const cAmt=n($r.find('.claim-claimed-cell').text());const basis=vAmt>0?vAmt:cAmt;
+        // APPR-CAP-01: the approver can keep or reduce, never increase (ceiling: verified, else claimed)
+        if(basis>0&&amt>basis+0.009){return fail('Not allowed','The approved amount ('+amt.toFixed(2)+') cannot be more than the '+(vAmt>0?'verified':'claimed')+' amount ('+basis.toFixed(2)+').','.aa');}
+        // VVNR-APPR-REM-01: a cut against the verified amount (or the claimed amount when not yet verified) needs a remark
         if(((vAmt>0&&amt!==vAmt)||(basis>0&&amt<basis-0.009)) && (!rmk.trim()||rmk.trim().toLowerCase()==='approved')){
-            Swal.fire('Remark Required','The approved amount ('+amt.toFixed(2)+') is '+(amt<basis?'less than':'different from')+' the '+(vAmt>0?'verified':'claimed')+' amount ('+basis.toFixed(2)+'). Please enter a remark.','warning');
-            $r.find('.ar').focus();
-            return;
+            return fail('Remark Required','The approved amount ('+amt.toFixed(2)+') is '+(amt<basis?'less than':'different from')+' the '+(vAmt>0?'verified':'claimed')+' amount ('+basis.toFixed(2)+'). Please enter a remark.','.ar');
         }
-        const $b=$(this);$b.prop('disabled',true).html('<i class="ri-loader-4-line rotating"></i>');
+        $r.removeClass('table-danger');
+        $b.prop('disabled',true).html('<i class="ri-loader-4-line rotating"></i>');
+        const d=$.Deferred();
         $.post(R.approveClaim,{_token:csrf,exp_id:eid,employee_id:empId,amount:amt,remark:rmk,month:mo}).done(res=>{
             if(res.Code=='300'||res.success){
                 $r.find('.claim-status-cell').html('<span class="badge bg-success">Done</span>');
-                $b.replaceWith('<i class="ri-checkbox-circle-fill text-success fs-5"></i>');
-                Swal.fire({icon:'success',title:'Approved!',timer:1000,showConfirmButton:false});
-                // Update reviewedEmployees - remove from unapproved
+                $b.prop('disabled',false).removeClass('btn-primary').addClass('btn-outline-success').attr('title','Update the approved amount (until final submit)').html('<i class="ri-refresh-line"></i>');
+                $r.find('.apr-check').prop('checked',false);
                 const cardKey=empId+'_'+mo;
                 if(reviewedEmployees[cardKey]){
                     reviewedEmployees[cardKey].unapproved=reviewedEmployees[cardKey].unapproved.filter(x=>x!=='#'+eid);
                     reviewedEmployees[cardKey].approveTotal=n(res.TotalApprovedAmt)||reviewedEmployees[cardKey].approveTotal;
                 }
-            }else{Swal.fire('Failed',res.msg||'Error','error');$b.prop('disabled',false).html('<i class="ri-check-line"></i>');}
-        }).fail(x=>{const j=x.responseJSON||{};if(j.remark_required){$r.find('.ar').focus();}Swal.fire(j.remark_required?'Remark Required':'Error',j.msg||j.message||'Network error',j.remark_required?'warning':'error');$b.prop('disabled',false).html('<i class="ri-check-line"></i>');});
+                d.resolve(true);
+            }else{if(!quiet){Swal.fire('Failed',res.msg||'Error','error');}$b.prop('disabled',false).html('<i class="ri-check-line"></i>');$r.addClass('table-danger');d.resolve(false,'#'+eid+': '+(res.msg||'Error'));}
+        }).fail(x=>{const j=x.responseJSON||{};if(j.remark_required){$r.find('.ar').focus();}if(!quiet){Swal.fire(j.remark_required?'Remark Required':'Error',j.msg||j.message||'Network error',j.remark_required?'warning':'error');}$b.prop('disabled',false).html('<i class="ri-check-line"></i>');$r.addClass('table-danger');d.resolve(false,'#'+eid+': '+(j.msg||j.message||'Network error'));});
+        return d.promise();
+    }
+    $(document).on('click','.approve-one',function(){
+        approveRow($(this).closest('tr'),false).done(ok=>{if(ok){Swal.fire({icon:'success',title:'Approved!',timer:1000,showConfirmButton:false});}});
+    });
+    // ═══ APPROVE SELECTED (APPR-BULK-01) ═══
+    function aprSelCount(){const c=$('#dayModalBody .apr-check:checked').length;$('#dayModalBody .apr-sel-count').text(c);$('#dayModalBody .approve-selected').prop('disabled',c===0);
+        const all=$('#dayModalBody tr:visible .apr-check').length;$('#dayModalBody .apr-check-all').prop('checked',all>0&&c===all).prop('indeterminate',c>0&&c<all);}
+    $(document).on('change','#dayModalBody .apr-check-all',function(){$('#dayModalBody .apr-check').prop('checked',false);$('#dayModalBody tr:visible .apr-check').prop('checked',this.checked);aprSelCount();});
+    $(document).on('change','#dayModalBody .apr-check',aprSelCount);
+    $(document).on('click','#dayModalBody .approve-selected',function(){
+        const rows=$('#dayModalBody .apr-check:checked').closest('tr').toArray();
+        if(!rows.length){return;}
+        const $btn=$(this).prop('disabled',true);let ok=0;const bad=[];
+        (async()=>{for(const tr of rows){const [res,msg]=await new Promise(r=>approveRow($(tr),true).done((a,b)=>r([a,b])));if(res){ok++;}else{bad.push(msg);}}
+            aprSelCount();
+            Swal.fire({icon:bad.length?'warning':'success',title:ok+' of '+rows.length+' approved',html:bad.length?'<div class="text-start" style="font-size:12px;"><p>Not approved (marked red):</p><ul>'+bad.map(m=>'<li>'+e(m)+'</li>').join('')+'</ul></div>':''});
+        })();
     });
     // ═══ SUBMIT MONTH ═══
     // Track which employees have been reviewed (viewed day-wise details)
