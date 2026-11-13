@@ -31,7 +31,8 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('auth.login');
+        // LOGIN-UI-01: one sign-in page (with company and financial year) at "/"
+        return redirect()->route('login');
     }
 
     public function login(Request $request)

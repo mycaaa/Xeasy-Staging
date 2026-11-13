@@ -1,234 +1,317 @@
 <!doctype html>
-<html lang="en" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg"
-    data-sidebar-image="none" data-preloader="disable" data-theme="default" data-theme-colors="default">
+{{-- LOGIN-UI-01 (13 Nov 2026): new sign-in page. Same form fields and names as before (company, financial_year,
+     employeeid, password, remember); self-contained styles so the theme CSS no longer loads here. --}}
+<html lang="en">
 
 <head>
     <meta charset="utf-8" />
-    <title>Sign In</title>
+    <title>Sign in to Xeasy</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
     <link rel="shortcut icon" href="{{ URL::to('/') }}/assets/images/favicon.ico">
-    <script src="{{ URL::to('/') }}/assets/js/layout.js"></script>
-    <link href="{{ URL::to('/') }}/assets/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="{{ URL::to('/') }}/assets/css/icons.min.css" rel="stylesheet" type="text/css" />
-    <link href="{{ URL::to('/') }}/assets/css/app.min.css" rel="stylesheet" type="text/css" />
-    <link href="{{ URL::to('/') }}/assets/css/custom.min.css" rel="stylesheet" type="text/css" />
-    <link href="{{ URL::to('/') }}/assets/css/pastel.css?v={{ filemtime(public_path('assets/css/pastel.css')) }}" rel="stylesheet" type="text/css" /><!-- PASTEL-01 -->
-    <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
+    <style>
+        :root {
+            --navy: #0a1d63;
+            --navy-2: #13297a;
+            --navy-line: rgba(255, 255, 255, .16);
+            --ink: #141b2d;
+            --muted: #5b6478;
+            --paper: #f4f6fb;
+            --line: #d6dce8;
+            --field: #2e8b57;
+            --marigold: #f2b43c;
+            --danger: #b42318;
+            --radius: 10px;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            font-family: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: var(--ink);
+            background: var(--paper);
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        .shell { display: grid; grid-template-columns: minmax(360px, 44%) 1fr; min-height: 100vh; }
+
+        /* ── left: what Xeasy is, and the path every claim takes ── */
+        .story {
+            background: var(--navy);
+            color: #fff;
+            padding: 44px 56px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        .story::after { /* faint rows, like a sown field seen from above */
+            content: "";
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(-28deg, transparent 0 46px, rgba(255,255,255,.035) 46px 48px);
+            pointer-events: none;
+        }
+        .story > * { position: relative; z-index: 1; }
+        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+        .brand img { width: 64px; height: 64px; object-fit: contain; margin: -8px; }
+        .brand span { font-weight: 700; font-size: 15px; opacity: .85; }
+        .story h2 {
+            font-size: clamp(30px, 3.1vw, 44px);
+            line-height: 1.08;
+            letter-spacing: -.02em;
+            font-weight: 800;
+            margin: auto 0 14px;
+            max-width: 15ch;
+        }
+        .story .lede { margin: 0 0 36px; max-width: 42ch; color: rgba(255,255,255,.76); font-size: 16px; }
+
+        .path { list-style: none; margin: 0 0 auto; padding: 0; max-width: 360px; }
+        .path li {
+            display: grid; grid-template-columns: 22px 1fr; gap: 14px;
+            padding-bottom: 14px; position: relative; font-size: 14.5px;
+        }
+        .path li::before { /* the line joining the stages */
+            content: ""; position: absolute; left: 10px; top: 18px; bottom: -2px; width: 2px; background: var(--navy-line);
+        }
+        .path li:last-child::before { display: none; }
+        .path .dot {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,.55); background: var(--navy);
+            display: grid; place-items: center; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.8);
+        }
+        .path li:first-child .dot { background: var(--marigold); border-color: var(--marigold); color: var(--navy); }
+        .path li:last-child .dot { background: var(--field); border-color: var(--field); color: #fff; }
+        .path b { display: block; font-weight: 600; }
+        .path small { color: rgba(255,255,255,.6); font-size: 13px; }
+        .story .foot { margin-top: 32px; font-size: 12.5px; color: rgba(255,255,255,.55); }
+
+        /* ── right: the form ── */
+        .panel { display: flex; align-items: center; justify-content: center; padding: 48px 24px; }
+        .card { width: 100%; max-width: 400px; }
+        .card h1 { font-size: 28px; letter-spacing: -.015em; line-height: 1.15; margin: 0 0 6px; font-weight: 800; }
+        .card .sub { margin: 0 0 28px; color: var(--muted); }
+        .field { margin-bottom: 18px; }
+        .field > label, .field > .label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+        .input, select.input {
+            width: 100%; height: 46px; padding: 0 14px;
+            font: inherit; color: var(--ink);
+            background: #fff; border: 1.5px solid var(--line); border-radius: var(--radius);
+            transition: border-color .15s, box-shadow .15s;
+        }
+        select.input {
+            appearance: none; padding-right: 40px;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235b6478' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+        }
+        .input:hover { border-color: #b9c2d4; }
+        .input:focus { outline: none; border-color: var(--navy-2); box-shadow: 0 0 0 4px rgba(19, 41, 122, .14); }
+        .input.is-invalid { border-color: var(--danger); }
+        .error { color: var(--danger); font-size: 13px; margin-top: 6px; }
+
+        /* company as a three-way switch: one tap, always visible */
+        .companies { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1.5px solid var(--line); border-radius: var(--radius); background: #fff; padding: 3px; }
+        .companies input { position: absolute; opacity: 0; pointer-events: none; }
+        .companies label {
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            min-height: 40px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+            font-size: 13.5px; font-weight: 600; color: var(--muted); line-height: 1.2;
+            transition: background .15s, color .15s;
+        }
+        .companies label:hover { color: var(--ink); }
+        .companies input:checked + label { background: var(--navy); color: #fff; }
+        .companies input:focus-visible + label { outline: 3px solid rgba(19, 41, 122, .35); outline-offset: 1px; }
+
+        .pass { position: relative; }
+        .pass .input { padding-right: 48px; }
+        .pass button {
+            position: absolute; right: 4px; top: 4px; width: 38px; height: 38px;
+            border: 0; background: transparent; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 18px;
+        }
+        .pass button:hover { color: var(--ink); background: var(--paper); }
+        .pass button:focus-visible { outline: 3px solid rgba(19, 41, 122, .35); }
+
+        .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 22px; }
+        .check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+        .check input { width: 17px; height: 17px; accent-color: var(--navy); }
+
+        .btn {
+            width: 100%; height: 48px; border: 0; border-radius: var(--radius);
+            background: var(--navy); color: #fff; font: inherit; font-weight: 700; font-size: 15.5px; cursor: pointer;
+            transition: background .15s, transform .05s;
+        }
+        .btn:hover { background: var(--navy-2); }
+        .btn:active { transform: translateY(1px); }
+        .btn:focus-visible { outline: 3px solid rgba(19, 41, 122, .4); outline-offset: 2px; }
+        .btn[disabled] { opacity: .7; cursor: progress; }
+
+        .notice { margin: 0 0 20px; padding: 12px 14px; border-radius: var(--radius); font-size: 14px; }
+        .notice.err { background: #fdecea; color: #7a1a12; }
+        .notice.ok { background: #e8f5ee; color: #14532d; }
+        .small { margin-top: 22px; font-size: 13px; color: var(--muted); text-align: center; }
+        .small a { color: var(--navy-2); font-weight: 600; }
+
+        @media (max-width: 900px) {
+            .shell { grid-template-columns: 1fr; }
+            .story { padding: 22px 20px 26px; }
+            .story h2 { font-size: 24px; margin: 18px 0 6px; max-width: none; }
+            .story .lede { margin: 0; font-size: 14.5px; }
+            .path, .story .foot { display: none; }
+            .panel { padding: 28px 16px 40px; align-items: flex-start; }
+        }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
 </head>
 
 <body>
-    <div class="auth-page-wrapper auth-bg-cover py-5 d-flex justify-content-center align-items-center min-vh-100">
-        <div class="bg-overlay"></div>
-        <div class="auth-page-content">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="text-center">
-                            <a href="{{ URL::to('/') }}" class="d-inline-block auth-logo">
-                                <img src="{{ URL::to('/') }}/custom/xeasy_logo_ligth.png" alt="Xeasy Logo"
-                                    height="100">
-                            </a>
+    @php
+        $oldCompany = (string) old('company', '1');
+        $processSteps = [
+            ['Bill upload', 'You add the bill or odometer photo'],
+            ['Punching check', 'The punching team reads and checks it'],
+            ['Your confirmation', 'You mark each claim OK, then submit the month'],
+            ['Verification', 'Checked against policy'],
+            ['Manager approval', 'Your reporting manager approves'],
+            ['Finance', 'Approved for payment'],
+            ['Paid', 'Paid to your account'],
+        ];
+    @endphp
+    <div class="shell">
+        <aside class="story" aria-label="About Xeasy">
+            <a href="{{ URL::to('/') }}" class="brand">
+                <img src="{{ URL::to('/') }}/custom/xeasy_logo_ligth.png" alt="Xeasy">
+                <span>Expense claims for VNR Seeds</span>
+            </a>
+            <h2>Every claim, from bill to payment.</h2>
+            <p class="lede">Upload bills, confirm what was punched, and follow each month through verification, approval and payment.</p>
+            <ol class="path">
+                @foreach ($processSteps as $i => [$title, $hint])
+                    <li><span class="dot" aria-hidden="true">{{ $i + 1 }}</span><span><b>{{ $title }}</b><small>{{ $hint }}</small></span></li>
+                @endforeach
+            </ol>
+            <p class="foot">&copy; {{ date('Y') }} VNR Seeds Pvt. Ltd.</p>
+        </aside>
+
+        <main class="panel">
+            <div class="card">
+                <h1>Sign in to Xeasy</h1>
+                <p class="sub">Use your employee ID and Xeasy password.</p>
+
+                @if (session('error'))
+                    <div class="notice err" role="alert">{{ session('error') }}</div>
+                @endif
+                @if (session('success'))
+                    <div class="notice ok" role="status">{{ session('success') }}</div>
+                @endif
+
+                <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
+                    @csrf
+                    <div class="field">
+                        <span class="label" id="companyLabel">Company</span>
+                        <div class="companies" role="radiogroup" aria-labelledby="companyLabel">
+                            @foreach (['1' => 'VNR Seeds', '3' => 'VNR Nursery', '11' => 'VVNR'] as $id => $name)
+                                <input type="radio" name="company" id="company{{ $id }}" value="{{ $id }}" {{ $oldCompany === (string) $id ? 'checked' : '' }} required>
+                                <label for="company{{ $id }}">{{ $name }}</label>
+                            @endforeach
                         </div>
+                        @error('company') <div class="error" role="alert">{{ $message }}</div> @enderror
                     </div>
-                </div>
-                <div class="row justify-content-center">
-                    <div class="col-md-8 col-lg-6 col-xl-5">
-                        <div class="card mt-4 card-bg-fill">
-                            <div class="card-body p-4">
-                                <div class="text-center mt-2">
-                                    <h5 class="text-primary">Welcome Back!</h5>
-                                    <p class="text-muted">Sign in to continue to Xeasy.</p>
-                                </div>
-                                <div class="p-2 mt-4">
-                                    <form method="POST" action="{{ route('login') }}">
-                                        @csrf
-                                        <div class="mb-3">
-                                            <label for="company" class="form-label">Company</label>
-                                            <select name="company" id="company"
-                                                class="form-control @error('company') is-invalid @enderror" required>
-                                                <option value="1" {{ old('company') == '1' ? 'selected' : '' }}>
-                                                    VNR Seeds Pvt Ltd</option>
-                                                <option value="3" {{ old('company') == '3' ? 'selected' : '' }}>
-                                                    VNR Nursery Pvt Ltd</option>
-                                                <option value="11" {{ old('company') == '11' ? 'selected' : '' }}>
-                                                    VVNR</option>
-                                            </select>
-                                            @error('company')
-                                                <span class="invalid-feedback d-block" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
-                                            @enderror
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="financial_year" class="form-label">Financial Year</label>
-                                            <select name="financial_year" id="financial_year"
-                                                class="form-control @error('financial_year') is-invalid @enderror"
-                                                required>
-                                                @if (isset($vnr_financial_years) && $vnr_financial_years->count() > 0)
-                                                    @foreach ($vnr_financial_years as $year)
-                                                        <option value="{{ $year->YearId }}"
-                                                            {{ old('financial_year') == $year->YearId ? 'selected' : '' }}>
-                                                            {{ $year->Year }}
-                                                        </option>
-                                                    @endforeach
-                                                @endif
-                                            </select>
-                                            @error('financial_year')
-                                                <span class="invalid-feedback d-block" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
-                                            @enderror
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="employeeid" class="form-label">Employee ID / Guest Username</label>
-                                            <input type="text"
-                                                class="form-control @error('employeeid') is-invalid @enderror"
-                                                id="employeeid" name="employeeid" placeholder="Enter employee ID or guest username"
-                                                value="{{ old('employeeid') }}" required autocomplete="username"
-                                                autofocus>
-                                            @error('employeeid')
-                                                <span class="invalid-feedback d-block" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
-                                            @enderror
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label" for="password">Password</label>
-                                            <div class="position-relative auth-pass-inputgroup mb-3">
-                                                <input type="password"
-                                                    class="form-control pe-5 password-input @error('password') is-invalid @enderror"
-                                                    id="password" name="password" placeholder="Enter password" required
-                                                    autocomplete="current-password">
-                                                <button
-                                                    class="btn btn-link position-absolute end-0 top-0 text-decoration-none text-muted password-addon material-shadow-none"
-                                                    type="button" id="password-addon">
-                                                    <i class="ri-eye-fill align-middle"></i>
-                                                </button>
-                                            </div>
-                                            @error('password')
-                                                <span class="invalid-feedback d-block" role="alert">
-                                                    <strong>{{ $message }}</strong>
-                                                </span>
-                                            @enderror
-                                        </div>
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" id="remember"
-                                                name="remember" {{ old('remember') ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="remember">
-                                                Remember me
-                                            </label>
-                                        </div>
-                                        <div class="mt-4">
-                                            <button class="btn btn-primary w-100" type="submit">Sign In</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
+
+                    <div class="field">
+                        <label for="financial_year">Financial year</label>
+                        <select name="financial_year" id="financial_year" class="input @error('financial_year') is-invalid @enderror" required>
+                            @foreach ($vnr_financial_years ?? [] as $year)
+                                <option value="{{ $year->YearId }}" {{ old('financial_year') == $year->YearId ? 'selected' : '' }}>{{ $year->Year }}</option>
+                            @endforeach
+                        </select>
+                        @error('financial_year') <div class="error" role="alert">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="field">
+                        <label for="employeeid">Employee ID or guest username</label>
+                        <input type="text" class="input @error('employeeid') is-invalid @enderror" id="employeeid" name="employeeid"
+                            value="{{ old('employeeid') }}" required autocomplete="username" autofocus inputmode="text" spellcheck="false">
+                        @error('employeeid') <div class="error" role="alert">{{ $message }}</div> @enderror
+                    </div>
+
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <div class="pass">
+                            <input type="password" class="input @error('password') is-invalid @enderror" id="password" name="password"
+                                required autocomplete="current-password">
+                            <button type="button" id="togglePass" aria-label="Show password" aria-pressed="false"><i class="ri-eye-line" aria-hidden="true"></i></button>
                         </div>
+                        @error('password') <div class="error" role="alert">{{ $message }}</div> @enderror
                     </div>
-                </div>
+
+                    <div class="row">
+                        <label class="check"><input type="checkbox" id="remember" name="remember" {{ old('remember') ? 'checked' : '' }}> Keep me signed in</label>
+                    </div>
+
+                    <button class="btn" type="submit" id="signInBtn">Sign in</button>
+                </form>
+
+                <p class="small">See how Xeasy uses your data in the <a href="{{ route('privacy.notice') }}" target="_blank" rel="noopener">privacy notice</a>.</p>
             </div>
-        </div>
-        <footer class="footer galaxy-border-none">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="text-center">
-                            <p class="mb-0">
-                                &copy;
-                                <script>
-                                    document.write(new Date().getFullYear())
-                                </script> Xeasy – Employee Expense Management Software by VNR Seeds Pvt.
-                                Ltd.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </footer>
+        </main>
     </div>
-    <script src="{{ asset('vendor/cdn/jquery@3.7.1/dist/jquery.min.js') }}"></script>
-    <script src="{{ URL::to('/') }}/assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ URL::to('/') }}/assets/libs/simplebar/simplebar.min.js"></script>
-    <script src="{{ URL::to('/') }}/assets/libs/node-waves/waves.min.js"></script>
-    <script src="{{ URL::to('/') }}/assets/libs/feather-icons/feather.min.js"></script>
-    <script src="{{ URL::to('/') }}/assets/js/pages/plugins/lord-icon-2.1.0.js"></script>
-    <script src="{{ URL::to('/') }}/assets/js/plugins.js"></script>
-    <script src="{{ URL::to('/') }}/assets/js/pages/password-addon.init.js"></script>
-    <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
-    <script src="{{ URL::to('/') }}/custom/js/main.js"></script>
+
     <script>
-        $(document).ready(function() {
-            // Store financial years data for all three companies
-            const companyYears = {
-                1: @json($vnr_financial_years ?? []), // VNR Seeds Pvt Ltd
-                3: @json($vnr_nursery_financial_years ?? []), // VNR Nursery Pvt Ltd
-                11: @json($vvnr_financial_years ?? []) // VVNR
+        (function () {
+            // Financial years differ by company: each company's list, newest first
+            var years = {
+                1: @json($vnr_financial_years ?? []),
+                3: @json($vnr_nursery_financial_years ?? []),
+                11: @json($vvnr_financial_years ?? [])
             };
+            var sel = document.getElementById('financial_year');
+            var keepOld = @json((bool) old('financial_year'));
 
-            // Function to populate financial year dropdown based on company
-            function loadFinancialYears(companyId) {
-                const financialYearSelect = $('#financial_year');
-                const years = companyYears[companyId] || [];
-
-                // Clear existing options
-                financialYearSelect.empty();
-
-                // Add new options
-                years.forEach(function(year) {
-                    const option = $('<option></option>')
-                        .attr('value', year.YearId)
-                        .text(year.Year);
-                    financialYearSelect.append(option);
+            function fill(company) {
+                var list = years[company] || [];
+                var current = sel.value;
+                sel.innerHTML = '';
+                list.forEach(function (y) {
+                    var o = document.createElement('option');
+                    o.value = y.YearId; o.textContent = y.Year; sel.appendChild(o);
                 });
-
-                // Set default year based on company
-                setDefaultYear(companyId);
-            }
-
-            // Function to set default financial year based on company
-            function setDefaultYear(companyId) {
-                const financialYearSelect = $('#financial_year');
-                const years = companyYears[companyId] || [];
-
-                if (years.length === 0) return;
-
-                let defaultYearId;
-
-                // Use most recent year (first item since ordered desc) for all companies
-                defaultYearId = years[0].YearId;
-
-                // Optional: Add specific logic for VVNR if needed
-                if (companyId == 11) {
-                    // VVNR: Prefer 2023-2024 if available, otherwise use most recent
-                    const preferred = years.find(year => year.Year.includes('2023-2024'));
-                    if (preferred) {
-                        defaultYearId = preferred.YearId;
+                if (keepOld && list.some(function (y) { return String(y.YearId) === current; })) {
+                    sel.value = current;
+                } else if (list.length) {
+                    var pick = list[0];
+                    if (String(company) === '11') { // VVNR works in 2023-2024 by default when it exists
+                        pick = list.find(function (y) { return String(y.Year).indexOf('2023-2024') !== -1; }) || pick;
                     }
-                }
-
-                if (defaultYearId) {
-                    financialYearSelect.val(defaultYearId);
+                    sel.value = pick.YearId;
                 }
             }
+            document.querySelectorAll('input[name="company"]').forEach(function (r) {
+                r.addEventListener('change', function () { keepOld = false; fill(r.value); });
+            });
+            var checked = document.querySelector('input[name="company"]:checked');
+            fill(checked ? checked.value : '1');
 
-            // Function to handle company change
-            function onCompanyChange() {
-                const companyValue = $('#company').val();
-                if (companyValue) {
-                    loadFinancialYears(parseInt(companyValue));
-                }
-            }
+            var pass = document.getElementById('password');
+            var tog = document.getElementById('togglePass');
+            tog.addEventListener('click', function () {
+                var show = pass.type === 'password';
+                pass.type = show ? 'text' : 'password';
+                tog.setAttribute('aria-pressed', show ? 'true' : 'false');
+                tog.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                tog.firstElementChild.className = show ? 'ri-eye-off-line' : 'ri-eye-line';
+            });
 
-            // Set initial financial year on page load if no old value exists
-            @if (!old('financial_year'))
-                const initialCompany = $('#company').val() || '1';
-                setDefaultYear(parseInt(initialCompany));
-            @endif
-
-            // Handle company selection changes
-            $('#company').on('change', onCompanyChange);
-        });
+            var form = document.getElementById('loginForm');
+            form.addEventListener('submit', function (e) {
+                var id = document.getElementById('employeeid');
+                if (!id.value.trim()) { e.preventDefault(); id.focus(); id.classList.add('is-invalid'); return; }
+                if (!pass.value) { e.preventDefault(); pass.focus(); pass.classList.add('is-invalid'); return; }
+                var b = document.getElementById('signInBtn');
+                b.disabled = true; b.textContent = 'Signing in…';
+            });
+        })();
     </script>
 </body>
 
