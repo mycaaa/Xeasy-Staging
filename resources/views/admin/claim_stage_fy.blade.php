@@ -181,6 +181,10 @@
     </div>
 </div>
 
+@endsection
+@push('scripts')
+@include('partials.organogram-filters-js')
+{{-- 13 Nov 2026: moved here from the page body; it uses jQuery, which loads at the end of the page ("$ is not defined") --}}
 <script>
 function getSelectedColumns() {
     let cols = [];
@@ -243,5 +247,5 @@ $(document).on('organogramFiltersApplied', function() {
     exportReport();
 });
 </script>
-@include('partials.organogram-filters-js')
-@endsection
+@endpush
+

@@ -94,11 +94,7 @@
                                             <td>{{ $item->TotalClaimsUploaded }}</td>
                                         </tr>
                                     @empty
-                                        <tr>
-                                            <td colspan="6" class="text-center">
-                                                No records found for selected date range.
-                                            </td>
-                                        </tr>
+                                        {{-- 13 Nov 2026: no colspan row here; DataTables breaks on it ("_DT_CellIndex") and shows its own "No data" line --}}
                                     @endforelse
                                 </tbody>
 

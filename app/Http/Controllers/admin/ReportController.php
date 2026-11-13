@@ -3281,7 +3281,7 @@ class ReportController extends Controller
         if (!empty($policyChangeData)) {
             // Employees in policy_change_details always included
             $pcdCodes = array_keys($policyChangeData);
-            $query->where(function ($q) use ($yearIdList, $pcdCodes) {
+            $query->where(function ($q) use ($yearIdList, $pcdCodes, $rkCompanyId) {
                 // Has any runningkm record for the selected years
                 $q->whereRaw("EXISTS (
                         SELECT 1 FROM runningkm rk_check

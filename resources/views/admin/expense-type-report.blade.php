@@ -289,6 +289,9 @@
 
     @include('partials.organogram-filters-drawer')
 
+@endsection
+@push('scripts')
+{{-- 13 Nov 2026: moved here from the page body; it uses jQuery, which loads at the end of the page ("$ is not defined") --}}
     <script>
         const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         let currentPage = 1;
@@ -572,7 +575,8 @@
             });
         });
     </script>
-@endsection
+@endpush
+
 
 @push('scripts')
     @include('partials.organogram-filters-js')

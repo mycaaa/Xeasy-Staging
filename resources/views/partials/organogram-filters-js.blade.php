@@ -1,5 +1,8 @@
 {{-- Reusable Organogram & Policy Filter JavaScript --}}
 <script>
+    // 13 Nov 2026: some pages include this inside the page body, before jQuery loads at the end of the page;
+    // then wait for the page to finish loading ("jQuery is not defined" on claim-stage-fy)
+    (function xeasyOrgFilters() { if (!window.jQuery) { document.addEventListener('DOMContentLoaded', xeasyOrgFilters, { once: true }); return; }
     (function($) {
         'use strict';
 
@@ -178,4 +181,5 @@
             return qs;
         };
     })(jQuery);
+    })();
 </script>
