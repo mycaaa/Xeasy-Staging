@@ -109,7 +109,8 @@ class ClaimChangeTracker
         }
         $schema = Schema::connection($this->db->getName());
         if (! $schema->hasTable('claim_amount_change_logs') || ! $schema->hasColumn($table, 'OrigFilledTAmt')) {
-            throw new RuntimeException('Claim change tracking is not set up (run migration 2026_11_05_000007).');
+            throw new RuntimeException('Claim change tracking is not set up on '.$this->db->getDatabaseName().'.'.$table
+                .' (deploy runs migration 2026_11_13_000007; by hand: php artisan migrate --path=database/migrations/2026_11_13_000007_claim_change_tracking_all_company_dbs.php).');
         }
         self::$checked[$key] = true;
     }

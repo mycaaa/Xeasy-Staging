@@ -220,11 +220,14 @@ class VerifierController extends Controller
         $yearId = session('year_id');
         $companyId = session('company_id');
 
-        $response = [
+        // RKM-UI-01: the filter lists are worked out when the table is first drawn (a new filter re-creates the table)
+        // and for the explicit list request - not again on every page, sort or reload of the same table
+        $withLists = $request->boolean('only_dropdowns') || (int) $request->input('draw', 1) <= 1;
+        $response = $withLists ? [
             'months' => $this->getAvailableMonths($request),
             'bill_dates' => $this->getAvailableBillDates($request),
             'employees' => $request->boolean('only_employee') ? $this->getAllEmployees() : $this->getAvailableEmployees($request),
-        ];
+        ] : [];
 
         if ($request->boolean('only_dropdowns')) {
             return response()->json($response);

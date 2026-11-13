@@ -58,7 +58,7 @@
                                             </select>
                                         </div>
                                         <div>
-                                            <select class="select2" id="selEmployee" name="employee" style="width:250px"
+                                            <select class="select2" id="selEmployee" name="employee" style="width:340px"
                                                 data-placeholder="Select Employee">
                                                 <option value=""></option>
                                             </select>
@@ -462,6 +462,11 @@
         }
     </style>
     <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
+    <style>
+        /* RKM-UI-01: the employee name column was capped at 120px (names squeezed into several short lines) */
+        #runningKmTable td.employee-name-col { min-width: 190px; max-width: 260px; white-space: normal !important; }
+        .select2-container--open .select2-results__option { white-space: nowrap; }
+    </style>
 @endpush
 @push('scripts')
     <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
@@ -519,6 +524,7 @@
 
             $(".select2").select2({
                 allowClear: true,
+                dropdownAutoWidth: true, // RKM-UI-01: full employee names in the list
                 placeholder: function() {
                     return $(this).data("placeholder");
                 },
@@ -921,10 +927,28 @@
             }
 
 
+            // RKM-UI-01: rebuild a list only when what it holds changed, never while it is open, and keep the choice
+            const filterListSig = {};
+            function listChanged(id, items) {
+                const sig = JSON.stringify(items || []);
+                if (filterListSig[id] === sig) return false;
+                if ($("#" + id).data("select2") && $("#" + id).data("select2").isOpen()) return false;
+                filterListSig[id] = sig;
+                return true;
+            }
+            function keepChoice(id, current, label) {
+                if (current && !$("#" + id + " option[value='" + String(current).replace(/'/g, "\\'") + "']").length) {
+                    $("#" + id).append(new Option(label || current, current, true, true));
+                }
+            }
             function updateFilterDropdowns(months, employees, billDates) {
+                if (months === undefined && employees === undefined && billDates === undefined) return;
                 const currentMonth = $("#selMonth").val();
                 const currentEmployee = $("#selEmployee").val();
+                const currentEmployeeLabel = $("#selEmployee option:selected").text();
+                const doMonths = listChanged("selMonth", months), doEmployees = listChanged("selEmployee", employees), doDates = listChanged("selBillDate", billDates);
 
+                if (doMonths) {
                 $("#selMonth").empty().append('<option value=""></option>');
                 months?.forEach((month) => {
                     $("#selMonth").append(
@@ -932,14 +956,19 @@
                     );
                 });
 
+                }
+                if (doEmployees) {
                 $("#selEmployee").empty().append('<option value=""></option>');
                 employees?.forEach((emp) => {
                     $("#selEmployee").append(
                         `<option value="${emp.value}" ${currentEmployee == emp.value ? "selected" : ""}>${emp.text}</option>`
                     );
                 });
+                keepChoice("selEmployee", currentEmployee, currentEmployeeLabel);
+                }
 
                 const currentBillDate = $("#selBillDate").val();
+                if (doDates) {
                 $("#selBillDate").empty().append('<option value=""></option>');
                 billDates?.forEach((d) => {
                     $("#selBillDate").append(
@@ -950,6 +979,7 @@
                     );
                 });
 
+                }
                 $("#selBillDate").trigger("change.select2");
                 $("#selMonth, #selEmployee").trigger("change.select2");
             }
