@@ -1041,10 +1041,12 @@ function sbadge(filledOkay, claimStatus) {
     const s = String(filledOkay);
     if (s==='2') return '<span class="sbg sbg-denied">Denied</span>';
     if (s==='1') return '<span class="sbg sbg-verified">Verified</span>';
-    const cs = claimStatus||'';
+    const cs = String(claimStatus||'').trim();
     if (cs==='Financed') return '<span class="sbg sbg-financed">Financed</span>';
     if (cs==='Approved') return '<span class="sbg sbg-approved">Approved</span>';
-    return '<span class="sbg sbg-pending">Pending</span>';
+    if (cs==='Verified') return '<span class="sbg sbg-verified">Verified</span>';
+    if (cs==='Filled') return '<span class="sbg sbg-pending">Pending</span>';
+    return '<span class="sbg sbg-pending" style="opacity:.75">Submitted</span>';
 }
 
 /* ═══════════════ OPEN LIST ═══════════════ */
@@ -1309,6 +1311,34 @@ function getMediaPreviewHtml(it) {
 }
 
 /* ═══════════════ DAY-WISE CLAIM CARDS ═══════════════ */
+/* CLAIM-GROUPS-01 (13 Nov 2026): an open month's claims in separate groups by where they stand */
+const CLAIM_GROUPS = [
+    ['pending',   'Pending — check & verify', 'Punched by the team. Open each one and press OK & Verify, or Deny with a remark.', '#b45309', '#fffbeb'],
+    ['submitted', 'Submitted — with the punching team', 'Uploaded; the punching team has not punched them yet.', '#1d4ed8', '#eff6ff'],
+    ['verified',  'Verified', 'Confirmed by you (or checked by the verification team).', '#047857', '#ecfdf5'],
+    ['denied',    'Denied — back with the punching team', 'You did not agree; the punching team will correct them.', '#b91c1c', '#fef2f2'],
+];
+function claimGroup(it) {
+    const cs = String(it.ClaimStatus || '').trim();
+    const fo = String(it.FilledOkay ?? '0');
+    if (fo === '2') return 'denied';
+    if (fo === '1' || ['Verified', 'Approved', 'Financed'].includes(cs)) return 'verified';
+    if (cs === 'Filled') return 'pending';
+    return 'submitted';
+}
+function renderClaimGroups(groups) {
+    if (groups.all) return '<div class="claim-cards-row">' + groups.all.join('') + '</div>';
+    return CLAIM_GROUPS.filter(g => (groups[g[0]] || []).length).map(([k, title, hint, fg, bg]) => `
+        <div class="mb-2">
+            <div class="d-flex align-items-center gap-2 px-2 py-1 rounded-2" style="background:${bg};border-left:3px solid ${fg};">
+                <strong style="color:${fg};font-size:.8rem;">${title}</strong>
+                <span class="badge rounded-pill" style="background:${fg};">${groups[k].length}</span>
+                <span class="text-muted d-none d-md-inline" style="font-size:.72rem;">${hint}</span>
+            </div>
+            <div class="claim-cards-row">${groups[k].join('')}</div>
+        </div>`).join('');
+}
+
 function loadDayWise(month, containerId, type) {
     const url = type==='open'
         ? '{{ route("claimant.open.day") }}'
@@ -1323,8 +1353,10 @@ function loadDayWise(month, containerId, type) {
                 el.html('<p class="text-center text-muted py-3 mb-0" style="font-size:.8rem;">No claims recorded this month.</p>');
                 return;
             }
-            let html = '<div class="claim-cards-row">';
+            const groups = {};
             items.forEach(item => {
+                const gk = type === 'open' ? claimGroup(item) : 'all';
+                let html = '';
                 const isOdo = String(item.ClaimId)==='7';
                 const amt   = isOdo ? `${parseInt(item.TotKm||0)} KM` : rp(item.FilledTAmt||item.Claim_Amount||item.FilledAmt||0);
                 const mediaHtml = getMediaPreviewHtml(item);
@@ -1392,9 +1424,9 @@ function loadDayWise(month, containerId, type) {
                         </button>
                     </div>
                 </div>`;
+                groups[gk] = (groups[gk] || []).concat(html);
             });
-            html += '</div>';
-            el.html(html);
+            el.html(renderClaimGroups(groups));
         },
         error() {
             $(`#${containerId}`).html('<p class="text-danger text-center py-2 mb-0" style="font-size:.8rem;">Failed to load.</p>');

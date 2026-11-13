@@ -1969,8 +1969,10 @@ $(document).ready(function() {
         const rawStatus = (claim.ClaimStatus || '').trim();
         const filledOkay = claim.FilledOkay;
         if (filledOkay == '2') return '<span class="badge bg-danger-subtle text-danger fs-10">Denied</span>';
-        if (rawStatus.toLowerCase() === 'submitted' || rawStatus.toLowerCase() === 'draft') return '<span class="badge bg-secondary-subtle text-secondary fs-10">Draft</span>';
-        if (rawStatus.toLowerCase() === 'filled') return '<span class="badge bg-primary-subtle text-primary fs-10">Filled</span>';
+        if (rawStatus.toLowerCase() === 'draft') return '<span class="badge bg-secondary-subtle text-secondary fs-10">Draft</span>';
+        if (rawStatus.toLowerCase() === 'submitted') return '<span class="badge bg-secondary-subtle text-secondary fs-10">Submitted</span>';
+        if (filledOkay == '1') return '<span class="badge bg-success-subtle text-success fs-10">Verified</span>';
+        if (rawStatus.toLowerCase() === 'filled') return '<span class="badge bg-warning-subtle text-warning fs-10">Pending</span>';
         if (rawStatus.toLowerCase() === 'verified') return '<span class="badge bg-info-subtle text-info fs-10">Verified</span>';
         if (rawStatus.toLowerCase() === 'approved') return '<span class="badge bg-success-subtle text-success fs-10">Approved</span>';
         if (rawStatus.toLowerCase() === 'financed') return '<span class="badge bg-success-subtle text-success fs-10">Financed</span>';
@@ -2098,6 +2100,24 @@ $(document).ready(function() {
             return '<div class="text-center text-muted py-3 fs-12">No claims in this month</div>';
         }
 
+        // CLAIM-GROUPS-01: pending / submitted / verified / denied shown separately
+        const order = [['pending','Pending — check & verify','#b45309','#fffbeb'], ['submitted','Submitted — with the punching team','#1d4ed8','#eff6ff'],
+                       ['verified','Verified','#047857','#ecfdf5'], ['denied','Denied — back with the punching team','#b91c1c','#fef2f2']];
+        const grpOf = c => { const cs = String(c.ClaimStatus||'').trim(); const fo = String(c.FilledOkay ?? '0');
+            return fo === '2' ? 'denied' : ((fo === '1' || ['Verified','Approved','Financed'].includes(cs)) ? 'verified' : (cs === 'Filled' ? 'pending' : 'submitted')); };
+        const byGroup = {};
+        claims.forEach(c => { (byGroup[grpOf(c)] = byGroup[grpOf(c)] || []).push(c); });
+        return order.filter(g => byGroup[g[0]]).map(([k, title, fg, bg]) => `
+            <div class="mb-2">
+                <div class="d-flex align-items-center gap-2 px-2 py-1 rounded-2 mx-2" style="background:${bg};border-left:3px solid ${fg};">
+                    <strong style="color:${fg};font-size:.78rem;">${title}</strong>
+                    <span class="badge rounded-pill" style="background:${fg};">${byGroup[k].length}</span>
+                </div>
+                ${renderClaimCardRow(byGroup[k])}
+            </div>`).join('');
+    }
+
+    function renderClaimCardRow(claims) {
         let html = '<div class="claim-cards-row">';
         claims.forEach(function(claim) {
             const isOdometer = claim.ClaimId == '7';
