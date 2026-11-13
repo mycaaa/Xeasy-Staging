@@ -667,9 +667,19 @@ class ExpenseDetailController extends BaseMobileController
             return response()->json(['status' => 'error', 'message' => 'Parameter Missing!']);
         }
 
+        // ODO-AGREE-01: a reason is needed, and the readings go back to the running-km verifier (Denied list there)
+        if (trim((string) $remark) === '') {
+            return response()->json(['status' => 'error', 'message' => 'Please write why you do not agree.']);
+        }
         $expenseConn = $this->getExpenseConnection($comId);
 
         try {
+            DB::connection($expenseConn)->statement(
+                "UPDATE y{$yearId}_expenseclaims SET FilledOkay = 2
+                 WHERE ClaimId=7 AND CrBy=? AND ClaimMonth=? AND v_verify='Y' AND COALESCE(c_verify,'N')<>'Y'
+                 AND ClaimStatus NOT IN ('Deactivate','Deactivat','Draft')",
+                [$empId, $month]
+            );
             // Log the not agree activity to runkm_logdetails (same as legacy)
             DB::connection($expenseConn)->statement(
                 "INSERT INTO y{$yearId}_runkm_logdetails (remark, emp_id, month, year, CrBy, action, date_submitted) 
@@ -731,11 +741,13 @@ class ExpenseDetailController extends BaseMobileController
 
             // 2. Get running KM items for the month
             $runningKm = DB::connection($expenseConn)->select(
+                // ODO-AGREE-01 (13 Nov 2026): the readings the verifier has checked (v_verify), so the employee can agree
+                // or not agree; this listed only the ones already agreed (c_verify), so there was nothing to agree to
                 "SELECT ExpId, ClaimId, BillDate, TotKm, WType, RatePerKM, Amount, With_Driver,
-                        odomtr_opening, opening_filepath, odomtr_closing, closing_filepath
+                        odomtr_opening, opening_filepath, odomtr_closing, closing_filepath, c_verify, v_verify, FilledOkay, VerifyTAmt
                  FROM y{$yearId}_expenseclaims
                  WHERE ClaimId=7 AND ClaimMonth=? AND CrBy=?
-                 AND ClaimStatus!='Deactivate' AND ClaimStatus!='Draft' AND c_verify='Y'
+                 AND ClaimStatus!='Deactivate' AND ClaimStatus!='Draft' AND (v_verify='Y' OR c_verify='Y')
                  ORDER BY BillDate ASC",
                 [$month, $empId]
             );
@@ -758,6 +770,9 @@ class ExpenseDetailController extends BaseMobileController
                     'RatePerKM' => (string) ($row->RatePerKM ?? '0'),
                     'Amount' => (string) ($row->Amount ?? '0'),
                     'With_Driver' => (string) ($row->With_Driver ?? 'N'),
+                    'c_verify' => (string) ($row->c_verify ?? 'N'),
+                    'FilledOkay' => (string) ($row->FilledOkay ?? '0'),
+                    'VerifyTAmt' => (string) ($row->VerifyTAmt ?? '0'),
                     'odomtr_opening' => (string) ($row->odomtr_opening ?? '0'),
                     'opening_filepath' => $this->resolveFileUrl($row->opening_filepath ?? '', $yearId, $empId),
                     'odomtr_closing' => (string) ($row->odomtr_closing ?? '0'),

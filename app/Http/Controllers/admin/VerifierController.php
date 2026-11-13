@@ -1065,7 +1065,7 @@ class VerifierController extends Controller
             $expTable = "y{$yearId}_expenseclaims";
             $wheelerTable = "y{$yearId}_24_wheeler_entry";
             $fillDataTable = "y{$yearId}_g1_expensefilldata";
-            $expense = DB::connection(session('expense_connection'))->table($expTable)->where('ExpId', $request->expId)->first(array_merge(['opening_filepath', 'closing_filepath', 'WType', 'BillDate', 'CrBy'], \App\Services\Claims\ClaimChangeTracker::trackedColumns()));
+            $expense = DB::connection(session('expense_connection'))->table($expTable)->where('ExpId', $request->expId)->first(array_merge(['opening_filepath', 'closing_filepath', 'WType', 'BillDate', 'CrBy', 'FilledOkay'], \App\Services\Claims\ClaimChangeTracker::trackedColumns()));
             if (!$expense) {
                 return response()->json(['success' => false, 'message' => 'Expense record not found.'], 404);
             }
@@ -1125,6 +1125,10 @@ class VerifierController extends Controller
                 'ClaimAtStep' => 3,
                 'FilledBy' => DB::raw('CrBy')
             ];
+            // ODO-AGREE-01: re-checked after the employee did not agree -> back to the employee to agree again
+            if ((int) ($expense->FilledOkay ?? 0) === 2) {
+                $verifyUpdate['FilledOkay'] = 0;
+            }
             $expenseDb = DB::connection(session('expense_connection'));
             $expenseDb->beginTransaction();
             try {

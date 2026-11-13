@@ -527,6 +527,65 @@ class ClaimantController extends Controller
     }
 
     /**
+     * ODO-AGREE-01 (13 Nov 2026): the employee agrees (optional remark) or does not agree (remark needed) with the
+     * odometer readings the running-km verifier checked for a month. Own claims only. Not agreeing sends the readings
+     * back to the verifier (Denied list on Verify Running KM).
+     */
+    public function odometerAgree(Request $request)
+    {
+        return $this->odometerDecision($request, true);
+    }
+
+    public function odometerNotAgree(Request $request)
+    {
+        return $this->odometerDecision($request, false);
+    }
+
+    private function odometerDecision(Request $request, bool $agree)
+    {
+        $request->validate(['month' => 'required|integer|min:1|max:12', 'remark' => ($agree ? 'nullable' : 'required').'|string|max:250']);
+        $employeeId = $this->ownEmployeeId($request, ['ei', 'empid']);
+        if ($employeeId === null) {
+            return response()->json(['status' => 'error', 'message' => 'You can confirm only your own odometer readings.'], 403);
+        }
+        $yearId = (int) $this->resolveYearId($request);
+        $companyId = (int) $this->resolveCompanyId($request, $employeeId);
+        $conn = \App\Helpers\DatabaseSwitcher::getExpenseConnection($companyId);
+        $month = (int) $request->month;
+        $closed = DB::connection($conn)->table("y{$yearId}_monthexpensefinal")->where('EmployeeID', $employeeId)
+            ->where('Month', $month)->where('YearId', $yearId)->value('Status');
+        if ($closed === 'Closed') {
+            return response()->json(['status' => 'error', 'message' => 'This month is already submitted.'], 422);
+        }
+        $pending = DB::connection($conn)->table("y{$yearId}_expenseclaims")->where('ClaimId', 7)->where('CrBy', $employeeId)
+            ->where('ClaimMonth', $month)->where('v_verify', 'Y')->whereRaw("COALESCE(c_verify,'N') <> 'Y'")
+            ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->count();
+        if (! $pending) {
+            return response()->json(['status' => 'error', 'message' => 'No checked odometer readings are waiting for you this month.'], 422);
+        }
+        $params = ['empid' => $employeeId, 'empId' => $employeeId, 'month' => $month, 'YearId' => $yearId, 'year' => $yearId,
+            'ComId' => $companyId, 'remark' => trim((string) $request->input('remark', ''))];
+        $mobile = app(\App\Http\Controllers\Api\Mobile\ExpenseDetailController::class);
+        $sub = Request::create('/', 'POST', $params);
+        try {
+            $res = $agree ? $mobile->handleAgree($sub) : $mobile->handleNotAgree($sub);
+            $data = $res->getData(true);
+        } catch (\Throwable $e) {
+            $ref = substr(md5(uniqid('', true)), 0, 8);
+            Log::error("Odometer agree/not agree failed [{$ref}]: ".$e->getMessage());
+
+            return response()->json(['status' => 'error', 'message' => "Could not save (ref {$ref})."], 500);
+        }
+        if (($data['status'] ?? '') !== 'success') {
+            return response()->json(['status' => 'error', 'message' => $data['message'] ?? $data['msg'] ?? 'Could not save.'], 422);
+        }
+
+        return response()->json(['status' => 'success', 'message' => $agree
+            ? "You agreed with {$pending} odometer reading(s)."
+            : 'Sent back to the verification team with your remark.']);
+    }
+
+    /**
      * Final submit of an open month to the approval workflow.
      */
     public function submitMonth(Request $request)

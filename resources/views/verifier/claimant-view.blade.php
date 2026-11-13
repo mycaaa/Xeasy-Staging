@@ -945,9 +945,19 @@
                 </div>
                 <div class="table-responsive mb-3">
                     <table class="table mcv-tbl table-bordered mb-0">
-                        <thead><tr><th>Date</th><th>Opening KM</th><th>Closing KM</th><th>Total KM</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Opening KM</th><th>Closing KM</th><th>Total KM</th><th>Amount</th><th>Status</th></tr></thead>
                         <tbody id="runTableBody"></tbody>
                     </table>
+                </div>
+                {{-- ODO-AGREE-01: the employee agrees or does not agree with the readings the verifier checked --}}
+                <div id="runConfirmBox" class="p-3 rounded-3 mb-3" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;">
+                    <div style="font-size:.72rem;font-weight:700;color:#0369a1;margin-bottom:6px;">YOUR CONFIRMATION — <span id="runPendingCount">0</span> reading(s) checked by the verification team</div>
+                    <label for="runRemark" class="form-label small mb-1">Remark <span class="text-muted">(needed if you do not agree)</span></label>
+                    <textarea id="runRemark" class="form-control form-control-sm" rows="2" maxlength="250" placeholder="Type your remark…" style="border-radius:8px;font-size:.82rem;"></textarea>
+                    <div class="d-flex gap-2 mt-2 justify-content-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-3 px-3" id="runNotAgreeBtn"><i class="ri-close-line me-1"></i>Not Agree</button>
+                        <button type="button" class="btn btn-sm btn-success rounded-3 px-3" id="runAgreeBtn"><i class="ri-check-line me-1"></i>Agree &amp; Verify</button>
+                    </div>
                 </div>
                 <div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:8px;">ACTIVITY LOG</div>
                 <div class="table-responsive">
@@ -1014,6 +1024,7 @@ window.MCV = {
     ei: _P.get('ei')        || '{{ session("employee_id") }}',
     yr: _P.get('YearId')    || '{{ session("FYearId", session("year_id", 1)) }}',
     co: _P.get('CompanyId') || '{{ session("CompanyId", session("company_id", 1)) }}',
+    self: '{{ (int) session("employee_id") }}',
 };
 })();
 
@@ -1852,11 +1863,11 @@ function openExpenseDetailModal(expId, month, type) {
                 <textarea id="sc-new-remark" class="form-control form-control-sm" rows="2" placeholder="Type your remark here…" aria-label="Type your remark here…" style="border-radius:8px;font-size:.82rem;"></textarea>
                 <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
                     <button class="dab dab-view" id="sc-add-remark-btn" data-exp-id="${expId}"><i class="ri-send-plane-line"></i> Submit Remark</button>
-                    ${MCV.isVer ? `
+                    ${(String(MCV.ei) === String(MCV.self) && String((res.expenseData||data).ClaimStatus||'') === 'Filled' && String((res.expenseData||data).FilledOkay||'0') === '0' && !isOdo) ? `
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-success rounded-3 px-3 py-1 btn-verify-claim" data-exp-id="${expId}"><i class="ri-check-line me-1"></i>Verify</button>
+                        <button class="btn btn-sm btn-success rounded-3 px-3 py-1 btn-verify-claim" data-exp-id="${expId}"><i class="ri-check-line me-1"></i>OK &amp; Verify</button>
                         <button class="btn btn-sm btn-outline-danger rounded-3 px-3 py-1 btn-deny-claim" data-exp-id="${expId}"><i class="ri-close-line me-1"></i>Deny</button>
-                    </div>` : ''}
+                    </div>` : (isOdo && String(MCV.ei) === String(MCV.self) ? `<span class="small text-muted">Odometer readings are agreed month-wise from <strong>Running KM</strong> on the month card.</span>` : '')}
                 </div>
             </div>`;
 
@@ -1899,6 +1910,41 @@ $(document).on('click', '.sc-thumb-select-btn', function() {
 
 
 
+
+/* ODO-AGREE-01 / EMP-CONFIRM-01: remark, OK and Deny in the claim detail (the buttons had no handlers) */
+function claimPost(url, data, okMsg) {
+    return $.ajax({ url, method: 'POST', data: Object.assign({ _token: '{{ csrf_token() }}' }, data) })
+        .done(res => {
+            const ok = res && (['200','300'].includes(String(res.Code ?? res.code ?? '')) || res.status === 'success' || /success/i.test(res.msg || ''));
+            if (ok) {
+                Swal.fire({ icon: 'success', title: okMsg, timer: 1500, showConfirmButton: false });
+            } else {
+                Swal.fire('Not saved', (res && (res.msg || res.message)) || 'Please try again.', 'error');
+            }
+        })
+        .fail(x => Swal.fire('Not saved', (x.responseJSON && (x.responseJSON.message || x.responseJSON.msg)) || 'Server error', 'error'));
+}
+$(document).on('click', '#sc-add-remark-btn', function() {
+    const id = $(this).data('exp-id');
+    const rm = $('#sc-new-remark').val().trim();
+    if (!rm) { Swal.fire('Warning', 'Please enter a remark.', 'warning'); return; }
+    claimPost('{{ route("claimant.add.remark") }}', { exp_id: id, remark: rm }, 'Remark added').done(res => {
+        if (res && (['200','300'].includes(String(res.Code)) || /success/i.test(res.msg || ''))) $('#sc-new-remark').val('');
+    });
+});
+$(document).on('click', '.btn-verify-claim', function() {
+    const id = $(this).data('exp-id');
+    Swal.fire({ title: 'Is the punched claim correct?', icon: 'question', showCancelButton: true, confirmButtonText: 'Yes, OK', confirmButtonColor: '#10b981' })
+        .then(r => { if (r.isConfirmed) claimPost('{{ route("claimant.claim.verify") }}', { exp_id: id }, 'Confirmed').done(() => { bootstrap.Modal.getInstance(document.getElementById('singleClaimDetailModal'))?.hide(); loadOpen(); }); });
+});
+$(document).on('click', '.btn-deny-claim', function() {
+    const id = $(this).data('exp-id');
+    const typed = $('#sc-new-remark').val().trim();
+    Swal.fire({ title: 'Deny this claim?', text: 'It goes back to the punching team with your remark.', input: 'text', inputValue: typed,
+        inputPlaceholder: 'Why is it wrong? (up to 50 letters)', inputAttributes: { maxlength: 50 }, showCancelButton: true,
+        confirmButtonText: 'Deny', confirmButtonColor: '#dc2626', inputValidator: v => !v.trim() ? 'A remark is needed' : null })
+        .then(r => { if (r.isConfirmed) claimPost('{{ route("claimant.claim.deny") }}', { exp_id: id, remark: r.value.trim() }, 'Sent back to the punching team').done(() => { bootstrap.Modal.getInstance(document.getElementById('singleClaimDetailModal'))?.hide(); loadOpen(); }); });
+});
 
 /* ═══════════════ DRAFT MODAL ═══════════════ */
 $(document).on('click', '.view-draft-btn', function() {
@@ -1986,8 +2032,14 @@ $(document).on('click', '.open-running-btn', function(e) {
     e.stopPropagation();
     const {empid, yearid, comid, month} = $(this).data();
     $('#runModalMonth').text(MNF[parseInt(month)]||'');
-    $('#runTableBody,#runActivityBody').html('<tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr>');
-    new bootstrap.Modal(document.getElementById('runningModal')).show();
+    $('#runTableBody,#runActivityBody').html('<tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr>');
+    $('#runConfirmBox').hide(); $('#runRemark').val('');
+    $('#runningModal').data({empid, yearid, comid, month});
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('runningModal')).show();
+    loadRunningKm(empid, yearid, comid, month);
+});
+
+function loadRunningKm(empid, yearid, comid, month) {
     $.ajax({
         url: '{{ route("claimant.running.km") }}', method: 'GET',
         data: { ei: empid, YearId: yearid, CompanyId: comid, month },
@@ -1995,26 +2047,67 @@ $(document).on('click', '.open-running-btn', function(e) {
             const items = res.data?.items   || [];
             const act   = res.data?.activity|| [];
             $('#runTotalKm').text((res.data?.monthly_total_km||0)+' KM');
-            let rows = items.length ? '' : '<tr><td colspan="5" class="text-center text-muted">No entries.</td></tr>';
+            let rows = items.length ? '' : '<tr><td colspan="6" class="text-center text-muted">No readings checked by the verification team yet.</td></tr>';
+            let pending = 0;
             items.forEach(it => {
+                const agreed = it.c_verify === 'Y';
+                const denied = String(it.FilledOkay) === '2';
+                if (!agreed && !denied) pending++;
+                const st = agreed ? '<span class="sbg sbg-verified">Agreed</span>'
+                    : (denied ? '<span class="sbg sbg-denied">Not agreed</span>' : '<span class="sbg sbg-pending">Waiting for you</span>');
                 rows += `<tr>
                     <td>${fd(it.BillDate)}</td>
                     <td>${it.odomtr_opening}</td>
                     <td>${it.odomtr_closing}</td>
                     <td><strong>${parseFloat(it.TotKm||0)}</strong></td>
-                    <td class="text-center">${it.c_verify==='N'?'<span class="sbg sbg-pending">Pending</span>':'<span class="sbg sbg-verified">Verified</span>'}</td>
+                    <td>${rp(it.VerifyTAmt && it.VerifyTAmt !== '0' ? it.VerifyTAmt : it.Amount)}</td>
+                    <td class="text-center">${st}</td>
                 </tr>`;
             });
             $('#runTableBody').html(rows);
+            $('#runPendingCount').text(pending);
+            $('#runConfirmBox').toggle(pending > 0 && String(empid) === String(MCV.self));
             let arows = act.length ? '' : '<tr><td colspan="3" class="text-center text-muted">No activity.</td></tr>';
             act.forEach(a => {
                 arows += `<tr><td>${a.action||'—'}</td><td>${a.remark||'—'}</td><td>${fd(a.date_submitted)}</td></tr>`;
             });
             $('#runActivityBody').html(arows);
         },
-        error() { $('#runTableBody').html('<tr><td colspan="5" class="text-danger text-center">Failed.</td></tr>'); }
+        error() { $('#runTableBody').html('<tr><td colspan="6" class="text-danger text-center">Failed.</td></tr>'); }
     });
-});
+}
+
+function runDecision(agree) {
+    const d = $('#runningModal').data();
+    const remark = $('#runRemark').val().trim();
+    if (!agree && !remark) { Swal.fire('Remark needed', 'Please write why you do not agree.', 'warning'); $('#runRemark').focus(); return; }
+    Swal.fire({
+        title: agree ? 'Agree with these readings?' : 'Send back to the verification team?',
+        text: agree ? 'The checked readings and amounts will be confirmed for this month.' : 'They will check the readings again with your remark.',
+        icon: 'question', showCancelButton: true,
+        confirmButtonText: agree ? 'Agree' : 'Not Agree', confirmButtonColor: agree ? '#10b981' : '#dc2626'
+    }).then(r => {
+        if (!r.isConfirmed) return;
+        const btns = $('#runAgreeBtn,#runNotAgreeBtn').prop('disabled', true);
+        $.ajax({
+            url: agree ? '{{ route("claimant.running.km.agree") }}' : '{{ route("claimant.running.km.notagree") }}',
+            method: 'POST',
+            data: { _token: '{{ csrf_token() }}', ei: d.empid, YearId: d.yearid, CompanyId: d.comid, month: d.month, remark },
+            success(res) {
+                if (res.status === 'success') {
+                    Swal.fire({ icon: 'success', title: res.message, timer: 1800, showConfirmButton: false });
+                    $('#runRemark').val('');
+                    loadRunningKm(d.empid, d.yearid, d.comid, d.month);
+                    if (typeof loadOpen === 'function') loadOpen();
+                } else Swal.fire('Not saved', res.message || 'Please try again.', 'error');
+            },
+            error(x) { Swal.fire('Not saved', (x.responseJSON && (x.responseJSON.message || (x.responseJSON.errors && Object.values(x.responseJSON.errors)[0][0]))) || 'Server error', 'error'); },
+            complete() { btns.prop('disabled', false); }
+        });
+    });
+}
+$(document).on('click', '#runAgreeBtn', () => runDecision(true));
+$(document).on('click', '#runNotAgreeBtn', () => runDecision(false));
 
 /* ═══════════════ FINAL SUBMIT MONTH (Matches Flutter open_month.dart lines 2000-2175) ═══════════════ */
 $(document).on('click', '.submit-month-btn', function(e) {

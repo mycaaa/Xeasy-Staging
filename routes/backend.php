@@ -686,6 +686,8 @@ Route::middleware('auth')->group(function () {
     Route::post('claimant/claim/deny', [ClaimantController::class, 'denyClaim'])->name('claimant.claim.deny');
     Route::post('claimant/month/submit', [ClaimantController::class, 'submitMonth'])->name('claimant.month.submit');
     Route::get('claimant/running-km', [ClaimantController::class, 'getRunningKm'])->name('claimant.running.km');
+    Route::post('claimant/running-km/agree', [ClaimantController::class, 'odometerAgree'])->name('claimant.running.km.agree');
+    Route::post('claimant/running-km/not-agree', [ClaimantController::class, 'odometerNotAgree'])->name('claimant.running.km.notagree');
     Route::get('claimant/expense/detail', [ClaimantController::class, 'getExpenseDetail'])->name('claimant.expense.detail');
     Route::post('claimant/courier/submit', [ClaimantController::class, 'submitCourier'])->name('claimant.courier.submit');
     Route::post('claimant/courier-detail', [ClaimantController::class, 'getCourierDetail'])->name('claimant.pending.courier.detail');
