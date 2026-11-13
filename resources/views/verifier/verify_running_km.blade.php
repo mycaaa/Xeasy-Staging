@@ -803,7 +803,7 @@
                                 $row.addClass("row-verified-pending");
                                 $row.css("background-color", "");
                                 $btn.closest("td").html(
-                                    '<span class="badge bg-success"><i class="ri-check-double-line me-1"></i>Done</span>'
+                                    '<span class="badge bg-success"><i class="ri-check-double-line me-1"></i>Verified</span>'
                                 );
                             } else {
                                 showAlert("danger", "ri-close-circle-line", res.message);

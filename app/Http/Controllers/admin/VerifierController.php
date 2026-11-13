@@ -367,6 +367,10 @@ class VerifierController extends Controller
             if ((int) $row->FilledOkay === 2) {
                 return '<span class="text-warning text-wrap">' . ($row->FilOkDenyRemark ?? 'Denied') . '</span>';
             }
+            // RKM-VERIFY-02: an already verified reading shows Verified (the employee view lists them too)
+            if (($row->v_verify ?? '') === 'Y') {
+                return '<span class="badge bg-success"><i class="ri-check-double-line me-1"></i>Verified</span>';
+            }
             $allow = ($row->final_status === 'Open' || $row->final_subpermission === 'Y' || session('company_id') == 11);
             $backdateAllowed = ($row->Backdate_Odometer_Status === 'A' || $row->Backdate_Odometer_Status === null || $row->Backdate_Odometer_Status === '');
             if ($allow && $backdateAllowed) {
