@@ -616,7 +616,7 @@ class OdometerTrackingReportController extends Controller
         }
 
         try {
-            return Storage::disk('s3')->url("Expense/{$yearId}/{$empId}/{$fileName}");
+            return app(\App\Services\S3Service::class)->getFileViewUrl("Expense/{$yearId}/{$empId}/{$fileName}");
         } catch (\Throwable $e) {
             $sanitized = preg_replace('/[^A-Za-z0-9\-\_\.]/', '_', basename($fileName));
             return "https://vnragro.com/File_Bkp/xeasyfile/{$yearId}/{$empId}/{$sanitized}";

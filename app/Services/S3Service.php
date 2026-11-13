@@ -69,6 +69,11 @@ class S3Service
     public function getFileViewUrl(string $path): string
     {
         try {
+            // S3-SEC-01: a private bucket (AWS_PRIVATE_BUCKET=true, public access blocked) gets a signed link that
+            // expires; the open URL is kept only for the bucket that is still public
+            if (config('filesystems.disks.s3.driver') === 's3' && config('filesystems.disks.s3.private_bucket')) {
+                return $this->disk->temporaryUrl($path, now()->addMinutes((int) config('filesystems.disks.s3.url_minutes', 60)));
+            }
             return $this->disk->url($path);
         } catch (\Exception $e) {
             Log::warning('S3Service getFileViewUrl error: ' . $e->getMessage());
@@ -287,7 +292,7 @@ class S3Service
                 // If cache store is temporarily unreachable, proceed to query S3 directly
             }
 
-            $bucket = config('filesystems.disks.s3.bucket') ?: env('AWS_BUCKET', 'developerinvnr.bkt');
+            $bucket = (string) config('filesystems.disks.s3.bucket') /* S3-SEC-01: no fallback to the live bucket */;
             $client = $this->disk->getClient();
 
             $params = [

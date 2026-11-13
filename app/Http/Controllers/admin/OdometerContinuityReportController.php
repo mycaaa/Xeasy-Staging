@@ -603,7 +603,7 @@ class OdometerContinuityReportController extends Controller
         $basePath = ($companyId == 11) ? 'VVNR_Expense' : 'Expense';
 
         try {
-            return Storage::disk('s3')->url("{$basePath}/{$yearId}/{$empId}/{$fileName}");
+            return app(\App\Services\S3Service::class)->getFileViewUrl("{$basePath}/{$yearId}/{$empId}/{$fileName}");
         } catch (\Throwable $e) {
             return $this->getBackupImageUrl($fileName, $yearId, $empId);
         }

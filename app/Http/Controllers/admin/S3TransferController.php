@@ -20,7 +20,7 @@ class S3TransferController extends Controller
      */
     public function index(Request $request)
     {
-        $bucketName = config('filesystems.disks.s3.bucket') ?: env('AWS_BUCKET', 'developerinvnr.bkt');
+        $bucketName = (string) config('filesystems.disks.s3.bucket') /* S3-SEC-01: no fallback to the live bucket */;
         $region = config('filesystems.disks.s3.region') ?: env('AWS_DEFAULT_REGION', 'ap-south-1');
 
         return view('admin.s3_transfer.index', compact('bucketName', 'region'));

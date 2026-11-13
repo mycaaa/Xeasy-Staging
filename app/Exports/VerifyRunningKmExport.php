@@ -86,7 +86,7 @@ class VerifyRunningKmExport implements FromCollection, WithHeadings, ShouldAutoS
             if (!empty($row->opening_filepath)) {
                 $path = "{$this->basePath}/{$this->yearId}/{$row->CrBy}/{$row->opening_filepath}";
                 try {
-                    $openingImgUrl = $this->disk->url($path);
+                    $openingImgUrl = app(\App\Services\S3Service::class)->getFileViewUrl($path);
                 } catch (\Exception $e) {
                     $openingImgUrl = $row->opening_filepath;
                 }
@@ -96,7 +96,7 @@ class VerifyRunningKmExport implements FromCollection, WithHeadings, ShouldAutoS
             if (!empty($row->closing_filepath)) {
                 $path = "{$this->basePath}/{$this->yearId}/{$row->CrBy}/{$row->closing_filepath}";
                 try {
-                    $closingImgUrl = $this->disk->url($path);
+                    $closingImgUrl = app(\App\Services\S3Service::class)->getFileViewUrl($path);
                 } catch (\Exception $e) {
                     $closingImgUrl = $row->closing_filepath;
                 }

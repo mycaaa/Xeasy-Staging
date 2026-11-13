@@ -89,7 +89,8 @@ To roll back: `git checkout <previous commit>` then `deploy/deploy.sh --no-pull 
 - mail is written to the log, not sent (`MAIL_MAILER=log`); for a planned mail test switch to smtp and keep
   `MAIL_ALLOWED_DOMAINS` so mail reaches company addresses only;
 - bill and odometer images are stored on the server (`CLAIM_FILES_LOCAL=true`, folder `s3_local/`, served only to
-  logged-in users); use a test S3 bucket instead if you have one, never the live bucket;
+  logged-in users); to test with S3 use a private TEST bucket, never the live bucket: see `deploy/S3_TEST_BUCKET.md`
+  and prove it with `php artisan files:s3-check`;
 - bank payments (Matrix) are mocked, push notifications are off;
 - the controls are enforced, so testers see what live will do once switched on. The live start values
   (log-only first) are in `deploy/GO_LIVE_ENV.md`.

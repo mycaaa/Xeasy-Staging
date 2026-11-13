@@ -77,6 +77,9 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT') ? env('AWS_URL') : null,
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // S3-SEC-01: bucket with public access blocked -> files are shown through signed links that expire
+            'private_bucket' => (bool) env('AWS_PRIVATE_BUCKET', false),
+            'url_minutes' => (int) env('AWS_URL_MINUTES', 60),
         ],
         'hrims_s3' => [
             'driver' => 's3',

@@ -119,7 +119,7 @@ class OdometerBackdateController extends Controller
                 };
 
                 return ['ExpId' => $item->ExpId, 'BillDate' => $item->BillDate, 'CrDate' => $item->CrDate, 'WType' => $item->WType, 'odomtr_opening' => $item->odomtr_opening, 'odomtr_closing' => $item->odomtr_closing,
-                    'opening_filepath' => Storage::disk('s3')->url("Expense/{$item->ClaimYearId}/{$item->CrBy}/{$item->opening_filepath}"), 'closing_filepath' => Storage::disk('s3')->url("Expense/{$item->ClaimYearId}/{$item->CrBy}/{$item->closing_filepath}"),
+                    'opening_filepath' => app(\App\Services\S3Service::class)->getFileViewUrl("Expense/{$item->ClaimYearId}/{$item->CrBy}/{$item->opening_filepath}"), 'closing_filepath' => app(\App\Services\S3Service::class)->getFileViewUrl("Expense/{$item->ClaimYearId}/{$item->CrBy}/{$item->closing_filepath}"),
                     'TotKm' => $item->TotKm, 'RatePerKM' => $item->RatePerKM, 'ClaimStatus' => $item->ClaimStatus, 'days_difference' => $item->days_difference, 'Backdate_Odometer_Status' => $status,
                     'approval_step' => $item->step, 'rm_status' => $item->Backdate_RM_Status ?? null, 'rm_remark' => $item->Backdate_RM_Remark ?? null, 'final_remark' => $item->Backdate_Final_Remark ?? null];
             })->toArray()];

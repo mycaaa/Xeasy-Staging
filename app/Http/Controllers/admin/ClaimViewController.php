@@ -1265,7 +1265,7 @@ class ClaimViewController extends Controller
         }
 
         $url = $this->getS3Url($s3Path)
-            ?: Storage::disk('s3')->url($s3Path);
+            ?: app(\App\Services\S3Service::class)->getFileViewUrl($s3Path);
 
         return $this->jsonSuccess([
             'file_url'  => $url,
