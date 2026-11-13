@@ -801,7 +801,8 @@ class LegacyProxyController extends BaseMobileController
         $conn = $this->getExpenseConnection($comId);
         try {
             DB::connection($conn)->statement(
-                "UPDATE y{$yearId}_expenseclaims SET FilledOkay=1 WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus!='Deactivate' AND ClaimStatus!='Draft' AND FilledOkay=0",
+                // EMP-CONFIRM-01: only punched claims (an unpunched bill was marked OK too)
+                "UPDATE y{$yearId}_expenseclaims SET FilledOkay=1 WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus='Filled' AND FilledOkay=0",
                 [$empId, $month, $yearId]
             );
             return response()->json(['Code' => '300', 'msg' => 'All claims marked as okay']);
@@ -850,6 +851,15 @@ class LegacyProxyController extends BaseMobileController
 
                     return response()->json(['Code' => '100', 'msg' => count($unpunched).' bill(s) of this month are not punched yet (Exp Id '.$list
                         .'). Submit the month after the punching team has checked them, or delete the ones you do not claim.']);
+                }
+                // EMP-CONFIRM-01: claims the employee denied are with the punching team; they come back for OK first
+                $denied = DB::connection($conn)->table("y{$yearId}_expenseclaims")
+                    ->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
+                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->where('FilledOkay', 2)
+                    ->orderBy('ExpId')->pluck('ExpId')->all();
+                if ($denied) {
+                    return response()->json(['Code' => '100', 'msg' => count($denied).' bill(s) you denied are with the punching team for correction (Exp Id '
+                        .implode(', ', array_slice($denied, 0, 8)).'). Submit the month after they come back and you mark them OK.']);
                 }
             }
 

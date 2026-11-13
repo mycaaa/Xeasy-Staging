@@ -192,6 +192,10 @@ class ClaimActionsController extends BaseMobileController
             if (empty($expCheck)) {
                 return $this->error('Invalid Expense Id!');
             }
+            // EMP-CONFIRM-01: the employee confirms only their own claim, after the punching team has punched it
+            if ($why = \App\Services\Claims\EmployeeConfirm::refuse($conn, (int) $yearId, $expCheck[0], $empId)) {
+                return $this->error($why);
+            }
 
             // Update FilledOkay
             $updated = DB::connection($conn)->statement(
@@ -265,6 +269,13 @@ class ClaimActionsController extends BaseMobileController
 
             $claimMonth = $expCheck[0]->ClaimMonth;
             $crBy = $expCheck[0]->CrBy;
+            // EMP-CONFIRM-01: own punched claim only; the reason goes to the punching team, so it is required
+            if ($why = \App\Services\Claims\EmployeeConfirm::refuse($conn, (int) $yearId, $expCheck[0], $empId)) {
+                return $this->error($why);
+            }
+            if (mb_strlen(trim((string) $remark)) < 3) {
+                return $this->error('Please write what is wrong in the remark; the punching team corrects the claim from it.');
+            }
 
             // Update FilledOkay to 2 (denied)
             $updated = DB::connection($conn)->statement(

@@ -33,4 +33,7 @@ return [
     // Month submission refuses a month that still has bills the punching team has not punched (they would be left
     // out of the month and never reach verification). Late bills waiting for approval count as not punched.
     'submit_requires_punched' => env('CLAIM_SUBMIT_REQUIRES_PUNCHED', true),
+
+    // EMP-CONFIRM-01: the employee cannot change a claim the punching team has punched; OK or deny with a remark only
+    'employee_cannot_edit_punched' => env('CLAIM_EMPLOYEE_CANNOT_EDIT_PUNCHED', true),
 ];

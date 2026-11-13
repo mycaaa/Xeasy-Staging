@@ -47,7 +47,7 @@ class ClaimTransition
         } else {
             $q->whereIn('ExpId', array_map('intval', (array) $claims));
         }
-        $rows = $q->get(['ExpId', 'ClaimStatus', 'CrBy', 'ClaimId', 'odomtr_opening', 'odomtr_closing', 'FilledBy', 'ClaimAtStep', 'ClaimMonth']);
+        $rows = $q->get(['ExpId', 'ClaimStatus', 'CrBy', 'ClaimId', 'odomtr_opening', 'odomtr_closing', 'FilledBy', 'ClaimAtStep', 'ClaimMonth', 'v_verify']);
         if ($rows->isEmpty()) {
             return [];
         }
@@ -87,6 +87,12 @@ class ClaimTransition
             }
             if ($why !== null && $from === $to) {
                 $why = null; // same status again (re-save): not a transition
+            }
+            // EMP-CONFIRM-01: once the punching team has punched a claim the employee cannot change it (re-fill,
+            // re-upload, move back to draft); they mark it OK or deny it with a remark. Removing it stays possible.
+            if ($why === null && $role === 'claimant' && $to !== 'Deactivate' && EmployeeConfirm::punchedByTeam($r)
+                && config('claim_process.employee_cannot_edit_punched', true)) {
+                $why = 'punched by the punching team - mark it OK or deny it with a remark';
             }
             // ODO-DUP-02: possible duplicate odometer readings wait for the verifier's review
             if ($why === null && $to === 'Approved' && $from !== $to && isset($dupConflicts[(int) $r->ExpId])) {

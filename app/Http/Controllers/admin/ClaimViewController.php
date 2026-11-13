@@ -2642,6 +2642,11 @@ class ClaimViewController extends Controller
                 \App\Services\Claims\MonthRecord::ensure((string) session('expense_connection'), (int) $yearId, (int) $expId);
             }
             \App\Services\Claims\PunchChangeTrack::record((string) session('expense_connection'), (int) $yearId, (int) $cgId, (int) $expId, $punchBefore, (int) session('company_id', 1));
+            // EMP-CONFIRM-01: a claim the employee denied goes back to the employee once the punching team has
+            // saved it again (it used to stay 'Denied' for good: out of the month and in the punching Denied tab)
+            if ($expId && $request->input('is_data_punch') === '1') {
+                \App\Services\Claims\EmployeeConfirm::backToEmployee((string) session('expense_connection'), (int) $yearId, (int) $expId);
+            }
             // DUP-BILL-01: alert when another employee already claimed this bill (saved, not blocked)
             $dupBill = ((int) $cgId === 1 && $expId) ? \App\Services\Claims\BillDuplicate::flag((string) session('expense_connection'), (int) $yearId, (int) $expId) : null;
 
