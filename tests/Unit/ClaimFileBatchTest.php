@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * UAT R-01. The s3 disk is pointed at a local temp folder (writable case) or at a
+ * UAT R-01. Files go to the company folder (S3-FOLDER-01: VNR = xeasy/). The s3 disk is pointed at a local temp folder (writable case) or at a
  * root below a regular file (unwritable for any user, root included). No real
  * bucket is touched.
  */
@@ -51,7 +51,8 @@ class ClaimFileBatchTest extends TestCase
 
     private function file(string $name = 'bill.jpg'): UploadedFile
     {
-        return UploadedFile::fake()->create($name, 4, 'image/jpeg');
+        // LV-S10 checks the content, so the test file is a real (tiny) PDF whatever its name
+        return UploadedFile::fake()->createWithContent($name, "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
     }
 
     private function filesOnDisk(): array
@@ -75,7 +76,7 @@ class ClaimFileBatchTest extends TestCase
         $batch->putMobile($this->file(), 8, 1001, 'File_Lodging_1.jpg', 'File_Lodging');
         $batch->putMobile($this->file(), 8, 1001, 'File_Payment_Receipt_1.jpg', 'File_Payment_Receipt');
 
-        $this->assertSame(['Expense/8/1001/File_Lodging_1.jpg', 'Expense/8/1001/File_Payment_Receipt_1.jpg'], $this->filesOnDisk());
+        $this->assertSame(['xeasy/8/1001/File_Lodging_1.jpg', 'xeasy/8/1001/File_Payment_Receipt_1.jpg'], $this->filesOnDisk());
         $this->assertSame(['File_Lodging' => 1, 'File_Payment_Receipt' => 1], $batch->countsByField());
         $this->assertSame(1, $batch->count('File_Payment_Receipt'));
         $this->assertSame(2, $batch->count());
@@ -130,14 +131,14 @@ class ClaimFileBatchTest extends TestCase
 
     public function test_discard_keeps_an_object_that_existed_before_the_save(): void
     {
-        mkdir($this->tmp.'/disk/Expense/8/1001', 0700, true);
-        file_put_contents($this->tmp.'/disk/Expense/8/1001/participants.pdf', 'earlier claim');
+        mkdir($this->tmp.'/disk/xeasy/8/1001', 0700, true);
+        file_put_contents($this->tmp.'/disk/xeasy/8/1001/participants.pdf', 'earlier claim');
         $batch = new ClaimFileBatch();
         $batch->putMobile($this->file(), 8, 1001, 'participants.pdf', 'participant_list_file');
         $batch->putMobile($this->file(), 8, 1001, 'new.pdf', 'participant_list_file');
 
         $this->assertSame(1, $batch->discard());
-        $this->assertSame(['Expense/8/1001/participants.pdf'], $this->filesOnDisk());
+        $this->assertSame(['xeasy/8/1001/participants.pdf'], $this->filesOnDisk());
     }
 
     public function test_commit_with_rolls_back_rows_and_deletes_files_on_failure(): void
@@ -176,9 +177,9 @@ class ClaimFileBatchTest extends TestCase
 
         $this->assertSame(1, (int) $result);
         $this->assertSame(1, DB::table('r01_claims')->count());
-        $this->assertSame(['Expense/8/1001/kept.jpg'], $this->filesOnDisk());
+        $this->assertSame(['xeasy/8/1001/kept.jpg'], $this->filesOnDisk());
         $this->assertSame(0, $batch->discard(), 'after commit the batch no longer owns the files');
-        $this->assertSame(['Expense/8/1001/kept.jpg'], $this->filesOnDisk());
+        $this->assertSame(['xeasy/8/1001/kept.jpg'], $this->filesOnDisk());
     }
 
     // ── rules count stored files, not request files ──────────────────────────

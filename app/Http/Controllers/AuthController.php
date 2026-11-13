@@ -83,7 +83,12 @@ class AuthController extends Controller
             DatabaseSwitcher::setCompanyConnections(1);
 
             $status_messages[] = 'Login page accessed';
-            UserLog::create(array_merge($log_data, ['status' => json_encode($status_messages)]));
+            try {
+                UserLog::create(array_merge($log_data, ['status' => json_encode($status_messages)]));
+            } catch (\Throwable $e) {
+                // LOGIN-UI-03: a page-view log row must not stop the sign-in page from opening
+                \Illuminate\Support\Facades\Log::warning('Sign-in page view not logged: '.$e->getMessage());
+            }
 
             return view('login', compact('vnr_financial_years', 'vvnr_financial_years', 'vnr_nursery_financial_years'));
         }
