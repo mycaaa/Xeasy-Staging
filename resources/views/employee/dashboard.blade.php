@@ -339,7 +339,7 @@
                                             if (!empty($isVVNR)) {
                                                 $stages = [
                                                     ['label' => 'Submitted', 'icon' => 'ri-mail-send-line', 'tat' => $stagewiseTAT['submitted'] ?? 0],
-                                                    ['label' => 'Reporting Manager', 'icon' => 'ri-user-star-line', 'tat' => $stagewiseTAT['reporting_manager'] ?? 0],
+                                                    ['label' => 'Manager approval', 'icon' => 'ri-user-star-line', 'tat' => $stagewiseTAT['reporting_manager'] ?? 0],
                                                     ['label' => 'Finance Approval', 'icon' => 'ri-checkbox-circle-line', 'tat' => $stagewiseTAT['finance_approval'] ?? 0],
                                                     ['label' => 'Payment', 'icon' => 'ri-money-dollar-circle-line', 'tat' => $stagewiseTAT['payment'] ?? 0],
                                                     ['label' => 'Verification', 'icon' => 'ri-shield-check-line', 'tat' => $stagewiseTAT['finance_verification'] ?? 0],
@@ -348,7 +348,7 @@
                                                 $stages = [
                                                     ['label' => 'Submitted', 'icon' => 'ri-mail-send-line', 'tat' => $stagewiseTAT['submitted'] ?? 0],
                                                     ['label' => 'Verification', 'icon' => 'ri-shield-check-line', 'tat' => $stagewiseTAT['finance_verification'] ?? 0],
-                                                    ['label' => 'Reporting Manager', 'icon' => 'ri-user-star-line', 'tat' => $stagewiseTAT['reporting_manager'] ?? 0],
+                                                    ['label' => 'Manager approval', 'icon' => 'ri-user-star-line', 'tat' => $stagewiseTAT['reporting_manager'] ?? 0],
                                                     ['label' => 'Finance Approval', 'icon' => 'ri-checkbox-circle-line', 'tat' => $stagewiseTAT['finance_approval'] ?? 0],
                                                     ['label' => 'Payment', 'icon' => 'ri-money-dollar-circle-line', 'tat' => $stagewiseTAT['payment'] ?? 0],
                                                 ];

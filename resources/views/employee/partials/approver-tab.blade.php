@@ -96,7 +96,7 @@
     $tatStages = [
         ['label' => 'Submitted',           'key' => 'submitted',           'icon' => 'ri-upload-cloud-2-line', 'color' => '#3b82f6', 'bg' => '#eff6ff'],
         ['label' => 'Verification',        'key' => 'finance_verification', 'icon' => 'ri-shield-check-line',   'color' => '#f97316', 'bg' => '#fff7ed'],
-        ['label' => 'Reporting Manager',   'key' => 'reporting_manager',    'icon' => 'ri-user-star-line',      'color' => '#a855f7', 'bg' => '#faf5ff'],
+        ['label' => 'Manager approval',    'key' => 'reporting_manager',    'icon' => 'ri-user-star-line',      'color' => '#a855f7', 'bg' => '#faf5ff'],
         ['label' => 'Finance Approval',    'key' => 'finance_approval',     'icon' => 'ri-thumb-up-line',       'color' => '#22c55e', 'bg' => '#f0fdf4'],
         ['label' => 'Payment',             'key' => 'payment',              'icon' => 'ri-bank-card-line',      'color' => '#06b6d4', 'bg' => '#ecfeff'],
     ];

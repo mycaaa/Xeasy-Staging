@@ -385,15 +385,18 @@ class ApproverDashboardService
         // build diff helper
         $diff = fn($c, $p) => round($c - $p, 1);
 
+        // PROCESS-01: each label names the stage the days are counted for (VNR: verification before manager approval;
+        // VVNR: approval, payment, then verification) - "Reporting Manager" sat on the courier time and
+        // "Finance Approval" on the manager's approval time
         if ($isVVNR) {
             $total_current  = round(array_sum(array_values($current)), 1);
             $total_previous = round(array_sum(array_values($previous)), 1);
             return [
                 'is_vvnr' => true,
                 'stages' => [
-                    ['key' => 'submit_to_approve',   'label' => 'Submitted',          'icon' => 'ri-send-plane-fill',      'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['submit_to_approve'],   'diff' => $diff($current['submit_to_approve'],   $previous['submit_to_approve'])],
-                    ['key' => 'approve_to_payment',  'label' => 'Finance Approval',   'icon' => 'ri-shield-check-line',    'color' => '#f59e0b', 'bg' => '#fef3c7', 'current' => $current['approve_to_payment'],  'diff' => $diff($current['approve_to_payment'],  $previous['approve_to_payment'])],
-                    ['key' => 'payment_to_courier',  'label' => 'Payment',            'icon' => 'ri-currency-line',        'color' => '#10b981', 'bg' => '#d1fae5', 'current' => $current['payment_to_courier'],  'diff' => $diff($current['payment_to_courier'],  $previous['payment_to_courier'])],
+                    ['key' => 'submit_to_approve',   'label' => 'Manager approval',          'icon' => 'ri-send-plane-fill',      'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['submit_to_approve'],   'diff' => $diff($current['submit_to_approve'],   $previous['submit_to_approve'])],
+                    ['key' => 'approve_to_payment',  'label' => 'Finance & payment',   'icon' => 'ri-shield-check-line',    'color' => '#f59e0b', 'bg' => '#fef3c7', 'current' => $current['approve_to_payment'],  'diff' => $diff($current['approve_to_payment'],  $previous['approve_to_payment'])],
+                    ['key' => 'payment_to_courier',  'label' => 'Courier after payment',            'icon' => 'ri-currency-line',        'color' => '#10b981', 'bg' => '#d1fae5', 'current' => $current['payment_to_courier'],  'diff' => $diff($current['payment_to_courier'],  $previous['payment_to_courier'])],
                     ['key' => 'receive_to_verify',   'label' => 'Verification',       'icon' => 'ri-file-search-line',    'color' => '#3b82f6', 'bg' => '#dbeafe', 'current' => $current['receive_to_verify'],   'diff' => $diff($current['receive_to_verify'],   $previous['receive_to_verify'])],
                 ],
                 'total_current'  => $total_current,
@@ -406,11 +409,11 @@ class ApproverDashboardService
             return [
                 'is_vvnr' => false,
                 'stages' => [
-                    ['key' => 'submit_to_courier',  'label' => 'Submitted',           'icon' => 'ri-send-plane-fill',    'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['submit_to_courier'],  'diff' => $diff($current['submit_to_courier'],  $previous['submit_to_courier'])],
-                    ['key' => 'courier_to_receive', 'label' => 'Reporting Manager',   'icon' => 'ri-user-3-line',        'color' => '#3b82f6', 'bg' => '#dbeafe', 'current' => $current['courier_to_receive'], 'diff' => $diff($current['courier_to_receive'], $previous['courier_to_receive'])],
+                    ['key' => 'submit_to_courier',  'label' => 'Submit to courier',           'icon' => 'ri-send-plane-fill',    'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['submit_to_courier'],  'diff' => $diff($current['submit_to_courier'],  $previous['submit_to_courier'])],
+                    ['key' => 'courier_to_receive', 'label' => 'Courier in transit',   'icon' => 'ri-user-3-line',        'color' => '#3b82f6', 'bg' => '#dbeafe', 'current' => $current['courier_to_receive'], 'diff' => $diff($current['courier_to_receive'], $previous['courier_to_receive'])],
                     ['key' => 'receive_to_verify',  'label' => 'Verification',        'icon' => 'ri-file-search-line',   'color' => '#10b981', 'bg' => '#d1fae5', 'current' => $current['receive_to_verify'],  'diff' => $diff($current['receive_to_verify'],  $previous['receive_to_verify'])],
-                    ['key' => 'verify_to_approve',  'label' => 'Finance Approval',    'icon' => 'ri-settings-3-line',    'color' => '#f59e0b', 'bg' => '#fef3c7', 'current' => $current['verify_to_approve'],  'diff' => $diff($current['verify_to_approve'],  $previous['verify_to_approve'])],
-                    ['key' => 'approve_to_pay',     'label' => 'Payment',             'icon' => 'ri-currency-line',      'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['approve_to_pay'] ?? 0,'diff' => $diff($current['approve_to_pay'] ?? 0,$previous['approve_to_pay'] ?? 0)],
+                    ['key' => 'verify_to_approve',  'label' => 'Manager approval',    'icon' => 'ri-settings-3-line',    'color' => '#f59e0b', 'bg' => '#fef3c7', 'current' => $current['verify_to_approve'],  'diff' => $diff($current['verify_to_approve'],  $previous['verify_to_approve'])],
+                    ['key' => 'approve_to_pay',     'label' => 'Finance & payment',             'icon' => 'ri-currency-line',      'color' => '#7c3aed', 'bg' => '#ede9fe', 'current' => $current['approve_to_pay'] ?? 0,'diff' => $diff($current['approve_to_pay'] ?? 0,$previous['approve_to_pay'] ?? 0)],
                 ],
                 'total_current'  => $total_current,
                 'total_previous' => $total_previous,

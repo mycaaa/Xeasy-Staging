@@ -810,6 +810,12 @@ class LegacyProxyController extends BaseMobileController
         }
     }
 
+    /** PROCESS-01: the one month submission (also behind the REST route claims/submit). */
+    public function monthSubmit(Request $request): JsonResponse
+    {
+        return $this->handleClaimSubmit($request);
+    }
+
     private function handleClaimSubmit(Request $request): JsonResponse
     {
         // Claim_Submit - submit claims for a month (matches legacy claim.php logic)
@@ -829,6 +835,22 @@ class LegacyProxyController extends BaseMobileController
             $cut = $isBackendSubmit ? null : \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->submissionCutoff((int) $comId, (int) $yearId, (int) $month, $subPerm, $conn));
             if ($cut !== null) {
                 return response()->json(['Code' => '100', 'msg' => $cut]);
+            }
+
+            // PROCESS-01: every bill of the month goes through the punching check before the employee submits.
+            // Unpunched bills used to be left out silently and stayed in a closed month that no stage picks up.
+            if (! $isBackendSubmit && config('claim_process.submit_requires_punched', true)) {
+                $unpunched = DB::connection($conn)->table("y{$yearId}_expenseclaims")
+                    ->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
+                    ->whereIn('ClaimStatus', ['Submitted', 'Open', ''])
+                    ->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', '!=', 2))
+                    ->orderBy('ExpId')->pluck('ExpId')->all();
+                if ($unpunched) {
+                    $list = implode(', ', array_slice($unpunched, 0, 8)).(count($unpunched) > 8 ? ' ...' : '');
+
+                    return response()->json(['Code' => '100', 'msg' => count($unpunched).' bill(s) of this month are not punched yet (Exp Id '.$list
+                        .'). Submit the month after the punching team has checked them, or delete the ones you do not claim.']);
+                }
             }
 
             $closingMonth = $month;

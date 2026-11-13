@@ -824,6 +824,11 @@ class ClaimController extends BaseMobileController
             return $this->error('Invalid Employee!');
         }
 
+        // PROCESS-01: this route set the month to 'Submitted', a status no later stage reads (they look for
+        // 'Closed'), so a month submitted here never reached verification. It now does the same submission as
+        // the app and the web (claim.php Claim_Submit): cut-off, punching check, totals, month Closed.
+        return app(LegacyProxyController::class)->monthSubmit($request);
+
         $expenseConn = $this->getExpenseConnection($comId);
 
         // Update all open claims for this month to Submitted
