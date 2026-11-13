@@ -53,6 +53,27 @@ if (!function_exists('getMenuTree')) {
             }
         }
 
+        // MENU-LATE-01 (13 Nov 2026): Late Bill Approval only for those who can approve late bills: admins, and in
+        // VNR / Nursery the BU General Managers and approvers (final approvers have a team or approvals); VVNR admin only
+        if ($user && ! \App\Services\ClaimRules\LateClaim::isAdmin($user)) {
+            $mayApproveLate = false;
+            if ((int) session('company_id', 1) !== 11) {
+                $me = (int) \App\Support\RecordAccess::selfId($user);
+                try {
+                    $g = $me > 0 ? \App\Services\Odometer\BackdateApproval::general($me) : null;
+                    $mayApproveLate = ($g && (int) ($g->BUId ?? 0) > 0 && \App\Services\Odometer\BackdateApproval::isBuGeneralManager($me, (int) $g->BUId))
+                        || \App\Support\RecordAccess::isApprover($user);
+                } catch (\Throwable $e) {
+                    $mayApproveLate = false;
+                }
+            }
+            if (! $mayApproveLate) {
+                $query->where(function ($q) {
+                    $q->whereNull('url')->orWhere('url', '!=', 'late-bills');
+                });
+            }
+        }
+
         return $query->orderBy('order')->get();
     }
     function buildMenuTree($menuItems, $parentId = null)
