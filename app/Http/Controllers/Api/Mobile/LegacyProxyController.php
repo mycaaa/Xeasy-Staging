@@ -850,12 +850,28 @@ class LegacyProxyController extends BaseMobileController
                         ->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', '!=', 2)))
                         ->orWhere(fn ($q) => $q->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->where('FilledOkay', 2)))
                     ->orderBy('ExpId')->pluck('ExpId')->all();
-                if ($pending && (string) $request->input('ack_unpunched') !== '1') {
-                    $warn = 'Some of your uploaded bills are still pending for data punching. The claim amount will not include bills that are pending for punching. If you proceed with submission, these bills will not be considered in the current claim.';
+                // EMP-VERIFY-ALL-01 (tracker #22): bills punched by the team that the employee has not checked (OK & Verify) yet
+                $unchecked = DB::connection($conn)->table("y{$yearId}_expenseclaims")
+                    ->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
+                    ->where('ClaimStatus', 'Filled')->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', 0))
+                    ->where('ClaimId', '!=', 7)->whereColumn('FilledBy', '!=', 'CrBy')
+                    ->orderBy('ExpId')->pluck('ExpId')->all();
+                $ids = fn (array $a) => 'Exp Id '.implode(', ', array_slice($a, 0, 8)).(count($a) > 8 ? ' ...' : '');
+                if (($pending || $unchecked) && (string) $request->input('ack_unpunched') !== '1') {
+                    $parts = [];
+                    if ($pending) {
+                        $parts[] = 'Some of your uploaded bills are still pending for data punching. The claim amount will not include bills that are pending for punching. If you proceed with submission, these bills will not be considered in the current claim. ('.count($pending).' bill(s): '.$ids($pending).')';
+                    }
+                    if ($unchecked) {
+                        $parts[] = count($unchecked).' punched bill(s) have not been checked by you yet (Pending: OK & Verify or Deny): '.$ids($unchecked).'. If you proceed, they will be submitted as punched.';
+                    }
 
                     return response()->json(['Code' => '101', 'needs_ack' => 'unpunched', 'pending_count' => count($pending),
-                        'pending_exp_ids' => array_slice($pending, 0, 50),
-                        'msg' => $warn.' ('.count($pending).' bill(s): Exp Id '.implode(', ', array_slice($pending, 0, 8)).(count($pending) > 8 ? ' ...' : '').')']);
+                        'pending_exp_ids' => array_slice($pending, 0, 50), 'unchecked_count' => count($unchecked),
+                        'unchecked_exp_ids' => array_slice($unchecked, 0, 50), 'msg' => implode(' ', $parts)]);
+                }
+                if ($unchecked) {
+                    \Illuminate\Support\Facades\Log::info('Month submitted with punched bills not checked by the employee', ['emp' => $empId, 'month' => $month, 'year' => $yearId, 'company' => $comId, 'exp_ids' => $unchecked]);
                 }
                 if ($pending) {
                     \Illuminate\Support\Facades\Log::info('Month submitted with bills pending punching', ['emp' => $empId, 'month' => $month, 'year' => $yearId, 'company' => $comId, 'exp_ids' => $pending]);

@@ -44,6 +44,12 @@ class MonthSubmit
             if ($pending) {
                 $warning = "{$pending} bill(s) are still pending for punching; they will not be part of this claim.";
             }
+            // EMP-VERIFY-ALL-01: punched by the team, not yet checked by the employee
+            $unchecked = $base()->where('ClaimStatus', 'Filled')->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', 0))
+                ->where('ClaimId', '!=', 7)->whereColumn('FilledBy', '!=', 'CrBy')->count();
+            if ($unchecked) {
+                $warning = trim(($warning ?? '')." {$unchecked} punched bill(s) are waiting for your OK & Verify.");
+            }
         }
 
         if (self::lateAllowed($conn, $yearId, $empId, $month, $subPermission)) {

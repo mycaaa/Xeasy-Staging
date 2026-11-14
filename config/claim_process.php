@@ -34,6 +34,10 @@ return [
     // out of the month and never reach verification). Late bills waiting for approval count as not punched.
     'submit_requires_punched' => env('CLAIM_SUBMIT_REQUIRES_PUNCHED', true),
 
+    // EMP-VERIFY-ALL-01 (tracker #22): a bill punched by the punching team waits in the employee's Pending tab for
+    // OK & Verify (like odometer claims). false = saved as confirmed, as before. VVNR is not affected.
+    'employee_verifies_punched' => env('CLAIM_EMPLOYEE_VERIFIES_PUNCHED', true),
+
     // EMP-CONFIRM-01: the employee cannot change a claim the punching team has punched; OK or deny with a remark only
     'employee_cannot_edit_punched' => env('CLAIM_EMPLOYEE_CANNOT_EDIT_PUNCHED', true),
 ];

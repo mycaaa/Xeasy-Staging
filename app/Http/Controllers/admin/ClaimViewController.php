@@ -2961,17 +2961,20 @@ class ClaimViewController extends Controller
                 }
             }
             
+            $companyId = (int) ($request->input('company_id') ?? session('company_id', 1));
+            $expenseConn = (string) (session('expense_connection') ?? config('database.default'));
+            $isVVNR = ($companyId === 11 || str_contains($expenseConn, 'vvnr'));
+
+            // EMP-VERIFY-ALL-01 (14 Nov 2026, tracker #22): a bill punched by the team waits for the employee's OK & Verify
+            // (Pending tab), as odometer claims already do; it was saved as confirmed (FilledOkay 1) and went straight to
+            // Verified. The month submit still takes every punched bill (and warns about the ones not checked). VVNR as before.
             $fillUpdate = [
                 'ClaimStatus' => 'Filled',
-                'Filledokay' => 1,
+                'Filledokay' => ($isVVNR || ! config('claim_process.employee_verifies_punched', true)) ? 1 : 0,
                 'ClaimAtStep' => 3,
                 'FilledBy' => auth()->id(),
                 'FilledDate' => now(),
             ];
-
-            $companyId = (int) ($request->input('company_id') ?? session('company_id', 1));
-            $expenseConn = (string) (session('expense_connection') ?? config('database.default'));
-            $isVVNR = ($companyId === 11 || str_contains($expenseConn, 'vvnr'));
 
             if (!$isVVNR && $currentClaim) {
                 $isVerifyEmptyOrZero = empty($currentClaim->VerifyDate)
