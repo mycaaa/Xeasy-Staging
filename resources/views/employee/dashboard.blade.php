@@ -2036,7 +2036,7 @@ $(document).ready(function() {
 
             html += `
             <div class="month-tile mb-2${monthStatus === 'Open' ? ' month-tile-open' : ''}" data-month="${month}">
-                <div class="month-tile-header" data-bs-toggle="collapse" data-bs-target="#monthClaims${month}" aria-expanded="${isOpen}">
+                <div class="month-tile-header" data-mc-target="#monthClaims${month}" aria-expanded="${isOpen}" role="button">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
                             <div class="month-stripe"></div>
@@ -2053,7 +2053,6 @@ $(document).ready(function() {
                                 data-employee-id="${employeeId}"
                                 data-month="${month}"
                                 data-month-name="${monthFull}"
-                                onclick="event.stopPropagation();"
                                 title="View Full Details">
                                 <i class="ri-eye-line"></i> Detail
                             </button>
@@ -2063,7 +2062,7 @@ $(document).ready(function() {
                                 <i class="ri-printer-line"></i>
                             </a>`}
                             ${statusBadge}
-                            ${monthStatus === 'Open' && monthData.submit_btn === 'Y' ? `<button type="button" class="btn btn-sm btn-success mc-submit-btn" data-month="${month}" onclick="event.stopPropagation();" title="Submit ${monthFull} for verification"><i class="ri-send-plane-line me-1"></i>Submit</button>` : ''}
+                            ${monthStatus === 'Open' && monthData.submit_btn === 'Y' ? `<button type="button" class="btn btn-sm btn-success mc-submit-btn" data-month="${month}" title="Submit ${monthFull} for verification"><i class="ri-send-plane-line me-1"></i>Submit</button>` : ''}
                             <i class="ri-arrow-down-s-line fs-18 text-muted month-chevron"></i>
                         </div>
                     </div>
@@ -3021,6 +3020,17 @@ $(document).ready(function() {
     $yr.on('change', function () { switchTo($co.val(), $yr.val()); });
     $co.on('change', function () { loadYears($co.val(), true).then(function (y) { if (y) { switchTo($co.val(), y); } }); });
 })();
+
+// MONTH-CARD-CLICK-01 (15 Nov 2026): the month header folds / unfolds its bills, except when a button or link in it is
+// clicked (Detail, Submit, Print). The buttons had stopPropagation, which also stopped their own handlers.
+$(document).on('click', '.month-tile-header[data-mc-target]', function (e) {
+    if ($(e.target).closest('button, a, .btn').length) { return; }
+    var $h = $(this), el = document.querySelector($h.data('mc-target'));
+    if (!el) { return; }
+    var open = el.classList.contains('show');
+    bootstrap.Collapse.getOrCreateInstance(el, { toggle: false })[open ? 'hide' : 'show']();
+    $h.attr('aria-expanded', open ? 'false' : 'true');
+});
 
 // MONTH-MERGE-01 (15 Nov 2026): Submit from the month card (the Opened Months table is merged into My Claims)
 $(document).on('click', '.mc-submit-btn', function (e) {
