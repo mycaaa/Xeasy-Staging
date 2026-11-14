@@ -129,3 +129,32 @@
     tables(); // now, before the page scripts create their tables
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
+
+/*
+ * MODAL-BACK-01 (14 Nov 2026): the browser's back button closes an open pop-up instead of leaving the page.
+ * People pressed Back to close full-screen views (document viewer, month detail) and landed on the previous page
+ * (from Dashboard back to the approver home). Each pop-up adds a history entry while it is open; Back closes the
+ * top-most pop-up, and closing a pop-up any other way removes its entry again. A pop-up can opt out with
+ * data-xe-no-history.
+ */
+(function () {
+    if (!window.jQuery || !window.history || !history.pushState) return;
+    var $ = window.jQuery, depth = 0, skipPop = false, skipHidden = false;
+    $(document).on('shown.bs.modal', '.modal', function () {
+        if (this.hasAttribute('data-xe-no-history')) return;
+        try { history.pushState({ xeModal: depth + 1 }, ''); depth++; } catch (e) { }
+    });
+    $(document).on('hidden.bs.modal', '.modal', function () {
+        if (this.hasAttribute('data-xe-no-history')) return;
+        if (skipHidden) { skipHidden = false; return; }
+        if (depth > 0 && history.state && history.state.xeModal) { depth--; skipPop = true; history.back(); }
+    });
+    window.addEventListener('popstate', function () {
+        if (skipPop) { skipPop = false; return; }
+        var open = $('.modal.show').not('[data-xe-no-history]').last()[0];
+        if (open && depth > 0 && window.bootstrap) {
+            depth--; skipHidden = true;
+            window.bootstrap.Modal.getOrCreateInstance(open).hide();
+        }
+    });
+})();

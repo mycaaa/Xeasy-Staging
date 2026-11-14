@@ -169,3 +169,6 @@ html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-item { margin-bottom:
 .app-menu .navbar-brand-box .logo { line-height: 70px; }   /* display stays with the theme (light / dark logo) */
 .app-menu .navbar-brand-box .logo img { vertical-align: middle; height: 40px; width: auto; max-width: 100%; object-fit: contain; }
 [data-sidebar-size="sm"] .app-menu .navbar-brand-box .logo img { height: auto; max-height: 34px; max-width: 54px; }
+/* LOGO-NAV-02 (14 Nov 2026): with the menu collapsed, the menu scrolls with the page under the fixed logo box, and the
+   first item (Dashboard) was drawn over the logo and took its clicks. The logo box now sits above the menu items. */
+html[data-layout="vertical"][data-sidebar-size="sm"] .app-menu .navbar-brand-box { z-index: 5; height: 70px; background-color: var(--vz-vertical-menu-bg); }

@@ -251,7 +251,7 @@
         </div>
     </div>
 
-{{-- DOCVIEW-CLOSE-01: Esc and the browser's back button close the viewer instead of leaving the page --}}
+{{-- DOCVIEW-CLOSE-01: Esc closes the viewer on view-only screens (the browser's back button: ux.js MODAL-BACK-01) --}}
 @once
 @php
     $docViewOnly = request()->is('employee-report', 'dashboard', 'approver', 'approver/*', 'vnr/approver*', 'vvnr/approver*', 'nursery/approver*', 'approver-dashboard*')
@@ -263,20 +263,7 @@
         var el = document.getElementById('claimDetailModal');
         if (!el || el.dataset.backWired) { return; }
         el.dataset.backWired = '1';
-        var pushed = false;
-        el.addEventListener('shown.bs.modal', function () {
-            try { history.pushState({ xeDocViewer: true }, ''); pushed = true; } catch (e) { pushed = false; }
-        });
-        el.addEventListener('hidden.bs.modal', function () {
-            if (pushed && history.state && history.state.xeDocViewer) { pushed = false; history.back(); }
-            pushed = false;
-        });
-        window.addEventListener('popstate', function () {
-            if (pushed && el.classList.contains('show') && window.bootstrap) {
-                pushed = false;
-                bootstrap.Modal.getOrCreateInstance(el).hide();
-            }
-        });
+        // the browser's back button: see MODAL-BACK-01 in custom/js/ux.js (all pop-ups)
         // Esc only where the viewer is view-only (Dashboard, approver screens), so typed punching data is not lost
         var viewOnly = {{ $docViewOnly ? 'true' : 'false' }};
         document.addEventListener('keydown', function (ev) {
