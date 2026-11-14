@@ -826,6 +826,7 @@ class LegacyProxyController extends BaseMobileController
         $month = (int) $request->input('month');
 
         $conn = $this->getExpenseConnection($comId);
+        \App\Services\Claims\MonthRow::ensure($conn, (int) $yearId, $empId, $month);   // MONTH-ROW-01: the month needs its row to be closed
         try {
             // Audit cut-off: no month submit after the last submission day unless allowed (SubPermission)
             $subPerm = DB::connection($conn)->table("y{$yearId}_monthexpensefinal")->where('EmployeeID', $empId)->where('Month', $month)->where('YearId', $yearId)->value('SubPermission');

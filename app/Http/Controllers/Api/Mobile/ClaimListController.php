@@ -29,6 +29,7 @@ class ClaimListController extends BaseMobileController
         }
 
         $expenseConn = $this->getExpenseConnection((int) $ComId);
+        \App\Services\Claims\MonthRow::ensure($expenseConn, (int) $YearId, (int) $empid);   // MONTH-ROW-01
 
         try {
             // Get open months from monthexpensefinal
