@@ -1377,7 +1377,10 @@
         const $b = $r.find('.rm-approve-one'), eid = $b.data('expid'), empId = $b.data('empid'), mo = $b.data('month');
         const amt = rmn($r.find('.aa').val()), rmk = $r.find('.ar').val() || '';
         const fail = function(t, m, focus){ if(!quiet){ Swal.fire(t, m, 'warning'); } if(focus){ $r.find(focus).focus(); } $r.addClass('table-danger'); return $.Deferred().resolve(false, '#' + eid + ': ' + m).promise(); };
-        if(amt <= 0){ return fail('Error', 'Enter valid amount.', '.aa'); }
+        // APPR-ZERO-01 (14 Nov 2026): ₹0 is a valid approval (the claim is disallowed) - the same on the first approval and
+        // on an update; it needs a remark when it differs from the verified amount (below). Blank or negative is refused.
+        if($r.find('.aa').val().trim() === '' || isNaN(amt) || amt < 0){ return fail('Error', 'Enter the approved amount (0 or more).', '.aa'); }
+        if(rmCapCheck($r.find('.aa'))){ return fail('Not allowed', 'The approved amount cannot be more than the claimed amount.', '.aa'); }
         const vAmt = rmn($r.find('.claim-verified-cell').text()), cAmt = rmn($r.find('.claim-claimed-cell').text());
         // APPR-CAP-01: the approver can keep or reduce, never increase (ceiling: verified, else claimed)
         // APPR-CAP-02: the ceiling is the claimed amount (the approver may raise a cut verified amount up to it, never above)
@@ -1415,6 +1418,18 @@
         });
         return d.promise();
     }
+    // APPR-CAP-UI-01 (14 Nov 2026): flag an approved amount above the claimed amount beside Appr. Amt as it is typed and
+    // keep the row's action disabled until it is corrected
+    function rmCapCheck($inp){
+        const $r = $inp.closest('tr'), v = parseFloat($inp.val()), c = rmn($r.find('.claim-claimed-cell').text()) || rmn($r.find('.claim-verified-cell').text());
+        const over = !isNaN(v) && c > 0 && v > c + 0.009;
+        $inp.toggleClass('is-invalid', over).attr('aria-invalid', over ? 'true' : 'false');
+        $inp.siblings('.rm-cap-msg').remove();
+        if(over){ $inp.after('<div class="rm-cap-msg invalid-feedback d-block" style="font-size:10px;">More than the claimed ₹' + rmfa(c) + '</div>'); }
+        $r.find('.rm-approve-one').prop('disabled', over);
+        return over;
+    }
+    $(document).on('input', '#rmDayModalBody .aa', function(){ rmCapCheck($(this)); });
     $(document).on('click', '.rm-approve-one', function(){
         rmApproveRow($(this).closest('tr'), false).done(function(ok){ if(ok){ Swal.fire({icon: 'success', title: 'Approved!', timer: 1000, showConfirmButton: false}); } });
     });

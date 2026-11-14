@@ -201,6 +201,7 @@
                                 <button type="button" class="btn btn-primary btn-sm" id="submitBtn" style="font-size: 12px; padding: 4px 20px;">
                                     <i class="ri-send-plane-line me-1"></i> Submit Advance Request
                                 </button>
+                                <span id="submitHint" class="text-muted ms-2" style="font-size: 11px;"></span>
                             </div>
                         </div>
                     </div>
@@ -498,11 +499,11 @@ $(document).ready(function() {
             }
         }
         
-        if (showSubmit) {
-            $('#submitButtonSection').show();
-        } else {
-            $('#submitButtonSection').hide();
-        }
+        // ADV-SUBMIT-01 (14 Nov 2026): the button stayed hidden until every field was filled, so the form looked as if it
+        // had no way to submit. It now shows as soon as the request type and advance type are chosen; Submit checks
+        // the fields and says which one is missing.
+        $('#submitButtonSection').toggle(!!(requestType && advanceType));
+        $('#submitHint').text(showSubmit ? '' : (requestType === 'self' ? 'Fill in the amount and purpose, then submit.' : 'Select team members and fill in their details, then submit.'));
     }
 
     // ==========================================

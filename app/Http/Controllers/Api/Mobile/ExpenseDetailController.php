@@ -864,51 +864,79 @@ class ExpenseDetailController extends BaseMobileController
             return $this->error('Invalid Employee!');
         }
 
+        // TEAM-ODO-01: the app's VNR / Nursery / VVNR tabs name the company in the path (api/3/common.php,
+        // api/11/api/common_rep.php) but send the user's own ComId and year; the tab's company decides, and the year is
+        // matched to that company by its label (VNR 8 = VVNR 6 = 2026-2027)
+        $tabCom = (int) $request->route('comId');
+        if (in_array($tabCom, [1, 3, 11], true) && $tabCom !== $comId) {
+            try {
+                $label = DB::connection($this->getExpenseConnection($comId))->table('financialyear')->where('YearId', $yearId)->value('Year');
+                $mapped = $label ? DB::connection($this->getExpenseConnection($tabCom))->table('financialyear')->where('Year', $label)->value('YearId') : null;
+                if (! $mapped) {
+                    return response()->json(['Code' => '200', 'msg' => 'No data for this company and year.', 'data' => [], 'team_odo' => []]);
+                }
+                $yearId = (int) $mapped;
+                $comId = $tabCom;
+            } catch (\Throwable $e) {
+                return response()->json(['Code' => '200', 'msg' => 'This company\'s data cannot be read just now.', 'data' => [], 'team_odo' => []]);
+            }
+        }
+
         $expenseConn = $this->getExpenseConnection($comId);
         $hrimsConn = $this->getHrimsConnection();
 
         try {
-            // 1. Get team members from reporting hierarchy
-            $teamMembers = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?",
-                [$empId]
-            );
+            // TEAM-ODO-01 (14 Nov 2026): "My Team Last Odometer" in the app showed "Error: Exception: API Error: Data
+            // Available!" on all three tabs. The app reads the legacy reply - Code "200" and a "data" list with
+            // FullName, EmpCode, BillDate, OdomtrOpening / OdomtrClosing and the two photos - while this answered
+            // Code "300" with a differently named "team_odo" list. It now answers in the app's format (team_odo kept),
+            // for active team members only, with photo links through claim-file.php (the app sends its login headers).
+            $teamMembers = DB::connection($hrimsConn)->table('hrm_employee_general as eg')
+                ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
+                ->where('eg.RepEmployeeID', $empId)->where('e.EmpStatus', 'A')
+                ->orderBy('e.Fname')
+                ->get(['e.EmployeeID', 'e.EmpCode', DB::raw("TRIM(CONCAT(COALESCE(e.Fname,''),' ',COALESCE(e.Sname,''),' ',COALESCE(e.Lname,''))) AS EmpName")]);
 
-            if (empty($teamMembers)) {
-                return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'team_odo' => []]);
-            }
+            $base = rtrim((string) config('app.url'), '/').'/api/'.$comId.'/claim-file.php';
+            $fileUrl = fn ($emp, $name) => trim((string) $name) === '' ? '' : $base.'?'.http_build_query(['y' => $yearId, 'e' => $emp, 'f' => basename((string) $name)]);
 
+            $data = [];
             $teamOdo = [];
-
-            foreach ($teamMembers as $member) {
-                $memberId = $member->EmployeeID;
-
-                // Get last odometer closing for this member
-                $lastOdo = DB::connection($expenseConn)->select(
-                    "SELECT odomtr_closing, BillDate FROM y{$yearId}_expenseclaims
-                     WHERE CrBy=? AND ClaimId=7 AND ClaimStatus!='Deactivate' AND odomtr_closing > 0
-                     ORDER BY BillDate DESC, ExpId DESC LIMIT 1",
-                    [$memberId]
-                );
-
-                // Get member name
-                $memberInfo = DB::connection($hrimsConn)->select(
-                    "SELECT EmpCode, CONCAT(Fname, ' ', Sname, ' ', Lname) AS EmpName FROM hrm_employee WHERE EmployeeID = ?",
-                    [$memberId]
-                );
-
+            foreach ($teamMembers as $m) {
+                $last = DB::connection($expenseConn)->table("y{$yearId}_expenseclaims")
+                    ->where('CrBy', $m->EmployeeID)->where('ClaimId', 7)
+                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat'])
+                    ->where('odomtr_closing', '>', 0)
+                    ->orderByDesc('BillDate')->orderByDesc('ExpId')
+                    ->first(['ExpId', 'BillDate', 'odomtr_opening', 'odomtr_closing', 'opening_filepath', 'closing_filepath']);
                 $teamOdo[] = [
-                    'EmployeeID' => (string) $memberId,
-                    'EmpCode' => !empty($memberInfo) ? $memberInfo[0]->EmpCode : '',
-                    'EmpName' => !empty($memberInfo) ? $memberInfo[0]->EmpName : '',
-                    'last_odo_closing' => !empty($lastOdo) ? $lastOdo[0]->odomtr_closing : '0',
-                    'last_odo_date' => !empty($lastOdo) ? $lastOdo[0]->BillDate : '',
+                    'EmployeeID' => (string) $m->EmployeeID,
+                    'EmpCode' => (string) $m->EmpCode,
+                    'EmpName' => preg_replace('/\s+/', ' ', (string) $m->EmpName),
+                    'last_odo_closing' => $last ? (string) $last->odomtr_closing : '0',
+                    'last_odo_date' => $last ? (string) $last->BillDate : '',
+                ];
+                if (! $last) {
+                    continue;
+                }
+                $data[] = [
+                    'EmployeeID' => (string) $m->EmployeeID,
+                    'EmpCode' => (string) $m->EmpCode,
+                    'FullName' => preg_replace('/\s+/', ' ', (string) $m->EmpName),
+                    'ExpId' => (string) $last->ExpId,
+                    'BillDate' => (string) $last->BillDate,
+                    'OdomtrOpening' => (string) ($last->odomtr_opening ?? ''),
+                    'OdomtrClosing' => (string) ($last->odomtr_closing ?? ''),
+                    'opening_filepath' => $fileUrl($m->EmployeeID, $last->opening_filepath),
+                    'closing_filepath' => $fileUrl($m->EmployeeID, $last->closing_filepath),
                 ];
             }
+            usort($data, fn ($a, $b) => strcmp($b['BillDate'], $a['BillDate']));   // latest first
 
             return response()->json([
-                'Code' => '300',
-                'msg' => 'Data Available!',
+                'Code' => '200',
+                'msg' => $data ? 'Data Available!' : 'No odometer entries for your team this year.',
+                'data' => $data,
                 'team_odo' => $teamOdo,
             ]);
 

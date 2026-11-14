@@ -44,6 +44,30 @@ class HodAccess
         return \App\Services\Odometer\BackdateApproval::isHod($self, (int) $g->DepartmentId);
     }
 
+    /**
+     * TEAM-ADV-01 (14 Nov 2026): the team advance report in the app is opened by every advance approver, not only
+     * HODs, and refused them with "Error: 403" (and an empty team list). The report always runs on the caller's own
+     * reporting tree (subject() below), so anyone with an active direct report may open it for that tree.
+     */
+    public static function allowedTeamReport($user = null): bool
+    {
+        if (self::allowed($user)) {
+            return true;
+        }
+        $user = $user ?: auth()->user();
+        $self = $user ? RecordAccess::selfId($user) : (int) (request()?->attributes->get('api_auth_empid') ?? 0);
+        if ($self <= 0) {
+            return false;
+        }
+        try {
+            return DB::connection('hrims')->table('hrm_employee_general as eg')
+                ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
+                ->where('eg.RepEmployeeID', $self)->where('e.EmpStatus', 'A')->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     /** Employee id the report runs for. */
     public static function subject($requested, $user = null): int
     {

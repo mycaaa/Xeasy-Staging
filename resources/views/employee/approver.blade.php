@@ -1638,14 +1638,29 @@
             $footer.show();
 
             $linesTbody.off('input.appramt').on('input.appramt', '.appr-amt', function () {
+                apprCapCheck($(this));
                 recalcApprTotal($expandRow);
             });
+            $linesTbody.find('.appr-amt').each(function () { apprCapCheck($(this)); });
         }
 
 
         // =====================================================
         // RECALC APPROVED TOTAL
         // =====================================================
+
+        // APPR-CAP-UI-01 (14 Nov 2026): flag an approved amount above the claimed amount as it is typed and keep that
+        // line's Approve disabled until it is corrected (the server refuses it too)
+        function apprCapCheck($inp) {
+            const v = parseFloat($inp.val()), c = parseFloat($inp.attr('max'));
+            const over = !isNaN(v) && !isNaN(c) && c > 0 && v > c + 0.009;
+            const $row = $inp.closest('tr');
+            $inp.toggleClass('is-invalid', over).attr('aria-invalid', over ? 'true' : 'false');
+            $row.find('.appr-cap-msg').remove();
+            if (over) { $inp.after('<div class="appr-cap-msg invalid-feedback d-block" style="font-size:10px;">More than the claimed &#8377;' + c.toFixed(0) + '</div>'); }
+            $row.find('.btn-approve-line').prop('disabled', over).attr('title', over ? 'The approved amount is more than the claimed amount' : 'Approve');
+            return over;
+        }
 
         function recalcApprTotal($expandRow) {
             let total = 0;
@@ -1668,6 +1683,10 @@
 
             if (!amtVal) {
                 Swal.fire('Error', 'Enter approver amount', 'error');
+                return;
+            }
+            if (apprCapCheck($row.find('.appr-amt'))) {
+                Swal.fire('Not allowed', 'The approved amount cannot be more than the claimed amount.', 'warning');
                 return;
             }
 
@@ -1728,9 +1747,9 @@
                         Swal.fire('Failed', response.msg || 'Could not approve line', 'error');
                     }
                 },
-                error: function () {
+                error: function (xhr) {
                     $btn.prop('disabled', false).html('<i class="ri-check-line"></i>');
-                    Swal.fire('Error', 'Request failed', 'error');
+                    Swal.fire('Not approved', apprXhrMsg(xhr), 'error');
                 }
             });
         }
@@ -1739,6 +1758,15 @@
         // =====================================================
         // SUBMIT ALL LINES
         // =====================================================
+
+        // APPR-ERR-01 (14 Nov 2026): say why a request failed instead of "Request failed" (the server sends the reason)
+        function apprXhrMsg(xhr) {
+            const j = (xhr && xhr.responseJSON) || {};
+            if (j.msg || j.message) { return j.msg || j.message; }
+            if (xhr && (xhr.status === 419 || xhr.status === 401)) { return 'Your session has expired. Sign in again and retry.'; }
+            if (xhr && xhr.status === 0) { return 'No connection to the server. Check the network and retry.'; }
+            return 'The server could not complete the request' + (xhr && xhr.status ? ' (error ' + xhr.status + ')' : '') + '. Retry, and tell IT if it keeps happening.';
+        }
 
         function submitAllLines($row) {
 
@@ -1808,9 +1836,9 @@
                             Swal.fire('Failed', response.msg || 'Submit failed', 'error');
                         }
                     },
-                    error: function () {
+                    error: function (xhr) {
                         $btn.prop('disabled', false).html('<i class="ri-check-double-line"></i> Submit');
-                        Swal.fire('Error', 'Request failed', 'error');
+                        Swal.fire('Not submitted', apprXhrMsg(xhr), 'error');
                     }
                 });
             });
@@ -1846,8 +1874,8 @@
                         Swal.fire('Failed', response.msg || 'Deny failed', 'error');
                     }
                 },
-                error: function () {
-                    Swal.fire('Error', 'Request failed', 'error');
+                error: function (xhr) {
+                    Swal.fire('Not denied', apprXhrMsg(xhr), 'error');
                 }
             });
         }

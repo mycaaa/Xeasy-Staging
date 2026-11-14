@@ -1,6 +1,7 @@
 <div class="app-menu navbar-menu">
    <div class="navbar-brand-box">
-      <a href="#" class="logo logo-dark">
+      {{-- LOGO-NAV-01 (14 Nov 2026): the Xeasy logo opens Dashboard from every page --}}
+      <a href="{{ url('/dashboard') }}" class="logo logo-dark" title="Dashboard" aria-label="Xeasy dashboard">
          <span class="logo-sm">
             <img src="{{ asset('custom/xeasy_logo_dark.png') }}" alt="" height="50">
          </span>
@@ -8,7 +9,7 @@
             <img src="{{ asset('custom/xeasy_logo_dark.png') }}" alt="" height="50">
          </span>
       </a>
-      <a href="{{ URL::to('/dashboard') }}" class="logo logo-light">
+      <a href="{{ url('/dashboard') }}" class="logo logo-light" title="Dashboard" aria-label="Xeasy dashboard">
          <span class="logo-sm">
             <img src="{{ asset('custom/xeasy_logo_ligth.png') }}" alt="" height="50">
          </span>

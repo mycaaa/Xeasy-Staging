@@ -28,7 +28,7 @@
             <div class="d-flex">
                 <div id="horizontal"></div>
                 <div class="navbar-brand-box horizontal-logo">
-                    <a href="#" class="logo logo-dark">
+                    <a href="{{ url('/dashboard') }}" class="logo logo-dark" aria-label="Xeasy dashboard">
                         <span class="logo-sm">
                             <img src="{{ URL::to('/') }}/assets/images/logo-sm.png" alt="" height="22">
                         </span>
@@ -36,7 +36,7 @@
                             <img src="{{ URL::to('/') }}/custom/xeasy_logo_dark.png" alt="" height="60">
                         </span>
                     </a>
-                    <a href="#" class="logo logo-light">
+                    <a href="{{ url('/dashboard') }}" class="logo logo-light" aria-label="Xeasy dashboard">
                         <span class="logo-sm">
                             <img src="{{ URL::to('/') }}/assets/images/logo-sm.png" alt="" height="22">
                         </span>
@@ -60,7 +60,7 @@
                     <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
                 </button>
                 {{-- BRAND-01: company mark in the top bar --}}
-                <a href="{{ url('/home') }}" class="d-none d-sm-flex align-items-center me-2 ms-1" style="height:70px;" title="VNR - Xeasy home" aria-label="Xeasy home">
+                <a href="{{ url('/dashboard') }}" class="d-none d-sm-flex align-items-center me-2 ms-1 xe-vnr-mark" style="height:70px;" title="Dashboard" aria-label="Xeasy dashboard">
                     <img src="{{ URL::to('/') }}/custom/vnr_logo_sm.png" srcset="{{ URL::to('/') }}/custom/vnr_logo.png 2x" alt="VNR" width="30" height="40" style="object-fit:contain;">
                 </a>
                 @can('employeee_status')

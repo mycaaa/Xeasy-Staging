@@ -1106,6 +1106,7 @@
                                                                     </table>
                                                                 </div>`;
                 $("#claimsTableContainer").html(html);
+                if (window.vpCapCheckAll) { window.vpCapCheckAll(); }
                 console.log('Claims table HTML updated, calling updateFooterTotals');
                 updateFooterTotals();
 
@@ -1179,6 +1180,12 @@
                             const maxAmt = parseFloat($(`.verify-amt[data-expid="${expId}"]`).data("max")) || 0;
                             const verifyRemark = ($(`.verify-remark[data-expid="${expId}"]`).val() || '').trim();
 
+                            // VERIFY-CAP-UI-01: never above the claimed amount
+                            const claimedAmt = parseFloat($(`.verify-amt[data-expid="${expId}"]`).data("claimed")) || 0;
+                            if (claimedAmt > 0 && verifyAmt > claimedAmt + 0.009) {
+                                failedCount++;
+                                return;
+                            }
                             // Check if remark is required (when amount differs)
                             if (verifyAmt !== maxAmt && verifyRemark === '') {
                                 failedCount++;
@@ -1338,9 +1345,29 @@
                 }
             }
 
-            $(document).on("input", ".verify-amt", function () {
+            // VERIFY-CAP-UI-01 (14 Nov 2026): flag a verified amount above the claimed amount as it is typed and keep that
+            // row's Verify disabled until it is corrected; the server check on Verify stays as it is
+            function vpCapCheck($inp) {
+                const v = parseFloat($inp.val()), c = parseFloat($inp.data('claimed'));
+                const $row = $inp.closest('tr'), $btn = $row.find('.verify-single-btn');
+                const over = !isNaN(v) && !isNaN(c) && c > 0 && v > c + 0.009;
+                $inp.toggleClass('is-invalid', over).attr('aria-invalid', over ? 'true' : 'false');
+                $row.find('.vp-cap-msg').remove();
+                if (over) {
+                    $inp.after('<div class="vp-cap-msg invalid-feedback d-block" style="font-size:10px;white-space:normal;">More than the claimed ₹' + c.toLocaleString('en-IN') + '</div>');
+                }
+                $btn.toggleClass('disabled bg-secondary', over).toggleClass('bg-primary', !over)
+                    .attr('aria-disabled', over ? 'true' : 'false')
+                    .attr('title', over ? 'The verified amount is more than the claimed amount. Correct it to verify.' : '')
+                    .css('pointer-events', over ? 'none' : '');
+                return over;
+            }
+            window.vpCapCheckAll = function () { $('.verify-amt').each(function () { vpCapCheck($(this)); }); };
+            $(document).on("input change", ".verify-amt", function () {
+                vpCapCheck($(this));
                 updateFooterTotals();
             });
+            $(document).ajaxComplete(function () { setTimeout(window.vpCapCheckAll, 0); });
 
             $(document).on("click", ".verify-single-btn", function () {
                 let $btn = $(this);
@@ -1350,6 +1377,10 @@
                 let maxAmt = parseFloat($(`.verify-amt[data-expid="${expId}"]`).data("max"));
                 let verifyRemark = ($(`.verify-remark[data-expid="${expId}"]`).val() || '').trim();
 
+                if (vpCapCheck($(`.verify-amt[data-expid="${expId}"]`))) {
+                    Swal.fire('Amount Exceeded', `The verified amount for ExpId ${expId} is more than the claimed amount. Correct it before verifying.`, 'warning');
+                    return;
+                }
                 if (isNaN(verifyAmt) || verifyAmt < 0) {
                     Swal.fire(
                         'Invalid Amount',

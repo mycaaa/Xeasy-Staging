@@ -162,3 +162,10 @@ html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-sm .nav-link { paddin
 html[data-layout="vertical"][data-sidebar-size="sm"] .navbar-menu .navbar-nav .nav-link,
 html[data-layout="vertical"][data-sidebar-size="sm-hover"] .navbar-menu .navbar-nav .nav-link { padding-top: .38rem; padding-bottom: .38rem; }
 html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-item { margin-bottom: 1px; }
+
+/* LOGO-NAV-01 (14 Nov 2026): the Xeasy logo in the menu header sits on the same 70px line as the VNR mark in the top
+   bar, at the same 40px height, centred vertically */
+.app-menu .navbar-brand-box { height: 70px; }
+.app-menu .navbar-brand-box .logo { line-height: 70px; }   /* display stays with the theme (light / dark logo) */
+.app-menu .navbar-brand-box .logo img { vertical-align: middle; height: 40px; width: auto; max-width: 100%; object-fit: contain; }
+[data-sidebar-size="sm"] .app-menu .navbar-brand-box .logo img { height: auto; max-height: 34px; max-width: 54px; }

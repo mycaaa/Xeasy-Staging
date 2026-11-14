@@ -35,6 +35,14 @@
                                     9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
                                 ];
                             @endphp
+                            {{-- DASH-SCOPE-01 (14 Nov 2026): the company and financial year in view, beside Month; a click opens the switch --}}
+                            <button type="button" class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm fs-12 text-body"
+                                data-bs-toggle="modal" data-bs-target="#companyYearModal" title="Switch company or financial year" style="min-height:34px;">
+                                <i class="ri-building-line text-primary me-2 fs-16" aria-hidden="true"></i>
+                                <span class="fw-semibold">{{ \App\Helpers\DatabaseSwitcher::getCompanyName((int) session('company_id', 1)) }}</span>
+                                <span class="text-muted mx-1" aria-hidden="true">|</span>
+                                <span class="fw-semibold">{{ session('year_value') ?: \App\Models\FinancialYear::getYearById(session('year_id')) }}</span>
+                            </button>
                             <div class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm">
                                 <i class="ri-calendar-event-line text-primary me-2 fs-16"></i>
                                 <label for="monthFilterSelect" class="form-label mb-0 fs-12 text-muted me-2 fw-semibold">Month:</label>

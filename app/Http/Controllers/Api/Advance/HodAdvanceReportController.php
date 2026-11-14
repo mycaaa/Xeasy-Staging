@@ -13,8 +13,9 @@ class HodAdvanceReportController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            if (! \App\Support\HodAccess::allowed()) {
-                return response()->json(['success' => false, 'message' => 'The HOD advance report is for HODs only.'], 403);
+            // TEAM-ADV-01: HODs, and reporting managers for their own team (the report runs on the caller's tree)
+            if (! \App\Support\HodAccess::allowedTeamReport()) {
+                return response()->json(['success' => false, 'message' => 'The team advance report is for managers with a team.'], 403);
             }
             if ($request->has('employee_id')) {
                 $request->merge(['employee_id' => \App\Support\HodAccess::subject($request->input('employee_id'))]);
@@ -161,26 +162,25 @@ class HodAdvanceReportController extends Controller
                 ], 'No team members found');
             }
 
-            // Get only team members who have advance requests
-            $employeesWithAdvances = DB::table('advance_request_employees')
-                ->whereIn('employee_id', $teamMembers)
-                ->distinct()
-                ->pluck('employee_id')
-                ->toArray();
-
-            if (empty($employeesWithAdvances)) {
-                return $this->jsonSuccess([
-                    'access_level' => $accessLevel,
-                    'team_members' => [],
-                ], 'No team members with advance requests found');
-            }
-
-            // Get employee details for each team member who has advances
+            // TEAM-ADV-01 (14 Nov 2026): list the whole team (the list showed only members who already had an advance,
+            // so a new team showed just "All Team Members"); those with advances come first, flagged has_advance
+            $withAdvances = array_flip(array_map('intval', DB::table('advance_request_employees')
+                ->whereIn('employee_id', $teamMembers)->distinct()->pluck('employee_id')->toArray()));
             $teamMembersData = [];
-            foreach ($employeesWithAdvances as $empId) {
-                $employeeDetails = $this->getEmployeeDetails($empId);
-                $teamMembersData[] = $employeeDetails;
+            foreach (array_chunk(array_values($teamMembers), 500) as $chunk) {
+                $rows = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_region_territory as rt', 'eg.TerrId', '=', 'rt.territory_id')
+                    ->whereIn('e.EmployeeID', $chunk)
+                    ->select(['e.EmployeeID', DB::raw("TRIM(CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, ''))) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.name as TerritoryName', 'rt.territory_id as TerritoryCode'])
+                    ->get();
+                foreach ($rows as $r) {
+                    $row = (array) $r;
+                    $row['EmployeeCode'] = $row['EmployeeCode'] ?? $row['EmployeeID'];
+                    $row['EmployeeName'] = preg_replace('/\s+/', ' ', (string) $row['EmployeeName']);
+                    $row['has_advance'] = isset($withAdvances[(int) $r->EmployeeID]);
+                    $teamMembersData[] = $row;
+                }
             }
+            usort($teamMembersData, fn ($a, $b) => [! $a['has_advance'], $a['EmployeeName']] <=> [! $b['has_advance'], $b['EmployeeName']]);
 
             return $this->jsonSuccess([
                 'access_level' => $accessLevel,
