@@ -876,7 +876,7 @@ class LegacyProxyController extends BaseMobileController
                 SET FilledOkay=1, ClaimAtStep=3, VerifyTAmt=FilledTAmt, c_verify='Y', ApprTAmt=FilledTAmt, FinancedTAmt=FilledTAmt 
                 WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus='Filled' 
                 AND FilledOkay != 2 
-                AND ((ClaimId = 7 AND App_Odometer = 'Y') OR (ClaimId != 7)) 
+                AND ((ClaimId = 7 AND IFNULL(App_Odometer,'') NOT IN ('N','R')) OR (ClaimId != 7)) 
                 AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
                 [$empId, $closingMonth, $yearId]
             );
@@ -887,7 +887,7 @@ class LegacyProxyController extends BaseMobileController
                 FROM y{$yearId}_expenseclaims 
                 WHERE ClaimYearId=? AND CrBy=? AND ClaimMonth=? AND FilledOkay=1 
                 AND ClaimStatus!='Deactivate' AND ClaimStatus!='Draft' AND FilledBy>0 
-                AND ((ClaimId = 7 AND App_Odometer = 'Y') OR (ClaimId != 7)) 
+                AND ((ClaimId = 7 AND IFNULL(App_Odometer,'') NOT IN ('N','R')) OR (ClaimId != 7)) 
                 AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
                 [$yearId, $empId, $closingMonth]
             );
@@ -902,7 +902,7 @@ class LegacyProxyController extends BaseMobileController
 
             // 4. Update expenseclaimsdetails VerifierEditAmount = Amount
             $expIds = DB::connection($conn)->select(
-                "SELECT ExpId FROM y{$yearId}_expenseclaims WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus='Filled' AND ((ClaimId = 7 AND App_Odometer = 'Y') OR (ClaimId != 7)) AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
+                "SELECT ExpId FROM y{$yearId}_expenseclaims WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus='Filled' AND ((ClaimId = 7 AND IFNULL(App_Odometer,'') NOT IN ('N','R')) OR (ClaimId != 7)) AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
                 [$empId, $closingMonth, $yearId]
             );
             foreach ($expIds as $row) {

@@ -295,8 +295,19 @@ $(function(){
         $('#dayModalBody').html('<div class="text-center py-4"><div class="spinner-border text-primary spinner-border-sm"></div></div>');$('#dayModal').modal('show');
         $.getJSON(mode==='approved'?R.approvedDay:R.pendingDay,{empid:id,month:mo,yearid:yr,comid:comId}).done(res=>{
             renderDay(res.DayWiseDetails||[],mode,id,mo,nm);
+            if(mode!=='approved'){aprExcludedNote('#dayModalBody',res.Excluded);}
         }).fail(()=>$('#dayModalBody').html('<p class="text-center text-danger">Failed to load.</p>'));
     });
+
+    // APPR-RECON-01 (14 Nov 2026): punched lines that are not in this list or its total, with the reason
+    function aprExcludedNote(sel,list){
+        $(sel).find('.apr-excluded').remove();
+        if(!list||!list.length){return;}
+        const esc=v=>$('<div>').text(v==null?'':String(v)).html();
+        const amt=v=>(parseFloat(v)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+        let tot=0;const items=list.map(x=>{const v=parseFloat(x.VerifyTAmt)||parseFloat(x.FilledTAmt)||0;tot+=v;return '<li>Exp #'+esc(x.ExpId)+' · '+esc(x.ClaimName||'Expense')+(x.BillDate?' · '+esc(String(x.BillDate).substr(0,10).split('-').reverse().join('/')):'')+' · ₹'+amt(v)+' – '+esc(x.Reason)+'</li>';}).join('');
+        $(sel).append('<div class="apr-excluded alert alert-warning mt-2 mb-0 py-2 px-3" style="font-size:12px;"><strong>Not in this list or its total (₹'+amt(tot)+'):</strong><ul class="mb-0 ps-3">'+items+'</ul></div>');
+    }
     function renderDay(list,mode,cE,cM,empName){
         if(!list.length){$('#dayModalBody').html('<div class="empty-state"><i class="ri-inbox-line"></i><p>No details</p></div>');return;}
         const ed=mode==='pending';let tC=0,tV=0,tA=0,rows='';
@@ -304,7 +315,8 @@ $(function(){
         list.forEach((d,i)=>{const eid=d.ExpId||d.expId||'',empId=d.EmployeeID||d.employeeId||d.EId||cE,cn=d.ClaimName||d.claimName||'Expense';
             const ca=n(d.FilledTAmt||d.Claim_Amount||0),va=n(d.VerifyTAmt||d.Verified_Amount||0);
             const rawAppr=n(d.ApprTAmt||d.Approved_Amount||0);
-            const aa=ed?(rawAppr>0?rawAppr:va):rawAppr;
+            // APPR-ZERO-02: a line already approved at ₹0 keeps ₹0 (not the verified amount)
+            const aa=ed?((rawAppr>0||vd(d.ApprDate||''))?rawAppr:va):rawAppr;
             
             // Amount difference logic: If verifier deducted amount, show -amount in red
             let diffText = '-';
@@ -361,7 +373,7 @@ $(function(){
                 const paxCount = n(d.NoOfPAX) || (d.PaxEmployeeDetails ? d.PaxEmployeeDetails.length : 0);
                 paxBadgeHtml = `<div class="mt-1">
                     <button type="button" class="btn-pax-pill toggle-pax-btn" data-target="pax_row_${e(eid)}" title="Click to view participant details">
-                        <i class="ri-group-line"></i><span>PAX: <b>${paxCount}</b></span><i class="ri-arrow-down-s-line pax-chevron"></i>
+                        <i class="ri-group-line"></i><span>Group · PAX <b>${paxCount}</b>${(function(){const ne=(d.PaxEmployeeDetails||[]).length,no=parseOtherPax(d.PaxDetails_Other).length;return (ne||no)?` <span class="fw-normal">(${ne} emp${no?` + ${no} other`:''})</span>`:'';})()}</span><i class="ri-arrow-down-s-line pax-chevron"></i>
                     </button>
                 </div>`;
 
@@ -456,7 +468,8 @@ $(function(){
                 </tr>`;
             }
 
-            rows+=`<tr><td class="text-center">${ed?`<input type="checkbox" class="form-check-input apr-check" aria-label="Select claim ${e(eid)}">`:''}</td><td class="text-center">${i+1}</td>
+            const rowIso=(String(bd||'').match(/^\d{4}-\d{2}-\d{2}/)||[''])[0];
+            rows+=`<tr data-claim="${e(cn)}" data-exp="${e(eid)}" data-date="${rowIso}" data-claimed="${ca}" data-verified="${va}" data-group="${hasPax?1:0}"><td class="text-center">${ed?`<input type="checkbox" class="form-check-input apr-check" aria-label="Select claim ${e(eid)}">`:''}</td><td class="text-center">${i+1}</td>
             <td>
                 <a href="#" class="fw-semibold view-claim" data-expid="${e(eid)}" data-empid="${e(empId)}" data-claim-id="${e(d.ClaimId||d.claimId||d.cgId||'')}" data-cgid="${e(d.ClaimId||d.claimId||d.cgId||'')}">${e(cn)}</a>
                 <div class="text-muted" style="font-size:9px;">Exp #${e(eid)}</div>
@@ -464,8 +477,8 @@ $(function(){
             </td>
             <td class="text-center">${fd(bd)}</td>
             <td>${mediaHtml}</td>
-            <td class="text-end claim-claimed-cell">₹${fa(ca)}</td>
-            <td class="text-end claim-verified-cell">₹${fa(va)}</td>
+            <td class="text-end claim-claimed-cell" data-v="${ca}">₹${fa(ca)}</td>
+            <td class="text-end claim-verified-cell" data-v="${va}">₹${fa(va)}</td>
             <td class="text-end ${diffClass}">${diffText}</td>
             <td class="remark-col" style="min-width:140px;max-width:240px;">${vRmkContent}</td>
             <td class="text-end">${ed?`<input type="number" class="form-control form-control-sm amt-input aa" value="${aa}" min="0">`:'₹'+fa(aa)}</td>
@@ -542,13 +555,18 @@ $(function(){
     function approveRow($r, quiet){
         const $b=$r.find('.approve-one'),eid=$b.data('expid'),empId=$b.data('empid'),mo=$b.data('month'),amt=n($r.find('.aa').val()),rmk=$r.find('.ar').val()||'';
         const fail=(t,m,focus)=>{if(!quiet){Swal.fire(t,m,'warning');}if(focus){$r.find(focus).focus();}$r.addClass('table-danger');return $.Deferred().resolve(false,'#'+eid+': '+m).promise();};
-        if(amt<=0){return fail('Error','Enter valid amount.','.aa');}
-        const vAmt=n($r.find('.claim-verified-cell').text());const cAmt=n($r.find('.claim-claimed-cell').text());const basis=vAmt>0?vAmt:cAmt;
-        // APPR-CAP-01: the approver can keep or reduce, never increase (ceiling: verified, else claimed)
-        if(basis>0&&amt>basis+0.009){return fail('Not allowed','The approved amount ('+amt.toFixed(2)+') cannot be more than the '+(vAmt>0?'verified':'claimed')+' amount ('+basis.toFixed(2)+').','.aa');}
-        // VVNR-APPR-REM-01: a cut against the verified amount (or the claimed amount when not yet verified) needs a remark
-        if(((vAmt>0&&amt!==vAmt)||(basis>0&&amt<basis-0.009)) && (!rmk.trim()||rmk.trim().toLowerCase()==='approved')){
-            return fail('Remark Required','The approved amount ('+amt.toFixed(2)+') is '+(amt<basis?'less than':'different from')+' the '+(vAmt>0?'verified':'claimed')+' amount ('+basis.toFixed(2)+'). Please enter a remark.','.ar');
+        // APPR-ZERO-02 (14 Nov 2026): ₹0 is a valid approval (the claim is disallowed), on the first approval and on an
+        // update, with a reason. Blank or negative is refused.
+        const raw=String($r.find('.aa').val()||'').trim();
+        if(raw===''||isNaN(+raw)||+raw<0){return fail('Error','Enter the approved amount (0 or more).','.aa');}
+        const vAmt=cellAmt($r,'.claim-verified-cell');const cAmt=cellAmt($r,'.claim-claimed-cell');
+        // APPR-CAP-03: the ceiling is the claimed amount (the approver may raise a cut verified amount up to it, never above)
+        const basis=cAmt>0?cAmt:vAmt;
+        if(aprCapCheck($r.find('.aa'))||(basis>0&&amt>basis+0.009)){return fail('Not allowed','The approved amount (₹'+amt.toFixed(2)+') cannot be more than the '+(cAmt>0?'claimed':'verified')+' amount (₹'+basis.toFixed(2)+').','.aa');}
+        // a ₹0 disallowance, or any amount different from the verified amount, needs a reason
+        const noReason=!rmk.trim()||['ok','okay','approved','done','na','n/a','-','.','yes'].includes(rmk.trim().toLowerCase());
+        if((amt===0||Math.abs(amt-vAmt)>0.009)&&noReason){
+            return fail('Remark Required',amt===0?'Enter the reason for disallowing this claim (₹0).':'The approved amount (₹'+amt.toFixed(2)+') is different from the verified amount (₹'+vAmt.toFixed(2)+'). Please enter a remark.','.ar');
         }
         $r.removeClass('table-danger');
         $b.prop('disabled',true).html('<i class="ri-loader-4-line rotating"></i>');
@@ -568,6 +586,19 @@ $(function(){
         }).fail(x=>{const j=x.responseJSON||{};if(j.remark_required){$r.find('.ar').focus();}if(!quiet){Swal.fire(j.remark_required?'Remark Required':'Error',j.msg||j.message||'Network error',j.remark_required?'warning':'error');}$b.prop('disabled',false).html('<i class="ri-check-line"></i>');$r.addClass('table-danger');d.resolve(false,'#'+eid+': '+(j.msg||j.message||'Network error'));});
         return d.promise();
     }
+    // APPR-CAP-UI-02 (14 Nov 2026): flag an approved amount above the claimed amount beside Appr. Amt as it is typed, with the
+    // claimed amount, and keep the row's Approve / Update button disabled until it is corrected
+    function cellAmt($r,sel){const $c=$r.find(sel);const d=$c.attr('data-v');return d!==undefined?n(d):n($c.text());}
+    function aprCapCheck($inp){
+        const $r=$inp.closest('tr'),v=parseFloat($inp.val()),c=cellAmt($r,'.claim-claimed-cell')||cellAmt($r,'.claim-verified-cell');
+        const over=!isNaN(v)&&c>0&&v>c+0.009;
+        $inp.toggleClass('is-invalid',over).attr('aria-invalid',over?'true':'false');
+        $inp.siblings('.apr-cap-msg').remove();
+        if(over){$inp.after('<div class="apr-cap-msg invalid-feedback d-block" style="font-size:10px;">More than the claimed ₹'+c.toLocaleString('en-IN',{maximumFractionDigits:2})+'</div>');}
+        $r.find('.approve-one').prop('disabled',over);
+        return over;
+    }
+    $(document).on('input','#dayModalBody .aa',function(){aprCapCheck($(this));});
     $(document).on('click','.approve-one',function(){
         approveRow($(this).closest('tr'),false).done(ok=>{if(ok){Swal.fire({icon:'success',title:'Approved!',timer:1000,showConfirmButton:false});}});
     });

@@ -1138,11 +1138,22 @@
         }
         $.getJSON(pendingDayUrl, {empid: id, month: mo, yearid: yr}).done(function(res){
             renderRmDay(res.DayWiseDetails || [], id, mo, nm);
+            aprExcludedNote('#rmDayModalBody', res.Excluded);
         }).fail(function(){
             $('#rmDayModalBody').html('<p class="text-center text-danger py-3">Failed to load claim details.</p>');
         });
     });
 
+
+    // APPR-RECON-01 (14 Nov 2026): punched lines that are not in this list or its total, with the reason
+    function aprExcludedNote(sel,list){
+        $(sel).find('.apr-excluded').remove();
+        if(!list||!list.length){return;}
+        const esc=v=>$('<div>').text(v==null?'':String(v)).html();
+        const amt=v=>(parseFloat(v)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+        let tot=0;const items=list.map(x=>{const v=parseFloat(x.VerifyTAmt)||parseFloat(x.FilledTAmt)||0;tot+=v;return '<li>Exp #'+esc(x.ExpId)+' · '+esc(x.ClaimName||'Expense')+(x.BillDate?' · '+esc(String(x.BillDate).substr(0,10).split('-').reverse().join('/')):'')+' · ₹'+amt(v)+' – '+esc(x.Reason)+'</li>';}).join('');
+        $(sel).append('<div class="apr-excluded alert alert-warning mt-2 mb-0 py-2 px-3" style="font-size:12px;"><strong>Not in this list or its total (₹'+amt(tot)+'):</strong><ul class="mb-0 ps-3">'+items+'</ul></div>');
+    }
     function renderRmDay(list, cE, cM, empName){
         if(!list.length){
             $('#rmDayModalBody').html('<div class="empty-state py-4 text-center"><i class="ri-inbox-line fs-24 d-block mb-1"></i><p>No details found</p></div>');
@@ -1156,7 +1167,9 @@
             const rawAppr = rmn(d.ApprTAmt || d.Approved_Amount || 0);
             // APPR-CAP-02 (14 Nov 2026): the claimed amount is the ceiling; a verified figure above it is not offered
             const cap = ca > 0 ? ca : va;
-            const aa = (rawAppr > 0 ? rawAppr : (cap > 0 ? Math.min(va, cap) : va));
+            // APPR-ZERO-02: a line already approved at ₹0 keeps ₹0 (not the verified amount)
+            const aprDone = !!(d.ApprDate && !/^0000|^$/.test(String(d.ApprDate)) && rmn(d.ApprBy) > 0);
+            const aa = ((rawAppr > 0 || aprDone) ? rawAppr : (cap > 0 ? Math.min(va, cap) : va));
             const overCap = cap > 0 && aa > cap + 0.009;
             if(overCap){ overClaimed.push('#' + eid); }
             

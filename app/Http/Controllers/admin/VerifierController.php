@@ -3375,7 +3375,7 @@ class VerifierController extends Controller
             $empVertical = $deptData->EmpVertical ?? 0;
             $appOdometerCond = '';
             if (in_array($deptId, [2, 3])) {
-                $appOdometerCond = " AND ((e.ClaimId = 7 AND e.App_Odometer NOT IN ('N','R')) OR (e.ClaimId != 7))";
+                $appOdometerCond = " AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7))";
             }
             // GST-01: GSTIN columns exist once migration 000009 has run
             $gstCols = \Illuminate\Support\Facades\Schema::connection(session('expense_connection'))->hasColumn($expDetailsTable, 'GSTIN')

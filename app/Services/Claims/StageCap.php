@@ -65,7 +65,8 @@ class StageCap
         // APPR-CAP-01 (13 Nov 2026): the approver can keep or lower the amount, never raise it, reason or not:
         // the ceiling is the verified amount (the verifier may correct a claim up to the policy rate), or the
         // claimed amount when the claim is not verified
-        if ($stage === 'approve' && $basis !== null && $new > $basis + $tol
+        // APPR-CAP-03 (14 Nov 2026): no rounding allowance on the approver's ceiling: 1,001 against a 1,000 claim is refused
+        if ($stage === 'approve' && $basis !== null && $new > $basis + 0.005
             && config('claim_rules.stage_caps.approve_never_above_claimed', true)) {
             self::log($conn, $yearId, $claim, $basis, $new, $stage, $remark, $source, 'refused_above_basis');
             $what = ((float) ($claim->FilledTAmt ?? 0)) > 0 ? 'claimed' : 'verified';

@@ -1119,7 +1119,7 @@ class HomeController extends Controller
                                     ->where(function ($c) {
                                         $c
                                             ->where('e.ClaimId', 7)
-                                            ->where('e.App_Odometer', 'Y');
+                                            ->whereRaw("IFNULL(e.App_Odometer,'') NOT IN ('N','R')");
                                     })
                                     ->orWhere('e.ClaimId', '!=', 7);
                             });
@@ -1254,7 +1254,7 @@ class HomeController extends Controller
                         $sub->whereIn('g.DepartmentId', [2, 3])->where(function ($x) {
                             $x
                                 ->where(function ($c) {
-                                    $c->where('e.ClaimId', 7)->where('e.App_Odometer', 'Y');
+                                    $c->where('e.ClaimId', 7)->whereRaw("IFNULL(e.App_Odometer,'') NOT IN ('N','R')");
                                 })
                                 ->orWhere('e.ClaimId', '!=', 7);
                         });

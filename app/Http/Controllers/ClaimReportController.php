@@ -109,7 +109,7 @@ class ClaimReportController extends Controller
 
             $appOdometerCond = '';
             if (in_array($deptId, [2, 3])) {
-                $appOdometerCond = " AND ((e.ClaimId = 7 AND e.App_Odometer NOT IN ('N','R')) OR (e.ClaimId != 7))";
+                $appOdometerCond = " AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7))";
             }
 
             // Get total count first

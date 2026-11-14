@@ -79,7 +79,7 @@ class TeamListController extends BaseMobileController
                 $res['EmpName'] = !empty($empNameResult) ? (array) $empNameResult[0] : ['Ename' => ''];
 
                 // Get TotalApprovedAmt
-                $approvedSql = "SELECT SUM(CASE WHEN ApprBy > 0 AND ApprBy IS NOT NULL AND ApprDate IS NOT NULL AND ApprDate != '' THEN e.ApprTAmt ELSE 0 END) AS TotalApprovedAmt FROM y{$yearId}_expenseclaims e WHERE e.ClaimMonth = '{$res['Month']}' AND e.ClaimYearId = '{$yearId}' AND e.CrBy = {$res['EmployeeID']} AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND ((e.ClaimId = 7 AND e.App_Odometer = 'Y') OR (e.ClaimId != 7))";
+                $approvedSql = "SELECT SUM(CASE WHEN ApprBy > 0 AND ApprBy IS NOT NULL AND ApprDate IS NOT NULL AND ApprDate != '' THEN e.ApprTAmt ELSE 0 END) AS TotalApprovedAmt FROM y{$yearId}_expenseclaims e WHERE e.ClaimMonth = '{$res['Month']}' AND e.ClaimYearId = '{$yearId}' AND e.CrBy = {$res['EmployeeID']} AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7))";
                 $approvedResult = DB::connection($expenseConn)->select($approvedSql);
                 $res['TotalApprovedAmt'] = !empty($approvedResult) ? (((array) $approvedResult[0])['TotalApprovedAmt'] ?? '0') : '0';
 
@@ -151,7 +151,7 @@ class TeamListController extends BaseMobileController
                 return response()->json(['Code' => '100', 'msg' => \App\Support\ApproverAfterVerifier::MESSAGE]);
             }
 
-            $sql = "SELECT e.ExpId, e.ClaimYearId, e.ClaimId, e.CrBy, e.CrBy as EmployeeID, e.CrDate, e.BillDate, e.DateEntryRemark as EmpRemark, e.FilledTAmt, e.VerifyTAmt, e.TotKm, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2 FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND e.ClaimAtStep >= 3 AND ((e.ClaimId = 7 AND e.App_Odometer = 'Y') OR (e.ClaimId != 7)) ORDER BY BillDate ASC";
+            $sql = "SELECT e.ExpId, e.ClaimYearId, e.ClaimId, e.CrBy, e.CrBy as EmployeeID, e.CrDate, e.BillDate, e.DateEntryRemark as EmpRemark, e.FilledTAmt, e.VerifyTAmt, e.TotKm, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2 FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND e.ClaimAtStep >= 3 AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7)) ORDER BY BillDate ASC";
 
             $results = DB::connection($expenseConn)->select($sql, [$month, $yearId, $empId]);
 
@@ -187,7 +187,20 @@ class TeamListController extends BaseMobileController
                 $Detail_carray[] = $rowArr;
             }
 
-            return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'DayWiseDetails' => $Detail_carray]);
+            // APPR-RECON-01 (14 Nov 2026): punched lines left out of this list (and of its total) are listed with the reason,
+            // so the approver can reconcile the list with the month's verified total
+            $excluded = [];
+            try {
+                foreach (DB::connection($expenseConn)->select(
+                    "SELECT e.ExpId, e.BillDate, e.FilledTAmt, e.VerifyTAmt, e.App_Odometer, ct.ClaimName FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus NOT IN ('Deactivate','Draft') AND e.ClaimId = 7 AND e.App_Odometer IN ('N','R') ORDER BY e.BillDate",
+                    [$month, $yearId, $empId]) as $x) {
+                    $excluded[] = ['ExpId' => $x->ExpId, 'ClaimName' => $x->ClaimName, 'BillDate' => $x->BillDate, 'FilledTAmt' => $x->FilledTAmt, 'VerifyTAmt' => $x->VerifyTAmt,
+                        'Reason' => $x->App_Odometer === 'R' ? 'Odometer km rejected by the GM' : 'Odometer km waiting for GM approval'];
+                }
+            } catch (\Throwable $e) {
+            }
+
+            return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'DayWiseDetails' => $Detail_carray, 'Excluded' => $excluded]);
         } catch (\Exception $e) {
             return response()->json(['Code' => '100', 'msg' => 'Data Not Available!']);
         }
@@ -301,7 +314,7 @@ class TeamListController extends BaseMobileController
         try {
             $expenseConn = $this->getExpenseConnection($comId);
 
-            $sql = "SELECT e.ExpId, e.ClaimYearId, e.ClaimId, e.CrBy, e.CrBy as EmployeeID, e.CrDate, e.BillDate, e.DateEntryRemark as EmpRemark, e.FilledTAmt, e.VerifyTAmt, e.TotKm, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2 FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND e.ClaimAtStep >= 5 AND ((e.ClaimId = 7 AND e.App_Odometer = 'Y') OR (e.ClaimId != 7)) ORDER BY BillDate ASC";
+            $sql = "SELECT e.ExpId, e.ClaimYearId, e.ClaimId, e.CrBy, e.CrBy as EmployeeID, e.CrDate, e.BillDate, e.DateEntryRemark as EmpRemark, e.FilledTAmt, e.VerifyTAmt, e.TotKm, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2 FROM y{$yearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND e.ClaimAtStep >= 5 AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7)) ORDER BY BillDate ASC";
 
             $results = DB::connection($expenseConn)->select($sql, [$month, $yearId, $empId]);
 
