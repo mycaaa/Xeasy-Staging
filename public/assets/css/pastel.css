@@ -155,3 +155,10 @@ table.dataTable td > a:has(> i:only-child):hover, table.table td > a:has(> i:onl
     .xe-menu-toggle:focus-visible { outline: 3px solid rgba(30, 58, 138, .35); outline-offset: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .xe-menu-toggle { transition: none; } }
+
+/* MENU-DENSE-01: less space between side-menu items (about 25% tighter), so more of the menu fits without scrolling */
+html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-link { padding-top: .42rem; padding-bottom: .42rem; }
+html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-sm .nav-link { padding-top: .32rem !important; padding-bottom: .32rem !important; }
+html[data-layout="vertical"][data-sidebar-size="sm"] .navbar-menu .navbar-nav .nav-link,
+html[data-layout="vertical"][data-sidebar-size="sm-hover"] .navbar-menu .navbar-nav .nav-link { padding-top: .38rem; padding-bottom: .38rem; }
+html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-item { margin-bottom: 1px; }
