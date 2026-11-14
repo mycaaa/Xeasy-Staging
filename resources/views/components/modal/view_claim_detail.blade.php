@@ -278,6 +278,8 @@
         var pick = null;
         $(document).on('click', '#myEhomeBody .view-claim, #myClaimsMonthContainer .view-claim', function () {
             var $a = $(this);
+            // odometer bills are agreed month-wise from Running KM, not here
+            if (String($a.data('claim-id') || '') === '7') { pick = null; return; }
             pick = { exp: String($a.data('expid') || ''), emp: String($a.data('empid') || ''),
                 status: String($a.data('status') || ''), fo: String($a.data('filled-okay') ?? '') };
         });

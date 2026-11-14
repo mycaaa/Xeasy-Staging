@@ -2170,6 +2170,8 @@ $(document).ready(function() {
                        data-expid="${claim.ExpId}"
                        data-claim-id="${claim.ClaimId}"
                        data-cgid="${claim.ClaimId}"
+                       data-status="${claim.ClaimStatus || ''}"
+                       data-filled-okay="${claim.FilledOkay ?? ''}"
                        data-empid="{{ session('employee_id') }}">
                         <i class="ri-eye-line fs-12 text-primary"></i>
                         <span class="text-primary fs-10 ms-1">View Details</span>

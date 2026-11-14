@@ -52,8 +52,10 @@ class ClaimListController extends BaseMobileController
                 $month = $monthRow->Month;
                 $SubPermission = $monthRow->SubPermission;
 
-                // TotalFilled query
-                $sqlFilled = "SELECT COUNT(CASE WHEN (ClaimId != 7 OR (ClaimId = 7 AND v_verify = 'Y' AND ClaimStatus = 'Filled')) THEN 1 END) AS TotClaim, COALESCE(SUM(CASE WHEN FilledTAmt != '' AND (ClaimId != 7 OR (ClaimId = 7 AND v_verify = 'Y' AND ClaimStatus = 'Filled')) THEN FilledTAmt END), 0) AS TotFilledAmt, COUNT(CASE WHEN FilledOkay = 1 THEN 1 END) AS TotVerifiedClaims, COUNT(CASE WHEN FilledOkay = 2 THEN 1 END) AS TotDeniedClaims, COUNT(CASE WHEN FilledOkay = 0 THEN 1 END) AS TotUnactionedClaims FROM y{$YearId}_expenseclaims WHERE ClaimYearId = '{$YearId}' AND CrBy = '{$empid}' AND ClaimMonth = '{$month}' AND FilledBy > 0 AND FilledDate != '0000-00-00' AND FilledDate != '1970-01-01' AND ClaimStatus = 'Filled' AND ClaimStatus != 'Deactivate' AND ClaimStatus != 'Draft'";
+                // TotalFilled query. OPEN-LIST-02 (14 Nov 2026): bills already marked Verified in a still-open month count too;
+                // only Filled ones were counted, so a month whose bills a verifier had checked early vanished from Open months
+                // (no Submit button)
+                $sqlFilled = "SELECT COUNT(CASE WHEN (ClaimId != 7 OR (ClaimId = 7 AND v_verify = 'Y' AND ClaimStatus = 'Filled')) THEN 1 END) AS TotClaim, COALESCE(SUM(CASE WHEN FilledTAmt != '' AND (ClaimId != 7 OR (ClaimId = 7 AND v_verify = 'Y' AND ClaimStatus = 'Filled')) THEN FilledTAmt END), 0) AS TotFilledAmt, COUNT(CASE WHEN FilledOkay = 1 THEN 1 END) AS TotVerifiedClaims, COUNT(CASE WHEN FilledOkay = 2 THEN 1 END) AS TotDeniedClaims, COUNT(CASE WHEN FilledOkay = 0 THEN 1 END) AS TotUnactionedClaims FROM y{$YearId}_expenseclaims WHERE ClaimYearId = '{$YearId}' AND CrBy = '{$empid}' AND ClaimMonth = '{$month}' AND FilledBy > 0 AND FilledDate != '0000-00-00' AND FilledDate != '1970-01-01' AND ClaimStatus IN ('Filled','Verified','Approved','Financed')";
                 $filledResult = DB::connection($expenseConn)->select($sqlFilled);
 
                 if (!empty($filledResult)) {

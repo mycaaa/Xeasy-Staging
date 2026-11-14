@@ -772,7 +772,7 @@ class EmployeeController extends Controller
                                          COUNT(CASE WHEN FilledOkay = 2 THEN 1 END) AS TotDeniedClaims,
                                          COUNT(CASE WHEN FilledOkay = 0 THEN 1 END) AS TotUnactionedClaims
                                   FROM y{$yearId}_expenseclaims
-                                  WHERE ClaimYearId = ? AND CrBy = ? AND ClaimMonth = ? AND FilledBy > 0 AND FilledDate != '0000-00-00' AND FilledDate != '1970-01-01' AND ClaimStatus = 'Filled' AND ClaimStatus != 'Deactivate' AND ClaimStatus != 'Draft'";
+                                  WHERE ClaimYearId = ? AND CrBy = ? AND ClaimMonth = ? AND FilledBy > 0 AND FilledDate != '0000-00-00' AND FilledDate != '1970-01-01' AND ClaimStatus IN ('Filled','Verified','Approved','Financed')";
                     $filledResult = DB::connection($expenseConn)->select($sqlFilled, [$yearId, $employeeId, $month]);
 
                     if (!empty($filledResult)) {
