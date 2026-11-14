@@ -325,89 +325,69 @@
 .app-tab:hover:not(.active){background:rgba(var(--vz-primary-rgb,64,81,137),.08);color:var(--vz-primary,#405189);}
 </style>
 
-{{-- ── Top Company Access Tabs ──────────────────────────────────── --}}
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3 pb-2 border-bottom">
-    <div class="d-flex align-items-center gap-2">
-        <span class="text-muted fw-semibold fs-12 text-uppercase me-1" style="letter-spacing:0.4px;">
-            <i class="ri-building-line me-1"></i>Company:
-        </span>
-        <div class="app-tab-bar d-flex" role="tablist" id="approverCompanyTabs">
-            @foreach($companyApproverRoutes as $cKey => $cData)
-            <button type="button" 
-                    class="app-tab approver-company-tab {{ $currentCompany === $cKey ? 'active' : '' }}" 
-                    data-company="{{ $cKey }}" 
-                    title="Switch to {{ $cData['name'] }} Approver">
-                {{ $cData['name'] }}
-            </button>
-            @endforeach
-        </div>
-    </div>
-    <div>
-        <span class="badge bg-light text-muted border px-2 py-1" style="font-size:11px;" id="approverActiveCoBadge">
-            Active: <strong class="text-primary" id="approverActiveCoName">{{ $companyApproverRoutes[$currentCompany]['name'] ?? 'VNR' }}</strong>
-        </span>
-    </div>
-</div>
-
-{{-- ── Welcome Section with Action Buttons on Right ──────────────── --}}
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-                <h4 class="mb-0 fw-bold" style="color:#0b1a33;">Welcome back, {{ session('employee_name', 'Manager') }} 👋</h4>
-                <p class="text-muted mb-0" style="font-size:13px;">Reporting Manager Dashboard · Oversee your team's claims, ensure timely approvals and control expenses</p>
+{{-- DASH-UNIFY-01 (15 Nov 2026): same layout as My Claims and Verification - a quick-action card (icon tiles; the company
+     switch on the right) and icon-left stat cards; the separate welcome banner is dropped (the Dashboard header greets) --}}
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex gap-3 flex-wrap align-items-center">
+            <a href="{{ $companyApproverRoutes[$currentCompany]['url'] ?? route('vnr.approver') }}" id="btnApproveClaims" class="quick-action-btn text-center text-decoration-none position-relative">
+                <div class="quick-action-icon bg-primary-subtle text-primary"><i class="ri-check-double-line fs-20"></i></div>
+                <span class="fs-11 text-muted mt-1 d-block">Approve Claims</span>
+                <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" id="btnApproveClaimsBadge" style="{{ $pendingCount > 0 ? '' : 'display:none;' }}">{{ $pendingCount }}</span>
+            </a>
+            @if(session('advance_module') == 'Y' && session('adv_approver') == 'Y')
+            <a href="{{ url('/advance-requests/advanceApprovals') }}" class="quick-action-btn text-center text-decoration-none position-relative">
+                <div class="quick-action-icon bg-success-subtle text-success"><i class="ri-coin-line fs-20"></i></div>
+                <span class="fs-11 text-muted mt-1 d-block">Approve Advances</span>
+                <span class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle" id="advApproverChipBadge" style="display:none;"></span>
+            </a>
+            @endif
+            @if(count($companyApproverRoutes) > 1)
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <span class="text-muted fs-12"><i class="ri-building-line me-1"></i>Company</span>
+                <div class="app-tab-bar d-flex" role="tablist" id="approverCompanyTabs">
+                    @foreach($companyApproverRoutes as $cKey => $cData)
+                    <button type="button" class="app-tab approver-company-tab {{ $currentCompany === $cKey ? 'active' : '' }}" data-company="{{ $cKey }}" title="Show {{ $cData['name'] }} approvals">{{ $cData['name'] }}</button>
+                    @endforeach
+                </div>
+                <span id="approverActiveCoName" class="d-none">{{ $companyApproverRoutes[$currentCompany]['name'] ?? 'VNR' }}</span>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <a href="{{ $companyApproverRoutes[$currentCompany]['url'] ?? route('vnr.approver') }}" id="btnApproveClaims" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:25px;border:2px solid var(--vz-primary,#405189);background:#fff;color:var(--vz-primary,#405189);font-size:12px;font-weight:600;text-decoration:none;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.05);">
-                    <i class="ri-check-double-line"></i>Approve Claims
-                    <span class="badge bg-primary ms-1" id="btnApproveClaimsBadge" style="{{ $pendingCount > 0 ? '' : 'display:none;' }}">{{ $pendingCount }}</span>
-                </a>
-                @if(session('advance_module') == 'Y' && session('adv_approver') == 'Y')
-                <a href="{{ url('/advance-requests/advanceApprovals') }}" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:25px;border:2px solid #059669;background:#fff;color:#059669;font-size:12px;font-weight:600;text-decoration:none;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.05);">
-                    <i class="ri-coin-line"></i>Approve Advances
-                    <span class="badge bg-success ms-1" id="advApproverChipBadge" style="display:none;"></span>
-                </a>
-                @endif
-            </div>
+            @endif
         </div>
     </div>
 </div>
 
-{{-- ── ROW 1: 3 Stat Cards (Clickable / Redirectable) ────────────────── --}}
+{{-- ── ROW 1: stat cards (same card as My Claims) ── --}}
 <div class="row g-3 mb-3">
     @foreach($statCards as $card)
-    <div class="col-xl-4 col-md-4 col-sm-12">
-        <a href="{{ $card['link'] ?? $rmApproverRoute }}" style="text-decoration:none;display:block;color:inherit;">
-            <div class="card h-100 summary-stat-card" style="border-radius:12px;border:1px solid #e8eaed;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;">
-                <div class="card-body py-3 px-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div class="d-flex align-items-center">
-                            <div style="width:34px;height:34px;border-radius:8px;background:{{ $card['color'] == 'warning' ? '#fef3c7' : ($card['color'] == 'success' ? '#d1fae5' : ($card['color'] == 'danger' ? '#fee2e2' : ($card['color'] == 'primary' ? '#dbeafe' : '#ede9fe'))) }};display:flex;align-items:center;justify-content:center;margin-right:8px;flex-shrink:0;">
-                                <i class="{{ $card['icon'] }}" style="font-size:16px;color:{{ $card['color'] == 'warning' ? '#d97706' : ($card['color'] == 'success' ? '#059669' : ($card['color'] == 'danger' ? '#dc2626' : ($card['color'] == 'primary' ? '#2563eb' : '#7c3aed'))) }};"></i>
-                            </div>
-                            <div style="font-size:11px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;">{{ $card['label'] }}</div>
+    @php $sc = in_array($card['color'], ['warning','success','danger','primary','info','secondary'], true) ? $card['color'] : 'secondary'; @endphp
+    <div class="col-xl-4 col-md-6">
+        <a href="{{ $card['link'] ?? $rmApproverRoute }}" class="text-decoration-none d-block h-100" style="color:inherit;">
+            <div class="card card-animate overflow-hidden h-100 mb-0 summary-stat-card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm flex-shrink-0">
+                            <span class="avatar-title bg-{{ $sc }}-subtle text-{{ $sc }} rounded-circle fs-3"><i class="{{ $card['icon'] }}"></i></span>
                         </div>
-                        <i class="ri-arrow-right-up-line text-muted fs-14"></i>
-                    </div>
-                    <div style="font-size:22px;font-weight:700;color:#111827;line-height:1.2;">{{ $card['value'] }}</div>
-                    <div class="d-flex align-items-center justify-content-between mt-1" style="min-height:18px;">
-                        <div style="font-size:11px;color:#6b7280;">{{ $card['sub'] ?? '' }}</div>
-                        <div style="font-size:10px;font-weight:600;">
-                            @if($card['change'])
-                            @php
-                                $isPositiveGood = str_contains($card['label'], 'Approved');
-                                $changeType     = $card['change']['type'];
-                                $changeClass    = $isPositiveGood
-                                    ? ($changeType === 'up'   ? 'text-success' : 'text-danger')
-                                    : ($changeType === 'down' ? 'text-success' : 'text-danger');
-                                $prevVal = $card['change']['prev'] ?? null;
-                                $isZeroZero = ($prevVal !== null && (float)$prevVal == 0 && $card['change']['val'] === '0%');
-                                if ($isZeroZero) $changeClass = '';
-                            @endphp
-                            <span class="{{ $changeClass }}" style="{{ $isZeroZero ? 'color:#9ca3af;' : '' }}">
-                                {{ $card['change']['val'] }}
-                            </span>
-                            @endif
+                        <div class="flex-grow-1 ms-3 min-w-0">
+                            <p class="text-uppercase fw-semibold text-muted mb-1 fs-12">{{ $card['label'] }}</p>
+                            <h4 class="mb-0">{{ $card['value'] }}</h4>
+                            <p class="text-muted mb-0 fs-11 d-flex justify-content-between gap-2">
+                                <span>{{ $card['sub'] ?? '' }}</span>
+                                @if($card['change'])
+                                @php
+                                    $isPositiveGood = str_contains($card['label'], 'Approved');
+                                    $changeType     = $card['change']['type'];
+                                    $changeClass    = $isPositiveGood
+                                        ? ($changeType === 'up'   ? 'text-success' : 'text-danger')
+                                        : ($changeType === 'down' ? 'text-success' : 'text-danger');
+                                    $prevVal = $card['change']['prev'] ?? null;
+                                    $isZeroZero = ($prevVal !== null && (float)$prevVal == 0 && $card['change']['val'] === '0%');
+                                    if ($isZeroZero) $changeClass = '';
+                                @endphp
+                                <span class="fw-semibold {{ $changeClass }}" style="{{ $isZeroZero ? 'color:#9ca3af;' : '' }}">{{ $card['change']['val'] }}</span>
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>

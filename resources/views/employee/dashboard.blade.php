@@ -120,7 +120,7 @@
             </ul>
 
             {{-- Tab Content --}}
-            <div class="tab-content">
+            <div class="tab-content" id="dashTabContent">
 
                 {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
                 {{-- CLAIMANT TAB (Common for all users) --}}
@@ -937,15 +937,17 @@
                 @if($isVerifier)
                 <div class="tab-pane {{ $requestedTab === 'verifier-tab' ? 'active show' : '' }}" id="verifier-tab" role="tabpanel">
                     <div class="row">
-                        {{-- Quick Actions --}}
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <a href="{{ url('/verify-pending') }}" class="btn btn-info btn-label waves-effect waves-light">
-                                        <i class="ri-eye-line label-icon align-middle fs-16 me-2"></i>Verify Claims
+                        {{-- Quick Actions (DASH-UNIFY-01: icon tiles, as on My Claims) --}}
+                        <div class="card mb-3">
+                            <div class="card-body py-3">
+                                <div class="d-flex gap-3 flex-wrap align-items-center">
+                                    <a href="{{ url('/verify-pending') }}" class="quick-action-btn text-center text-decoration-none">
+                                        <div class="quick-action-icon bg-info-subtle text-info"><i class="ri-eye-line fs-20"></i></div>
+                                        <span class="fs-11 text-muted mt-1 d-block">Verify Claims</span>
                                     </a>
-                                    <a href="{{ url('/verify-running-km') }}" class="btn btn-soft-info waves-effect waves-light">
-                                        <i class="ri-road-map-line me-1"></i>Verify Running KM
+                                    <a href="{{ url('/verify-running-km') }}" class="quick-action-btn text-center text-decoration-none">
+                                        <div class="quick-action-icon bg-primary-subtle text-primary"><i class="ri-road-map-line fs-20"></i></div>
+                                        <span class="fs-11 text-muted mt-1 d-block">Verify Running KM</span>
                                     </a>
                                 </div>
                             </div>
@@ -2578,6 +2580,13 @@ $(document).ready(function() {
 .month-tile:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+/* DASH-UNIFY-01 (15 Nov 2026): My Claims, Approvals and Verification share one type scale and card style */
+#dashTabContent .card-header :is(h4, h5, h6, .card-title) { font-size: 15px !important; font-weight: 600 !important; }
+#dashTabContent .card-animate h4 { font-size: 20px; font-weight: 600; }
+#dashTabContent .card-animate .card-body { padding: 16px; }
+#dashTabContent .card-animate .text-uppercase.fs-12 { font-size: 12px !important; letter-spacing: .2px; }
+#dashTabContent > .tab-pane > .row > .card, #dashTabContent > .tab-pane > .card { margin-bottom: 1rem; }
+#dashTabContent .card-header { padding: 12px 16px; }
 /* OPEN-THEME-01 (15 Nov 2026): open months in light pastel orange */
 .month-tile.month-tile-open .mc-submit-note { color: #9a3f06; }
 .month-tile.month-tile-open { border-color: #fad9b5; background: #fff8f0; }
