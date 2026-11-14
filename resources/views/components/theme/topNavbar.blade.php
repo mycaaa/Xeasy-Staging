@@ -349,7 +349,7 @@
                                 <span class="align-middle">Back Office</span>
                             </a>
                         @endif
-                        <a class="dropdown-item" href=""><i
+                        <a class="dropdown-item" href="{{ route('my.profile') }}"><i
                                 class="mdi mdi-account-circle text-muted fs-16 align-middle me-1"></i> <span
                                 class="align-middle">Profile</span></a>
                         <a class="dropdown-item" href="#"><i

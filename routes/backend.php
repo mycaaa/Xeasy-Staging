@@ -760,6 +760,7 @@ Route::middleware('auth')->group(function () {
     Route::match(['get', 'post'], 'employees/search', [EmployeeController::class, 'search']);
     Route::match(['get', 'post'], 'admin/employees/search', [EmployeeController::class, 'search']);
     Route::post('employees/search-all', [EmployeeController::class, 'searchAll']); // Unrestricted search for Group Meal / Lodging participants
+    Route::get('my-profile', [EmployeeController::class, 'myProfile'])->name('my.profile'); // PROFILE-01
     Route::get('employee/{id}', [EmployeeController::class, 'employee']);
     Route::post('employee/toggle-allow-submit', [EmployeeController::class, 'toggleAllowSubmit']);
     Route::post('employee/return-claim', [EmployeeController::class, 'returnClaim']);

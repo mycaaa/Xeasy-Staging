@@ -559,6 +559,46 @@ class EmployeeController extends Controller
         }
     }
 
+    /**
+     * PROFILE-01 (14 Nov 2026): "Profile" in the top-right menu - the signed-in employee's own HR details
+     * (it pointed nowhere and left the user on the dashboard). Read only; changes go through HR.
+     */
+    public function myProfile(Request $request)
+    {
+        $employeeId = (int) session('employee_id');
+        $hrimsDb = \App\Helpers\DatabaseSwitcher::getHrimsDatabaseName();
+        $emp = null;
+        if ($employeeId > 0) {
+            try {
+                $emp = DB::connection('hrims')->selectOne("
+                    SELECT e.EmployeeID, e.EmpCode, e.CompanyId, e.EmpStatus,
+                           TRIM(CONCAT_WS(' ', e.Fname, NULLIF(e.Sname, ''), e.Lname)) AS FullName,
+                           g.DateJoining AS JoinDate,
+                           g.MobileNo_Vnr, g.EmailId_Vnr, g.ReportingName, g.ReportingContactNo, g.RepEmployeeID,
+                           dept.department_name, desig.designation_name, gr.grade_name, ver.vertical_name,
+                           st.state_name, vlg.city_village_name, tr.territory_name
+                    FROM {$hrimsDb}.hrm_employee e
+                    LEFT JOIN {$hrimsDb}.hrm_employee_general g ON e.EmployeeID = g.EmployeeID
+                    LEFT JOIN {$hrimsDb}.core_departments dept ON g.DepartmentId = dept.id
+                    LEFT JOIN {$hrimsDb}.core_designation desig ON g.DesigId = desig.id
+                    LEFT JOIN {$hrimsDb}.core_grades gr ON g.GradeId = gr.id
+                    LEFT JOIN {$hrimsDb}.core_verticals ver ON g.EmpVertical = ver.id
+                    LEFT JOIN {$hrimsDb}.core_states st ON g.CostCenter = st.id
+                    LEFT JOIN {$hrimsDb}.core_city_village_by_state vlg ON g.HqId = vlg.id
+                    LEFT JOIN {$hrimsDb}.core_territory tr ON g.TerrId = tr.id
+                    WHERE e.EmployeeID = ?", [$employeeId]);
+            } catch (\Throwable $e) {
+                Log::warning('My profile: '.$e->getMessage());
+            }
+        }
+        $user = auth()->user();
+        $photo = $emp ? \App\Support\EmployeePhoto::url((string) $emp->EmpCode, (int) $emp->CompanyId) : \App\Support\EmployeePhoto::forSession();
+        $companyName = [1 => 'VNR Seeds Pvt Ltd', 3 => 'VNR Nursery', 11 => 'VVNR'][(int) ($emp->CompanyId ?? session('company_id', 1))] ?? '';
+        $roles = $user && method_exists($user, 'getRoleNames') ? $user->getRoleNames()->reject(fn ($r) => $r === 'Employee')->values()->all() : [];
+
+        return view('employee.my-profile', compact('emp', 'user', 'photo', 'companyName', 'roles'));
+    }
+
     public function eHomeDashboard(Request $request)
     {
         $employeeId = $request->input('employee_id', session('employee_id'));
