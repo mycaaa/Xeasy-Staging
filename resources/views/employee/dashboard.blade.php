@@ -2030,7 +2030,7 @@ $(document).ready(function() {
                     : '<span class="badge bg-success-subtle text-success fs-10">Open</span>');
 
             html += `
-            <div class="month-tile mb-2" data-month="${month}">
+            <div class="month-tile mb-2${monthStatus === 'Open' ? ' month-tile-open' : ''}" data-month="${month}">
                 <div class="month-tile-header" data-bs-toggle="collapse" data-bs-target="#monthClaims${month}" aria-expanded="${isOpen}">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
@@ -2571,6 +2571,16 @@ $(document).ready(function() {
 .month-tile:hover {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+/* OPEN-THEME-01 (15 Nov 2026): open months in light pastel orange */
+.month-tile.month-tile-open { border-color: #fad9b5; background: #fff8f0; }
+.month-tile.month-tile-open .month-tile-header { background: #fff4e8; border-bottom-color: #fde3c8; }
+.month-tile.month-tile-open .month-stripe { background: #fcd3ab; }
+.month-tile.month-tile-open .month-tile-header[aria-expanded="true"] .month-stripe { background: #f8a65f; }
+.month-tile.month-tile-open .month-name { color: #9a3f06; }
+.month-tile.month-tile-open .badge.bg-success-subtle { background: #ffe1c2 !important; color: #b45309 !important; }
+[data-bs-theme="dark"] .month-tile.month-tile-open { border-color: #6b4423; background: #2a2018; }
+[data-bs-theme="dark"] .month-tile.month-tile-open .month-tile-header { background: #33261a; border-bottom-color: #4a3523; }
+[data-bs-theme="dark"] .month-tile.month-tile-open .month-name { color: #fdba74; }
 .month-tile-header {
     padding: 10px 14px;
     cursor: pointer;

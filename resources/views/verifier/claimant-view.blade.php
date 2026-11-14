@@ -164,7 +164,7 @@
 .mcv-accent {
     position: absolute; top: 0; left: 0; bottom: 0; width: 5px;
 }
-.mcv-accent-open   { background: #d7f3e6; color: #065f46;}
+.mcv-accent-open   { background: #f8b57a; color: #9a3f06;}   /* OPEN-THEME-01: open months in light pastel orange */
 .mcv-accent-closed { background: #ede7fe; color: #4c1d95;}
 .mcv-accent-draft  { background: #fdefd2; color: #7a4500;}
 
@@ -174,7 +174,7 @@
     letter-spacing: -.4px; flex-shrink: 0;
     min-width: 52px; text-align: center; line-height: 1.2;
 }
-.mcv-badge-open   { background: #d7f3e6; box-shadow: 0 2px 8px rgba(16,185,129,.3); color: #065f46;}
+.mcv-badge-open   { background: #ffe1c2; box-shadow: 0 2px 8px rgba(249,140,60,.25); color: #9a3f06;}
 .mcv-badge-closed { background: #ede7fe; box-shadow: 0 2px 8px rgba(124,58,237,.3); color: #4c1d95;}
 
 .mcv-month-body { flex: 1; min-width: 0; }
@@ -234,7 +234,14 @@
     border-radius: 20px; padding: 3px 10px;
     font-size: .69rem; font-weight: 700; border: 1px solid transparent;
 }
-.mcv-chip-open { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.mcv-chip-open { background: #fff1e3; color: #c2580c; border-color: #fbcfa0; }
+/* OPEN-THEME-01 (15 Nov 2026): open month tiles in light pastel orange */
+.month-tile.mt-open { background: #fff8f0; border-color: #fad9b5; }
+.month-tile.mt-open > .month-tile-header:hover { background: #fff1e3; }
+[data-bs-theme="dark"] .month-tile.mt-open { background: #2f2419; border-color: #6b4423; }
+[data-bs-theme="dark"] .month-tile.mt-open > .month-tile-header:hover { background: #3a2c1e; }
+[data-bs-theme="dark"] .mcv-badge-open { background: #6b4423; color: #ffd9b3; }
+[data-bs-theme="dark"] .mcv-chip-open { background: #3a2c1e; color: #fdba74; border-color: #6b4423; }
 .mcv-chip-closed { background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
 .mcv-chip-sub { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
 
@@ -1089,7 +1096,7 @@ function renderOpenMonth(it, expanded) {
         : '<span class="mcv-chip mcv-chip-open">Open</span>';
 
     $('#openList').append(`
-    <div class="month-tile">
+    <div class="month-tile mt-open">
         <div class="month-tile-header" data-target-collapse="${id}" aria-expanded="${expanded}">
             <div class="mcv-accent mcv-accent-open"></div>
             <div class="mtr-left">
