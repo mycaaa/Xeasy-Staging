@@ -41,9 +41,10 @@
                         
                         <h5 class="card-title mb-0" style="font-size: 14px; font-weight: 600;">
                             <i class="ri-file-list-line me-1" style="font-size: 16px;"></i>
-                            Advance Requests
+                            {{-- ADV-LABEL-01 (15 Nov 2026): this list holds only requests raised by the user; team approvals are under Approve Advances --}}
+                            My Advance Requests
                             <small class="text-muted ms-1" style="font-size: 12px;">
-                                ({{ $user->name ?? 'User' }})
+                                (raised by {{ $user->name ?? 'you' }} · team approvals are under <a href="{{ url('/advance-requests/advanceApprovals') }}">Approve Advances</a>)
                             </small>
                         </h5>
                         

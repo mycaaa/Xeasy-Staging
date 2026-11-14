@@ -54,7 +54,7 @@
                             
                             <div class="d-flex align-items-center gap-1">
                                 <a href="{{ url('/advance-requests') }}" class="btn btn-outline-secondary btn-sm" style="font-size: 12px; padding: 3px 10px;">
-                                    <i class="ri-list-check-2 align-middle me-1"></i> My Advances
+                                    <i class="ri-list-check-2 align-middle me-1"></i> My Advance Requests
                                 </a>
                                 <a href="{{ url('/advance-requests/advanceApprovals') }}" class="btn btn-outline-primary btn-sm" style="font-size: 12px; padding: 3px 10px;">
                                     <i class="ri-checkbox-circle-line align-middle me-1"></i> Approvals

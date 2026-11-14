@@ -158,7 +158,7 @@
                                     <div class="quick-action-icon bg-info-subtle text-info">
                                         <i class="ri-file-list-3-line fs-20"></i>
                                     </div>
-                                    <span class="fs-11 text-muted mt-1 d-block">My Advances</span>
+                                    <span class="fs-11 text-muted mt-1 d-block" title="Advance requests raised by you (for yourself or your team); approvals are under Approve Advances">My Advance Requests</span>
                                 </a>
                                 {{-- Approve Advances --}}
                                 @if(session('adv_approver') == 'Y')
@@ -768,7 +768,7 @@
                                 </a>
                                 @endif
                                 <a href="{{ url('/advance-requests') }}" class="btn btn-sm btn-soft-primary">
-                                    <i class="ri-file-list-3-line me-1"></i> My Advances
+                                    <i class="ri-file-list-3-line me-1"></i> My Advance Requests
                                 </a>
                             </div>
                         </div>
