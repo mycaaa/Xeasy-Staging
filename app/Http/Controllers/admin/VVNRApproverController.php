@@ -57,6 +57,10 @@ class VVNRApproverController extends Controller
 
     private function get(string $url, array $params = [], int $timeout = 30): array
     {
+        // APPR-LOAD-01: answered in this process when the API is this app (no HTTP call to itself)
+        if (($own = \App\Support\LegacyApi::inProcess($url, $params, 'GET')) !== null) {
+            return $own;
+        }
         try {
             $response = Http::withOptions(['verify' => \App\Support\TlsVerify::option(), 'timeout' => $timeout])
                 ->get($url, $params);
@@ -68,6 +72,9 @@ class VVNRApproverController extends Controller
 
     private function postForm(string $url, array $params = [], int $timeout = 30): array
     {
+        if (($own = \App\Support\LegacyApi::inProcess($url, $params, 'POST')) !== null) {
+            return $own;
+        }
         try {
             $response = Http::withOptions(['verify' => \App\Support\TlsVerify::option(), 'timeout' => $timeout])
                 ->asForm()

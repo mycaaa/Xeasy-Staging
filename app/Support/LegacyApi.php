@@ -55,6 +55,42 @@ class LegacyApi
     }
 
     /**
+     * APPR-LOAD-01 (14 Nov 2026): when the "legacy API" is this app itself, answer the call in the same PHP process
+     * instead of an HTTP call from the server to itself. The self-call needs a second free PHP worker and goes out
+     * through the web server and back; under load or with a short gateway timeout it failed, and screens showed
+     * "Failed to load data". Returns null when the call has to go over HTTP (another server, or not common/claim.php).
+     */
+    public static function inProcess(string $url, array $params, string $method = 'GET'): ?array
+    {
+        if (! self::isOwn() || ! config('services.xeasy_legacy.in_process', true)) {
+            return null;
+        }
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $action = str_ends_with($path, '/claim.php') ? 'claim' : (str_ends_with($path, '/common.php') ? 'common' : null);
+        if ($action === null) {
+            return null;
+        }
+        if (! isset($params['ComId']) && preg_match('#/api/(\d+)/(common|claim)\.php$#', $path, $m)) {
+            $params['ComId'] = (int) $m[1];
+        }
+        $sub = \Illuminate\Http\Request::create($url, strtoupper($method), $params);
+        $key = (string) config('app.internal_api_key', '');
+        if ($key !== '') {
+            $sub->headers->set('X-Xeasy-Internal', $key);
+        }
+        try {
+            $res = app(\App\Http\Controllers\Api\Mobile\LegacyProxyController::class)->{$action}($sub);
+            $json = json_decode((string) $res->getContent(), true);
+
+            return is_array($json) ? $json : [];
+        } catch (\Throwable $e) {
+            Log::warning('LegacyApi in-process '.$action.' '.($params['value'] ?? '').': '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
      * HTTP client with TLS verification on (or a configured CA bundle).
      *
      * LEGACY-02: when the target is this app, the call carries the internal relay key

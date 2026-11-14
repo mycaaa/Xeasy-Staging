@@ -945,9 +945,12 @@
                         populateTable(data, status);
                     }
                 },
-                error: function () {
+                error: function (xhr) {
                     hideLoader();
-                    Swal.fire('Error', 'Failed to load data', 'error');
+                    // APPR-LOAD-01: say what failed instead of a bare "Failed to load data"
+                    const j = xhr && xhr.responseJSON;
+                    const why = (j && (j.message || j.msg)) || (xhr && xhr.status === 504 ? 'The server took too long to answer.' : '') || (xhr && xhr.status ? 'Server answered ' + xhr.status + '.' : 'No answer from the server.');
+                    Swal.fire('Could not load the ' + (status || 'pending') + ' list', why + ' Refresh the page to try again.', 'error');
                 }
             });
         }
