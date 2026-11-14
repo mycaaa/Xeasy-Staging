@@ -10,6 +10,7 @@
     --px-info-bg:    #d8f1fb; --px-info-bd:    #b3e2f5; --px-info-tx:    #0b5a7a; --px-info-hv:    #c3e9f8;
     --px-secondary-bg: #eceef3; --px-secondary-bd: #d7dbe3; --px-secondary-tx: #374151; --px-secondary-hv: #e1e4ea;
     --px-dark-bg:    #e3e6ee; --px-dark-bd:    #c9cfdc; --px-dark-tx:    #111827; --px-dark-hv:    #d6dae4;
+    --px-orange-bg:  #ffe6d1; --px-orange-bd:  #fcc9a0; --px-orange-tx:  #9a3f06; --px-orange-hv:  #ffd9bb;   /* OPEN-THEME-01: open months */
 }
 
 /* ── Buttons (solid only; outline / soft / ghost / link keep their look) ── */
@@ -73,7 +74,11 @@
 
 /* ── Screens with their own solid headers ── */
 .eh-header         { background: var(--px-secondary-bg) !important; color: var(--px-secondary-tx) !important; }
-.eh-header-open    { background: var(--px-info-bg) !important;      color: var(--px-info-tx) !important; }
+.eh-header-open    { background: var(--px-orange-bg) !important;    color: var(--px-orange-tx) !important; }   /* OPEN-THEME-01: open months in light pastel orange */
+.eh-month          { background: var(--px-orange-bg) !important;    color: var(--px-orange-tx) !important; border: 1px solid var(--px-orange-bd); }
+.eh-nested-head:not(.eh-nested-head-closed) th { background: var(--px-orange-hv) !important; color: var(--px-orange-tx) !important; }
+tr.eh-month-row[data-type="open"] > td { background: #fffaf5; }
+tr.eh-month-row[data-type="open"]:hover > td { background: #fff1e3; }
 .eh-header-closed  { background: var(--px-success-bg) !important;   color: var(--px-success-tx) !important; }
 .table-dark, .table-dark > tr > th, thead.table-dark th { background-color: var(--px-dark-bg) !important; color: var(--px-dark-tx) !important; border-color: var(--px-dark-bd) !important; }
 .table-primary, .table-primary > th, .table-primary > td { background-color: var(--px-primary-bg) !important; color: var(--px-primary-tx) !important; }
