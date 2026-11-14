@@ -484,7 +484,8 @@
             12 => 'DEC',
         ];
     @endphp
-    <div class="mb-4">
+    {{-- MONTH-MERGE-01 (15 Nov 2026): on the Dashboard the open months are shown (with Submit) in My Claims (Month-wise) --}}
+    <div class="mb-4" id="ehOpenMonths" @if (request('embed') === 'dashboard') style="display:none" aria-hidden="true" @endif>
         <div class="eh-header eh-header-open">
             <i class="ri-calendar-2-line"></i> Opened Months
         </div>

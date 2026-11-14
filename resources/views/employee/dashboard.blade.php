@@ -2058,6 +2058,7 @@ $(document).ready(function() {
                                 <i class="ri-printer-line"></i>
                             </a>`}
                             ${statusBadge}
+                            ${monthStatus === 'Open' && monthData.submit_btn === 'Y' ? `<button type="button" class="btn btn-sm btn-success mc-submit-btn" data-month="${month}" onclick="event.stopPropagation();" title="Submit ${monthFull} for verification"><i class="ri-send-plane-line me-1"></i>Submit</button>` : ''}
                             <i class="ri-arrow-down-s-line fs-18 text-muted month-chevron"></i>
                         </div>
                     </div>
@@ -2070,7 +2071,10 @@ $(document).ready(function() {
                         <span class="text-primary fs-11 ms-1">${confirmedClaims}</span>
                         <span class="text-muted fs-11 ms-2">Denied:</span>
                         <span class="text-danger fs-11 ms-1">${deniedClaims}</span>
+                        ${monthStatus === 'Open' ? `<span class="text-muted fs-11 ms-3" title="Amount of the bills you have confirmed">Confirmed Amt:</span>
+                        <span class="fw-semibold text-primary fs-11 ms-1">₹${Number(monthData.ConfirmedAmt || 0).toLocaleString('en-IN')}</span>` : ''}
                     </div>
+                    ${monthStatus === 'Open' && monthData.submit_note ? `<div class="mc-submit-note fs-11 mt-1 ms-4 ps-2"><i class="ri-information-line me-1"></i>${$('<div>').text(monthData.submit_note).html()}</div>` : ''}
                     ${monthStatus === 'Closed' ? `<div class="month-closed-info fs-11 mt-1 ms-4 ps-2" data-month="${month}" style="display:none;"></div>` : ''}
                 </div>
                 <div class="collapse ${isOpen ? 'show' : ''}" id="monthClaims${month}">
@@ -2572,6 +2576,7 @@ $(document).ready(function() {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 /* OPEN-THEME-01 (15 Nov 2026): open months in light pastel orange */
+.month-tile.month-tile-open .mc-submit-note { color: #9a3f06; }
 .month-tile.month-tile-open { border-color: #fad9b5; background: #fff8f0; }
 .month-tile.month-tile-open .month-tile-header { background: #fff4e8; border-bottom-color: #fde3c8; }
 .month-tile.month-tile-open .month-stripe { background: #fcd3ab; }
@@ -2976,6 +2981,33 @@ $(document).ready(function() {
 
 @push('scripts')
 <script>
+// MONTH-MERGE-01 (15 Nov 2026): Submit from the month card (the Opened Months table is merged into My Claims)
+$(document).on('click', '.mc-submit-btn', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    var $btn = $(this), month = $btn.data('month');
+    var monthName = new Date(2000, (parseInt(month, 10) || 1) - 1, 1).toLocaleString('en-IN', { month: 'long' });
+    var reset = function () { $btn.prop('disabled', false).html('<i class="ri-send-plane-line me-1"></i>Submit'); };
+    var send = function (ack) {
+        $btn.prop('disabled', true).text('Submitting...');
+        $.ajax({ url: '/claimant/month/submit', method: 'POST',
+            data: { month: month, ei: '{{ session('employee_id') }}', year_id: '{{ (int) session('year_id') }}', ack_unpunched: ack ? 1 : 0, _token: $('meta[name="csrf-token"]').attr('content') },
+            success: function (res) {
+                if (res && String(res.Code) === '101' && res.needs_ack === 'unpunched') {
+                    Swal.fire({ icon: 'warning', title: 'Before you submit', text: res.msg || '', showCancelButton: true, confirmButtonText: 'Submit anyway', cancelButtonText: 'Go back' })
+                        .then(function (r) { if (r.isConfirmed) { send(true); } else { reset(); } });
+                    return;
+                }
+                var ok = res && (String(res.Code) === '300' || res.success === true);
+                Swal.fire({ icon: ok ? 'success' : 'error', title: ok ? 'Submitted' : 'Not submitted', text: (res && (res.msg || res.message)) || '' });
+                if (ok) { $('#refreshMyClaims').trigger('click'); if (window.loadMyEhome) { window.loadMyEhome(); } } else { reset(); }
+            },
+            error: function (x) { Swal.fire('Not submitted', (x.responseJSON && (x.responseJSON.msg || x.responseJSON.message)) || 'Could not submit the month.', 'error'); reset(); }
+        });
+    };
+    Swal.fire({ icon: 'question', title: 'Submit ' + monthName + '?', text: 'The claims of ' + monthName + ' go for verification. After submitting you cannot add or change claims of this month.', showCancelButton: true, confirmButtonText: 'Submit' })
+        .then(function (r) { if (r.isConfirmed) { send(false); } });
+});
+
 // EHOME-MAIN-01: load the eHome view of the logged-in employee into the dashboard (same page as the admin's E-Home)
 window.loadMyEhome = function () {
     var $b = $('#myEhomeBody');

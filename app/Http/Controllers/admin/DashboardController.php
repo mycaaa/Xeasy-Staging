@@ -758,6 +758,7 @@ class DashboardController extends Controller
 
             // Group by month
             $monthGroups = $claims->groupBy('ClaimMonth');
+            \App\Services\Claims\MonthRow::ensure($db->getName(), (int) $yearId, (int) $employeeId);   // MONTH-ROW-01
 
             $openList = [];
             // Financial year month order DESCENDING: Mar(3) down to Apr(4) — most recent first
@@ -819,9 +820,24 @@ class DashboardController extends Controller
                     ];
                 })->values()->toArray();
 
+                // MONTH-MERGE-01 (15 Nov 2026): the Opened Months table is merged into these cards - an open month carries its
+                // confirmed amount and whether it can be submitted (with the reason when it cannot)
+                $isOpenMonth = ($monthStatus ?? 'Open') === 'Open';
+                $submitState = ['allowed' => false, 'reason' => null];
+                if ($isOpenMonth) {
+                    try {
+                        $submitState = \App\Services\ClaimRules\MonthSubmit::state($db->getName(), (int) session('company_id', 1), (int) $yearId, (int) $employeeId, (int) $month, $monthRecord->SubPermission ?? null);
+                    } catch (\Throwable $e) {
+                        $submitState = ['allowed' => false, 'reason' => null];
+                    }
+                }
+
                 $openList[] = [
                     'Month' => $month,
                     'MonthStatus' => $monthStatus ?? 'Open',
+                    'ConfirmedAmt' => round((float) $monthClaims->where('FilledOkay', 1)->sum('FilledTAmt')),
+                    'submit_btn' => $isOpenMonth && ! empty($submitState['allowed']) && $totalClaims > 0 ? 'Y' : 'N',
+                    'submit_note' => $isOpenMonth ? ($submitState['reason'] ?? null) : null,
                     'DateOfSubmit' => $submitDate,
                     'Verified_Date' => $verifiedDate,
                     'Verified_Amount' => round((float)$verifiedAmt),
