@@ -26,6 +26,10 @@
 
 {{-- ══ HEADER ══ --}}
 <div class="header-block">
+    {{-- BRAND-01: company mark on printed claims --}}
+    @if (is_file(public_path('custom/vnr_logo_print.png')))
+        <img src="{{ public_path('custom/vnr_logo_print.png') }}" alt="VNR" style="float:right;height:52px;margin-left:10px;">
+    @endif
     <h2>Expense Details ({{ $monthName }}/{{ $fyLabel }})</h2>
     <p><strong>Claimer:</strong> {{ $empDisplay }}</p>
     <p>

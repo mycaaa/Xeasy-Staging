@@ -54,6 +54,10 @@
                         <span></span>
                     </span>
                 </button>
+                {{-- BRAND-01: company mark in the top bar --}}
+                <a href="{{ url('/home') }}" class="d-none d-sm-flex align-items-center me-2 ms-1" style="height:70px;" title="VNR - Xeasy home" aria-label="Xeasy home">
+                    <img src="{{ URL::to('/') }}/custom/vnr_logo_sm.png" srcset="{{ URL::to('/') }}/custom/vnr_logo.png 2x" alt="VNR" width="30" height="40" style="object-fit:contain;">
+                </a>
                 @can('employeee_status')
                     <form class="app-search d-none d-md-block">
                         <meta name="csrf-token" content="{{ csrf_token() }}">

@@ -60,9 +60,14 @@
             pointer-events: none;
         }
         .story > * { position: relative; z-index: 1; }
-        .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--navy); }
-        .brand img { width: 64px; height: 64px; object-fit: contain; margin: -8px; }
-        .brand span { font-weight: 700; font-size: 15px; opacity: .85; }
+        .brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--navy); }
+        /* BRAND-01: the VNR mark on a white tile, then the Xeasy product name */
+        .brand .vnr { background: #fff; border-radius: 12px; padding: 8px 10px; box-shadow: 0 1px 0 #c2d1fb; display: grid; place-items: center; }
+        .brand .vnr img { width: 50px; height: 66px; object-fit: contain; display: block; }
+        .brand .sep { width: 1px; align-self: stretch; background: #b4c5f6; margin: 6px 0; }
+        .brand .product { display: flex; align-items: center; gap: 8px; }
+        .brand .product img { width: 56px; height: 56px; object-fit: contain; margin: -6px; }
+        .brand span { font-weight: 700; font-size: 15px; opacity: .85; line-height: 1.25; }
         .story h2 {
             font-size: clamp(30px, 3.1vw, 44px);
             line-height: 1.08;
@@ -161,6 +166,7 @@
             .shell { grid-template-columns: 1fr; }
             .story { padding: 22px 20px 26px; }
             .story h2 { font-size: 24px; margin: 18px 0 6px; max-width: none; }
+            .brand .vnr img { width: 40px; height: 53px; }
             .story .lede { margin: 0; font-size: 14.5px; }
             .path, .story .foot { display: none; }
             .panel { padding: 28px 16px 40px; align-items: flex-start; }
@@ -185,8 +191,12 @@
     <div class="shell">
         <aside class="story" aria-label="About Xeasy">
             <a href="{{ URL::to('/') }}" class="brand">
-                <img src="{{ URL::to('/') }}/custom/xeasy_logo_dark.png" alt="Xeasy">
-                <span>Expense claims for VNR Seeds</span>
+                <span class="vnr"><img src="{{ URL::to('/') }}/custom/vnr_logo_sm.png" srcset="{{ URL::to('/') }}/custom/vnr_logo.png 2x" alt="VNR"></span>
+                <span class="sep" aria-hidden="true"></span>
+                <span class="product">
+                    <img src="{{ URL::to('/') }}/custom/xeasy_logo_dark.png" alt="Xeasy">
+                    <span>Expense claims<br>for VNR teams</span>
+                </span>
             </a>
             <h2>Every claim, from bill to payment.</h2>
             <p class="lede">Upload bills, confirm what was punched, and follow each month through verification, approval and payment.</p>
