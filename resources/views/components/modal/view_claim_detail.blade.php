@@ -30,6 +30,12 @@
                         </span>
                         <select name="" style="width: 260px;" class="form-control"
                             id="sltClaimTypeList"></select>
+                        {{-- DOCVIEW-CLOSE-01 (14 Nov 2026): a way back at the top; before, the only Close was at the bottom
+                             of the full-screen viewer, so people used the browser's back button and left the page --}}
+                        <button type="button" class="btn btn-sm btn-soft-secondary d-flex align-items-center" data-bs-dismiss="modal"
+                            title="Close and go back (Esc)" aria-label="Close the document viewer">
+                            <i class="ri-arrow-left-line me-1" aria-hidden="true"></i>Back
+                        </button>
                     </div>
                 </div>
                 <div class="modal-body p-0">
@@ -244,3 +250,43 @@
             </div>
         </div>
     </div>
+
+{{-- DOCVIEW-CLOSE-01: Esc and the browser's back button close the viewer instead of leaving the page --}}
+@once
+@php
+    $docViewOnly = request()->is('employee-report', 'dashboard', 'approver', 'approver/*', 'vnr/approver*', 'vvnr/approver*', 'nursery/approver*', 'approver-dashboard*')
+        || request()->routeIs('dashboard', 'employee.dashboard');
+@endphp
+<script>
+(function () {
+    function init() {
+        var el = document.getElementById('claimDetailModal');
+        if (!el || el.dataset.backWired) { return; }
+        el.dataset.backWired = '1';
+        var pushed = false;
+        el.addEventListener('shown.bs.modal', function () {
+            try { history.pushState({ xeDocViewer: true }, ''); pushed = true; } catch (e) { pushed = false; }
+        });
+        el.addEventListener('hidden.bs.modal', function () {
+            if (pushed && history.state && history.state.xeDocViewer) { pushed = false; history.back(); }
+            pushed = false;
+        });
+        window.addEventListener('popstate', function () {
+            if (pushed && el.classList.contains('show') && window.bootstrap) {
+                pushed = false;
+                bootstrap.Modal.getOrCreateInstance(el).hide();
+            }
+        });
+        // Esc only where the viewer is view-only (Dashboard, approver screens), so typed punching data is not lost
+        var viewOnly = {{ $docViewOnly ? 'true' : 'false' }};
+        document.addEventListener('keydown', function (ev) {
+            if (!viewOnly || ev.key !== 'Escape' || !el.classList.contains('show')) { return; }
+            // a dialog opened over the viewer (SweetAlert, another modal) handles its own Esc
+            if (document.querySelector('.swal2-container') || document.querySelectorAll('.modal.show').length > 1) { return; }
+            if (window.bootstrap) { bootstrap.Modal.getOrCreateInstance(el).hide(); }
+        });
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+})();
+</script>
+@endonce
