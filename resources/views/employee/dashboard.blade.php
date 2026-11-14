@@ -63,21 +63,7 @@
                                 </select>
                             </div>
 
-                            @if($isApprover)
-                                <span class="badge bg-success-subtle text-success fs-12 me-1">
-                                    <i class="ri-shield-check-line me-1"></i>Approver
-                                </span>
-                            @endif
-                            @if($isVerifier)
-                                <span class="badge bg-info-subtle text-info fs-12 me-1">
-                                    <i class="ri-checkbox-circle-line me-1"></i>Verifier
-                                </span>
-                            @endif
-                            @if($isFinance)
-                                <span class="badge bg-warning-subtle text-warning fs-12 me-1">
-                                    <i class="ri-money-dollar-circle-line me-1"></i>Finance
-                                </span>
-                            @endif
+                            {{-- TOPBAR-RIGHTS-01: the Approver / Verifier / Finance badges moved to the top bar --}}
                         </div>
                     </div>
                 </div>

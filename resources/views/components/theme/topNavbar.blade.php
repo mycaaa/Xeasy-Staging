@@ -99,6 +99,27 @@
                 @endcan
             </div>
             <div class="d-flex align-items-center">
+                {{-- TOPBAR-RIGHTS-01 (15 Nov 2026): the user's rights, shown on every page (were on the Dashboard header only) --}}
+                @auth
+                    @php
+                        $xeRights = session('xe_rights') ?? [
+                            'approver' => session('reporting_vess') == 'Y' || session('reporting_nursery') == 'Y',
+                            'verifier' => auth()->user()->can('section_verifier'),
+                            'finance' => auth()->user()->can('payment_section'),
+                        ];
+                    @endphp
+                    <div class="d-none d-md-flex align-items-center gap-1 me-2 xe-topbar-rights" aria-label="Your rights">
+                        @if (! empty($xeRights['approver']))
+                            <span class="badge bg-success-subtle text-success fs-11" title="You approve your team's claims"><i class="ri-shield-check-line me-1"></i>Approver</span>
+                        @endif
+                        @if (! empty($xeRights['verifier']))
+                            <span class="badge bg-info-subtle text-info fs-11" title="You verify claims"><i class="ri-checkbox-circle-line me-1"></i>Verifier</span>
+                        @endif
+                        @if (! empty($xeRights['finance']))
+                            <span class="badge bg-warning-subtle text-warning fs-11" title="You process claim payments"><i class="ri-money-dollar-circle-line me-1"></i>Finance</span>
+                        @endif
+                    </div>
+                @endauth
                 <button type="button"
                     class="btn btn-icon btn-topbar material-shadow-none btn-ghost-secondary rounded-circle"
                     data-bs-toggle="tooltip" data-bs-placement="bottom" title="Fullscreen" aria-label="Fullscreen" data-toggle="fullscreen">

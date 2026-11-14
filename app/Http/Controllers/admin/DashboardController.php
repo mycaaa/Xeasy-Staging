@@ -49,6 +49,8 @@ class DashboardController extends Controller
         $isApprover = ($empRole === 'A') || $hasTeam || (session('reporting_vess') == 'Y') || (session('reporting_nursery') == 'Y');
         $isVerifier = $user->can('section_verifier');
         $isFinance = $user->can('payment_section');
+        // TOPBAR-RIGHTS-01 (15 Nov 2026): the rights badges are shown in the top bar on every page
+        session(['xe_rights' => ['approver' => (bool) $isApprover, 'verifier' => (bool) $isVerifier, 'finance' => (bool) $isFinance]]);
         $isReports = $user->can('section_reports');
 
         // Fetch all closed/submitted months for employee & team in current YearId
