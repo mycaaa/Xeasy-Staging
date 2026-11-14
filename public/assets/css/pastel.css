@@ -134,3 +134,24 @@ table.dataTable td > a:has(> i:only-child), table.table td > a:has(> i:only-chil
     display: inline-flex; align-items: center; justify-content: center; min-width: 26px; min-height: 26px; border-radius: 6px;
 }
 table.dataTable td > a:has(> i:only-child):hover, table.table td > a:has(> i:only-child):hover { background: var(--px-primary-bg); }
+
+/* MENU-TOGGLE-01: small < > button on the side menu's edge instead of the three-line button (wide screens) */
+.xe-menu-toggle { display: none; }
+@media (min-width: 992px) {
+    html[data-layout="vertical"] #topnav-hamburger-icon { display: none !important; }
+    html[data-layout="vertical"] .xe-menu-toggle {
+        display: grid; place-items: center;
+        position: fixed; top: 84px; z-index: 1003;
+        left: calc(var(--vz-vertical-menu-width, 250px) - 12px);
+        width: 24px; height: 24px; padding: 0; border-radius: 50%;
+        background: #fff; color: #1e3a8a; border: 1px solid #c2d1fb;
+        box-shadow: 0 1px 3px rgba(30, 58, 138, .18); font-size: 16px; line-height: 1; cursor: pointer;
+        transition: left .2s ease, background .15s;
+    }
+    html[data-layout="vertical"][data-sidebar-size="sm"] .xe-menu-toggle,
+    html[data-layout="vertical"][data-sidebar-size="sm-hover"] .xe-menu-toggle { left: calc(var(--vz-vertical-menu-width-sm, 70px) - 12px); }
+    html[data-layout="vertical"][data-sidebar-size="md"] .xe-menu-toggle { left: calc(var(--vz-vertical-menu-width-md, 180px) - 12px); }
+    .xe-menu-toggle:hover { background: #dde6ff; }
+    .xe-menu-toggle:focus-visible { outline: 3px solid rgba(30, 58, 138, .35); outline-offset: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .xe-menu-toggle { transition: none; } }

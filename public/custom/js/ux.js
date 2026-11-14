@@ -101,9 +101,30 @@
         });
     }
 
+    // MENU-TOGGLE-01: the < > button on the menu edge does what the three-line button did
+    function menuToggle() {
+        var btn = document.getElementById('xeMenuToggle');
+        var ham = document.getElementById('topnav-hamburger-icon');
+        if (!btn || !ham) return;
+        var root = document.documentElement;
+        var paint = function () {
+            var size = root.getAttribute('data-sidebar-size') || 'lg';
+            var open = size === 'lg' || size === 'md';
+            btn.firstElementChild.className = open ? 'ri-arrow-left-s-line' : 'ri-arrow-right-s-line';
+            var label = open ? 'Collapse the menu' : 'Expand the menu';
+            btn.setAttribute('aria-label', label);
+            btn.title = label;
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+        btn.addEventListener('click', function () { ham.click(); setTimeout(paint, 30); });
+        new MutationObserver(paint).observe(root, { attributes: true, attributeFilter: ['data-sidebar-size'] });
+        paint();
+    }
+
     function start() {
         setTitle(markActiveMenu());
         sessionExpiry();
+        menuToggle();
     }
     tables(); // now, before the page scripts create their tables
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

@@ -54,6 +54,11 @@
                         <span></span>
                     </span>
                 </button>
+                {{-- MENU-TOGGLE-01: on wide screens the menu opens / closes from a small < > button on the menu's edge
+                     (the three-line button above stays for phones and tablets, where the menu slides in) --}}
+                <button type="button" id="xeMenuToggle" class="xe-menu-toggle" aria-label="Collapse the menu" title="Collapse the menu">
+                    <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
+                </button>
                 {{-- BRAND-01: company mark in the top bar --}}
                 <a href="{{ url('/home') }}" class="d-none d-sm-flex align-items-center me-2 ms-1" style="height:70px;" title="VNR - Xeasy home" aria-label="Xeasy home">
                     <img src="{{ URL::to('/') }}/custom/vnr_logo_sm.png" srcset="{{ URL::to('/') }}/custom/vnr_logo.png 2x" alt="VNR" width="30" height="40" style="object-fit:contain;">
