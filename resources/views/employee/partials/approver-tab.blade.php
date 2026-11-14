@@ -144,6 +144,13 @@
     $approvedAmount = $rm['approved_amount'] ?? 0;
     $returnedCount = $rm['returned_count'] ?? 0;
     $teamExpenses  = $rm['team_expenses']  ?? 0;
+    // TEAM-BASIS-01 (14 Nov 2026): what each total counts, shown under the cards and in Top Insights
+    $teamExpClaims   = (int) ($rm['team_expenses_claims'] ?? 0);
+    $approvedBasis   = $rm['approved_basis'] ?? 'months';
+    $approvedClaimed = (float) ($rm['approved_claimed'] ?? 0);
+    $overCnt         = (int) ($rm['over_claimed_count'] ?? 0);
+    $overClaimed     = (float) ($rm['over_claimed_claimed'] ?? 0);
+    $overEntered     = (float) ($rm['over_claimed_entered'] ?? 0);
     $totalClaims   = $rm['total_claims']   ?? 0;
 
     // Prev month values for comparison
@@ -191,7 +198,7 @@
     // Stat cards - 3 primary redirectable cards
     $statCards = [
         ['label' => 'Claims Pending Approval', 'value' => $pendingCount,
-         'sub'   => '₹ ' . number_format($pendingAmount),
+         'sub'   => '₹ ' . number_format($pendingAmount) . ' verified (claimed if not verified)',
          'icon'  => 'ri-time-line', 'color' => 'warning', 'change' => null,
          'link'  => $rmApproverRoute . '?status=pending'],
 
@@ -201,7 +208,7 @@
          'link'  => $rmApproverRoute],
 
         ['label' => 'Team Expenses (YTD)',       'value' => '₹ ' . number_format($teamExpenses),
-         'sub'   => $teamSize . ' team members',
+         'sub'   => 'Claimed · ' . number_format($teamExpClaims) . ' bills this FY · ' . $teamSize . ' team members',
          'icon'  => 'ri-money-dollar-circle-line', 'color' => 'info', 'change' => null,
          'link'  => $rmApproverRoute],
     ];
@@ -215,13 +222,15 @@
         $insights[] = "{$pendingCount} " . ($pendingCount === 1 ? 'claim is' : 'claims are') . " pending your approval (₹ " . number_format($pendingAmount) . ").";
     }
     if ($approvedCount > 0) {
-        $insights[] = "{$approvedCount} " . ($approvedCount === 1 ? 'claim' : 'claims') . " approved this month totalling ₹ " . number_format($approvedAmount) . ".";
+        $insights[] = $approvedBasis === 'months'
+            ? "{$rmMonthLabel} claims of {$approvedCount} " . ($approvedCount === 1 ? 'employee' : 'employees') . " approved and submitted: ₹ " . number_format($approvedAmount) . " approved against ₹ " . number_format($approvedClaimed) . " claimed."
+            : "{$rmMonthLabel}: {$approvedCount} " . ($approvedCount === 1 ? 'bill' : 'bills') . " approved so far (month not submitted yet): ₹ " . number_format($approvedAmount) . " approved against ₹ " . number_format($approvedClaimed) . " claimed.";
     }
     if ($returnedCount > 0) {
         $insights[] = "{$returnedCount} " . ($returnedCount === 1 ? 'claim was' : 'claims were') . " returned this month.";
     }
     if ($teamSize > 0) {
-        $insights[] = "Your team has {$teamSize} active " . ($teamSize === 1 ? 'member' : 'members') . ". YTD team expenses: ₹ " . number_format($teamExpenses) . ".";
+        $insights[] = "Your team has {$teamSize} active " . ($teamSize === 1 ? 'member' : 'members') . ". Claimed this financial year: ₹ " . number_format($teamExpenses) . " on " . number_format($teamExpClaims) . " bills.";
     }
     if (empty($insights)) {
         $insights[] = "No data available for {$rmMonthLabel} {$rmYear}.";
@@ -234,6 +243,9 @@
     }
     if ($returnedCount > 0) {
         $complianceAlerts[] = ['type' => 'info', 'msg' => "{$returnedCount} claim(s) returned this month — follow up with employees."];
+    }
+    if ($overCnt > 0) {
+        $complianceAlerts[] = ['type' => 'danger', 'msg' => "{$overCnt} " . ($overCnt === 1 ? 'bill' : 'bills') . " of {$rmMonthLabel} carry an approved or verified amount above the claimed amount (₹ " . number_format($overEntered) . " entered against ₹ " . number_format($overClaimed) . " claimed). Correct them before you submit."];
     }
     if ($rmTatTotal > 7) {
         $complianceAlerts[] = ['type' => 'danger', 'msg' => "The full claim cycle took {$rmTatTotal} days on average (above 7 days)."];
@@ -454,6 +466,15 @@
                     </div>
                     @endforeach
                 </div>
+                {{-- TEAM-BASIS-01 (14 Nov 2026): how the totals are worked out --}}
+                <details class="mt-3" style="font-size:11px;color:#5b6478;">
+                    <summary style="cursor:pointer;font-weight:600;color:#405189;">How these totals are worked out</summary>
+                    <ul class="mb-0 mt-2 ps-3" style="line-height:1.5;">
+                        <li><b>Team Expenses (YTD)</b>: the claimed amount of every bill your team members have confirmed in this financial year, at any stage (drafts and deactivated bills left out). It does not use the approved amount.</li>
+                        <li><b>Approved in {{ $rmMonthLabel }}</b>: {{ $approvedBasis === 'months' ? 'employee months of '.$rmMonthLabel.' you have approved and submitted, with their approved amount' : 'single bills of '.$rmMonthLabel.' you have approved so far, before the month is submitted, with the amount you entered' }}. It counts only {{ $rmMonthLabel }}, so it can be more than the year's claimed total if an approved amount is wrong.</li>
+                        <li><b>Claims Pending Approval</b>: submitted months not approved yet, at the verified amount (the claimed amount where not verified).</li>
+                    </ul>
+                </details>
             </div>
         </div>
 

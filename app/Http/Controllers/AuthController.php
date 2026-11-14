@@ -68,7 +68,7 @@ class AuthController extends Controller
                 try {
                     DatabaseSwitcher::setCompanyConnections($company);
 
-                    return FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year']);
+                    return FinancialYear::orderBy('YearId', 'desc')->get(['YearId', 'Year', 'FromDate', 'Todate']);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Sign-in page: financial years of company {$company} not available: ".$e->getMessage());
 
@@ -76,8 +76,9 @@ class AuthController extends Controller
                 }
             };
             $vnr_financial_years = $years(1);
-            $vnr_nursery_financial_years = $years(3);
-            $vvnr_financial_years = $years(11);
+            // LOGIN-COMPANY-01: only VNR's year list is shown; the other companies' lists are no longer needed here
+            $vnr_nursery_financial_years = collect();
+            $vvnr_financial_years = collect();
 
             // Reset to default connection
             DatabaseSwitcher::setCompanyConnections(1);
@@ -98,7 +99,8 @@ class AuthController extends Controller
             $credentials = $request->validate([
                 'employeeid' => $token ? 'nullable|string' : 'required|string',
                 'password' => $token ? 'nullable|string' : 'required|string',
-                'company' => $token ? 'nullable|in:1,3,11' : 'required|in:1,3,11',
+                // LOGIN-COMPANY-01 (14 Nov 2026): no company on the sign-in page; it comes from the employee's HR record
+                'company' => 'nullable|in:1,3,11',
                 'financial_year' => $token ? 'nullable' : 'required',
             ]);
             $status_messages[] = 'Input validation completed';
@@ -243,10 +245,8 @@ class AuthController extends Controller
 
             if ($empRow) {
                 $companyId = (int) $empRow->CompanyId;
-                // VVNR (company 11) uses a year numbering offset of -2 vs VNR
-                if ($companyId === 11 && $request->financial_year) {
-                    $request->merge(['financial_year' => (int) $request->financial_year - 2]);
-                }
+                // LOGIN-COMPANY-01: the year is matched to the company by its label after sign-in (see yearForCompany);
+                // the old fixed "VVNR = VNR - 2" offset is gone
                 // Re-set DB connections now that we know the real company
                 DatabaseSwitcher::setCompanyConnections($companyId);
             }
@@ -498,7 +498,10 @@ class AuthController extends Controller
         // Cast to int — $request->company comes in as a string; keep it consistent everywhere
         $companyAccessId = $user->company_access_id;
         $companyAccess = array_filter(explode(',', (string) $companyAccessId));
-        $reqCompany = (int) ($token_valid ? 1 : ($request->company ?? (isset($employee) ? $employee->CompanyId : 1)));
+        // LOGIN-COMPANY-01: the company is the employee's own (HR record); other companies are reached with the
+        // company switch in the header. A company still posted (older forms) is honoured if the user has access.
+        $hrCompany = (int) (isset($employee) ? ($employee->CompanyId ?? 1) : 1);
+        $reqCompany = (int) ($token_valid ? 1 : ($request->company ?: (in_array($hrCompany, [1, 3, 11], true) ? $hrCompany : 1)));
         
         if (!empty($companyAccess) && !in_array($reqCompany, $companyAccess)) {
             $companyId = (int) ($companyAccess[0] ?? 1);
@@ -648,7 +651,7 @@ class AuthController extends Controller
                 ->first();
             $yearId = $activeFy ? (int) $activeFy->YearId : 8;
         } else {
-            $yearId = (int) $request->financial_year;
+            $yearId = $this->yearForCompany((int) $request->financial_year, (int) $companyId, $request->filled('company'));
         }
         $yearValue = FinancialYear::getYearById($yearId);
 
@@ -928,5 +931,36 @@ class AuthController extends Controller
     public function key_locator($code, $strcode)
     {
         return array_search($code, $strcode) ?: 0;
+    }
+
+    /**
+     * LOGIN-COMPANY-01 (14 Nov 2026): the sign-in page lists VNR's financial years. Each company numbers its years
+     * differently (VNR 8 = VVNR 6 = 2026-27), so the year is matched by its label in the signed-in company; a year the
+     * company does not have falls back to its current year (else its latest).
+     */
+    private function yearForCompany(int $postedYearId, int $companyId, bool $postedForCompany): int
+    {
+        if ($postedForCompany) {
+            return $postedYearId;   // an older form that sent the company also sent that company's own year
+        }
+        try {
+            $label = (string) \Illuminate\Support\Facades\DB::connection(DatabaseSwitcher::getExpenseConnection(1))
+                ->table('financialyear')->where('YearId', $postedYearId)->value('Year');
+            if ($companyId === 1 || in_array($companyId, [2, 4], true)) {
+                return $postedYearId;
+            }
+            $db = \Illuminate\Support\Facades\DB::connection(DatabaseSwitcher::getExpenseConnection($companyId))->table('financialyear');
+            if ($label !== '' && ($id = (clone $db)->where('Year', $label)->value('YearId'))) {
+                return (int) $id;
+            }
+            $today = date('Y-m-d');
+
+            return (int) ((clone $db)->where('FromDate', '<=', $today)->where('Todate', '>=', $today)->value('YearId')
+                ?: (clone $db)->max('YearId') ?: $postedYearId);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Sign-in year match failed: '.$e->getMessage());
+
+            return $postedYearId;
+        }
     }
 }

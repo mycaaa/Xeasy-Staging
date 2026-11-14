@@ -120,18 +120,7 @@
         .input.is-invalid { border-color: var(--danger); }
         .error { color: var(--danger); font-size: 13px; margin-top: 6px; }
 
-        /* company as a three-way switch: one tap, always visible */
-        .companies { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1.5px solid var(--line); border-radius: var(--radius); background: #fff; padding: 3px; }
-        .companies input { position: absolute; opacity: 0; pointer-events: none; }
-        .companies label {
-            display: flex; align-items: center; justify-content: center; text-align: center;
-            min-height: 40px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
-            font-size: 13.5px; font-weight: 600; color: var(--muted); line-height: 1.2;
-            transition: background .15s, color .15s;
-        }
-        .companies label:hover { color: var(--ink); }
-        .companies input:checked + label { background: var(--sky); color: var(--navy); box-shadow: inset 0 0 0 1.5px var(--sky-bd); }
-        .companies input:focus-visible + label { outline: 3px solid rgba(19, 41, 122, .35); outline-offset: 1px; }
+        .hint { margin: 6px 0 0; font-size: 12px; color: var(--muted, #5b6478); }
 
         .pass { position: relative; }
         .pass .input { padding-right: 48px; }
@@ -177,7 +166,10 @@
 
 <body>
     @php
-        $oldCompany = (string) old('company', '1');
+        // LOGIN-COMPANY-01: preselect the year that contains today (the newest row may be a year opened in advance)
+        $todayYmd = date('Y-m-d');
+        $pickYear = old('financial_year') ?: optional(collect($vnr_financial_years ?? [])->first(fn ($y) => ($y->FromDate ?? '') <= $todayYmd && ($y->Todate ?? '') >= $todayYmd))->YearId
+            ?: optional(collect($vnr_financial_years ?? [])->first())->YearId;
         $processSteps = [
             ['Bill upload', 'You add the bill or odometer photo'],
             ['Punching check', 'The punching team reads and checks it'],
@@ -222,27 +214,7 @@
 
                 <form method="POST" action="{{ route('login') }}" id="loginForm" novalidate>
                     @csrf
-                    <div class="field">
-                        <span class="label" id="companyLabel">Company</span>
-                        <div class="companies" role="radiogroup" aria-labelledby="companyLabel">
-                            @foreach (['1' => 'VNR Seeds', '3' => 'VNR Nursery', '11' => 'VVNR'] as $id => $name)
-                                <input type="radio" name="company" id="company{{ $id }}" value="{{ $id }}" {{ $oldCompany === (string) $id ? 'checked' : '' }} required>
-                                <label for="company{{ $id }}">{{ $name }}</label>
-                            @endforeach
-                        </div>
-                        @error('company') <div class="error" role="alert">{{ $message }}</div> @enderror
-                    </div>
-
-                    <div class="field">
-                        <label for="financial_year">Financial year</label>
-                        <select name="financial_year" id="financial_year" class="input @error('financial_year') is-invalid @enderror" required>
-                            @foreach ($vnr_financial_years ?? [] as $year)
-                                <option value="{{ $year->YearId }}" {{ old('financial_year') == $year->YearId ? 'selected' : '' }}>{{ $year->Year }}</option>
-                            @endforeach
-                        </select>
-                        @error('financial_year') <div class="error" role="alert">{{ $message }}</div> @enderror
-                    </div>
-
+                    {{-- LOGIN-COMPANY-01 (14 Nov 2026): no company choice; it comes from the employee ID --}}
                     <div class="field">
                         <label for="employeeid">Employee ID or guest username</label>
                         <input type="text" class="input @error('employeeid') is-invalid @enderror" id="employeeid" name="employeeid"
@@ -260,6 +232,17 @@
                         @error('password') <div class="error" role="alert">{{ $message }}</div> @enderror
                     </div>
 
+                    <div class="field">
+                        <label for="financial_year">Financial year</label>
+                        <select name="financial_year" id="financial_year" class="input @error('financial_year') is-invalid @enderror" required>
+                            @foreach ($vnr_financial_years ?? [] as $year)
+                                <option value="{{ $year->YearId }}" {{ (string) $pickYear === (string) $year->YearId ? 'selected' : '' }}>{{ $year->Year }}</option>
+                            @endforeach
+                        </select>
+                        <p class="hint">Your company is taken from your employee ID. Switch company or year from the top bar after signing in.</p>
+                        @error('financial_year') <div class="error" role="alert">{{ $message }}</div> @enderror
+                    </div>
+
                     <div class="row">
                         <label class="check"><input type="checkbox" id="remember" name="remember" {{ old('remember') ? 'checked' : '' }}> Keep me signed in</label>
                     </div>
@@ -274,39 +257,6 @@
 
     <script>
         (function () {
-            // Financial years differ by company: each company's list, newest first
-            var years = {
-                1: @json($vnr_financial_years ?? []),
-                3: @json($vnr_nursery_financial_years ?? []),
-                11: @json($vvnr_financial_years ?? [])
-            };
-            var sel = document.getElementById('financial_year');
-            var keepOld = @json((bool) old('financial_year'));
-
-            function fill(company) {
-                var list = years[company] || [];
-                var current = sel.value;
-                sel.innerHTML = '';
-                list.forEach(function (y) {
-                    var o = document.createElement('option');
-                    o.value = y.YearId; o.textContent = y.Year; sel.appendChild(o);
-                });
-                if (keepOld && list.some(function (y) { return String(y.YearId) === current; })) {
-                    sel.value = current;
-                } else if (list.length) {
-                    var pick = list[0];
-                    if (String(company) === '11') { // VVNR works in 2023-2024 by default when it exists
-                        pick = list.find(function (y) { return String(y.Year).indexOf('2023-2024') !== -1; }) || pick;
-                    }
-                    sel.value = pick.YearId;
-                }
-            }
-            document.querySelectorAll('input[name="company"]').forEach(function (r) {
-                r.addEventListener('change', function () { keepOld = false; fill(r.value); });
-            });
-            var checked = document.querySelector('input[name="company"]:checked');
-            fill(checked ? checked.value : '1');
-
             var pass = document.getElementById('password');
             var tog = document.getElementById('togglePass');
             tog.addEventListener('click', function () {

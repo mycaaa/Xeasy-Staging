@@ -1457,23 +1457,41 @@ class DashboardController extends Controller
                 ->where('Month', $displayMonth)
                 ->whereNotNull('Approved_Date')
                 ->where('Approved_Date', '!=', '0000-00-00')
-                ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(Approved_Amount), 0) as amt')
+                ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(Approved_Amount), 0) as amt, COALESCE(SUM(Claim_Amount), 0) as claimed')
                 ->first();
 
+            // TEAM-BASIS-01 (14 Nov 2026): say what each figure counts. Months the approver has submitted count as
+            // "employee months"; when none is submitted yet the figure falls back to single claims approved so far.
             $approvedCount = (int) ($approvedMef->cnt ?? 0);
             $approvedAmount = (float) ($approvedMef->amt ?? 0);
+            $approvedClaimed = (float) ($approvedMef->claimed ?? 0);
+            $approvedBasis = 'months';
 
             if ($approvedCount === 0) {
                 $approvedEc = $db->table($table)
                     ->whereIn('CrBy', $teamMembers)
                     ->where('ClaimMonth', $displayMonth)
+                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])
+                    ->where('ApprBy', '>', 0)
                     ->where('ApprDate', '!=', '0000-00-00')
                     ->whereNotNull('ApprDate')
-                    ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(ApprTAmt), 0) as amt')
+                    ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(ApprTAmt), 0) as amt, COALESCE(SUM(FilledTAmt), 0) as claimed')
                     ->first();
                 $approvedCount = (int) ($approvedEc->cnt ?? 0);
                 $approvedAmount = (float) ($approvedEc->amt ?? 0);
+                $approvedClaimed = (float) ($approvedEc->claimed ?? 0);
+                $approvedBasis = 'claims';
             }
+
+            // TEAM-BASIS-01 / APPR-CAP-02: claims of the month approved or verified above the claimed amount
+            $overClaimed = $db->table($table)
+                ->whereIn('CrBy', $teamMembers)
+                ->where('ClaimMonth', $displayMonth)
+                ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])
+                ->where('FilledTAmt', '>', 0)
+                ->where(fn ($q) => $q->whereRaw('ApprTAmt > FilledTAmt + 1')->orWhereRaw('VerifyTAmt > FilledTAmt + 1'))
+                ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(FilledTAmt), 0) as claimed, COALESCE(SUM(GREATEST(COALESCE(ApprTAmt, 0), COALESCE(VerifyTAmt, 0))), 0) as entered')
+                ->first();
 
             // Approved prev month (for comparison)
             $approvedPrevMef = $db->table($mefTable)
@@ -1502,12 +1520,15 @@ class DashboardController extends Controller
                 ->where('ClaimMonth', $prevMonth)
                 ->count();
 
-            // Team total expenses this year
-            $teamExpenses = $db->table($table)
+            // Team total expenses this year. TEAM-BASIS-01: the claimed amount of every bill the team member has
+            // confirmed (FilledOkay = 1) in this financial year, whatever its stage; drafts and deactivated bills left out
+            $teamExpRow = $db->table($table)
                 ->whereIn('CrBy', $teamMembers)
-                ->where('ClaimStatus', '!=', 'Deactivate')
+                ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])
                 ->where('FilledOkay', 1)
-                ->sum('FilledTAmt');
+                ->selectRaw('COALESCE(SUM(FilledTAmt), 0) as amt, COUNT(*) as cnt, MIN(ClaimMonth) as m1, MAX(ClaimMonth) as m2')
+                ->first();
+            $teamExpenses = (float) ($teamExpRow->amt ?? 0);
 
             // Total claims count
             $totalClaims = $db->table($table)
@@ -1665,6 +1686,12 @@ class DashboardController extends Controller
                 'approved_amount_prev' => round($approvedAmountPrev),
                 'returned_count_prev'  => $returnedPrev,
                 'team_expenses' => round((float)$teamExpenses),
+                'team_expenses_claims' => (int) ($teamExpRow->cnt ?? 0),
+                'approved_basis' => $approvedBasis,
+                'approved_claimed' => round($approvedClaimed),
+                'over_claimed_count' => (int) ($overClaimed->cnt ?? 0),
+                'over_claimed_claimed' => round((float) ($overClaimed->claimed ?? 0)),
+                'over_claimed_entered' => round((float) ($overClaimed->entered ?? 0)),
                 'total_claims' => $totalClaims,
                 'team_size' => count($teamMembers),
                 'approval_inbox' => $approvalInbox,
