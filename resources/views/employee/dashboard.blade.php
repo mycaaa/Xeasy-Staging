@@ -1940,6 +1940,7 @@ $(document).ready(function() {
         $.get("{{ route('dashboard.my-claims') }}", function(response) {
             if (response.success && response.open_list.length > 0) {
                 container.html(renderMonthTiles(response.open_list));
+                window.decorateClosedTiles();
             } else {
                 container.html(`
                     <div class="text-center py-4">
@@ -1956,6 +1957,24 @@ $(document).ready(function() {
             `);
         });
     }
+
+    // CLOSED-TILES-01 (14 Nov 2026): courier, received, paid, remark and bank of a closed month, from the E-Home data
+    window.decorateClosedTiles = function () {
+        const info = window.ehClosedInfo || {};
+        $('#myClaimsMonthContainer .month-closed-info').each(function () {
+            const c = info[String($(this).data('month'))];
+            if (!c) { $(this).empty().hide(); return; }
+            const dash = v => (v && v !== '—' && v !== '-' ? v : '—');
+            const esc = v => $('<div>').text(dash(v)).html();
+            $(this).html(
+                '<span class="text-muted">Courier:</span> <span class="fw-semibold">' + esc(c.courier) + '</span>' +
+                '<span class="text-muted ms-3">Received:</span> ' + esc(c.rcvd) +
+                '<span class="text-muted ms-3">Paid:</span> <span class="fw-semibold text-success">' + esc(c.paid) + '</span>' +
+                '<span class="text-muted ms-3">Bank:</span> ' + esc(c.bank) +
+                (dash(c.remark) !== '—' ? '<div class="text-muted mt-1">' + esc(c.remark) + '</div>' : '')
+            ).show();
+        });
+    };
 
     function getMonthName(monthNum) {
         const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -2052,6 +2071,7 @@ $(document).ready(function() {
                         <span class="text-muted fs-11 ms-2">Denied:</span>
                         <span class="text-danger fs-11 ms-1">${deniedClaims}</span>
                     </div>
+                    ${monthStatus === 'Closed' ? `<div class="month-closed-info fs-11 mt-1 ms-4 ps-2" data-month="${month}" style="display:none;"></div>` : ''}
                 </div>
                 <div class="collapse ${isOpen ? 'show' : ''}" id="monthClaims${month}">
                     ${monthStatus !== 'Open' ? `<div class="month-timeline-stepper d-flex align-items-start justify-content-center py-2 px-3 mb-1" style="background:#f8fdf9;border-top:1px solid #e9ecef;">
@@ -2949,8 +2969,19 @@ window.loadMyEhome = function () {
     var $b = $('#myEhomeBody');
     if (!$b.length) return;
     $b.html('<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div> Loading...</div>');
-    $.ajax({ url: '/expense/ehome-dashboard', method: 'GET', data: { year_id: '{{ (int) session('year_id') }}', company_id: '{{ (int) session('company_id') }}' },
-        success: function (html) { $b.html(html); },
+    $.ajax({ url: '/expense/ehome-dashboard', method: 'GET', data: { year_id: '{{ (int) session('year_id') }}', company_id: '{{ (int) session('company_id') }}', embed: 'dashboard' },
+        success: function (html) {
+            $b.html(html);
+            // CLOSED-TILES-01: the old Closed Months table is replaced by the month tiles below; its courier, received,
+            // paid, remark and bank details move into the tiles
+            var info = {};
+            $b.find('#ehClosedMonths tr.eh-month-row[data-type="closed"]').each(function () {
+                var td = $(this).children('td'), t = function (i) { return $.trim(td.eq(i).text()).replace(/\s+/g, ' '); };
+                info[String($(this).data('month'))] = { courier: t(4), rcvd: t(5), paid: t(8), remark: t(9), bank: t(10) };
+            });
+            window.ehClosedInfo = info;
+            if (window.decorateClosedTiles) { window.decorateClosedTiles(); }
+        },
         error: function () { $b.html('<div class="text-center text-danger py-3">Could not load E-Home.</div>'); } });
 };
 $(function () { window.loadMyEhome(); $('#refreshMyEhome').on('click', window.loadMyEhome); });

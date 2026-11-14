@@ -571,7 +571,9 @@
     </div>
 
     {{-- ══════════════════════════════════════════ CLOSED MONTHS ══════════════════════════════════════════ --}}
-    <div class="mb-2">
+    {{-- CLOSED-TILES-01 (14 Nov 2026): on the employee Dashboard (embed=dashboard) this table is not shown; its courier,
+         received, paid, remark and bank details are shown in the month tiles of My Claims (Month-wise) instead --}}
+    <div class="mb-2" id="ehClosedMonths" @if (request('embed') === 'dashboard') style="display:none" aria-hidden="true" @endif>
         <div class="eh-header eh-header-closed">
             <i class="ri-checkbox-circle-line"></i> Closed Months
         </div>
