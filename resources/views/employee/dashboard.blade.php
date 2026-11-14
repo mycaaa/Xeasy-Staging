@@ -1127,15 +1127,17 @@
                 @if($isFinance)
                 <div class="tab-pane {{ $requestedTab === 'finance-tab' ? 'active show' : '' }}" id="finance-tab" role="tabpanel">
                     <div class="row">
-                        {{-- Quick Actions --}}
-                        <div class="card">
-                            <div class="card-body">
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <a href="{{ url('/expense-payments') }}" class="btn btn-warning btn-label waves-effect waves-light">
-                                        <i class="ri-money-dollar-circle-line label-icon align-middle fs-16 me-2"></i>Payment Section
+                        {{-- Quick Actions (DASH-UNIFY-01: icon tiles, as on My Claims / Verification) --}}
+                        <div class="card mb-3">
+                            <div class="card-body py-3">
+                                <div class="d-flex gap-3 flex-wrap align-items-center">
+                                    <a href="{{ url('/expense-payments') }}" class="quick-action-btn text-center text-decoration-none">
+                                        <div class="quick-action-icon bg-warning-subtle text-warning"><i class="ri-money-dollar-circle-line fs-20"></i></div>
+                                        <span class="fs-11 text-muted mt-1 d-block">Payment Section</span>
                                     </a>
-                                    <a href="{{ url('/finance/advance-approvals') }}" class="btn btn-outline-dark waves-effect waves-light">
-                                        <i class="ri-hand-coin-line me-1"></i>Advance Approvals
+                                    <a href="{{ url('/finance/advance-approvals') }}" class="quick-action-btn text-center text-decoration-none">
+                                        <div class="quick-action-icon bg-success-subtle text-success"><i class="ri-hand-coin-line fs-20"></i></div>
+                                        <span class="fs-11 text-muted mt-1 d-block">Advance Approvals</span>
                                     </a>
                                 </div>
                             </div>
