@@ -243,10 +243,14 @@ class ClaimActionsController extends BaseMobileController
         $yearId = $this->getYearId($request);
         $comId = $this->getComId($request);
         $expId = (int) $request->input('ExpId');
-        $remark = $request->input('remark', '');
+        $remark = trim((string) $request->input('remark', ''));
 
         if ($empId <= 0 || $yearId <= 0 || $expId <= 0 || $comId <= 0) {
             return $this->error('Parameter Missing!');
+        }
+        // DENY-REMARK-01 (14 Nov 2026, tracker #23): a bill is denied only with the reason
+        if (mb_strlen($remark) < 3) {
+            return $this->error('Please enter the reason for denying this bill (remark is required).');
         }
 
         if (!$this->validateToken($request)) {

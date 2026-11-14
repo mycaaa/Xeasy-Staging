@@ -172,3 +172,16 @@
         }).observe(document.body || document.documentElement, { childList: true, subtree: true });
     } catch (e) { }
 })();
+
+
+/* DENY-REMARK-01 (14 Nov 2026, tracker #23): a SweetAlert box (e.g. the Deny remark) opened over a Bootstrap pop-up could not
+ * keep the typing focus: the pop-up's focus trap pulled it back, so the remark could not be typed. Focus moving into a
+ * SweetAlert box is no longer passed on to the trap. */
+(function () {
+    if (window.__xeSwalFocusFix) { return; }
+    window.__xeSwalFocusFix = true;
+    window.addEventListener('focusin', function (e) {
+        var t = e.target;
+        if (t && t.closest && t.closest('.swal2-container')) { e.stopImmediatePropagation(); }
+    }, true);
+})();

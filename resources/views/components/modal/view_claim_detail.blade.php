@@ -313,7 +313,7 @@
             if (!exp) { return; }
             Swal.fire({ title: 'Deny this bill?', text: 'It goes back to the punching team with your remark.', input: 'text', inputPlaceholder: 'What is wrong?',
                 inputAttributes: { maxlength: 50 }, showCancelButton: true, confirmButtonText: 'Deny', confirmButtonColor: '#dc2626',
-                inputValidator: function (v) { return !v || !v.trim() ? 'A remark is needed' : null; } })
+                inputValidator: function (v) { return !v || v.trim().length < 3 ? 'Please enter the reason for denying (at least 3 letters)' : null; } })
                 .then(function (r) { if (r.isConfirmed) { dashPost(url, { exp_id: exp, remark: r.value.trim() }, function () { Swal.fire({ icon: 'success', title: 'Sent back to the punching team', timer: 1400, showConfirmButton: false }); dashRefresh(); }); } });
         });
 

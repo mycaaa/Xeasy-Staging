@@ -1983,7 +1983,7 @@ $(document).on('click', '.btn-deny-claim', function() {
     const typed = $('#sc-new-remark').val().trim();
     Swal.fire({ title: 'Deny this claim?', text: 'It goes back to the punching team with your remark.', input: 'text', inputValue: typed,
         inputPlaceholder: 'Why is it wrong? (up to 50 letters)', inputAttributes: { maxlength: 50 }, showCancelButton: true,
-        confirmButtonText: 'Deny', confirmButtonColor: '#dc2626', inputValidator: v => !v.trim() ? 'A remark is needed' : null })
+        confirmButtonText: 'Deny', confirmButtonColor: '#dc2626', inputValidator: v => (!v || v.trim().length < 3) ? 'Please enter the reason for denying (at least 3 letters)' : null })
         .then(r => { if (r.isConfirmed) claimPost('{{ route("claimant.claim.deny") }}', { exp_id: id, remark: r.value.trim() }, 'Sent back to the punching team').done(() => { bootstrap.Modal.getInstance(document.getElementById('singleClaimDetailModal'))?.hide(); loadOpen(); }); });
 });
 
