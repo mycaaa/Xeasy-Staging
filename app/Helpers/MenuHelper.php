@@ -55,7 +55,12 @@ if (!function_exists('getMenuTree')) {
 
         // MENU-LATE-01 (13 Nov 2026): Late Bill Approval only for those who can approve late bills: admins, and in
         // VNR / Nursery the BU General Managers and approvers (final approvers have a team or approvals); VVNR admin only
-        if ($user && ! \App\Services\ClaimRules\LateClaim::isAdmin($user)) {
+        // LATE-PUNCH-02: no Late Bill Approval menu while late bills need no approval
+        if (! config('claim_rules.late_punch.enabled', false)) {
+            $query->where(function ($q) {
+                $q->whereNull('url')->orWhere('url', '!=', 'late-bills');
+            });
+        } elseif ($user && ! \App\Services\ClaimRules\LateClaim::isAdmin($user)) {
             $mayApproveLate = false;
             if ((int) session('company_id', 1) !== 11) {
                 $me = (int) \App\Support\RecordAccess::selfId($user);

@@ -37,7 +37,17 @@ class BackdatedOdometerRule
         }
         $hrims = \App\Helpers\DatabaseSwitcher::getHrimsDatabaseName($companyId);
 
+        // LATE-PUNCH-02: only the departments named in config odo_backdate.departments (Sales)
+        $names = array_filter(array_map('trim', explode(',', (string) config('odo_backdate.departments', 'Sales'))));
+        $allowedDepts = [];
+        try {
+            $allowedDepts = DB::connection('hrims')->table('core_departments')->whereIn('department_name', $names)->pluck('id')->map(fn ($v) => (int) $v)->all();
+        } catch (\Throwable $e) {
+        }
         foreach (DB::connection($conn)->table('odo_backdate_settings')->where('is_active', 1)->whereNotNull('effective_date')->get() as $s) {
+            if ($names && ! in_array((int) $s->department_id, $allowedDepts, true)) {
+                continue;
+            }
             $stats['departments']++;
             $verticals = array_filter(array_map('trim', explode(',', (string) $s->verticals)));
             $q = DB::connection($conn)->table("{$claims} as e")

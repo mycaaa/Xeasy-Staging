@@ -2052,11 +2052,11 @@ $(document).ready(function() {
                                 title="View Full Details">
                                 <i class="ri-eye-line"></i> Detail
                             </button>
-                            <a href="/expense/print-details?e=${employeeId}&y={{ session('year_id') }}&m=${month}&nn=2&c={{ session('company_id') }}"
+                            ${monthStatus === 'Open' ? '' : `<a href="/expense/print-details?e=${employeeId}&y={{ session('year_id') }}&m=${month}&nn=2&c={{ session('company_id') }}"
                                target="_blank" class="btn btn-sm btn-soft-secondary"
                                onclick="event.stopPropagation();" title="Print">
                                 <i class="ri-printer-line"></i>
-                            </a>
+                            </a>`}
                             ${statusBadge}
                             <i class="ri-arrow-down-s-line fs-18 text-muted month-chevron"></i>
                         </div>

@@ -56,11 +56,17 @@
             @if(!empty($emp->region_name)), &nbsp;<strong>Region:</strong> {{ $emp->region_name }}@endif
         @endif
     </p>
+    {{-- PRINT-AFTER-SUBMIT-01 (14 Nov 2026): before the month's final submission the header showed "Total Amount: 0/-"
+         and "Open / Pending"; the month's total and date are shown once it is submitted --}}
+    @php $pdSubmitted = !empty($mlist->DateOfSubmit) && \App\Support\ZeroDate::has($mlist->DateOfSubmit); @endphp
     <p>
-        <strong>Total Amount:</strong> {{ floatval($mlist->Claim_Amount ?? 0) }}/-
-        &nbsp;&nbsp;
-        <strong>Submitted Date:</strong>
-        {{ !empty($mlist->DateOfSubmit) && \App\Support\ZeroDate::has($mlist->DateOfSubmit) ? \Carbon\Carbon::parse($mlist->DateOfSubmit)->format('d-m-Y') : 'Open / Pending' }}
+        @if ($pdSubmitted)
+            <strong>Total Amount:</strong> {{ floatval($mlist->Claim_Amount ?? 0) }}/-
+            &nbsp;&nbsp;
+            <strong>Submitted Date:</strong> {{ \Carbon\Carbon::parse($mlist->DateOfSubmit)->format('d-m-Y') }}
+        @else
+            <strong>Not submitted yet</strong> &nbsp;-&nbsp; draft statement; the month's total and submission date appear after the final submission.
+        @endif
     </p>
 </div>
 

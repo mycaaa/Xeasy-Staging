@@ -149,8 +149,10 @@ return [
     ],
     // LATE-PUNCH-01: a bill uploaded after its month's due date (cut-off below) is punched only after the GM's or an
     // admin's approval (VVNR: admin). Upload itself is always allowed within the financial year.
+    // LATE-PUNCH-02 (14 Nov 2026, management): GM approval is for back-dated ODOMETER punching only, Sales department
+    // only (odo_backdate_settings + config odo_backdate.departments). Other bills need no GM approval, so this is off.
     'late_punch' => [
-        'enabled' => env('CLAIM_RULES_LATE_PUNCH', true),
+        'enabled' => env('CLAIM_RULES_LATE_PUNCH', false),
     ],
     'cutoff' => [
         // month submit refused after the last submission day of the following month, unless the

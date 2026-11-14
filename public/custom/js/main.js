@@ -1216,7 +1216,9 @@ $(document).ready(function () {
                                             data-expid="${d.ExpId}"
                                             data-claim-id="${d.ClaimId}"
                                             data-cgid="${d.cgId}"
-                                            data-empid="${d.CrBy}">
+                                            data-empid="${d.CrBy}"
+                                            data-status="${d.ClaimStatus || ''}"
+                                            data-filled-okay="${d.FilledOkay ?? ''}">
                                             ${d.ExpId}
                                         </a>${badge}
                                     </td>
@@ -1257,7 +1259,9 @@ $(document).ready(function () {
     });
 
     // -- E-Home: view-claim inside eHomeModal -> inline Document Viewer + Form below ExpId row --
-    $(document).on("click", "#eHomeModal .view-claim, #myEhomeBody .view-claim", function (e) { // EHOME-MAIN-01: also on the employee dashboard
+    // EHOME-ONE-VIEW-01 (14 Nov 2026): on the employee Dashboard an Exp ID opened two views (the pop-up viewer and this
+    // panel under the row). The Dashboard keeps the pop-up only; the admin E-Home pop-up keeps this panel.
+    $(document).on("click", "#eHomeModal .view-claim", function (e) {
         e.preventDefault();
         e.stopPropagation();
 

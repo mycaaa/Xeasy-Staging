@@ -623,6 +623,19 @@ $(document).ready(function () {
                     showAlert("warning", "ri-error-warning-line", uploadRes.data.duplicate_bill_warning);
                 }
 
+                // PUNCH-SAVE-01 (14 Nov 2026): Save only stores the data and files (no status action). It went on to post to
+                // "<base>/null", and the page showed "The route null could not be found." after a good save.
+                if (!config.actionUrl) {
+                    if (uploadRes && uploadRes.success === false) {
+                        showAlert("danger", "ri-error-warning-line", uploadRes.message || "Could not save.");
+                    } else {
+                        config.onSuccess(uploadRes || {}, expid, claimid, uploadRes);
+                    }
+                    endLoader({ currentTarget: $btn[0] });
+                    $btn.prop("disabled", false).html(config.idleHtml);
+                    return;
+                }
+
                 const actionFormData = new FormData();
                 actionFormData.append("expid", expid);
                 actionFormData.append("claimid", claimid);

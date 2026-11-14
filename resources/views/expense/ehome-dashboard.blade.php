@@ -533,11 +533,17 @@
                                 @endif
                             </td>
                             <td>
+                                {{-- PRINT-AFTER-SUBMIT-01 (14 Nov 2026): the expense statement is printed once the month is finally
+                                     submitted (before that it showed Total 0 and "Open / Pending"); staff on the admin E-Home keep it --}}
+                                @if (request('embed') === 'dashboard')
+                                    <span class="text-muted" title="The statement can be printed after the month is submitted">—</span>
+                                @else
                                 <a href="{{ route('expense.print.details', ['e' => $employeeId, 'y' => $yearId ?? session('year_id'), 'm' => $mNum, 'nn' => 1, 'c' => $companyId ?? session('company_id')]) }}"
                                     target="_blank" class="eh-btn-view"
                                     style="text-decoration:none;font-size:10px;padding:2px 7px;">
                                     <i class="ri-printer-line"></i>
                                 </a>
+                                @endif
                             </td>
                         </tr>
                         <tr class="d-none" id="{{ $rowId }}">

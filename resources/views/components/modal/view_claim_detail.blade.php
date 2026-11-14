@@ -163,6 +163,16 @@
                             </button>
                         @endif
                     @endif
+                    @if ($isDashboard && \Illuminate\Support\Facades\Route::has('claimant.claim.verify'))
+                        {{-- DASH-CONFIRM-01 (14 Nov 2026): on the Dashboard the employee confirms or denies the punched figures of
+                             their own bill here (shown only for their own bills waiting for confirmation) --}}
+                        <button type="button" class="btn btn-sm btn-success d-none" id="dashConfirmBtn" data-url="{{ route('claimant.claim.verify') }}">
+                            <i class="ri-check-line me-1"></i>OK &amp; Verify
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger d-none" id="dashDenyBtn" data-url="{{ route('claimant.claim.deny') }}">
+                            <i class="ri-close-circle-line me-1"></i>Deny
+                        </button>
+                    @endif
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" id="cancelBtn">
                         <i class="ri-close-line me-1"></i>Close
                     </button>
@@ -264,6 +274,47 @@
         if (!el || el.dataset.backWired) { return; }
         el.dataset.backWired = '1';
         // the browser's back button: see MODAL-BACK-01 in custom/js/ux.js (all pop-ups)
+        // DASH-CONFIRM-01: own bill waiting for the employee's confirmation (status Filled, not yet confirmed or denied)
+        var pick = null;
+        $(document).on('click', '#myEhomeBody .view-claim, #myClaimsMonthContainer .view-claim', function () {
+            var $a = $(this);
+            pick = { exp: String($a.data('expid') || ''), emp: String($a.data('empid') || ''),
+                status: String($a.data('status') || ''), fo: String($a.data('filled-okay') ?? '') };
+        });
+        el.addEventListener('shown.bs.modal', function () {
+            var me = String(el.getAttribute('data-viewer-empid') || ''), $c = $('#dashConfirmBtn'), $d = $('#dashDenyBtn');
+            var own = pick && pick.emp === me && pick.status === 'Filled' && pick.fo !== '1' && pick.fo !== '2';
+            $c.toggleClass('d-none', !own).data('exp', own ? pick.exp : '');
+            $d.toggleClass('d-none', !own).data('exp', own ? pick.exp : '');
+        });
+        el.addEventListener('hidden.bs.modal', function () { pick = null; $('#dashConfirmBtn, #dashDenyBtn').addClass('d-none'); });
+        function dashPost(url, data, done) {
+            data._token = $('meta[name="csrf-token"]').attr('content');
+            return $.post(url, data).done(function (r) {
+                if (String(r && r.Code) === '300' || (r && r.success)) { done(); }
+                else { Swal.fire('Not done', (r && (r.msg || r.message)) || 'Please try again.', 'warning'); }
+            }).fail(function (x) { Swal.fire('Not done', (x.responseJSON && (x.responseJSON.msg || x.responseJSON.message)) || 'Please try again.', 'error'); });
+        }
+        function dashRefresh() {
+            bootstrap.Modal.getOrCreateInstance(el).hide();
+            if (window.loadMyEhome) { window.loadMyEhome(); }
+            $('#refreshMyClaims').trigger('click');
+        }
+        $(document).on('click', '#dashConfirmBtn', function () {
+            var exp = $(this).data('exp'), url = $(this).data('url');
+            if (!exp) { return; }
+            Swal.fire({ title: 'Confirm this bill?', text: 'The punched figures are correct.', icon: 'question', showCancelButton: true, confirmButtonText: 'OK & Verify' })
+                .then(function (r) { if (r.isConfirmed) { dashPost(url, { exp_id: exp }, function () { Swal.fire({ icon: 'success', title: 'Confirmed', timer: 1200, showConfirmButton: false }); dashRefresh(); }); } });
+        });
+        $(document).on('click', '#dashDenyBtn', function () {
+            var exp = $(this).data('exp'), url = $(this).data('url');
+            if (!exp) { return; }
+            Swal.fire({ title: 'Deny this bill?', text: 'It goes back to the punching team with your remark.', input: 'text', inputPlaceholder: 'What is wrong?',
+                inputAttributes: { maxlength: 50 }, showCancelButton: true, confirmButtonText: 'Deny', confirmButtonColor: '#dc2626',
+                inputValidator: function (v) { return !v || !v.trim() ? 'A remark is needed' : null; } })
+                .then(function (r) { if (r.isConfirmed) { dashPost(url, { exp_id: exp, remark: r.value.trim() }, function () { Swal.fire({ icon: 'success', title: 'Sent back to the punching team', timer: 1400, showConfirmButton: false }); dashRefresh(); }); } });
+        });
+
         // Esc only where the viewer is view-only (Dashboard, approver screens), so typed punching data is not lost
         var viewOnly = {{ $docViewOnly ? 'true' : 'false' }};
         document.addEventListener('keydown', function (ev) {
