@@ -52,8 +52,19 @@ class TeamListController extends BaseMobileController
             $sql = "SELECT f.* FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL){$verifiedCond} ORDER BY Month ASC, EmployeeID";
             $results = DB::connection($expenseConn)->select($sql);
 
+            // APPR-WAIT-01 (14 Nov 2026): months the team has submitted that are still with the verification team,
+            // so the approver knows why they are not listed yet (they appear here once verified)
+            $awaiting = 0;
+            if ($verifiedCond !== '') {
+                try {
+                    $awaiting = (int) (DB::connection($expenseConn)->selectOne("SELECT COUNT(*) n FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL) AND NOT (" . \App\Support\ApproverAfterVerifier::verifiedSql('f') . ")")->n ?? 0);
+                } catch (\Throwable $e) {
+                    $awaiting = 0;
+                }
+            }
+
             if (empty($results)) {
-                return response()->json(['Code' => '100', 'msg' => 'Data Not Available!']);
+                return response()->json(['Code' => '100', 'msg' => 'Data Not Available!', 'Awaiting_verification' => $awaiting]);
             }
 
             $carray = [];
@@ -108,7 +119,7 @@ class TeamListController extends BaseMobileController
                 $carray[] = $stringified;
             }
 
-            return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'Pending_list' => $carray]);
+            return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'Pending_list' => $carray, 'Awaiting_verification' => $awaiting]);
         } catch (\Exception $e) {
             return response()->json(['Code' => '100', 'msg' => 'Data Not Available!']);
         }

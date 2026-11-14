@@ -221,7 +221,10 @@ $(function(){
         if(!R.pendingList)return;
         $.getJSON(R.pendingList).done(res=>{
             const list=res.Pending_list||[];$('#pendingCount').text(list.length);
-            if(!list.length){$('#pendingCards').html('<div class="empty-state"><i class="ri-inbox-line"></i><p>No pending claims</p></div>');return;}
+            // APPR-WAIT-01: say how many submitted months are still with the verification team
+            const wait=parseInt(res.Awaiting_verification||0,10);
+            const waitNote=wait>0?`<div class="alert alert-info py-2 px-3 mb-2 small" role="status"><i class="ri-time-line me-1" aria-hidden="true"></i>${wait} submitted month(s) of your team are with the verification team. They appear here for approval once verified.</div>`:'';
+            if(!list.length){$('#pendingCards').html(waitNote+'<div class="empty-state"><i class="ri-inbox-line"></i><p>Nothing waiting for your approval</p></div>');return;}
             let h='';list.forEach(item=>{
                 if(list.length && h===''){console.log('[Approver API] sample item keys:', Object.keys(item), 'DateOfSubmit:', item.DateOfSubmit, 'Verified_Date:', item.Verified_Date);}
                 const id=item.EmployeeID||'',nm=eName(item),mo=item.Month||'',yr=item.YearId||'';
@@ -275,7 +278,7 @@ $(function(){
                     <div class="mini-step ${hasVerifier?'done':''}"><div class="step-dot ${hasVerifier?'done':'wait'}"><i class="ri-file-search-line"></i></div><div class="lbl">Verifier</div><div class="val">${hasVerifier?'₹'+fa(vAmt):'Pending'}</div><div class="val-date">${hasVerifier?fd(fld(item,'Verified_Date','verified_date','VerifiedDate','VerifDate','Verify_Date')):'-'}</div></div>
                     <div class="mini-step"><div class="step-dot wait"><i class="ri-shield-check-line"></i></div><div class="lbl">Approver</div><div class="val">${aAmt>0?'₹'+fa(aAmt):'Pending'}</div><div class="val-date">${aAmt>0?fd(fld(item,'Approved_Date','approved_date','ApprovedDate','ApprDate','Appr_Date')):'-'}</div></div>
                 </div></div></div>`;
-            });$('#pendingCards').html(h);
+            });$('#pendingCards').html(waitNote+h);
         }).fail(()=>$('#pendingCards').html('<div class="empty-state text-muted py-5 text-center"><i class="ri-error-warning-line fs-24 d-block mb-2"></i><p>Failed to load</p></div>'));
     }
 
