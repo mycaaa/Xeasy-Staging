@@ -231,6 +231,10 @@ class VVNRApproverController extends Controller
             ]);
 
             $s = $this->sessionData();
+            // APPR-CAP-02: never above the claimed amount, checked here before the claim API is called
+            if ($capMsg = \App\Services\Claims\StageCap::webApproveGuard(session('expense_connection'), (int) $s['yearId'], (int) $request->input('exp_id'), $request->input('amount'), (string) $request->input('remark', ''), 'web_approve')) {
+                return response()->json(['Code' => '100', 'msg' => $capMsg, 'message' => $capMsg], 422);
+            }
 
             // VVNR-APPR-REM-01 (decision 5 Nov 2026): approving less than the claimed / verified amount
             // needs a remark, so the employee and Finance see why the amount was cut.
@@ -322,6 +326,18 @@ class VVNRApproverController extends Controller
                         'message' => 'Cannot submit: Claims for this month are not yet verified by the verifier.'
                     ]);
                 }
+            }
+
+            // APPR-CAP-02: no final submit while an approved (or verified) amount is above the claimed amount
+            try {
+                $over = \App\Services\Claims\StageCap::monthOverClaimed(session('expense_connection', 'expense'), $yearId, $empId, $month);
+            } catch (\Throwable $e) {
+                $over = [];
+            }
+            if ($over) {
+                $m = 'Cannot submit: the approved amount is more than the claimed amount for '.implode('; ', $over).'. Correct the approved amount (at most the claimed amount) and approve again.';
+
+                return response()->json(['Code' => '100', 'msg' => $m, 'message' => $m]);
             }
 
             $data = $this->postForm($this->claimUrl(), [

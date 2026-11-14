@@ -30,9 +30,10 @@ class StageCap
         $claimed = (float) ($claim->FilledTAmt ?? 0);
         $verified = (float) ($claim->VerifyTAmt ?? 0);
         if ($stage === 'approve') {
-            // APPR-RAISE-01 (13 Nov 2026): the approver may raise a reduced verified amount back up to the claimed
-            // amount; the ceiling is the higher of the two (the verifier may have corrected a claim up to policy)
-            $b = max($verified, $claimed);
+            // APPR-CAP-02 (14 Nov 2026): the claimed amount is the ceiling for the approver. The approver may raise a
+            // reduced verified amount back up to the claimed amount, never above it, even when the verifier's figure is
+            // higher (a verifier typo of 15,000 on a 1,500 bill let 15,000 through). Verified only when nothing was claimed.
+            $b = $claimed > 0 ? $claimed : $verified;
         } else {
             $b = $claimed;
         }
@@ -67,10 +68,19 @@ class StageCap
         if ($stage === 'approve' && $basis !== null && $new > $basis + $tol
             && config('claim_rules.stage_caps.approve_never_above_claimed', true)) {
             self::log($conn, $yearId, $claim, $basis, $new, $stage, $remark, $source, 'refused_above_basis');
-            $what = ((float) ($claim->VerifyTAmt ?? 0)) > ((float) ($claim->FilledTAmt ?? 0)) ? 'verified' : 'claimed';
+            $what = ((float) ($claim->FilledTAmt ?? 0)) > 0 ? 'claimed' : 'verified';
 
             return 'The approved amount ('.number_format($new, 2).') cannot be more than the '.$what.' amount ('
                 .number_format($basis, 2).'). The approver can raise the verified amount up to the claimed amount, not beyond.';
+        }
+        // APPR-CAP-02: the verifier cannot go above the claimed amount either; a remark does not unlock it any more
+        // (a remark such as "approve" counted as a reason). Policy corrections above the bill go through a new claim line.
+        if ($stage === 'verify' && $basis !== null && $new > $basis + $tol
+            && config('claim_rules.stage_caps.verify_never_above_claimed', true)) {
+            self::log($conn, $yearId, $claim, $basis, $new, $stage, $remark, $source, 'refused_above_basis');
+
+            return 'The verified amount ('.number_format($new, 2).') cannot be more than the claimed amount ('
+                .number_format($basis, 2).').';
         }
         // APPR-RAISE-01: a raise above the verified amount (within the claimed amount) is allowed and logged for Finance
         if ($stage === 'approve' && $basis !== null && (float) ($claim->VerifyTAmt ?? 0) > 0 && $new > (float) $claim->VerifyTAmt + $tol) {
@@ -115,7 +125,10 @@ class StageCap
         if ((int) $companyId === 11 || str_contains(strtolower($connName), 'vvnr')) {
             return null;
         }
-        $basis = self::basis($claim, 'approve');
+        // a cut is measured against what the verifier passed (else the claimed amount), capped at the claimed amount
+        $claimed = (float) ($claim->FilledTAmt ?? 0);
+        $verified = (float) ($claim->VerifyTAmt ?? 0);
+        $basis = $verified > 0 ? ($claimed > 0 ? min($verified, $claimed) : $verified) : ($claimed > 0 ? $claimed : null);
         $new = (float) $newAmount;
         $tol = (float) config('claim_rules.stage_caps.tolerance', 1);
         if ($basis === null || $new >= $basis - $tol || self::hasReason($remark)) {
@@ -130,6 +143,51 @@ class StageCap
 
         return 'The approved amount ('.number_format($new, 2).') is less than the '.$what.' amount ('
             .number_format($basis, 2).'). Please enter the reason for the cut in the remark.';
+    }
+
+    /**
+     * APPR-CAP-02: the web approver screens forward the approval to the claim API, which may be another server whose
+     * rules are older. Check the cap here first, on this app's own copy of the claim. Null when allowed.
+     */
+    public static function webApproveGuard(?string $conn, int $yearId, int $expId, $amount, ?string $remark, string $source): ?string
+    {
+        if ($expId <= 0 || ! is_numeric($amount)) {
+            return null;
+        }
+        try {
+            $conn = $conn ?: (string) session('expense_connection', 'expense');
+            $claim = DB::connection($conn)->table("y{$yearId}_expenseclaims")->where('ExpId', $expId)
+                ->first(['ExpId', 'CrBy', 'FilledTAmt', 'VerifyTAmt']);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $claim ? self::check($conn, $yearId, $claim, $amount, 'approve', $remark, $source) : null;
+    }
+
+    /**
+     * APPR-CAP-02: claims of an employee's month whose approved (or, not yet approved, verified) amount is above the
+     * claimed amount. The month submit refuses while any is left. Returns [ExpId => message].
+     */
+    public static function monthOverClaimed($conn, int $yearId, int $empId, int $month): array
+    {
+        if (! config('claim_rules.stage_caps.enabled', true)) {
+            return [];
+        }
+        $tol = (float) config('claim_rules.stage_caps.tolerance', 1);
+        $db = $conn instanceof ConnectionInterface ? $conn : DB::connection($conn);
+        $rows = $db->table("y{$yearId}_expenseclaims")->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
+            ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->where('FilledTAmt', '>', 0)
+            ->where(fn ($q) => $q->whereRaw('ApprTAmt > FilledTAmt + ?', [$tol])
+                ->orWhereRaw('(ApprTAmt IS NULL OR ApprTAmt = 0) AND VerifyTAmt > FilledTAmt + ?', [$tol]))
+            ->get(['ExpId', 'FilledTAmt', 'VerifyTAmt', 'ApprTAmt']);
+        $out = [];
+        foreach ($rows as $r) {
+            $a = (float) $r->ApprTAmt > 0 ? (float) $r->ApprTAmt : (float) $r->VerifyTAmt;
+            $out[(int) $r->ExpId] = '#'.$r->ExpId.': '.number_format($a, 2).' is more than the claimed '.number_format((float) $r->FilledTAmt, 2);
+        }
+
+        return $out;
     }
 
     /** For a system step (auto-verify): never above the basis. Returns the amount to use. */

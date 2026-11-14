@@ -929,6 +929,10 @@ class ClaimController extends BaseMobileController
 
         // PAY-REMARK-01: a VNR cut below the verified amount needs the reason
         $cutClaim = DB::connection($expenseConn)->table($this->claimsTable($yearId))->where('ExpId', $expId)->first(['ExpId', 'CrBy', 'FilledTAmt', 'VerifyTAmt']);
+        // APPR-CAP-02: never above the claimed amount
+        if ($cutClaim && ($capMsg = \App\Services\Claims\StageCap::check($expenseConn, (int) $yearId, $cutClaim, $amt, 'approve', (string) $apprRemark, 'app_claim_approved'))) {
+            return $this->error($capMsg);
+        }
         if ($cutClaim && ($cutMsg = \App\Services\Claims\StageCap::checkCut($expenseConn, (int) $yearId, $cutClaim, $amt, (string) $apprRemark, 'app_claim_approved', (int) $comId))) {
             return $this->error($cutMsg);
         }
@@ -970,6 +974,10 @@ class ClaimController extends BaseMobileController
 
         $expenseConn = $this->getExpenseConnection($comId);
 
+        // APPR-CAP-02: no final submit while a claim's approved (or verified) amount is above the claimed amount
+        if ($over = \App\Services\Claims\StageCap::monthOverClaimed($expenseConn, (int) $yearId, (int) $crBy, (int) $month)) {
+            return $this->error('Cannot submit: the approved amount is more than the claimed amount for '.implode('; ', $over).'. Correct the approved amount (it can be at most the claimed amount) and approve again.');
+        }
         // Update all approved claims for this employee/month
         \App\Services\Claims\ClaimTransition::guard($expenseConn, (int) $yearId, fn ($q) => $q->where('CrBy', $crBy)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)->where('ClaimStatus', 'Approved'), 'Close', 'approver', 'app_reporting_submit', null, 'app', (int) $empId, (int) $comId);
         DB::connection($expenseConn)

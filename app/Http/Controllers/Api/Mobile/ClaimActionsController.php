@@ -551,6 +551,11 @@ class ClaimActionsController extends BaseMobileController
         $claimsTable = $this->claimsTable($yearId);
         $monthFinalTable = $this->monthFinalTable($yearId);
 
+        // APPR-CAP-02: no final submit while a claim's approved (or verified) amount is above the claimed amount
+        if ($over = \App\Services\Claims\StageCap::monthOverClaimed($conn, (int) $yearId, (int) $crBy, (int) $month)) {
+            return $this->error('Cannot submit: the approved amount is more than the claimed amount for '.implode('; ', $over).'. Correct the approved amount (it can be at most the claimed amount) and approve again.');
+        }
+
         try {
             \App\Services\Claims\ClaimTransition::guard($conn, (int) $yearId, fn ($q) => $q->where('CrBy', $crBy)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)->whereIn('ClaimStatus', ['Verified', 'Approved']), 'Approved', 'approver', 'app_reporting_submit', null, 'app', (int) $empId, (int) $comId);
             // Update all verified/approved claims to Approved with ClaimAtStep=5

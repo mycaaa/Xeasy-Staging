@@ -107,6 +107,8 @@ return [
         'cut_needs_remark' => env('CLAIM_RULES_CUT_NEEDS_REMARK', true),
         // APPR-CAP-01 (13 Nov 2026): the approver can never raise the amount: ceiling = verified (else claimed), no override
         'approve_never_above_claimed' => env('CLAIM_RULES_APPROVE_NEVER_ABOVE_CLAIMED', true),
+        // APPR-CAP-02 (14 Nov 2026): the claimed amount is the ceiling for the approver and the verifier, no override
+        'verify_never_above_claimed' => env('CLAIM_RULES_VERIFY_NEVER_ABOVE_CLAIMED', true),
     ],
 
     // HARDCOPY-PAY-01 (Finance 7 Nov 2026): no payment while the previous month's hard copy is not received

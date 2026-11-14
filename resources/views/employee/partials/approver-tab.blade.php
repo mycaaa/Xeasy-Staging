@@ -175,13 +175,17 @@
     $approvedChange = $rmStatChange($approvedCount, $approvedCountPrev);
     $returnedChange = $rmStatChange($returnedCount, $returnedCountPrev);
 
-    // TAT change — always show, 0 Days when no prev data
-    $tatDiffVal  = round($rmTatTotalDiff, 1);
+    // TAT-CARD-01 (14 Nov 2026): the "Avg. Approval TAT" card showed the whole claim cycle (12 days, the same as
+    // "Total Claim Cycle TAT" below) while the Manager approval stage said 0. The card now shows the manager's own
+    // stage - verified to approved - and the change against last month on the same stage.
+    $rmApprTat     = round((float) ($rmTat->reporting_manager ?? 0), 1);
+    $rmApprTatPrev = round((float) ($rmTatPrev->reporting_manager ?? 0), 1);
+    $tatDiffVal  = round($rmApprTat - $rmApprTatPrev, 1);
     $tatChange   = [
         'val'  => ($tatDiffVal <= 0 ? '▼ ' : '▲ ') . number_format(abs($tatDiffVal), 1) . ' Days',
         'type' => $tatDiffVal <= 0 ? 'down' : 'up',
         'vs'   => 'vs ' . $rmPrevMonth,
-        'prev' => $rmTatPrevTotal,
+        'prev' => $rmApprTatPrev,
     ];
 
     // Stat cards - 3 primary redirectable cards
@@ -191,8 +195,8 @@
          'icon'  => 'ri-time-line', 'color' => 'warning', 'change' => null,
          'link'  => $rmApproverRoute . '?status=pending'],
 
-        ['label' => 'Avg. Approval TAT',        'value' => number_format($rmTatTotal, 1) . ' Days',
-         'sub'   => 'Team average cycle',
+        ['label' => 'Avg. Approval TAT',        'value' => number_format($rmApprTat, 1) . ' Days',
+         'sub'   => 'Verified to your approval · full cycle ' . number_format($rmTatTotal, 1) . ' days',
          'icon'  => 'ri-git-branch-line', 'color' => 'primary', 'change' => $tatChange,
          'link'  => $rmApproverRoute],
 
@@ -205,7 +209,7 @@
     // Dynamic insights
     $insights = [];
     if ($rmTatTotal > 0) {
-        $insights[] = "Team average approval TAT is {$rmTatTotal} Days for {$rmMonthLabel} {$rmYear}.";
+        $insights[] = "{$rmMonthLabel} {$rmYear}: your approval took {$rmApprTat} days on average after verification; the full claim cycle took {$rmTatTotal} days.";
     }
     if ($pendingCount > 0) {
         $insights[] = "{$pendingCount} " . ($pendingCount === 1 ? 'claim is' : 'claims are') . " pending your approval (₹ " . number_format($pendingAmount) . ").";
@@ -232,7 +236,7 @@
         $complianceAlerts[] = ['type' => 'info', 'msg' => "{$returnedCount} claim(s) returned this month — follow up with employees."];
     }
     if ($rmTatTotal > 7) {
-        $complianceAlerts[] = ['type' => 'danger', 'msg' => "Avg. TAT is {$rmTatTotal} days — above recommended threshold."];
+        $complianceAlerts[] = ['type' => 'danger', 'msg' => "The full claim cycle took {$rmTatTotal} days on average (above 7 days)."];
     }
     foreach ($teamSummary as $ts) {
         $empPending = $ts->pending_approval ?? 0;
@@ -1123,12 +1127,16 @@
             return;
         }
         let tC=0, tV=0, tA=0, rows='';
-        const unapproved=[];
+        const unapproved=[], overClaimed=[];
         list.forEach(function(d, i){
             const eid = d.ExpId || d.expId || '', empId = d.EmployeeID || d.employeeId || d.EId || cE, cn = d.ClaimName || d.claimName || 'Expense';
             const ca = rmn(d.FilledTAmt || d.Claim_Amount || 0), va = rmn(d.VerifyTAmt || d.Verified_Amount || 0);
             const rawAppr = rmn(d.ApprTAmt || d.Approved_Amount || 0);
-            const aa = (rawAppr > 0 ? rawAppr : va);
+            // APPR-CAP-02 (14 Nov 2026): the claimed amount is the ceiling; a verified figure above it is not offered
+            const cap = ca > 0 ? ca : va;
+            const aa = (rawAppr > 0 ? rawAppr : (cap > 0 ? Math.min(va, cap) : va));
+            const overCap = cap > 0 && aa > cap + 0.009;
+            if(overCap){ overClaimed.push('#' + eid); }
             
             let diffText = '-';
             let diffClass = 'text-muted';
@@ -1273,7 +1281,7 @@
                 </tr>`;
             }
 
-            rows += `<tr><td class="text-center"><input type="checkbox" class="form-check-input rm-apr-check" aria-label="Select claim ${rme(eid)}"></td><td class="text-center">${i+1}</td>
+            rows += `<tr class="${overCap?'table-danger':''}"><td class="text-center"><input type="checkbox" class="form-check-input rm-apr-check" aria-label="Select claim ${rme(eid)}"></td><td class="text-center">${i+1}</td>
             <td>
                 <a href="#" class="fw-semibold view-claim" data-expid="${rme(eid)}" data-empid="${rme(empId)}" data-claim-id="${rme(d.ClaimId||d.claimId||d.cgId||'')}" data-cgid="${rme(d.ClaimId||d.claimId||d.cgId||'')}">${rme(cn)}</a>
                 <div class="text-muted" style="font-size:9px;">Exp #${rme(eid)}</div>
@@ -1285,7 +1293,7 @@
             <td class="text-end claim-verified-cell">₹${rmfa(va)}</td>
             <td class="text-end ${diffClass}">${diffText}</td>
             <td class="remark-col" style="min-width:140px;max-width:240px;">${vRmkContent}</td>
-            <td class="text-end"><input type="number" class="form-control form-control-sm amt-input aa" value="${aa}" min="0"></td>
+            <td class="text-end"><input type="number" class="form-control form-control-sm amt-input aa${overCap?' is-invalid':''}" value="${aa}" min="0" ${cap>0?`max="${cap}"`:''} title="At most the claimed amount (₹${rmfa(cap)})">${overCap?`<div class="invalid-feedback d-block" style="font-size:10px;">Above the claimed ₹${rmfa(cap)}. Lower it and approve again.</div>`:''}</td>
             <td><input type="text" class="form-control form-control-sm amt-input ar" value="${rme(d.ApprTRemark||d.ApprRemark||'')}" placeholder="Remark" aria-label="Remark"></td>
             <td class="remark-col" style="min-width:130px;max-width:220px;">${empRmkContent}</td>
             <td class="text-center claim-status-cell">${isA?'<span class="badge bg-success">Done</span>':'<span class="badge bg-warning text-dark">Pending</span>'}</td>
@@ -1339,7 +1347,7 @@
         if(window.xeasyApproverFilters){ window.xeasyApproverFilters.attach('#rmDayModalBody'); }
 
         const cardKey = cE + '_' + cM;
-        rmReviewedEmployees[cardKey] = { name: empName || '', claimTotal: tC, verifyTotal: tV, approveTotal: tA, unapproved: unapproved };
+        rmReviewedEmployees[cardKey] = { name: empName || '', claimTotal: tC, verifyTotal: tV, approveTotal: tA, unapproved: unapproved, overClaimed: overClaimed };
     }
 
     // ── APPROVE ONE ──
@@ -1351,8 +1359,9 @@
         if(amt <= 0){ return fail('Error', 'Enter valid amount.', '.aa'); }
         const vAmt = rmn($r.find('.claim-verified-cell').text()), cAmt = rmn($r.find('.claim-claimed-cell').text());
         // APPR-CAP-01: the approver can keep or reduce, never increase (ceiling: verified, else claimed)
-        const basis = vAmt > 0 ? vAmt : cAmt;
-        if(basis > 0 && amt > basis + 0.009){ return fail('Not allowed', 'The approved amount (' + amt.toFixed(2) + ') cannot be more than the ' + (vAmt > 0 ? 'verified' : 'claimed') + ' amount (' + basis.toFixed(2) + ').', '.aa'); }
+        // APPR-CAP-02: the ceiling is the claimed amount (the approver may raise a cut verified amount up to it, never above)
+        const basis = cAmt > 0 ? cAmt : vAmt;
+        if(basis > 0 && amt > basis + 0.009){ return fail('Not allowed', 'The approved amount (' + amt.toFixed(2) + ') cannot be more than the ' + (cAmt > 0 ? 'claimed' : 'verified') + ' amount (' + basis.toFixed(2) + ').', '.aa'); }
         if(amt !== vAmt && !rmk.trim()){ return fail('Remark Required', 'Since approved amount differs from verified, please enter a remark.', '.ar'); }
         const approveClaimUrl = (activeRoutes && activeRoutes.approveClaim) ? activeRoutes.approveClaim : (rmApproverRoutes ? rmApproverRoutes.approveClaim : null);
         if(!approveClaimUrl){ return fail('Error', 'Approve claim route not configured.'); }
@@ -1364,9 +1373,11 @@
                 $r.find('.claim-status-cell').html('<span class="badge bg-success">Done</span>');
                 $b.prop('disabled', false).removeClass('btn-primary').addClass('btn-outline-success').attr('title', 'Update the approved amount (until final submit)').html('<i class="ri-refresh-line"></i>');
                 $r.find('.rm-apr-check').prop('checked', false);
+                $r.find('.aa').removeClass('is-invalid'); $r.find('.aa').siblings('.invalid-feedback').remove();
                 const cardKey = empId + '_' + mo;
                 if(rmReviewedEmployees[cardKey]){
                     rmReviewedEmployees[cardKey].unapproved = rmReviewedEmployees[cardKey].unapproved.filter(x => x !== '#' + eid);
+                    rmReviewedEmployees[cardKey].overClaimed = (rmReviewedEmployees[cardKey].overClaimed || []).filter(x => x !== '#' + eid);
                     rmReviewedEmployees[cardKey].approveTotal = rmn(res.TotalApprovedAmt) || rmReviewedEmployees[cardKey].approveTotal;
                 }
                 d.resolve(true);
@@ -1452,6 +1463,18 @@
             return;
         }
 
+        // APPR-CAP-02: no final submit while an approved amount is above the claimed amount (the server checks it too)
+        const overClaimed = rmReviewedEmployees[cardKey].overClaimed || [];
+        if (overClaimed.length > 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Approved amount above claimed',
+                html: `<p>The approved amount cannot be more than the claimed amount. Lower the amount for these claims and approve them again:</p><p class="text-danger fw-bold">${rme(overClaimed.join(', '))}</p>`,
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#405189'
+            });
+            return;
+        }
         const unapproved = rmReviewedEmployees[cardKey].unapproved || [];
         if ((activeCompany === 'vnr' || rmPrefix === 'vnr') && unapproved.length > 0) {
             Swal.fire({
