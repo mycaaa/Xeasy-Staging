@@ -1324,7 +1324,7 @@ function getMediaPreviewHtml(it) {
 const CLAIM_GROUPS = [
     ['pending',   'Pending — check & verify', 'Punched by the team. Open each one and press OK & Verify, or Deny with a remark.', '#b45309', '#fffbeb'],
     ['submitted', 'Submitted — with the punching team', 'Uploaded; the punching team has not punched them yet.', '#1d4ed8', '#eff6ff'],
-    ['verified',  'Verified', 'Confirmed by you (or checked by the verification team).', '#047857', '#ecfdf5'],
+    ['verified',  'Verified', 'Confirmed by you.', '#047857', '#ecfdf5'],
     ['denied',    'Denied — back with the punching team', 'You did not agree; the punching team will correct them.', '#b91c1c', '#fef2f2'],
 ];
 function claimGroup(it) {

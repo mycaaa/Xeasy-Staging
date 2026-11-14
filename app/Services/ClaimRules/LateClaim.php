@@ -52,6 +52,11 @@ class LateClaim
     /** Uploaded after the due date of its month (odometer claims excluded). */
     public static function isLate(object $claim, int $companyId, int $yearId, ?string $conn = null): bool
     {
+        // LATE-PUNCH-02 (14 Nov 2026, management): GM approval is for back-dated odometer punching only (Sales), never for
+        // other bills. Hard rule in code, so a cached configuration or an old .env value cannot bring the block back.
+        if (! config('claim_rules.late_punch.force_enable', false)) {
+            return false;
+        }
         if ((int) ($claim->ClaimId ?? 0) === 7 || empty($claim->CrDate) || (int) ($claim->ClaimMonth ?? 0) <= 0) {
             return false;
         }

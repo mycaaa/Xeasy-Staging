@@ -63,7 +63,9 @@ return [
         ['#^imprest-automation(/|$)#', ['section_reports', 'imprest.approve']],
 
         // Reports (menu "Reports" = section_reports)
-        ['#^(employee-report|reports/extract|employees-multiple-vehicles|api/employees-multiple-vehicles|advance-adjustment-report|advance-requests/(report|advanceReport)$)#', ['section_reports', 'payment_section']],
+        ['#^(employee-report|reports/extract|employees-multiple-vehicles|api/employees-multiple-vehicles|advance-adjustment-report)#', ['section_reports', 'payment_section']],
+        // ADV-REPORT-01 (14 Nov 2026): advance-requests/report and /advanceReport are checked in AdvanceRequestViewController::reportAllowed
+        // (reports / payment staff, HODs, and managers for their own team)
 
         // Verifier acting on a claimant's month (menu "Verifier")
         ['#^verifier/#', ['section_verifier', 'section_data_punching', 'payment_section']],

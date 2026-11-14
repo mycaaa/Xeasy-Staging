@@ -49,10 +49,12 @@
                                     <img alt="" src="{{ asset('assets/images/advance-request.png') }}" width="16" height="16" onerror="this.style.display='none'">
                                     <span>Adv. Req.</span>
                                 </a>
+                                @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
                                 <a href="{{ url('/advance-requests/report') }}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" title="Advance Report">
                                     <i class="ri-file-chart-line"></i>
                                     <span>Adv. Report</span>
                                 </a>
+                                @endif
                             @endif
 
                             @if($prefix !== 'vvnr' && session('show_odo_approver') == 'Y')

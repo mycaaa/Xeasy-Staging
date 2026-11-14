@@ -167,7 +167,7 @@
                                 </a>
                                 @endif
                                 {{-- Advance Report --}}
-@if(\App\Http\Middleware\EnforceRouteAccess::allows(auth()->user(), 'advance-requests/report'))
+@if(\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user()))
                                 <a href="{{ url('/advance-requests/report') }}" class="quick-action-btn text-center text-decoration-none">
                                     <div class="quick-action-icon bg-primary-subtle text-primary">
                                         <i class="ri-file-chart-line fs-20"></i>
@@ -796,7 +796,7 @@
                                         <span class="fs-11 text-muted mt-1 d-block">Approvals</span>
                                     </a>
                                     @endif
-@if(\App\Http\Middleware\EnforceRouteAccess::allows(auth()->user(), 'advance-requests/report'))
+@if(\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user()))
                                     <a href="{{ url('/advance-requests/report') }}" class="quick-action-btn text-center text-decoration-none">
                                         <div class="quick-action-icon bg-primary-subtle text-primary">
                                             <i class="ri-file-chart-line fs-20"></i>

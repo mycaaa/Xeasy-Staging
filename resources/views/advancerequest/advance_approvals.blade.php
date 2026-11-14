@@ -42,9 +42,11 @@
             </button>
             <h3>Advance Approvals</h3>
             <div>
+                @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
                 <a href="{{ url('/advance-requests/report') }}" class="btn btn-primary btn-sm">
                     <i class="ri-file-chart-line align-middle me-1"></i> Advance Report
                 </a>
+                @endif
             </div>
         </div>
 

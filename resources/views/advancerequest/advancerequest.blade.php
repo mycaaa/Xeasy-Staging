@@ -51,9 +51,11 @@
                             <a href="{{ url('/advance-requests/create') }}" class="btn btn-success btn-sm" style="font-size: 12px; padding: 3px 10px;">
                                 <i class="ri-add-line align-middle me-1" style="font-size: 12px;"></i> New Request
                             </a>
+                            @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
                             <a href="{{ url('/advance-requests/report') }}" class="btn btn-outline-info btn-sm" style="font-size: 12px; padding: 3px 10px;">
                                 <i class="ri-file-chart-line align-middle me-1" style="font-size: 12px;"></i> Report
                             </a>
+                            @endif
                             <button type="button" class="btn btn-primary btn-sm" id="refreshBtn" style="font-size: 12px; padding: 3px 10px;">
                                 <i class="ri-refresh-line align-middle me-1" style="font-size: 12px;"></i> Refresh
                             </button>
