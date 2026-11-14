@@ -35,14 +35,31 @@
                                     9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
                                 ];
                             @endphp
-                            {{-- DASH-SCOPE-01 (14 Nov 2026): the company and financial year in view, beside Month; a click opens the switch --}}
-                            <button type="button" class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm fs-12 text-body"
-                                data-bs-toggle="modal" data-bs-target="#companyYearModal" title="Switch company or financial year" style="min-height:34px;">
-                                <i class="ri-building-line text-primary me-2 fs-16" aria-hidden="true"></i>
-                                <span class="fw-semibold">{{ \App\Helpers\DatabaseSwitcher::getCompanyName((int) session('company_id', 1)) }}</span>
-                                <span class="text-muted mx-1" aria-hidden="true">|</span>
-                                <span class="fw-semibold">{{ session('year_value') ?: \App\Models\FinancialYear::getYearById(session('year_id')) }}</span>
-                            </button>
+                            {{-- DASH-SCOPE-02 (15 Nov 2026): company and financial year as two drop-downs beside Month (were a button opening a pop-up);
+                                 changing either switches at once --}}
+                            @php
+                                $dsCompanies = [1 => 'VNR Seeds Pvt Ltd', 3 => 'VNR Nursery Pvt Ltd', 11 => 'VVNR'];
+                                $dsAccess = array_values(array_filter(array_map('intval', explode(',', (string) session('company_access_id', '')))));
+                                if (! $dsAccess) { $dsAccess = [(int) session('company_id', 1)]; }
+                                $dsCurrentCo = (int) session('company_id', 1);
+                                $dsCurrentYear = (int) session('year_id');
+                            @endphp
+                            <div class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm gap-1" style="min-height:34px;">
+                                <i class="ri-building-line text-primary me-1 fs-16" aria-hidden="true"></i>
+                                <label for="dashCompanySelect" class="visually-hidden">Company</label>
+                                <select id="dashCompanySelect" class="form-select form-select-sm border-0 fs-12 fw-semibold text-body" style="width:auto;cursor:pointer;" {{ count($dsAccess) > 1 ? '' : 'disabled' }} title="Company">
+                                    @foreach ($dsCompanies as $id => $name)
+                                        @if (in_array($id, $dsAccess, true))
+                                            <option value="{{ $id }}" {{ $id === $dsCurrentCo ? 'selected' : '' }}>{{ $name }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <span class="text-muted" aria-hidden="true">|</span>
+                                <label for="dashYearSelect" class="visually-hidden">Financial year</label>
+                                <select id="dashYearSelect" class="form-select form-select-sm border-0 fs-12 fw-semibold text-body" style="width:auto;cursor:pointer;" title="Financial year" data-current="{{ $dsCurrentYear }}">
+                                    <option value="{{ $dsCurrentYear }}" selected>{{ session('year_value') ?: \App\Models\FinancialYear::getYearById(session('year_id')) }}</option>
+                                </select>
+                            </div>
                             <div class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm">
                                 <i class="ri-calendar-event-line text-primary me-2 fs-16"></i>
                                 <label for="monthFilterSelect" class="form-label mb-0 fs-12 text-muted me-2 fw-semibold">Month:</label>
@@ -2967,6 +2984,35 @@ $(document).ready(function() {
 
 @push('scripts')
 <script>
+// DASH-SCOPE-02 (15 Nov 2026): company / financial-year drop-downs on the Dashboard header switch at once
+(function () {
+    var $co = $('#dashCompanySelect'), $yr = $('#dashYearSelect');
+    if (!$co.length) { return; }
+    var loadYears = function (companyId, pickTop) {
+        return $.get('/api/financial-years/' + companyId).then(function (res) {
+            var years = (res && res.years) || [], cur = String($yr.data('current'));
+            if (!years.length) { return null; }
+            $yr.empty();
+            years.forEach(function (y) { $yr.append($('<option>').val(y.YearId).text(y.Year)); });
+            $yr.val(!pickTop && $yr.find('option[value="' + cur + '"]').length ? cur : String(years[0].YearId));
+            return $yr.val();
+        });
+    };
+    var switchTo = function (companyId, yearId) {
+        $co.prop('disabled', true); $yr.prop('disabled', true);
+        $.post('/api/switch-company-year', { company_id: companyId, year_id: yearId, _token: $('meta[name="csrf-token"]').attr('content') })
+            .done(function (res) {
+                if (res && res.success) { window.location.reload(); return; }
+                Swal.fire('Not switched', (res && res.message) || 'Could not switch the company / year.', 'error');
+                window.location.reload();
+            })
+            .fail(function (x) { Swal.fire('Not switched', (x.responseJSON && x.responseJSON.message) || 'Could not switch the company / year.', 'error'); window.location.reload(); });
+    };
+    loadYears($co.val(), false);
+    $yr.on('change', function () { switchTo($co.val(), $yr.val()); });
+    $co.on('change', function () { loadYears($co.val(), true).then(function (y) { if (y) { switchTo($co.val(), y); } }); });
+})();
+
 // MONTH-MERGE-01 (15 Nov 2026): Submit from the month card (the Opened Months table is merged into My Claims)
 $(document).on('click', '.mc-submit-btn', function (e) {
     e.preventDefault(); e.stopPropagation();

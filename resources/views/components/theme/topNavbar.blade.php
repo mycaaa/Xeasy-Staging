@@ -108,15 +108,15 @@
                             'finance' => auth()->user()->can('payment_section'),
                         ];
                     @endphp
-                    <div class="d-none d-md-flex align-items-center gap-1 me-2 xe-topbar-rights" aria-label="Your rights">
+                    <div class="d-flex align-items-center gap-1 me-1 xe-topbar-rights" aria-label="Your rights">
                         @if (! empty($xeRights['approver']))
-                            <span class="badge bg-success-subtle text-success fs-11" title="You approve your team's claims"><i class="ri-shield-check-line me-1"></i>Approver</span>
+                            <span class="badge bg-success-subtle text-success fs-11" title="Approver: you approve your team's claims"><i class="ri-shield-check-line"></i><span class="d-none d-lg-inline ms-1">Approver</span></span>
                         @endif
                         @if (! empty($xeRights['verifier']))
-                            <span class="badge bg-info-subtle text-info fs-11" title="You verify claims"><i class="ri-checkbox-circle-line me-1"></i>Verifier</span>
+                            <span class="badge bg-info-subtle text-info fs-11" title="Verifier: you verify claims"><i class="ri-checkbox-circle-line"></i><span class="d-none d-lg-inline ms-1">Verifier</span></span>
                         @endif
                         @if (! empty($xeRights['finance']))
-                            <span class="badge bg-warning-subtle text-warning fs-11" title="You process claim payments"><i class="ri-money-dollar-circle-line me-1"></i>Finance</span>
+                            <span class="badge bg-warning-subtle text-warning fs-11" title="Finance: you process claim payments"><i class="ri-money-dollar-circle-line"></i><span class="d-none d-lg-inline ms-1">Finance</span></span>
                         @endif
                     </div>
                 @endauth
