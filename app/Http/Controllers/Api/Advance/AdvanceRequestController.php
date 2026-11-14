@@ -257,6 +257,11 @@ class AdvanceRequestController extends Controller
                 }
             }
 
+            // ADV-FX-ELIG-01: foreign currency only for eligible employees (self and team members)
+            if ($fxMsg = $this->fxIneligible($data)) {
+                return response()->json(['success' => false, 'message' => $fxMsg], 422);
+            }
+
             // Create draft
             \Log::info('Creating draft request...');
             $advanceRequest = $this->createOrUpdateDraft($data);
@@ -400,6 +405,9 @@ class AdvanceRequestController extends Controller
                         $activity['updated_by'] = $userId;
                     }
                 }
+            }
+            if ($fxMsg = $this->fxIneligible($data)) {   // ADV-FX-ELIG-01
+                return response()->json(['success' => false, 'message' => $fxMsg], 422);
             }
             $advanceRequest = $this->createOrUpdateDraft($data, $requestId);
             return $this->jsonSuccess(new AdvanceRequestResource($advanceRequest), 'Draft advance request updated successfully');
@@ -1092,6 +1100,35 @@ class AdvanceRequestController extends Controller
             \Log::error('Error getting employee details: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /** ADV-FX-ELIG-01 (14 Nov 2026): null when every non-INR line belongs to an eligible employee, else the message. */
+    private function fxIneligible(array $data): ?string
+    {
+        $ids = [];
+        foreach ((array) ($data['employees'] ?? []) as $emp) {
+            foreach ((array) ($emp['activities'] ?? []) as $act) {
+                $cur = strtoupper(trim((string) ($act['currency'] ?? 'INR')));
+                if ($cur !== '' && $cur !== 'INR') {
+                    $ids[] = (int) ($emp['employee_id'] ?? 0);
+                }
+            }
+        }
+        if (! $ids) {
+            return null;
+        }
+        $company = (int) (request()->input('company_id') ?: session('company_id') ?: 1);
+        $bad = array_keys(array_filter(\App\Services\Advance\FxEligibility::check($ids, $company), fn ($ok) => ! $ok));
+        if (! $bad) {
+            return null;
+        }
+        $names = [];
+        foreach ($bad as $id) {
+            $d = $this->getEmployeeDetails($id);
+            $names[] = trim(($d['EmployeeName'] ?? '').' ('.($d['EmployeeCode'] ?? $id).')');
+        }
+
+        return 'A foreign-currency advance is not allowed for: '.implode(', ', $names).'. Request it in INR, or ask the admin to add them in Advance Configuration Setting (foreign currency).';
     }
 
     private function logAction(AdvanceRequest $request, $actionType, $actorId, $targetId = null, $activityId = null, $approvalLevel = null, $remarks = null, $templateId = null)

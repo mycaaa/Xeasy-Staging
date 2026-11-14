@@ -1408,6 +1408,10 @@
                                     </div>
                                     
                                     ${approvalLevelInfo}
+
+                                    <div class="mb-3" id="apprContextBox">{{-- ADV-CONTEXT-01 --}}
+                                        <div class="text-muted small"><span class="spinner-border spinner-border-sm me-1"></span>Loading ledger details...</div>
+                                    </div>
                                     
                                     ${amountField}
                                     
@@ -1453,6 +1457,38 @@
         
         // Show modal
         $('#approvalModal').modal('show');
+        loadApprovalContext(request);
+    }
+
+    // ADV-CONTEXT-01 (14 Nov 2026): ledger balance, A/c Summary and (activity advance) the employee's last advance for the
+    // same activity, crop and variety, in the Approve dialog
+    function loadApprovalContext(request) {
+        const esc = v => $('<div>').text(v == null ? '' : String(v)).html();
+        const inr = v => v == null ? '—' : '₹' + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+        const rd = request.req_data || {}, act = (request.activities || [])[0] || {};
+        const isActivity = String(rd.advance_type_id) === '1' || String(rd.advance_type_code || '').toLowerCase().startsWith('act');
+        const toArr = v => { if (Array.isArray(v)) return v; try { const j = JSON.parse(v || '[]'); return Array.isArray(j) ? j : []; } catch (e) { return String(v || '').split(',').filter(Boolean); } };
+        $.get("{{ url('api') }}/advance/employee-context", {
+            employee_ids: [request.employee_id], year_id: rd.year_id || '',
+            activity_name_id: isActivity ? (rd.activity_name_id || '') : '',
+            crops: isActivity ? toArr(act.activity_crops_id) : [], varieties: isActivity ? toArr(act.activity_variety_id) : [],
+            exclude_request_id: request.advance_request_id || rd.id || ''
+        }).done(function (r) {
+            const d = ((r && r.data) || [])[0];
+            if (!d) { $('#apprContextBox').html('<div class="text-muted small">Ledger details are not available.</div>'); return; }
+            let html = '<div class="border rounded p-2" style="font-size:0.72rem;background:#f8fafc;">'
+                + '<div class="fw-semibold mb-1"><i class="ri-wallet-3-line me-1"></i>Ledger and advance history</div>'
+                + '<div class="d-flex flex-wrap gap-3"><span>Ledger balance: <strong>' + inr(d.ledger_balance) + '</strong>' + (d.ledger_as_of ? ' <span class="text-muted">(as of ' + esc(d.ledger_as_of) + ')</span>' : '') + '</span>'
+                + '<span>Open advances: <strong>' + inr(d.open_advances) + '</strong>' + (d.open_advance_count ? ' (' + d.open_advance_count + ')' : '') + '</span>'
+                + '<a href="' + esc(d.acc_summary_url) + '" target="_blank" rel="noopener">Open A/c Summary</a></div>';
+            if (isActivity) {
+                const l = d.last_activity_advance;
+                html += '<div class="mt-1">' + (l
+                    ? 'Last advance for this activity, crop and variety: ' + esc(l.date) + ' · approved <strong>' + inr(l.approved_amount) + '</strong> · paid <strong>' + inr(l.paid_amount) + '</strong> · <strong>' + esc(l.settlement) + '</strong>'
+                    : '<span class="text-muted">No earlier advance for this activity, crop and variety.</span>') + '</div>';
+            }
+            $('#apprContextBox').html(html + '</div>');
+        }).fail(function () { $('#apprContextBox').html('<div class="text-danger small">Could not load the ledger details.</div>'); });
     }
 
     function submitApproval(requestId, action) {

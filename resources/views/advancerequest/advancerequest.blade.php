@@ -636,12 +636,40 @@ $(document).ready(function() {
                             style="padding: 1px 5px; font-size: 10px;">
                         <i class="ri-eye-line" style="font-size: 12px;"></i>
                     </button>
+                    ${canWithdraw(request) ? `<button class="btn btn-sm btn-outline-danger adv-withdraw-btn ms-1" data-id="${request.id}"
+                            title="Withdraw this request" aria-label="Withdraw this request" style="padding: 1px 5px; font-size: 10px;">
+                        <i class="ri-arrow-go-back-line" style="font-size: 12px;"></i> Withdraw
+                    </button>` : ''}
                 </td>
             </tr>
         `;
 
         return rowHtml;
     }
+
+    // ADV-WITHDRAW-01 (14 Nov 2026): the requester may withdraw a request while it is pending approval at the next stage
+    function canWithdraw(request) {
+        const rd = request.req_data || {};
+        if (String(rd.created_by) !== String(empId)) { return false; }
+        if (['Submitted', 'In_Approval'].indexOf(rd.current_status) === -1) { return false; }
+        return (request.activities || []).length > 0 && (request.activities || []).every(a =>
+            String(a.approval_status || '').toLowerCase() === 'pending' && ['', 'pending'].indexOf(String(a.finance_status || '').toLowerCase()) !== -1 && !(parseFloat(a.payment_amount) > 0));
+    }
+    $(document).on('click', '.adv-withdraw-btn', function () {
+        const id = $(this).data('id'), $b = $(this);
+        Swal.fire({ title: 'Withdraw this request?', text: 'It is taken back from the approvers. You can raise a new request later.', icon: 'warning',
+            input: 'text', inputPlaceholder: 'Reason (optional)', showCancelButton: true, confirmButtonText: 'Withdraw', confirmButtonColor: '#dc2626' })
+            .then(function (r) {
+                if (!r.isConfirmed) { return; }
+                $b.prop('disabled', true);
+                $.post("{{ url('api') }}/advance/withdraw/" + id, { remark: (r.value || '').trim(), _token: $('meta[name="csrf-token"]').attr('content') })
+                    .done(function (res) {
+                        if (res && res.success) { Swal.fire({ icon: 'success', title: 'Withdrawn', timer: 1300, showConfirmButton: false }); fetchAdvanceRequests(); }
+                        else { $b.prop('disabled', false); Swal.fire('Not withdrawn', (res && res.message) || 'Please try again.', 'warning'); }
+                    })
+                    .fail(function (x) { $b.prop('disabled', false); Swal.fire('Not withdrawn', (x.responseJSON && x.responseJSON.message) || 'Please try again.', 'error'); });
+            });
+    });
 
     // ==========================================
     // DETAIL VIEW FUNCTIONS - MATCHING YOUR REFERENCE CODE

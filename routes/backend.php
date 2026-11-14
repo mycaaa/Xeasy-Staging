@@ -268,6 +268,7 @@ Route::middleware('auth')->group(function () {
         Route::get('advance-request-master/designations/{departmentId}', [AdvanceRequestMasterController::class, 'getDesignationsByDepartment'])->name('admin.advance-request-master.designations');
         Route::get('advance-request-master/employees', [AdvanceRequestMasterController::class, 'getEmployees'])->name('admin.advance-request-master.employees');
         Route::get('advance-request-master/grades', [AdvanceRequestMasterController::class, 'getGrades'])->name('admin.advance-request-master.grades');
+        Route::post('advance-request-master/fx-eligibility', [AdvanceRequestMasterController::class, 'saveFxEligibility'])->name('admin.advance-request-master.fx.save');   // ADV-FX-ELIG-01
         Route::post('advance-request-master/management-team', [AdvanceRequestMasterController::class, 'getManagementTeam'])->name('admin.advance-request-master.management-team');
         Route::post('advance-request-master/limits', [AdvanceRequestMasterController::class, 'storeLimits'])->name('admin.advance-request-master.limits.store');
         Route::get('advance-request-master/activities', [AdvanceRequestMasterController::class, 'getActivities'])->name('admin.advance-request-master.activities');

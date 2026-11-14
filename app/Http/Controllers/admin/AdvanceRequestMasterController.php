@@ -305,6 +305,28 @@ class AdvanceRequestMasterController extends Controller
         }
 
 
+    /** ADV-FX-ELIG-01 (14 Nov 2026): save who may request an advance in a foreign currency (per company). */
+    public function saveFxEligibility(Request $request)
+    {
+        $request->validate(['department_ids' => 'array', 'department_ids.*' => 'integer', 'grade_ids' => 'array', 'grade_ids.*' => 'integer', 'employee_codes' => 'nullable|string|max:5000']);
+        $codes = array_values(array_filter(array_map('trim', preg_split('/[\s,;]+/', (string) $request->input('employee_codes', '')))));
+        $found = $codes ? DB::connection('hrims')->table('hrm_employee')->whereIn('EmpCode', $codes)->where('EmpStatus', '!=', 'De')->pluck('EmployeeID', 'EmpCode')->all() : [];
+        $missing = array_values(array_diff($codes, array_map('strval', array_keys($found))));
+        if ($missing) {
+            return response()->json(['success' => false, 'message' => 'Employee code(s) not found: '.implode(', ', $missing)], 422);
+        }
+        $company = (int) session('company_id', 1);
+        DB::table('advance_fx_eligibility')->updateOrInsert(['company_id' => $company], [
+            'all_employees' => $request->boolean('all_employees'),
+            'department_ids' => json_encode(array_values(array_map('intval', (array) $request->input('department_ids', [])))),
+            'grade_ids' => json_encode(array_values(array_map('intval', (array) $request->input('grade_ids', [])))),
+            'employee_ids' => json_encode(array_values(array_map('intval', $found))),
+            'updated_by' => auth()->id(), 'updated_at' => now(), 'created_at' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Foreign currency eligibility saved.']);
+    }
+
     public function getEmployees()
     {
         try {

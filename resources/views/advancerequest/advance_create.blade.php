@@ -102,7 +102,7 @@
 
                                 @if (config('foreign_currency.enabled', true))
                                 {{-- FX-53: currency picker for foreign-currency (overseas) advances --}}
-                                <div class="col-md-3" id="currencySection">
+                                <div class="col-md-3" id="currencySection" style="display:none;">{{-- ADV-FX-ELIG-01: shown to eligible employees --}}
                                     <label for="advCurrency" class="form-label">Currency</label>
                                     <select class="form-select form-select-sm" id="advCurrency">
                                         <option value="INR" selected>INR - Indian Rupee</option>
@@ -194,6 +194,12 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+
+                            {{-- ADV-CONTEXT-01 (14 Nov 2026): ledger balance, A/c Summary and the last advance of each selected employee --}}
+                            <div class="card border mb-0 mt-2" id="advContextCard" style="display:none;">
+                                <div class="card-header py-2 px-3 bg-light"><h6 class="mb-0 fs-13"><i class="ri-wallet-3-line me-1"></i>Ledger and advance history</h6></div>
+                                <div class="card-body p-2" id="advContextBody"></div>
                             </div>
 
                             <!-- Submit Button -->
@@ -623,9 +629,11 @@ $(document).ready(function() {
                 if (parsedResponse.Code === "300" && parsedResponse.Team_list) {
                     teamMembers = parsedResponse.Team_list;
                     renderEmployeeTable();
+                    loadFxEligibility(teamMembers.map(m => m.EmployeeID || m.employee_id));   // ADV-FX-ELIG-01
                 } else if (parsedResponse.code === 200 && parsedResponse.data) {
                     teamMembers = parsedResponse.data;
                     renderEmployeeTable();
+                    loadFxEligibility(teamMembers.map(m => m.EmployeeID || m.employee_id));   // ADV-FX-ELIG-01
                 } else {
                     showMessage('No team members found', 'warning');
                     $('#employeeTableBody').html('<tr><td colspan="5" class="text-center">No team members found</td></tr>');
@@ -1279,6 +1287,7 @@ $(document).ready(function() {
         if (!amount || amount <= 0) { showMessage('Please enter a valid amount', 'warning'); return; }
         if (!purpose) { showMessage('Please enter purpose', 'warning'); return; }
         const fx = xeasyFx.current();
+        if (fxIneligibleSelected().length) { showMessage('A foreign-currency advance is not allowed for you. Choose INR.', 'warning'); return; }   // ADV-FX-ELIG-01
         if (fx.currency !== 'INR' && !(fx.rate > 0)) { showMessage('No ' + fx.currency + ' rate available: enter the rate', 'warning'); return; }
         const inrAmount = fx.currency === 'INR' ? amount : Math.round(amount * fx.rate * 100) / 100;
         if (inrAmount > 999999) { showMessage('Amount cannot exceed ₹999,999', 'warning'); return; }
@@ -1331,6 +1340,9 @@ $(document).ready(function() {
 function submitTeamRequest() {
 
     hideMessage();
+    // ADV-FX-ELIG-01: every selected member must be eligible for a foreign-currency advance
+    const fxBad = fxIneligibleSelected();
+    if (fxBad.length) { showMessage('A foreign-currency advance is not allowed for: ' + fxBad.join(', ') + '. Choose INR or untick them.', 'warning'); return; }
 
     const selectedAdvanceType = $('#advanceType').val();
     const selectedMonth = $('#month').val();
@@ -1566,6 +1578,83 @@ function submitTeamRequest() {
     })();
 
     // ==========================================
+    // ADV-FX-ELIG-01: foreign currency only for eligible employees
+    // ==========================================
+    const fxElig = { self: false, map: {} };
+    function loadFxEligibility(ids) {
+        return $.get(API_LOCAL_BASE_URL + '/advance/fx-eligibility', { employee_ids: ids || [], company_id: companyId })
+            .done(function (r) { if (r && r.success) { fxElig.self = !!r.data.self; Object.assign(fxElig.map, r.data.employees || {}); applyFxVisibility(); } });
+    }
+    function applyFxVisibility() {
+        const type = $('input[name="requestType"]:checked').val();
+        const anyTeam = (teamMembers || []).some(m => fxElig.map[String(m.EmployeeID || m.employee_id)]);
+        const show = type === 'team' ? anyTeam : fxElig.self;
+        if (!show && $('#advCurrency').val() !== 'INR') { $('#advCurrency').val('INR').trigger('change'); }
+        $('#currencySection').toggle(!!show);
+    }
+    function fxIneligibleSelected() {
+        if (($('#advCurrency').val() || 'INR') === 'INR') { return []; }
+        const type = $('input[name="requestType"]:checked').val();
+        if (type !== 'team') { return fxElig.self ? [] : [empName || ('#' + empId)]; }
+        const bad = [];
+        $('.member-checkbox:checked').each(function () { if (!fxElig.map[String($(this).data('id'))]) { bad.push($(this).data('name') + ' (' + $(this).data('code') + ')'); } });
+        return bad;
+    }
+    $(document).on('change', 'input[name="requestType"]', applyFxVisibility);
+
+    // ==========================================
+    // ADV-CONTEXT-01: ledger balance, A/c Summary, last advance
+    // ==========================================
+    let ctxTimer = null, ctxSeq = 0;
+    function ctxEsc(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
+    function ctxInr(v) { return v == null ? '—' : '₹' + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+    function selectedEmployeesForContext() {
+        const type = $('input[name="requestType"]:checked').val();
+        if (type === 'self') { return [{ id: String(empId), name: empName, code: empCode }]; }
+        return $('.member-checkbox:checked').map(function () { return { id: String($(this).data('id')), name: $(this).data('name'), code: $(this).data('code') }; }).get();
+    }
+    function refreshAdvContext() {
+        clearTimeout(ctxTimer);
+        ctxTimer = setTimeout(function () {
+            const emps = selectedEmployeesForContext();
+            if (!emps.length || !$('#advanceType').val()) { $('#advContextCard').hide(); return; }
+            const isActivity = $('#advanceType').val() === 'Activity';
+            const seq = ++ctxSeq;
+            $('#advContextCard').show();
+            $('#advContextBody').html('<div class="text-muted small p-2"><span class="spinner-border spinner-border-sm me-1"></span>Loading...</div>');
+            $.get(API_LOCAL_BASE_URL + '/advance/employee-context', {
+                employee_ids: emps.map(e => e.id), company_id: companyId, year_id: fYearId,
+                activity_name_id: isActivity ? ($('#activityName').val() || '') : '',
+                crops: isActivity ? ($('#commonCrop').val() || []) : [], varieties: isActivity ? ($('#commonVariety').val() || []) : []
+            }).done(function (r) {
+                if (seq !== ctxSeq) { return; }
+                const byId = {}; ((r && r.data) || []).forEach(d => { byId[String(d.employee_id)] = d; });
+                let html = '<div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="font-size:11px;"><thead class="table-light"><tr>'
+                    + '<th>Employee</th><th class="text-end">Ledger balance</th><th class="text-end">Open advances</th><th>A/c Summary</th>'
+                    + (isActivity ? '<th>Last advance (same activity, crop, variety)</th>' : '') + '</tr></thead><tbody>';
+                emps.forEach(function (e) {
+                    const d = byId[e.id];
+                    if (!d) { html += '<tr><td>' + ctxEsc(e.name) + ' (' + ctxEsc(e.code) + ')</td><td colspan="' + (isActivity ? 4 : 3) + '" class="text-muted">Not available</td></tr>'; return; }
+                    let last = '';
+                    if (isActivity) {
+                        const l = d.last_activity_advance;
+                        last = l ? ('<td>' + ctxEsc(l.date) + ' · approved ' + ctxInr(l.approved_amount) + ' · paid ' + ctxInr(l.paid_amount)
+                            + ' · <strong>' + ctxEsc(l.settlement) + '</strong>'
+                            + ((l.crops && l.crops.length) || (l.varieties && l.varieties.length) ? '<div class="text-muted">' + ctxEsc((l.crops || []).join(', ')) + ' / ' + ctxEsc((l.varieties || []).join(', ')) + '</div>' : '') + '</td>')
+                            : '<td class="text-muted">' + ($('#activityName').val() ? 'No earlier advance for this activity, crop and variety' : 'Choose the activity, crop and variety') + '</td>';
+                    }
+                    html += '<tr><td>' + ctxEsc(e.name) + ' <span class="text-muted">(' + ctxEsc(e.code) + ')</span></td>'
+                        + '<td class="text-end fw-semibold">' + ctxInr(d.ledger_balance) + (d.ledger_as_of ? '<div class="text-muted">as of ' + ctxEsc(d.ledger_as_of) + '</div>' : '') + '</td>'
+                        + '<td class="text-end">' + ctxInr(d.open_advances) + (d.open_advance_count ? ' <span class="text-muted">(' + d.open_advance_count + ')</span>' : '') + '</td>'
+                        + '<td><a href="' + ctxEsc(d.acc_summary_url) + '" target="_blank" rel="noopener">Open A/c Summary</a></td>' + last + '</tr>';
+                });
+                $('#advContextBody').html(html + '</tbody></table></div>');
+            }).fail(function () { if (seq === ctxSeq) { $('#advContextBody').html('<div class="text-danger small p-2">Could not load the ledger details.</div>'); } });
+        }, 300);
+    }
+    $(document).on('change', 'input[name="requestType"], #advanceType, #activityName, #commonCrop, #commonVariety, .member-checkbox, #selectAll', refreshAdvContext);
+
+    // ==========================================
     // INITIALIZATION
     // ==========================================
     function initializePage() {
@@ -1582,6 +1671,7 @@ function submitTeamRequest() {
         
         // Check advance access permissions
         checkAdvanceAccess();
+        loadFxEligibility([]);   // ADV-FX-ELIG-01
         
         // Set up global error handling
         $(document).ajaxError(function(event, xhr, settings, error) {

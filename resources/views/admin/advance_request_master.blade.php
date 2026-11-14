@@ -591,6 +591,59 @@
                     </div>
                 </div>
             </div>
+
+            {{-- ADV-FX-ELIG-01 (14 Nov 2026): who may request an advance in a foreign currency --}}
+            @php
+                $fxRules = \App\Services\Advance\FxEligibility::rules((int) session('company_id', 1));
+                $fxEmpCodes = $fxRules['employees']
+                    ? \Illuminate\Support\Facades\DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', $fxRules['employees'])->pluck('EmpCode')->implode(', ')
+                    : '';
+            @endphp
+            <div class="row">
+                <div class="col-lg-12">
+                    <div class="card" id="fxEligibilityCard">
+                        <div class="card-header align-items-center d-flex">
+                            <h4 class="card-title mb-0 flex-grow-1"><i class="ri-exchange-dollar-line me-1"></i>Foreign currency eligibility</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">Only these employees see currencies other than INR on New Advance Request, and a request in another currency is refused for anyone else on it (self or team members). Nobody is eligible until this is set.</p>
+                            <form id="fxEligibilityForm" class="row g-3">
+                                @csrf
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="fxAll" name="all_employees" value="1" {{ $fxRules['all'] ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="fxAll">All employees of this company</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="fxDepartments">Departments</label>
+                                    <select class="form-select" id="fxDepartments" name="department_ids[]" multiple size="6">
+                                        @foreach ($departments as $d)
+                                            <option value="{{ $d->id }}" {{ in_array((int) $d->id, $fxRules['departments'], true) ? 'selected' : '' }}>{{ $d->department_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="fxGrades">Grades</label>
+                                    <select class="form-select" id="fxGrades" name="grade_ids[]" multiple size="6">
+                                        @foreach ($grades as $g)
+                                            <option value="{{ $g->id }}" {{ in_array((int) $g->id, $fxRules['grades'], true) ? 'selected' : '' }}>{{ $g->grade_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="fxEmployees">Employees (codes, comma separated)</label>
+                                    <textarea class="form-control" id="fxEmployees" name="employee_codes" rows="5" placeholder="e.g. 97, 1813">{{ $fxEmpCodes }}</textarea>
+                                </div>
+                                <div class="col-12 d-flex align-items-center gap-2">
+                                    <button type="submit" class="btn btn-primary btn-sm"><i class="ri-save-line me-1"></i>Save eligibility</button>
+                                    <span class="small" id="fxEligibilityMsg" role="status"></span>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -846,6 +899,16 @@
 
 @push('scripts')
     <script src="{{ asset('custom/js/pages/advance_request_master_employee_rows.js') }}"></script>
+    <script>
+    // ADV-FX-ELIG-01
+    $(document).on('submit', '#fxEligibilityForm', function (e) {
+        e.preventDefault();
+        const $m = $('#fxEligibilityMsg').removeClass('text-success text-danger').text('Saving...');
+        $.post('{{ route('admin.advance-request-master.fx.save') }}', $(this).serialize())
+            .done(function (r) { $m.addClass(r.success ? 'text-success' : 'text-danger').text(r.message || (r.success ? 'Saved.' : 'Not saved.')); })
+            .fail(function (x) { $m.addClass('text-danger').text((x.responseJSON && x.responseJSON.message) || 'Not saved.'); });
+    });
+    </script>
     <script src="{{ asset('custom/js/pages/advance_request_master_grade_handler.js') }}"></script>
     <script src="{{ asset('custom/js/pages/advance_request_master_management_handler.js') }}"></script>
 @endpush

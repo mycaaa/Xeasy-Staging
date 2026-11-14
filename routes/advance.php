@@ -23,6 +23,11 @@ Route::prefix('advance')->group(function () {
     Route::post('/submit/{requestId}', [AdvanceRequestController::class, 'submit']);
     Route::post('/resubmit/{requestId}', [AdvanceRequestController::class, 'resubmit']);
 
+    // 14 Nov 2026: ADV-CONTEXT-01 ledger / last advance, ADV-FX-ELIG-01 foreign-currency eligibility, ADV-WITHDRAW-01
+    Route::get('/employee-context', [\App\Http\Controllers\Api\Advance\AdvanceExtrasController::class, 'context']);
+    Route::get('/fx-eligibility', [\App\Http\Controllers\Api\Advance\AdvanceExtrasController::class, 'fxEligibility']);
+    Route::post('/withdraw/{lineId}', [\App\Http\Controllers\Api\Advance\AdvanceExtrasController::class, 'withdraw'])->whereNumber('lineId');
+
     // Approval (must come before generic routes)
     Route::get('/approvals/pending', [AdvanceApprovalController::class, 'pending']);
     Route::get('/approvals/approved', [AdvanceApprovalController::class, 'approved']);
