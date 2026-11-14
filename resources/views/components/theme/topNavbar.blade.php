@@ -319,7 +319,7 @@
                         aria-expanded="false">
                         <span class="d-flex align-items-center">
                             <img class="rounded-circle header-profile-user"
-                                src="{{ session('profile_img') ?: (config('app.employee_photo_base') . '/' . session('company_id', 1) . '/' . session('emp_code') . '.jpg') }}"
+                                src="{{ \App\Support\EmployeePhoto::forSession() }}"
                                 onerror="this.onerror=null;this.src='{{ asset('custom/no_user.png') }}'" alt="Profile photo" decoding="async">
                             <span class="text-start ms-xl-2">
                                 <span class="d-none d-xl-inline-block ms-1 fw-medium user-name-text">

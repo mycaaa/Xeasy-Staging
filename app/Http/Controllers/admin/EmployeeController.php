@@ -31,6 +31,7 @@ class EmployeeController extends Controller
                     DB::raw("TRIM(CONCAT_WS(' ', emp.Fname, COALESCE(emp.Sname, ''), emp.Lname)) AS EmployeeName"),
                     'emp.EmployeeID',
                     'emp.EmpCode',
+                    'emp.CompanyId', // PHOTO-01
                     DB::raw('emp.EmpCode AS EmpCode_New'),
                     'emp.EmpStatus',
                     'emp.DateOfResignation',
@@ -158,7 +159,7 @@ class EmployeeController extends Controller
                     $deptId = (int) ($emp->department_id ?? 0);
                     
                     $code = $emp->EmpCode_New ?? $emp->EmpCode ?? '';
-                    $emp->image_url = $code ? config('app.employee_photo_base') . "/{$companyId}/{$code}.jpg" : '';
+                    $emp->image_url = $code ? \App\Support\EmployeePhoto::url($code, (int) (($emp->CompanyId ?? $emp->companyid ?? null) ?: $companyId)) : '';
                     $emp->is_management = ($deptId === 18) || str_starts_with($grade, 'MG');
                     $emp->company_name = \App\Helpers\DatabaseSwitcher::getCompanyName($emp->companyid ?? 1);
                     $emp->emp_code = $code;
@@ -308,7 +309,7 @@ class EmployeeController extends Controller
                     $deptId = (int) ($emp->department_id ?? 0);
                     $code   = $emp->EmpCode_New ?? $emp->EmpCode ?? '';
 
-                    $emp->image_url    = $code ? config('app.employee_photo_base') . "/{$companyId}/{$code}.jpg" : '';
+                    $emp->image_url    = $code ? \App\Support\EmployeePhoto::url($code, (int) (($emp->CompanyId ?? $emp->companyid ?? null) ?: $companyId)) : '';
                     $emp->is_management = ($deptId === 18) || str_starts_with($grade, 'MG');
                     $emp->company_name  = \App\Helpers\DatabaseSwitcher::getCompanyName($emp->companyid ?? 1);
                     $emp->emp_code      = $code;
@@ -600,8 +601,29 @@ class EmployeeController extends Controller
         ", [$employeeId]);
 
         // Auto-detect employee company if not explicitly specified
+        $askedCompany = $companyId;
         if ($empInfo && !empty($empInfo->CompanyId)) {
             $companyId = (int) $empInfo->CompanyId;
+        }
+        // EHOME-FY-01 (14 Nov 2026): each company numbers its financial years differently (VVNR 2026-2027 is not
+        // VNR's YearId of the same number). When the employee belongs to another company than the one signed in to,
+        // carry the year over by its name (2026-2027), not by its number - the number pointed at 2024-2025.
+        $askedYearId = $request->filled('year_id') ? (int) $request->input('year_id') : (int) session('year_id');
+        if ($askedYearId > 0 && $askedCompany !== $companyId) {
+            $askedConn = match ($askedCompany) { 11 => 'expense_vvnr', 3 => 'expense_nursery', default => 'expense' };
+            $targetConn = match ($companyId) { 11 => 'expense_vvnr', 3 => 'expense_nursery', default => 'expense' };
+            try {
+                $label = DB::connection($askedConn)->table('financialyear')->where('YearId', $askedYearId)->value('Year');
+                $mapped = $label ? DB::connection($targetConn)->table('financialyear')->where('Year', $label)->value('YearId') : null;
+            } catch (\Throwable $e) {
+                $mapped = null;
+            }
+            if ($mapped) {
+                $request->merge(['year_id' => (int) $mapped]);
+            } else {
+                $request->offsetUnset('year_id'); // falls back to the company's current year below
+                $request->attributes->set('ehome_ignore_session_year', true);
+            }
         }
 
         // Determine expense connection
@@ -622,7 +644,8 @@ class EmployeeController extends Controller
         $yearValue = $currentFy->Year ?? '2026-2027';
 
         // Use requested year_id if provided, otherwise strictly default to current FY
-        $yearId = $request->filled('year_id') ? (int) $request->input('year_id') : (session('year_id') ? (int) session('year_id') : $currentYearId);
+        $yearId = $request->filled('year_id') ? (int) $request->input('year_id')
+            : ((session('year_id') && ! $request->attributes->get('ehome_ignore_session_year')) ? (int) session('year_id') : $currentYearId);
         // Fallback yearValue from yearId
         if (!$currentFy || (int) $currentFy->YearId !== (int) $yearId) {
             $matchedYear = DB::connection($expenseConn)->table('financialyear')->where('YearId', $yearId)->value('Year');

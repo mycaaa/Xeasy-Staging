@@ -330,6 +330,11 @@
                                 <span class="ms-1 badge bg-primary"
                                     style="font-size:9px;vertical-align:middle;">FY {{ $yearValue }}</span>
                             @endif
+                            {{-- EHOME-FY-01: say whose books these are when they are not the company signed in to --}}
+                            @if ((int) ($companyId ?? 0) !== (int) session('company_id', 1))
+                                <span class="ms-1 badge bg-info-subtle text-info" style="font-size:9px;vertical-align:middle;"
+                                    title="This employee's claims are kept in {{ [1 => 'VNR Seeds', 3 => 'VNR Nursery', 11 => 'VVNR'][(int) $companyId] ?? 'another company' }}">{{ [1 => 'VNR Seeds', 3 => 'VNR Nursery', 11 => 'VVNR'][(int) $companyId] ?? 'Company '.$companyId }} claims</span>
+                            @endif
                         </div>
                         <div class="text-muted" style="font-size:11px;line-height:1.3;">
                             {{ $empInfo->designation_name ?? '' }}

@@ -189,7 +189,7 @@ class LoginController extends BaseMobileController
                     "DesigName" => isset($empD["DesigName"]) ? (string) $empD["DesigName"] : "",
                     "MobileNo" => isset($empD["OfficialMobile"]) ? (string) $empD["OfficialMobile"] : "",
                     "ReportingName" => isset($empD["ReportingName"]) ? (string) $empD["ReportingName"] : "",
-                    "ProfileImg" => config('app.employee_photo_base') . '/' . $comId . "/" . ($info['EmpCode'] ?? '') . ".jpg",
+                    "ProfileImg" => \App\Support\EmployeePhoto::url((string) ($info['EmpCode'] ?? ''), (int) (($info['CompanyId'] ?? null) ?: $comId)),
                     "Msg" => "Login successfully"
                 ]);
             } else {
