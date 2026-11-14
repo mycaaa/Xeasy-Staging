@@ -57,7 +57,7 @@
             } else if (c.kind === 'date') {
                 html += '<th class="p-1"><input type="date" class="form-control form-control-sm apr-f" data-col="' + c.i + '" data-kind="date" aria-label="' + esc(label) + '" title="' + esc(label) + '"></th>';
             } else if (c.kind === 'amount') {
-                html += '<th class="p-1"><input type="text" inputmode="decimal" class="form-control form-control-sm apr-f" data-col="' + c.i + '" data-kind="amount" placeholder="' + esc(c.name) + '" aria-label="' + esc(label) + ' (amount)"></th>';
+                html += '<th class="p-1"><input type="text" inputmode="decimal" pattern="[0-9.,₹]*" autocomplete="off" class="form-control form-control-sm apr-f" data-col="' + c.i + '" data-kind="amount" placeholder="' + esc(c.name) + ' (₹)" title="Amount only, up to 2 decimals" aria-label="' + esc(label) + ' (amount)"></th>';
             } else if (c.kind === 'diff') {
                 html += '<th class="p-1"><select class="form-select form-select-sm apr-f" data-col="' + c.i + '" data-kind="diff" aria-label="Filter difference"><option value="">All</option><option value="-">Deducted</option><option value="+">Added</option><option value="0">No change</option></select></th>';
             } else if (c.kind === 'status') {
@@ -69,6 +69,17 @@
             }
         });
         return html + '</tr>';
+    }
+
+    /* APPR-FILTER-03 (15 Nov 2026, QA #20): an amount box takes amounts only - letters and other characters are
+     * dropped as they are typed or pasted; one decimal point, up to 2 decimals; commas and ₹ are tolerated. */
+    function cleanAmount(v) {
+        var t = String(v == null ? '' : v).replace(/[^0-9.,₹]/g, '');
+        var dot = t.indexOf('.');
+        if (dot !== -1) {
+            t = t.slice(0, dot + 1) + t.slice(dot + 1).replace(/[.₹,]/g, '').slice(0, 2);
+        }
+        return t;
     }
 
     function cell($tr, i) { return $tr.children('td').eq(i); }
@@ -162,6 +173,21 @@
             if (!$table.length || $table.find('.apr-filter-row').length) { return; }
             var cols = columns($table);
             $table.find('thead').append(filterRow($table, cols));
+            $table.on('input change paste', '.apr-f[data-kind="amount"]', function () {
+                var el = this;
+                if (arguments[0] && arguments[0].type === 'paste') { setTimeout(function () { $(el).trigger('input'); }, 0); return; }
+                var before = el.value, clean = cleanAmount(before);
+                if (clean !== before) {
+                    var pos = el.selectionStart != null ? el.selectionStart - (before.length - clean.length) : null;
+                    el.value = clean;
+                    if (pos != null && el.setSelectionRange) { try { el.setSelectionRange(Math.max(pos, 0), Math.max(pos, 0)); } catch (e) {} }
+                }
+            });
+            $table.on('keydown', '.apr-f[data-kind="amount"]', function (e) {
+                // block letters and other characters before they appear (keys like Backspace, arrows, Tab, Ctrl/Cmd+key pass)
+                if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) { return; }
+                if (!/[0-9.,₹]/.test(e.key)) { e.preventDefault(); }
+            });
             $table.on('input change', '.apr-f', function () { apply($table, cols); });
             var $bar = $table.closest('.modal-body').find('.apr-bulk-bar');
             $bar.append('<small class="ms-auto text-muted apr-filter-count"></small>'
