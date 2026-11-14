@@ -153,7 +153,7 @@
 @endpush
 @push('scripts')
     <script src="{{ asset('vendor/cdn/jquery@3.6.0/dist/jquery.min.js') }}"></script>
-    <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
+    {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
     <script src="{{ asset('vendor/cdn/chart.js@4.6.1/dist/chart.umd.js') }}"></script>
     <script>
         $(document).ready(function () {

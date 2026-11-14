@@ -192,6 +192,6 @@
 @push('styles')
 @endpush
 @push('scripts')
-    <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
+    {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
     <script src="{{ asset('custom/js/pages/activity_type.js') }}"></script>
 @endpush

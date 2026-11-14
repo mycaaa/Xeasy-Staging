@@ -279,8 +279,12 @@ $(document).ready(function () {
         const $box = $btn.closest("#eHomeContainer");
         const empId = $box.data("employee-id") || "";
         const monthName = new Date(2000, (parseInt(month, 10) || 1) - 1, 1).toLocaleString("en-IN", { month: "long" });
-        if (!confirm("Submit the claims of " + monthName + " for verification? After submitting you cannot add or change claims of this month.")) return;
-        $btn.prop("disabled", true).text("Submitting...");
+        // LIB-ONCE-01: one SweetAlert flow instead of up to three native boxes (confirm, confirm, alert)
+        const ask = function (title, text, okText) {
+            return window.Swal ? Swal.fire({ icon: "question", title: title, text: text, showCancelButton: true, confirmButtonText: okText, cancelButtonText: "Cancel" }).then(function (r) { return r.isConfirmed; })
+                : Promise.resolve(window.confirm(title + "\n\n" + text));
+        };
+        const tell = function (ok, text) { if (window.Swal) { Swal.fire({ icon: ok ? "success" : "error", title: ok ? "Submitted" : "Not submitted", text: text }); } else { window.alert(text); } };
         const send = function (ack) { $.ajax({
             url: "/claimant/month/submit",
             method: "POST",
@@ -288,11 +292,11 @@ $(document).ready(function () {
             success: function (res) {
                 // SUBMIT-PENDING-01: bills still pending for punching - submit only after the employee agrees
                 if (res && String(res.Code) === "101" && res.needs_ack === "unpunched") {
-                    if (confirm((res.msg || "") + "\n\nSubmit anyway?")) { send(true); } else { $btn.prop("disabled", false).text("Submit"); }
+                    ask("Before you submit", res.msg || "", "Submit anyway").then(function (yes) { if (yes) { send(true); } else { $btn.prop("disabled", false).text("Submit"); } });
                     return;
                 }
                 const ok = res && (String(res.Code) === "300" || res.success === true);
-                alert((res && (res.msg || res.message)) || (ok ? "Submitted." : "Could not submit."));
+                tell(ok, (res && (res.msg || res.message)) || (ok ? "Submitted." : "Could not submit."));
                 if (ok) {
                     if ($btn.closest("#myEhomeBody").length && window.loadMyEhome) window.loadMyEhome();
                     else $('.ehome-btn[data-employee-id="' + empId + '"]').first().trigger("click");
@@ -301,11 +305,12 @@ $(document).ready(function () {
                 }
             },
             error: function (x) {
-                alert((x.responseJSON && (x.responseJSON.msg || x.responseJSON.message)) || "Could not submit the month.");
+                tell(false, (x.responseJSON && (x.responseJSON.msg || x.responseJSON.message)) || "Could not submit the month.");
                 $btn.prop("disabled", false).text("Submit");
             }
         }); };
-        send(false);
+        ask("Submit " + monthName + "?", "The claims of " + monthName + " go for verification. After submitting you cannot add or change claims of this month.", "Submit")
+            .then(function (yes) { if (yes) { $btn.prop("disabled", true).text("Submitting..."); send(false); } });
     });
 
     // Load E-Home dashboard into modal body

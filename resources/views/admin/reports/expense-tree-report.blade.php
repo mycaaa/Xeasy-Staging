@@ -596,7 +596,7 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
+    {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
 @include('partials.organogram-filters-js')
 <script>
     // ── Routes & Global State ──────────────────────────────────────────────────

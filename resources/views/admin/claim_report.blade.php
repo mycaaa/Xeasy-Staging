@@ -138,7 +138,7 @@
     <link rel="stylesheet" href="assets/libs/@simonwep/pickr/themes/nano.min.css" />
     <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
 @endpush @push('scripts')
-    <script src="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/js/select2.min.js') }}"></script>
+    {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
     <script src="{{ asset('custom/js/pages/claim_report.js') }}"></script>
     <script src="{{ asset('custom/js/pages/claim.js') }}"></script>
 @endpush

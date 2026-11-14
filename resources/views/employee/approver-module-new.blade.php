@@ -193,7 +193,7 @@
 @push('scripts')
 <script src="{{ asset('custom/js/pages/claim.js') }}?v={{ time() }}"></script>
 <script src="{{ asset('custom/js/pages/approver-day-filters.js') }}?v={{ filemtime(public_path('custom/js/pages/approver-day-filters.js')) }}"></script>
-<script src="{{ asset('vendor/cdn/sweetalert2@11.26.25/dist/sweetalert2.all.min.js') }}"></script>
+    {{-- LIB-ONCE-01: sweetalert2 comes from the layout footer (a second copy stacked pop-ups) --}}
 <script>
 $(function(){
     const R=@json($approverRoutes);const csrf=@json(csrf_token());const status=@json($status);const comId=@json((string)$companyId);const prefix=@json($prefix);

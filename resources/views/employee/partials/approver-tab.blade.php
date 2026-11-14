@@ -1582,18 +1582,7 @@
         }
     });
 
-    // ── DISABLED SUBMIT BUTTON INFO ──
-    $(document).on('click', '.disabled-submit-btn', function(ev){
-        ev.preventDefault();
-        const reason = $(this).data('reason') || 'Cannot submit';
-        Swal.fire({
-            icon: 'warning',
-            title: 'Action Not Allowed',
-            text: reason,
-            confirmButtonText: 'OK',
-            confirmButtonColor: '#405189'
-        });
-    });
+    // LIB-ONCE-01: the disabled Submit button is explained once (see SUBMIT MONTH above); a second handler opened a second box
 
 })();
 </script>

@@ -307,7 +307,7 @@
 @endpush
 
 @push('scripts')
-<script src="{{ asset('vendor/cdn/sweetalert2@11.26.25/dist/sweetalert2.all.min.js') }}"></script>
+    {{-- LIB-ONCE-01: sweetalert2 comes from the layout footer (a second copy stacked pop-ups) --}}
 <script>
     window.openPopUpWindow = function(url) {
         window.open(url, "_blank", "toolbar=no,scrollbars=yes,resizable=yes,top=80,left=200,width=900,height=520");

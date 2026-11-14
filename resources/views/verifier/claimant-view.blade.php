@@ -1031,7 +1031,7 @@
      SCRIPTS
      ══════════════════════════════ --}}
 @push('scripts')
-<script src="{{ asset('vendor/cdn/sweetalert2@11.26.25/dist/sweetalert2.all.min.js') }}"></script>
+    {{-- LIB-ONCE-01: sweetalert2 comes from the layout footer (a second copy stacked pop-ups) --}}
 <script>
 /* ═══════════════ CONFIG ═══════════════ */
 (function() {
