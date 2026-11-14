@@ -177,3 +177,56 @@ html[data-layout="vertical"] .navbar-menu .navbar-nav .nav-item { margin-bottom:
 /* LOGO-NAV-02 (14 Nov 2026): with the menu collapsed, the menu scrolls with the page under the fixed logo box, and the
    first item (Dashboard) was drawn over the logo and took its clicks. The logo box now sits above the menu items. */
 html[data-layout="vertical"][data-sidebar-size="sm"] .app-menu .navbar-brand-box { z-index: 5; height: 70px; background-color: var(--vz-vertical-menu-bg); }
+
+/* ── ROUND-01 (15 Nov 2026): one rounded-corner scale on every page (corners were 3-5 px, nearly square) ──
+ * cards 12 px · pop-ups 14 px · drop-down menus 10 px · inputs, drop-down boxes and buttons 8 px · small buttons and
+ * badges 6 px. Pills (rounded-pill) and round icons keep their shape. Set through the theme variables so joined
+ * controls (input groups, button groups) keep square inner edges. */
+:root, [data-bs-theme] {
+    --vz-border-radius: 8px;
+    --vz-border-radius-sm: 6px;
+    --vz-border-radius-lg: 12px;
+    --vz-border-radius-xl: 16px;
+}
+.card { --vz-card-border-radius: 12px; --vz-card-inner-border-radius: 11px; border-radius: 12px; }
+.card > .card-header:first-child { border-radius: 11px 11px 0 0; }
+.card > .card-footer:last-child { border-radius: 0 0 11px 11px; }
+.card > .list-group:first-child, .card > .table-responsive:first-child, .card > .card-body:first-child > .table-responsive:only-child { border-top-left-radius: 11px; border-top-right-radius: 11px; overflow: hidden; }
+.modal { --vz-modal-border-radius: 14px; --vz-modal-inner-border-radius: 13px; }
+.modal-content { border-radius: 14px; overflow: hidden; }
+.dropdown-menu { --vz-dropdown-border-radius: 10px; border-radius: 10px; padding-top: .35rem; padding-bottom: .35rem; box-shadow: 0 8px 24px rgba(15, 23, 42, .10); }
+.dropdown-menu .dropdown-item { border-radius: 6px; margin: 0 .3rem; width: auto; }
+.btn { --vz-btn-border-radius: 8px; }
+.btn-sm, .btn-group-sm > .btn { --vz-btn-border-radius: 6px; }
+.btn-lg, .btn-group-lg > .btn { --vz-btn-border-radius: 10px; }
+.btn.rounded-pill, .btn.rounded-circle { --vz-btn-border-radius: 50rem; }
+.form-control, .form-select { border-radius: 8px; }
+.form-control-sm, .form-select-sm { border-radius: 6px; }
+.form-control-lg, .form-select-lg { border-radius: 10px; }
+.input-group > :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.input-group > :not(:first-child):not(.dropdown-menu) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.badge { --vz-badge-border-radius: 6px; }
+.badge.rounded-pill { --vz-badge-border-radius: 50rem; }
+.alert { border-radius: 10px; }
+.toast, .popover { border-radius: 10px; }
+.tooltip-inner { border-radius: 6px; }
+.list-group { --vz-list-group-border-radius: 10px; }
+.nav-tabs .nav-link { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+.nav-pills .nav-link { border-radius: 8px; }
+.pagination { --vz-pagination-border-radius: 8px; }
+.progress { border-radius: 50rem; }
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple { border-radius: 8px !important; }
+.select2-dropdown { border-radius: 10px !important; overflow: hidden; }
+.select2-container--open .select2-dropdown--below { border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
+.select2-container--open.select2-container--below .select2-selection { border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; }
+.dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { border-radius: 8px; }
+.flatpickr-calendar { border-radius: 12px; }
+.swal2-popup { border-radius: 14px !important; }
+.swal2-input, .swal2-textarea, .swal2-select { border-radius: 8px !important; }
+.swal2-styled { border-radius: 8px !important; }
+.table-responsive.rounded { border-radius: 10px; overflow: hidden; }
+.table-responsive.rounded-bottom { border-radius: 0 0 10px 10px; overflow: hidden; }
+.avatar-title.rounded, .quick-action-icon.rounded { border-radius: 10px !important; }
+.month-tile, .closed-month-tile { border-radius: 12px; }
+.eh-header { border-radius: 10px 10px 0 0 !important; }
