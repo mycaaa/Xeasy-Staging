@@ -2209,7 +2209,7 @@ $(document).on('click', '.submit-month-btn', function(e) {
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading(); }
             });
-            $.ajax({
+            const sendSubmit = (ack) => $.ajax({
                 url: '{{ route("claimant.month.submit") }}',
                 method: 'POST',
                 data: {
@@ -2217,9 +2217,22 @@ $(document).on('click', '.submit-month-btn', function(e) {
                     month: month,
                     empid: empid,
                     YearId: yearid,
-                    CompanyId: comid
+                    CompanyId: comid,
+                    ack_unpunched: ack ? 1 : 0
                 },
                 success(res) {
+                    // SUBMIT-PENDING-01: bills still pending for punching - warn and submit only after the employee agrees
+                    if (String(res.Code) === '101' && res.needs_ack === 'unpunched') {
+                        Swal.fire({
+                            icon: 'warning', title: 'Bills pending for punching',
+                            html: '<p class="text-start mb-0" style="font-size:13px;">' + $('<div>').text(res.msg || '').html() + '</p>',
+                            showCancelButton: true, confirmButtonText: 'Submit anyway', cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#f59e0b', cancelButtonColor: '#64748b'
+                        }).then(r => {
+                            if (r.isConfirmed) { Swal.fire({ title: 'Submitting Month…', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } }); sendSubmit(true); }
+                        });
+                        return;
+                    }
                     if (res.Code === '200' || (res.msg||'').toLowerCase().includes('success') || res.msg === "Month claim submitted successfully") {
                         Swal.fire({
                             icon: 'success',
@@ -2238,6 +2251,7 @@ $(document).on('click', '.submit-month-btn', function(e) {
                     Swal.fire('Error', err.responseJSON?.msg || 'Server error occurred.', 'error');
                 }
             });
+            sendSubmit(false);
         }
     });
 });

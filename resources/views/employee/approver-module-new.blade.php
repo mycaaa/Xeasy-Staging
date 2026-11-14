@@ -105,7 +105,7 @@
                 <option value="1">January</option><option value="2">February</option><option value="3">March</option>
             </select></div>
             <div class="col-auto d-flex gap-1">
-                <button class="btn btn-sm btn-primary rounded-pill px-3" id="applyFilter"><i class="ri-search-line"></i> Filter</button>
+                <button class="btn btn-sm btn-primary rounded-pill px-3" id="applyFilter" title="The list also updates as soon as you change the member or month"><i class="ri-search-line"></i> Apply</button>
                 <button class="btn btn-sm btn-light rounded-pill px-3" id="resetFilter" title="Reset all filters"><i class="ri-refresh-line"></i></button>
             </div>
             <div class="col-lg-4 col-md-4 col-sm-12 ms-auto">
@@ -125,8 +125,8 @@
 
 {{-- Modals --}}
 <div class="modal fade" id="dayModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-fullscreen"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title" id="dayModalTitle">Claims</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="dayModalBody"></div></div></div></div>
-<div class="modal fade" id="teamExpModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title"><i class="ri-team-line me-1"></i> Team All Expenses</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="teamExpBody"></div></div></div></div>
-<div class="modal fade" id="runKmModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title"><i class="ri-roadster-line me-1"></i> Team Running KM</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="runKmBody"></div></div></div></div>
+<div class="modal fade" id="teamExpModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><div><h6 class="modal-title mb-0"><i class="ri-team-line me-1"></i> Team All Expenses</h6><small class="text-muted">Claimed amounts of punched bills, all stages (not verified, approved or paid)</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="teamExpBody"></div></div></div></div>
+<div class="modal fade" id="runKmModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><div><h6 class="modal-title mb-0"><i class="ri-roadster-line me-1"></i> Team Running KM</h6><small class="text-muted">Approved km: odometer bills approved by the manager (not driven or claimed km)</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="runKmBody"></div></div></div></div>
 
 {{-- Claim Detail Modal (same as eHome/Verifier) --}}
 <x-modal.view_claim_detail />
@@ -206,6 +206,8 @@ $(function(){
     $('#teamExpBtn').on('click',()=>{$('#teamExpModal').modal('show');loadTeamExp();});
     $('#runningKmBtn').on('click',()=>{$('#runKmModal').modal('show');loadRunKm();});
     $('#applyFilter').on('click',()=>loadApproved($('#filterMember').val(),$('#filterMonth').val()));
+    // QA-20.1 (14 Nov 2026): the Approved list follows the member / month choice without pressing Apply
+    $('#filterMember,#filterMonth').on('change',()=>loadApproved($('#filterMember').val(),$('#filterMonth').val()));
     $('#resetFilter').on('click',()=>{
         $('#filterMember,#filterMonth,#searchApproved').val('');
         loadApproved('','');
@@ -222,9 +224,11 @@ $(function(){
     function loadPending(){
         if(!R.pendingList)return;
         $.getJSON(R.pendingList).done(res=>{
-            const list=res.Pending_list||[];$('#pendingCount').text(list.length);
+            const list=res.Pending_list||[];
             // APPR-WAIT-01: say how many submitted months are still with the verification team
             const wait=parseInt(res.Awaiting_verification||0,10);
+            // QA-20.2 (14 Nov 2026): split the count - ready for you vs still with verification
+            $('#pendingCount').text(list.length+' ready to approve'+(wait>0?' · '+wait+' with verification':''));
             const waitNote=wait>0?`<div class="alert alert-info py-2 px-3 mb-2 small" role="status"><i class="ri-time-line me-1" aria-hidden="true"></i>${wait} submitted month(s) of your team are with the verification team. They appear here for approval once verified.</div>`:'';
             if(!list.length){$('#pendingCards').html(waitNote+'<div class="empty-state"><i class="ri-inbox-line"></i><p>Nothing waiting for your approval</p></div>');return;}
             let h='';list.forEach(item=>{

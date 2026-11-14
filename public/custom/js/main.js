@@ -281,11 +281,16 @@ $(document).ready(function () {
         const monthName = new Date(2000, (parseInt(month, 10) || 1) - 1, 1).toLocaleString("en-IN", { month: "long" });
         if (!confirm("Submit the claims of " + monthName + " for verification? After submitting you cannot add or change claims of this month.")) return;
         $btn.prop("disabled", true).text("Submitting...");
-        $.ajax({
+        const send = function (ack) { $.ajax({
             url: "/claimant/month/submit",
             method: "POST",
-            data: { month: month, ei: empId, year_id: $box.data("year-id") || "", _token: $('meta[name="csrf-token"]').attr("content") },
+            data: { month: month, ei: empId, year_id: $box.data("year-id") || "", ack_unpunched: ack ? 1 : 0, _token: $('meta[name="csrf-token"]').attr("content") },
             success: function (res) {
+                // SUBMIT-PENDING-01: bills still pending for punching - submit only after the employee agrees
+                if (res && String(res.Code) === "101" && res.needs_ack === "unpunched") {
+                    if (confirm((res.msg || "") + "\n\nSubmit anyway?")) { send(true); } else { $btn.prop("disabled", false).text("Submit"); }
+                    return;
+                }
                 const ok = res && (String(res.Code) === "300" || res.success === true);
                 alert((res && (res.msg || res.message)) || (ok ? "Submitted." : "Could not submit."));
                 if (ok) {
@@ -299,7 +304,8 @@ $(document).ready(function () {
                 alert((x.responseJSON && (x.responseJSON.msg || x.responseJSON.message)) || "Could not submit the month.");
                 $btn.prop("disabled", false).text("Submit");
             }
-        });
+        }); };
+        send(false);
     });
 
     // Load E-Home dashboard into modal body

@@ -596,8 +596,14 @@ class ClaimantController extends Controller
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
         $month = $request->month;
-        $url = LegacyApi::baseUrl()."/{$companyId}/claim.php?value=Claim_Submit&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&month={$month}&tokenid={$tokenId}";
+        $ack = $request->input('ack_unpunched') == '1' ? '&ack_unpunched=1' : '';   // SUBMIT-PENDING-01
+        $url = LegacyApi::baseUrl()."/{$companyId}/claim.php?value=Claim_Submit&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&month={$month}&tokenid={$tokenId}".$ack;
         try {
+            // this app's own rules first (SUBMIT-PENDING-01 needs the warning step), then the configured claim API
+            $own = LegacyApi::inProcess($url, [], 'GET');
+            if (is_array($own)) {
+                return response()->json($own);
+            }
             $response = LegacyApi::http()->get($url);
 
             return response()->json($response->json());

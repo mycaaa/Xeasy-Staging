@@ -1431,10 +1431,14 @@ class DashboardController extends Controller
                 ->where(function($q) {
                     $q->whereNull('Approved_Date')->orWhere('Approved_Date', '0000-00-00');
                 })
-                ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(CASE WHEN Verified_Amount > 0 THEN Verified_Amount ELSE Claim_Amount END), 0) as amt')
+                ->selectRaw("COUNT(*) as cnt, COALESCE(SUM(CASE WHEN Verified_Amount > 0 THEN Verified_Amount ELSE Claim_Amount END), 0) as amt,
+                    SUM(CASE WHEN Verified_Date IS NOT NULL AND Verified_Date > '2000-01-01' THEN 1 ELSE 0 END) as ready")
                 ->first();
 
             $pendingCount = (int) ($pendingMef->cnt ?? 0);
+            // QA-20.2 (14 Nov 2026): ready for the manager (verified) vs still with the verification team
+            $pendingReady = (int) ($pendingMef->ready ?? 0);
+            $pendingWithVerification = max(0, $pendingCount - $pendingReady);
             $pendingAmount = (float) ($pendingMef->amt ?? 0);
 
             if ($pendingCount === 0) {
@@ -1678,6 +1682,8 @@ class DashboardController extends Controller
 
             return [
                 'pending_count'  => $pendingCount,
+                'pending_ready'  => $pendingReady,
+                'pending_with_verification' => $pendingWithVerification,
                 'pending_amount' => round($pendingAmount),
                 'approved_count' => $approvedCount,
                 'approved_amount' => round($approvedAmount),

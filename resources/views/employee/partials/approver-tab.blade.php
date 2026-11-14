@@ -198,7 +198,8 @@
     // Stat cards - 3 primary redirectable cards
     $statCards = [
         ['label' => 'Claims Pending Approval', 'value' => $pendingCount,
-         'sub'   => '₹ ' . number_format($pendingAmount) . ' verified (claimed if not verified)',
+         // QA-20.2: split ready for you vs still with the verification team
+         'sub'   => (isset($rm['pending_ready']) ? ((int) $rm['pending_ready']) . ' ready for you · ' . ((int) ($rm['pending_with_verification'] ?? 0)) . ' with verification · ' : '') . '₹ ' . number_format($pendingAmount),
          'icon'  => 'ri-time-line', 'color' => 'warning', 'change' => null,
          'link'  => $rmApproverRoute . '?status=pending'],
 
@@ -1209,7 +1210,7 @@
                 const paxCount = rmn(d.NoOfPAX) || (d.PaxEmployeeDetails ? d.PaxEmployeeDetails.length : 0);
                 paxBadgeHtml = `<div class="mt-1">
                     <button type="button" class="btn-pax-pill toggle-pax-btn" data-target="rm_pax_row_${rme(eid)}" title="Click to view participant details">
-                        <i class="ri-group-line"></i><span>PAX: <b>${paxCount}</b></span><i class="ri-arrow-down-s-line pax-chevron"></i>
+                        <i class="ri-group-line"></i><span>Group · PAX <b>${paxCount}</b>${(function(){ const ne = (d.PaxEmployeeDetails||[]).length, no = parseRmOtherPax(d.PaxDetails_Other).length; return (ne||no) ? ` <span class="fw-normal">(${ne} emp${no?` + ${no} other`:''})</span>` : ''; })()}</span><i class="ri-arrow-down-s-line pax-chevron"></i>
                     </button>
                 </div>`;
 
@@ -1302,7 +1303,9 @@
                 </tr>`;
             }
 
-            rows += `<tr class="${overCap?'table-danger':''}"><td class="text-center"><input type="checkbox" class="form-check-input rm-apr-check" aria-label="Select claim ${rme(eid)}"></td><td class="text-center">${i+1}</td>
+            // APPR-FILTER-02: values the column filters read (claim type, Exp ID, date, amounts, group claim)
+            const rowIso = (function(v){ const m = String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[0] : ''; })(bd);
+            rows += `<tr class="${overCap?'table-danger':''}" data-claim="${rme(cn)}" data-exp="${rme(eid)}" data-date="${rowIso}" data-claimed="${ca}" data-verified="${va}" data-group="${hasPax?1:0}"><td class="text-center"><input type="checkbox" class="form-check-input rm-apr-check" aria-label="Select claim ${rme(eid)}"></td><td class="text-center">${i+1}</td>
             <td>
                 <a href="#" class="fw-semibold view-claim" data-expid="${rme(eid)}" data-empid="${rme(empId)}" data-claim-id="${rme(d.ClaimId||d.claimId||d.cgId||'')}" data-cgid="${rme(d.ClaimId||d.claimId||d.cgId||'')}">${rme(cn)}</a>
                 <div class="text-muted" style="font-size:9px;">Exp #${rme(eid)}</div>

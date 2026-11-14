@@ -839,28 +839,26 @@ class LegacyProxyController extends BaseMobileController
                 return response()->json(['Code' => '100', 'msg' => $cut]);
             }
 
-            // PROCESS-01: every bill of the month goes through the punching check before the employee submits.
-            // Unpunched bills used to be left out silently and stayed in a closed month that no stage picks up.
+            // SUBMIT-PENDING-01 (14 Nov 2026, management): the employee may submit the month while some bills are still
+            // with the punching team (not punched yet, or denied by the employee and waiting for correction), after a
+            // warning: those bills are not part of this claim. The first call answers Code 101 with the warning; the
+            // submit goes ahead when it comes back with ack_unpunched=1. (Before: refused until all were punched.)
             if (! $isBackendSubmit && config('claim_process.submit_requires_punched', true)) {
-                $unpunched = DB::connection($conn)->table("y{$yearId}_expenseclaims")
+                $pending = DB::connection($conn)->table("y{$yearId}_expenseclaims")
                     ->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
-                    ->whereIn('ClaimStatus', ['Submitted', 'Open', ''])
-                    ->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', '!=', 2))
+                    ->where(fn ($q) => $q->where(fn ($q) => $q->whereIn('ClaimStatus', ['Submitted', 'Open', ''])
+                        ->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', '!=', 2)))
+                        ->orWhere(fn ($q) => $q->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->where('FilledOkay', 2)))
                     ->orderBy('ExpId')->pluck('ExpId')->all();
-                if ($unpunched) {
-                    $list = implode(', ', array_slice($unpunched, 0, 8)).(count($unpunched) > 8 ? ' ...' : '');
+                if ($pending && (string) $request->input('ack_unpunched') !== '1') {
+                    $warn = 'Some of your uploaded bills are still pending for data punching. The claim amount will not include bills that are pending for punching. If you proceed with submission, these bills will not be considered in the current claim.';
 
-                    return response()->json(['Code' => '100', 'msg' => count($unpunched).' bill(s) of this month are not punched yet (Exp Id '.$list
-                        .'). Submit the month after the punching team has checked them, or delete the ones you do not claim.']);
+                    return response()->json(['Code' => '101', 'needs_ack' => 'unpunched', 'pending_count' => count($pending),
+                        'pending_exp_ids' => array_slice($pending, 0, 50),
+                        'msg' => $warn.' ('.count($pending).' bill(s): Exp Id '.implode(', ', array_slice($pending, 0, 8)).(count($pending) > 8 ? ' ...' : '').')']);
                 }
-                // EMP-CONFIRM-01: claims the employee denied are with the punching team; they come back for OK first
-                $denied = DB::connection($conn)->table("y{$yearId}_expenseclaims")
-                    ->where('CrBy', $empId)->where('ClaimMonth', $month)->where('ClaimYearId', $yearId)
-                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])->where('FilledOkay', 2)
-                    ->orderBy('ExpId')->pluck('ExpId')->all();
-                if ($denied) {
-                    return response()->json(['Code' => '100', 'msg' => count($denied).' bill(s) you denied are with the punching team for correction (Exp Id '
-                        .implode(', ', array_slice($denied, 0, 8)).'). Submit the month after they come back and you mark them OK.']);
+                if ($pending) {
+                    \Illuminate\Support\Facades\Log::info('Month submitted with bills pending punching', ['emp' => $empId, 'month' => $month, 'year' => $yearId, 'company' => $comId, 'exp_ids' => $pending]);
                 }
             }
 

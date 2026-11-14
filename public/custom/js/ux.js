@@ -158,3 +158,17 @@
         }
     });
 })();
+
+/* QA-20.5 (14 Nov 2026): every "×" close button has the accessible name "Close" (screen readers read nothing). */
+(function () {
+    function name(root) {
+        var list = (root || document).querySelectorAll('.btn-close:not([aria-label]), [data-bs-dismiss]:not([aria-label]):empty');
+        for (var i = 0; i < list.length; i++) { list[i].setAttribute('aria-label', 'Close'); if (!list[i].title) { list[i].title = 'Close'; } }
+    }
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function () { name(); }); } else { name(); }
+    try {
+        new MutationObserver(function (muts) {
+            for (var i = 0; i < muts.length; i++) { if (muts[i].addedNodes.length) { name(); return; } }
+        }).observe(document.body || document.documentElement, { childList: true, subtree: true });
+    } catch (e) { }
+})();

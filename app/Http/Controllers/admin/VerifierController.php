@@ -2877,6 +2877,19 @@ class VerifierController extends Controller
             $monthRow = DB::connection(session('expense_connection'))->table($table)
                 ->where('EmployeeID', (int) $request->empid)->where('Month', (int) $request->month)->where('YearId', $yearId)
                 ->first(); // select * : courier_date exists only where the 2026_10_30 migration ran
+            // COURIER-SA-01 (14 Nov 2026): after verification the courier details are read-only; a Super Admin may still
+            // correct them in an exceptional case (e.g. a missing receiving date blocks the approval); the change is logged
+            $verifiedAlready = $monthRow && ! empty($monthRow->Verified_Date) && \App\Support\ZeroDate::has($monthRow->Verified_Date);
+            if ($verifiedAlready && ! isSuperAdmin()) {
+                return response()->json(['success' => false, 'message' => 'This month has been verified; only a Super Admin can change its courier details.'], 403);
+            }
+            if ($verifiedAlready) {
+                \Illuminate\Support\Facades\Log::notice('Courier details changed after verification by Super Admin', [
+                    'user' => auth()->id(), 'emp' => (int) $request->empid, 'month' => (int) $request->month, 'year' => $yearId,
+                    'before' => ['RecevingDate' => $monthRow->RecevingDate ?? null, 'courier_date' => $monthRow->courier_date ?? null, 'DocRmk' => $monthRow->DocRmk ?? null],
+                    'after' => $request->only(['receiving_date', 'courier_date', 'doc_rmk']),
+                ]);
+            }
             $dateErrors = [];
             if ($isVvnr && $request->filled('courier_date')) {
                 $dateErrors = $rules->courierDateForMonth($request->courier_date, (int) $request->empid, (int) $request->month, (int) $yearId, session('expense_connection'));

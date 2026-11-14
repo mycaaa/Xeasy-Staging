@@ -436,7 +436,11 @@
 
             let claimsDataTable = null;
 
+            // COURIER-SA-01 (14 Nov 2026): Super Admin may correct courier details of a verified month in exceptional cases
+            const xeCanEditCourier = @json(isSuperAdmin());
+            let xeCourierCtx = {};
             window.openCourierDetail = function (empId, month, status, el) {
+                xeCourierCtx = { empId: empId, month: month };
 
                 const button = el;
                 const modalSelector = el.getAttribute("data-bs-target");
@@ -778,10 +782,14 @@
                     "-";
 
                 let html = '<div class="mb-3">';
+                if (xeCanEditCourier) {
+                    html += '<small class="text-warning text-center d-block"><strong>Super Admin:</strong> this claim has been verified. Correct the receiving details only in an exceptional case; the change is logged.</small>';
+                } else {
                 html += `
                                                                 <small class="text-info text-center d-block">
                                                                     <strong>Note:</strong> This claim has been verified. Courier details are read-only and cannot be modified.
                                                                 </small>`;
+                }
                 html += '</div>';
 
                 html += '<div class="row g-3">';
@@ -825,8 +833,34 @@
 
                 html += '</div>';
 
+                if (xeCanEditCourier) {
+                    const iso = v => (v && v !== '0000-00-00') ? String(v).substring(0, 10) : '';
+                    html += '<hr class="my-3"><div class="row g-2" id="xeCourierEdit">';
+                    if (isVVNR) {
+                        html += '<div class="col-6"><label class="form-label" for="xeCourierDate">Courier date (received by DMS)</label><input type="date" class="form-control" id="xeCourierDate" value="' + iso(data.courier_date) + '"></div>';
+                    }
+                    html += '<div class="col-6"><label class="form-label" for="xeRecvDate">' + (isVVNR ? 'Receive date for verification' : 'Receiving date') + '</label><input type="date" class="form-control" id="xeRecvDate" value="' + iso(data.RecevingDate) + '"></div>';
+                    html += '<div class="col-12"><label class="form-label" for="xeCourierRmk">Remark (why it is corrected)</label><input type="text" class="form-control" id="xeCourierRmk" maxlength="250" value="' + $('<div>').text(data.DocRmk || '').html().replace(/"/g, '&quot;') + '"></div>';
+                    html += '<div class="col-12 text-end"><button type="button" class="btn btn-sm btn-warning" id="xeCourierSave"><i class="ri-save-line me-1"></i>Save correction</button></div></div>';
+                }
                 $("#courierModalBody").html(html);
             }
+
+            $(document).on('click', '#xeCourierSave', function () {
+                const $b = $(this), recv = $('#xeRecvDate').val(), rmk = $.trim($('#xeCourierRmk').val());
+                if (!recv) { alert('Enter the receiving date.'); return; }
+                if (!rmk) { alert('Enter a remark saying why it is corrected.'); return; }
+                const data = { _token: "{{ csrf_token() }}", empid: xeCourierCtx.empId, month: xeCourierCtx.month, receiving_date: recv, doc_rmk: rmk };
+                if ($('#xeCourierDate').length) { data.courier_date = $('#xeCourierDate').val(); }
+                $b.prop('disabled', true);
+                $.post("{{ route('verify.pending.courier.update') }}", data)
+                    .done(function (r) {
+                        if (r && r.success) { $('#courierModal').modal('hide'); if (typeof initApprovedClaimsTable === 'function') { initApprovedClaimsTable(); } alert('Courier details corrected.'); }
+                        else { alert((r && r.message) || 'Not saved.'); }
+                    })
+                    .fail(function (x) { alert((x.responseJSON && x.responseJSON.message) || 'Not saved.'); })
+                    .always(function () { $b.prop('disabled', false); });
+            });
         });
 
 
