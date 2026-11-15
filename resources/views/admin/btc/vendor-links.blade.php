@@ -2,6 +2,9 @@
 @extends('layouts.app')
 
 @section('content')
+    @if (! empty($setupMissing))
+        <div class="alert alert-warning m-3 mb-0">Vendor links are not set up on this server yet, so links cannot be created or listed. IT: run <code>bash deploy/deploy.sh</code> (migration 2026_11_15_000015).</div>
+    @endif
 <div class="col-md-12 h-100 p-3 mt-5">
     <div class="row card mt-2">
         <div class="col-lg-12 shadow p-3">

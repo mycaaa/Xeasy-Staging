@@ -88,6 +88,8 @@ Route::middleware('auth')->group(function () {
     Route::get('clear-caches', [Controller::class, 'clearAllCaches']);
     // System Requirements / Feature Tracker
     Route::get('system-requirements', fn () => view('admin.requirements'))->name('system.requirements');
+    // ERRLOG-01: latest application errors (Super Admin, not on production)
+    Route::get('admin/error-log', [\App\Http\Controllers\admin\ErrorLogController::class, 'index'])->middleware('role:Super Admin')->name('admin.error-log');
 
     // System Alerts & Notifications Details Page
     Route::get('system-notifications', [SystemNotificationController::class, 'index'])->name('admin.system-notifications.index');

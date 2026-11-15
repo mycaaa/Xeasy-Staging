@@ -28,21 +28,24 @@ class VendorBoardingPassController extends Controller
     public function links()
     {
         $this->financeOnly();
-        $this->ensureTable();
+        $tableOk = $this->ensureTable();
         $co = (int) session('company_id', 1);
         $pending = BtcCase::where('company_id', $co)->where('boarding_pass_required', 1)->whereNull('boarding_pass_received_on')
             ->whereNotIn('status', ['cancelled', 'rejected', 'draft'])
             ->selectRaw("COALESCE(vendor_id, 0) AS vendor_id, COALESCE(NULLIF(vendor_name,''), '(no vendor)') AS vendor_name, COUNT(*) AS cases, MIN(travel_date) AS oldest")
             ->groupBy('vendor_id', 'vendor_name')->orderByDesc('cases')->get();
-        $links = DB::table(self::TABLE)->where('company_id', $co)->orderByDesc('id')->limit(100)->get();
+        $links = $tableOk ? DB::table(self::TABLE)->where('company_id', $co)->orderByDesc('id')->limit(100)->get() : collect();
 
-        return view('admin.btc.vendor-links', ['pending' => $pending, 'links' => $links, 'newUrl' => session('vendor_link_url')]);
+        return view('admin.btc.vendor-links', ['pending' => $pending, 'links' => $links, 'newUrl' => session('vendor_link_url'),
+            'setupMissing' => ! $tableOk]);
     }
 
     public function create(Request $request)
     {
         $this->financeOnly();
-        $this->ensureTable();
+        if (! $this->ensureTable()) {
+            return back()->with('error', 'Vendor links are not set up on this server yet (IT: run deploy/deploy.sh).');
+        }
         $v = $request->validate(['vendor_id' => 'nullable|integer', 'vendor_name' => 'required|string|max:200', 'days' => 'nullable|integer|between:1,90']);
         $token = Str::random(48);
         DB::table(self::TABLE)->insert([
@@ -118,11 +121,25 @@ class VendorBoardingPassController extends Controller
             ->orderBy('travel_date')->get();
     }
 
-    private function ensureTable(): void
+    /** BOARDING-03: true when the links table is there (created by migration 2026_11_15_000015, or here as before). */
+    private function ensureTable(): bool
     {
         if (Schema::hasTable(self::TABLE)) {
-            return;
+            return true;
         }
+        try {
+            $this->createTable();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Vendor boarding-pass links table could not be created: '.$e->getMessage());
+
+            return false;
+        }
+
+        return Schema::hasTable(self::TABLE);
+    }
+
+    private function createTable(): void
+    {
         Schema::create(self::TABLE, function ($t) {
             $t->id();
             $t->unsignedTinyInteger('company_id')->default(1);
