@@ -710,7 +710,12 @@ class ApproverDashboardService
             ->whereIn('CrBy', $teamMembers)
             ->where('ClaimMonth', $currentMonth)
             ->where('ClaimStatus', '!=', 'Deactivate')
-            ->whereNull('bill_image')
+            // E2E-COL-02: there is no bill_image column; a bill has no file when none of the five image / PDF slots is set
+            ->where(function ($q) {
+                foreach (['Img_1', 'Img_2', 'Img_3', 'Img_4', 'Img_5'] as $c) {
+                    $q->where(fn ($w) => $w->whereNull($c)->orWhere($c, ''));
+                }
+            })
             ->count();
 
         if ($missingBills > 0) {
