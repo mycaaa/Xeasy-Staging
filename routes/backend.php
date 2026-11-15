@@ -672,7 +672,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/get-city-category', [ClaimViewController::class, 'getCityCategory']);
     Route::get('/get-courier-providers', [ClaimViewController::class, 'getCourierProviders']);
     Route::get('new-claim', [ClaimantController::class, 'claims'])->name('claims.new');
-    Route::get('claims', [ClaimantController::class, 'claims'])->name('claims');
+    // PAGE-CLEAN-01: never used - /claims is served by ClaimController@index below (the later definition wins)
+    // Route::get('claims', [ClaimantController::class, 'claims'])->name('claims');
     Route::get('claim-list/data', [ClaimantController::class, 'claimList'])->name('claim.list.data');
     Route::get('odometer/data', [ClaimantController::class, 'getOdometerData'])->name('odometer.data');
     Route::post('odometer/upload', [ClaimantController::class, 'uploadAndExtract'])->name('odometer.upload');
