@@ -31,39 +31,24 @@
 
     <div class="row">
         <div class="col-12">
-            <div class="card border-0">
-                <!-- Page Header with Back and New Request buttons -->
-                <div class="card-header bg-white border-bottom py-2 px-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="history.back()" style="font-size: 12px; padding: 3px 10px;">
-                            <i class="ri-arrow-left-line align-middle me-1" style="font-size: 12px;"></i> Back
-                        </button>
-                        
-                        <h5 class="card-title mb-0" style="font-size: 14px; font-weight: 600;">
-                            <i class="ri-file-list-line me-1" style="font-size: 16px;"></i>
+            <div class="card border-0 xe-screen">{{-- SCREEN-ALIGN-01: same layout as My Claims --}}
+                <div class="card-header bg-white border-bottom-0 pt-3 px-3 pb-0">
+                    <div class="xe-topbar mb-0">
+                        <div>
                             {{-- ADV-LABEL-01 (15 Nov 2026): this list holds only requests raised by the user; team approvals are under Approve Advances --}}
-                            My Advance Requests
-                            <small class="text-muted ms-1" style="font-size: 12px;">
-                                (raised by {{ $user->name ?? 'you' }} · team approvals are under <a href="{{ url('/advance-requests/advanceApprovals') }}">Approve Advances</a>)
-                            </small>
-                        </h5>
-                        
-                        <div class="d-flex gap-1">
-                            <a href="{{ url('/advance-requests/create') }}" class="btn btn-success btn-sm" style="font-size: 12px; padding: 3px 10px;">
-                                <i class="ri-add-line align-middle me-1" style="font-size: 12px;"></i> New Request
-                            </a>
+                            <h4 class="xe-title"><i class="ri-hand-coin-line"></i> My Advance Requests</h4>
+                            <div class="xe-sub">Raised by {{ $user->name ?? 'you' }} &nbsp;·&nbsp; team approvals are under <a href="{{ url('/advance-requests/advanceApprovals') }}">Approve Advances</a></div>
+                        </div>
+                        <div class="xe-actions">
+                            <a href="{{ url('/advance-requests/create') }}" class="xe-btn xe-btn-main"><i class="ri-add-line"></i> New Request</a>
                             @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
-                            <a href="{{ url('/advance-requests/report') }}" class="btn btn-outline-info btn-sm" style="font-size: 12px; padding: 3px 10px;">
-                                <i class="ri-file-chart-line align-middle me-1" style="font-size: 12px;"></i> Report
-                            </a>
+                            <a href="{{ url('/advance-requests/report') }}" class="xe-btn xe-btn-blue"><i class="ri-file-chart-line"></i> Report</a>
                             @endif
-                            <button type="button" class="btn btn-primary btn-sm" id="refreshBtn" style="font-size: 12px; padding: 3px 10px;">
-                                <i class="ri-refresh-line align-middle me-1" style="font-size: 12px;"></i> Refresh
-                            </button>
+                            <button type="button" class="xe-btn xe-btn-plain" id="refreshBtn" title="Refresh" aria-label="Refresh"><i class="ri-refresh-line"></i></button>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card-body p-2">
              
 {{-- <div class="d-flex justify-content-between mb-3">
@@ -81,19 +66,19 @@
                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <div class="filter-group">
                                     {{-- <label class="form-label mb-0 fw-semibold me-1" style="font-size: 12px;">Request Type:</label> --}}
-                                    <div class="btn-group btn-group-sm" role="group" id="requestTypeGroup">
+                                    <div class="xe-seg" role="group" id="requestTypeGroup" aria-label="Advance type">
                                         <input type="radio" class="btn-check" name="requestType" id="advanceType" value="advance" checked>
-                                        <label class="btn btn-outline-primary" for="advanceType" style="font-size: 11px; padding: 2px 8px;">
+                                        <label for="advanceType">
                                             <i class="ri-file-list-line me-1" style="font-size: 12px;"></i> Activity Advance
                                         </label>
                                         
                                         <input type="radio" class="btn-check" name="requestType" id="expenseType" value="expense">
-                                        <label class="btn btn-outline-primary" for="expenseType" style="font-size: 11px; padding: 2px 8px;">
+                                        <label for="expenseType">
                                             <i class="ri-money-dollar-circle-line me-1" style="font-size: 12px;"></i> Expense Advance
                                         </label>
                                         
                                         <input type="radio" class="btn-check" name="requestType" id="otherType" value="other">
-                                        <label class="btn btn-outline-primary" for="otherType" style="font-size: 11px; padding: 2px 8px;">
+                                        <label for="otherType">
                                             <i class="ri-file-text-line me-1" style="font-size: 12px;"></i> Other Advance
                                         </label>
                                     </div>
@@ -109,7 +94,7 @@
                     <!-- Status Tabs -->
                     <div class="row mb-2">
                         <div class="col-md-12">
-                            <ul class="nav nav-tabs nav-tabs-custom border-bottom-0" role="tablist" style="font-size: 12px;">
+                            <ul class="nav xe-seg" role="tablist" aria-label="Status">
                                 <li class="nav-item">
                                     <a class="nav-link active px-3 py-1" data-bs-toggle="tab" href="#pending" role="tab">
                                         <i class="ri-time-line me-1" style="font-size: 12px;"></i> Pending 

@@ -32,6 +32,9 @@
     <link href="{{ URL::to('/') }}/assets/css/custom.min.css" rel="stylesheet" type="text/css" />
     <link href="{{ URL::to('/') }}/assets/css/pastel.css?v={{ filemtime(public_path('assets/css/pastel.css')) }}" rel="stylesheet" type="text/css" /><!-- PASTEL-01 -->
     <link href="{{ URL::to('/') }}/assets/css/a11y.css?v={{ filemtime(public_path('assets/css/a11y.css')) }}" rel="stylesheet" type="text/css" /><!-- U-03 -->
+    <link href="{{ URL::to('/') }}/assets/css/xe-screen.css?v={{ filemtime(public_path('assets/css/xe-screen.css')) }}" rel="stylesheet" type="text/css" /><!-- SCREEN-ALIGN-01 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><!-- SCREEN-ALIGN-01: Inter, as My Claims -->
     <meta name="xeasy-year-id" content="{{ (int) session('year_id') }}"><!-- PAX-YEAR-01 -->
     <link href="{{ asset('vendor/cdn/select2@4.1.0-rc.0/dist/css/select2.min.css') }}" rel="stylesheet" />
     <link rel="stylesheet" href="{{ asset('vendor/cdn/datatables.net-bs5@1.11.5/css/dataTables.bootstrap5.min.css') }}" />

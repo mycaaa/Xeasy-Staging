@@ -24,12 +24,42 @@
 <div class="container-fluid">
 <div class="row">
 <div class="col-xl-12">
-<div class="card card-height-100 border-0 shadow-sm">
+<div class="card card-height-100 border-0 shadow-sm xe-screen">{{-- SCREEN-ALIGN-01: same layout as My Claims --}}
 
-    {{-- ═══ App-Style Tab Bar ═══ --}}
     <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3">
+        <div class="xe-topbar mb-2">
+            <div>
+                <h4 class="xe-title"><i class="ri-checkbox-multiple-line"></i> Approvals</h4>
+                <div class="xe-sub">FY: {{ session('FYear', date('Y').'-'.(date('Y') + 1)) }} &nbsp;·&nbsp; Your team's claims waiting for you</div>
+            </div>
+            <div class="xe-actions">
+            @if($prefix !== 'vvnr' && session('show_backdate_approver') == 'Y')
+            <a href="{{ Route::has('admin.odo.backdate.approval') ? route('admin.odo.backdate.approval') : url('odo-backdate-approval') }}" class="xe-btn xe-btn-amber">
+                <i class="ri-time-line"></i><span>Delayed Odo</span>
+            </a>
+            @endif
+            @if($prefix !== 'vvnr' && session('show_approver_advance') == 'Y')
+            <a href="{{ Route::has('advance.approver.index') ? route('advance.approver.index') : url('advance-requests/advanceApprovals') }}" class="xe-btn xe-btn-violet">
+                <i class="ri-hand-coin-line"></i><span>Adv. Req.</span>
+            </a>
+            @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
+            <a href="{{ url('/advance-requests/report') }}" class="xe-btn xe-btn-blue" title="Advance Report">
+                <i class="ri-file-chart-line"></i><span>Adv. Report</span>
+            </a>
+            @endif
+            @endif
+            @if($prefix !== 'vvnr' && session('show_odo_approver') == 'Y')
+            <a href="{{ Route::has('admin.odo.approval') ? route('admin.odo.approval') : url('odo-backdate-approval') }}" class="xe-btn xe-btn-amber">
+                <i class="ri-speed-line"></i><span>Excess Running</span>
+            </a>
+            @endif
+            <button class="xe-btn xe-btn-main" id="teamExpBtn"><i class="ri-team-line"></i><span>Team Exp.</span></button>
+            <button class="xe-btn xe-btn-green" id="runningKmBtn"><i class="ri-roadster-line"></i><span>Running KM</span></button>
+
+            </div>
+        </div>
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div class="app-tab-bar d-flex" role="tablist">
+            <div class="app-tab-bar xe-seg" role="tablist" aria-label="Company">
                 <a href="{{ url('vnr/approver?status=' . $status) }}" class="app-tab {{ $prefix==='vnr'?'active':'' }}">VNR</a>
                 @if(session('reporting_vess') == 'Y')
                 <a href="{{ url('vvnr/approver?status=' . $status) }}" class="app-tab {{ $prefix==='vvnr'?'active':'' }}">VVNR</a>
@@ -38,7 +68,7 @@
                 <a href="{{ url('nursery/approver?status=' . $status) }}" class="app-tab {{ $prefix==='nursery'?'active':'' }}">NURSERY</a>
                 @endif
             </div>
-            <div class="status-pills d-flex gap-1">
+            <div class="status-pills xe-seg" aria-label="Status">
                 <a href="{{ url($prefix.'/approver?status=pending') }}" class="status-pill {{ $status==='pending'?'active-pending':'' }}">
                     <i class="ri-time-line"></i> Pending
                 </a>
@@ -50,32 +80,6 @@
     </div>
 
     <div class="card-body pt-3">
-        {{-- ═══ Action Chips ═══ --}}
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            @if($prefix !== 'vvnr' && session('show_backdate_approver') == 'Y')
-            <a href="{{ Route::has('admin.odo.backdate.approval') ? route('admin.odo.backdate.approval') : url('odo-backdate-approval') }}" class="action-chip">
-                <i class="ri-time-line"></i><span>Delayed Odo</span>
-            </a>
-            @endif
-            @if($prefix !== 'vvnr' && session('show_approver_advance') == 'Y')
-            <a href="{{ Route::has('advance.approver.index') ? route('advance.approver.index') : url('advance-requests/advanceApprovals') }}" class="action-chip">
-                <i class="ri-hand-coin-line"></i><span>Adv. Req.</span>
-            </a>
-            @if (\App\Http\Controllers\AdvanceRequestViewController::reportAllowed(auth()->user())) {{-- ADV-REPORT-01 --}}
-            <a href="{{ url('/advance-requests/report') }}" class="action-chip" title="Advance Report">
-                <i class="ri-file-chart-line"></i><span>Adv. Report</span>
-            </a>
-            @endif
-            @endif
-            @if($prefix !== 'vvnr' && session('show_odo_approver') == 'Y')
-            <a href="{{ Route::has('admin.odo.approval') ? route('admin.odo.approval') : url('odo-backdate-approval') }}" class="action-chip">
-                <i class="ri-speed-line"></i><span>Excess Running</span>
-            </a>
-            @endif
-            <button class="action-chip" id="teamExpBtn"><i class="ri-team-line"></i><span>Team Exp.</span></button>
-            <button class="action-chip" id="runningKmBtn"><i class="ri-roadster-line"></i><span>Running KM</span></button>
-        </div>
-
         @if($status === 'pending')
         <div class="section-bar pending-bar mb-3">
             <span><i class="ri-time-line"></i> Pending Claims</span>
@@ -144,9 +148,13 @@
 .action-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:25px;border:2px solid var(--vz-primary,#405189);background:#fff;color:var(--vz-primary,#405189);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;}
 .action-chip:hover{background:var(--vz-primary,#405189);color:#fff;transform:translateY(-1px);box-shadow:0 3px 10px rgba(var(--vz-primary-rgb,64,81,137),.25);}
 .action-chip i{font-size:16px;}
-.section-bar{padding:10px 16px;border-radius:8px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:space-between;}
-.section-bar.pending-bar{background:linear-gradient(135deg,rgba(var(--vz-primary-rgb,64,81,137),.1),rgba(var(--vz-primary-rgb,64,81,137),.05));color:var(--vz-primary,#405189);}
-.section-bar.approved-bar{background:linear-gradient(135deg,rgba(var(--vz-success-rgb,10,179,156),.12),rgba(var(--vz-success-rgb,10,179,156),.05));color:var(--vz-success,#0ab39c);}
+/* SCREEN-ALIGN-01: section bars as the My Claims section headers */
+.section-bar{padding:12px 18px;border-radius:12px;font-size:.92rem;font-weight:800;display:flex;align-items:center;justify-content:space-between;background:#fafbfd;border:1px solid #e8edf3;color:#1e293b;}
+.section-bar i{color:#15648C;margin-right:4px;}
+.section-bar .badge{background:#eff6ff !important;color:#15648C !important;border-radius:50px;font-weight:800;}
+.section-bar.pending-bar{background:#fafbfd;color:#1e293b;}
+.section-bar.approved-bar{background:#fafbfd;color:#1e293b;}
+.section-bar.approved-bar i{color:#16a34a;}
 
 .claim-card{border:none;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:12px;position:relative;transition:all .2s;}
 .claim-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);transform:translateY(-1px);}
