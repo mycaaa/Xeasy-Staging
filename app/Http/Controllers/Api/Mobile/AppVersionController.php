@@ -54,7 +54,7 @@ class AppVersionController extends BaseMobileController
                     $empStatusKey = date('Y-m-d') <= $datAcc ? 'Y' : 'N';
                 } else {
                     // Check relieving date
-                    $relieving = DB::connection($hrimsConn)
+                    $relieving = ! \App\Support\SafeTable::exists($hrimsConn, 'hrm_employee_separation') ? null : DB::connection($hrimsConn)
                         ->table('hrm_employee_separation')
                         ->where('EmployeeID', $employee->EmployeeID)
                         ->max('Emp_RelievingDate');

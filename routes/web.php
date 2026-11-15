@@ -78,8 +78,8 @@ Route::post('/verify-unsettled', [PaymentVerificationController::class, 'verifyU
 });
 
 // routes/web.php
-Route::get('/approver/team-members', [ApproverController::class, 'getTeamMembersList'])->name('approver.team.members');
-Route::get('/approver/expense-types', [ApproverController::class, 'getClaimTypesList'])->name('approver.expense.types');
+// ROUTE-CLEAN-01 (method does not exist): Route::get('/approver/team-members', [ApproverController::class, 'getTeamMembersList'])->name('approver.team.members');
+// ROUTE-CLEAN-01 (method does not exist): Route::get('/approver/expense-types', [ApproverController::class, 'getClaimTypesList'])->name('approver.expense.types');
 // Team Expense Routes
 Route::get('approver/team-expense', [ApproverController::class, 'teamExpense'])->name('approver.team.expense');
 Route::get('approver/team-runningkm', [ApproverController::class, 'teamRunningKm'])->name('approver.team.runningkm');
@@ -93,28 +93,28 @@ Route::prefix('approver')->group(function () {
 
     // API/Data routes
     Route::get('pending-list', [ApproverController::class, 'pendingList'])->name('approver.pending.list');
-    Route::get('verified-list', [ApproverController::class, 'verifiedList'])->name('approver.verified.list');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('verified-list', [ApproverController::class, 'verifiedList'])->name('approver.verified.list');
     Route::get('approved-list', [ApproverController::class, 'approvedList'])->name('approver.approved.list');
     Route::get('denied-list', [ApproverController::class, 'deniedList'])->name('approver.denied.list');
 
     // Claim details routes
     Route::get('expense-details', [ApproverController::class, 'expenseDetails'])->name('approver.expense.details');
     Route::get('claim-details', [ApproverController::class, 'claimDetails'])->name('approver.claim.details');
-    Route::get('month-details', [ApproverController::class, 'monthDetails'])->name('approver.month.details');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('month-details', [ApproverController::class, 'monthDetails'])->name('approver.month.details');
 
     // Action routes
     Route::post('approve', [ApproverController::class, 'approve'])->name('approver.approve');
     Route::post('deny', [ApproverController::class, 'deny'])->name('approver.deny');
-    Route::post('submit', [ApproverController::class, 'submit'])->name('approver.submit');
+    // ROUTE-CLEAN-01 (method does not exist): Route::post('submit', [ApproverController::class, 'submit'])->name('approver.submit');
 
     // Report routes
-    Route::get('running-km', [ApproverController::class, 'runningKm'])->name('approver.running.km');
-    Route::get('expense-report', [ApproverController::class, 'expenseReport'])->name('approver.expense.report');
-    Route::get('month-summary-print', [ApproverController::class, 'monthSummaryPrint'])->name('approver.month.summary.print');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('running-km', [ApproverController::class, 'runningKm'])->name('approver.running.km');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('expense-report', [ApproverController::class, 'expenseReport'])->name('approver.expense.report');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('month-summary-print', [ApproverController::class, 'monthSummaryPrint'])->name('approver.month.summary.print');
 
     // Courier routes
-    Route::post('save-courier', [ApproverController::class, 'saveCourier'])->name('approver.save.courier');
-    Route::get('courier-detail', [ApproverController::class, 'courierDetail'])->name('approver.courier.detail');
+    // ROUTE-CLEAN-01 (method does not exist): Route::post('save-courier', [ApproverController::class, 'saveCourier'])->name('approver.save.courier');
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('courier-detail', [ApproverController::class, 'courierDetail'])->name('approver.courier.detail');
 });
  // LV-S01: GET check/{empCode} removed - it returned any employee's HRMS password in clear text.
  Route::get('/expense-pdf', [ExpensePdfController::class, 'generate']);

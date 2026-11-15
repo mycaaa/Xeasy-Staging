@@ -29,7 +29,7 @@ class AdvanceApprovalController extends Controller
     public function rejected(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             // Get advance requests that have been rejected by this user
             $requestIds = DB::table('advance_activity_approvals')->join('advance_request_activities', 'advance_activity_approvals.advance_request_activity_id', '=', 'advance_request_activities.id')->join('advance_request_employees', 'advance_request_activities.advance_request_employee_id', '=', 'advance_request_employees.id')->where('advance_activity_approvals.approver_id', $userId)->where('advance_activity_approvals.approver_status', AdvanceActivityApproval::STATUS_REJECTED)->whereNull('advance_request_activities.deleted_at')->pluck('advance_request_employees.advance_request_id')->unique();
             if ($requestIds->isEmpty()) {
@@ -187,7 +187,7 @@ class AdvanceApprovalController extends Controller
     public function rejectedForMe(Request $request)
     {
         try {
-            $userId = $request->get('user_id');  // This is the employee ID
+            $userId = $request->input('user_id');  // This is the employee ID
             // Get advance requests where this user is listed as an employee and has rejected activities
             $requests = AdvanceRequest::with(['employees.activities' => function ($query) {
                 $query->whereNull('deleted_at')->where('approval_status', AdvanceRequestActivity::APPROVAL_STATUS_REJECTED);
@@ -345,7 +345,7 @@ class AdvanceApprovalController extends Controller
     public function submittedForMe(Request $request)
     {
         try {
-            $userId = $request->get('user_id');  // This is the employee ID
+            $userId = $request->input('user_id');  // This is the employee ID
             // Get advance requests where this user is listed as an employee but didn't create the request
             $requests = AdvanceRequest::with(['employees.activities' => function ($query) {
                 $query->whereNull('deleted_at');
@@ -523,7 +523,7 @@ class AdvanceApprovalController extends Controller
     public function approved(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             // Get advance requests that have been approved by this user
             $requestIds = DB::table('advance_activity_approvals')->join('advance_request_activities', 'advance_activity_approvals.advance_request_activity_id', '=', 'advance_request_activities.id')->join('advance_request_employees', 'advance_request_activities.advance_request_employee_id', '=', 'advance_request_employees.id')->where('advance_activity_approvals.approver_id', $userId)->where('advance_activity_approvals.approver_status', AdvanceActivityApproval::STATUS_APPROVED)->whereNull('advance_request_activities.deleted_at')->pluck('advance_request_employees.advance_request_id')->unique();
             if ($requestIds->isEmpty()) {
@@ -681,7 +681,7 @@ class AdvanceApprovalController extends Controller
     public function pending(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             // Get advance requests that have pending approvals for this user at current level
             $requestIds = DB::table('advance_activity_approvals')->join('advance_request_activities', 'advance_activity_approvals.advance_request_activity_id', '=', 'advance_request_activities.id')->join('advance_request_employees', 'advance_request_activities.advance_request_employee_id', '=', 'advance_request_employees.id')->where('advance_activity_approvals.approver_id', $userId)->where('advance_activity_approvals.approver_status', AdvanceActivityApproval::STATUS_PENDING)->whereColumn('advance_activity_approvals.approval_level', 'advance_request_activities.current_approval_level')->whereNull('advance_request_activities.deleted_at')->pluck('advance_request_employees.advance_request_id')->unique();
             if ($requestIds->isEmpty()) {
@@ -841,7 +841,7 @@ class AdvanceApprovalController extends Controller
     public function approve(ApproveRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to approve
             $requestId = $request->input('request_id');  // Advance request ID
             $approverAmount = $request->input('approver_amount');
@@ -880,7 +880,7 @@ class AdvanceApprovalController extends Controller
     public function reject(RejectRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to reject
             $requestId = $request->input('request_id');  // Advance request ID
             $remarks = $request->input('remarks') ?? $request->input('approver_remark');
@@ -918,7 +918,7 @@ class AdvanceApprovalController extends Controller
     public function revert(RevertRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to revert
             $requestId = $request->input('request_id');  // Advance request ID
             $remarks = $request->input('remarks') ?? $request->input('revert_reason');

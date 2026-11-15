@@ -46,8 +46,8 @@ Route::prefix('advance')->group(function () {
     Route::post('/fx/rates', [\App\Http\Controllers\Api\Advance\AdvanceFxRateController::class, 'store']);
 
     Route::get('/finance/pending', [AdvanceFinanceController::class, 'pending']);
-    Route::get('/finance/rejected', [AdvanceFinanceController::class, 'rejected']);
-    Route::get('/finance/approved', [AdvanceFinanceController::class, 'approved']);
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('/finance/rejected', [AdvanceFinanceController::class, 'rejected']);
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('/finance/approved', [AdvanceFinanceController::class, 'approved']);
     Route::get('/finance/released-payments', [AdvanceFinanceController::class, 'releasedPayments']);
     Route::get('/finance/payment-batches', [AdvanceFinanceController::class, 'paymentBatches']);
     Route::get('/finance/employee-balance', [AdvanceFinanceController::class, 'getEmployeeBalance']);
@@ -84,13 +84,14 @@ Route::prefix('advance')->group(function () {
     Route::get('/hod/consolidated-report', [HodAdvanceReportController::class, 'consolidatedReport']);
     Route::get('/hod/team', [HodAdvanceReportController::class, 'getTeamMembersList']);
     Route::get('/hod/employee-level', [HodAdvanceReportController::class, 'getEmployeeLevel']);
+    Route::get('/hod/activity-types', [HodAdvanceReportController::class, 'getActivityTypes']); // APP-HOD-01
 
     // HOD Hierarchy - Get hierarchy data for filters
     Route::get('/hod/business-units', [HodAdvanceReportController::class, 'getBusinessUnits']);
     Route::get('/hod/zones', [HodAdvanceReportController::class, 'getZones']);
     Route::get('/hod/regions', [HodAdvanceReportController::class, 'getRegions']);
     Route::get('/hod/territories', [HodAdvanceReportController::class, 'getTerritories']);
-    Route::get('/hod/hierarchy-mapping', [HodAdvanceReportController::class, 'getHierarchyMapping']);
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('/hod/hierarchy-mapping', [HodAdvanceReportController::class, 'getHierarchyMapping']);
 
     // View & delete (must come after specific routes)
     Route::get('/', [AdvanceRequestController::class, 'index']);

@@ -10,9 +10,9 @@ class ClaimController extends Controller
 {
     public function index(Request $request)
     {
-        $chkval = $request->get('chkval', 2);
-        $v = $request->get('v', 0);
-        $page = $request->get('page', 1);
+        $chkval = $request->input('chkval', 2);
+        $v = $request->input('v', 0);
+        $page = $request->input('page', 1);
 
         // Get departments for filter dropdown
         $departments = DB::connection('hrims')
@@ -39,9 +39,9 @@ class ClaimController extends Controller
 
 public function showClaimForm(Request $request)
 {
-    $claimid = $request->get('claimid');
-    $expid = $request->get('expid');
-    $upbtndis = $request->get('upbtndis');
+    $claimid = $request->input('claimid');
+    $expid = $request->input('expid');
+    $upbtndis = $request->input('upbtndis');
 
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
@@ -72,8 +72,8 @@ public function showClaimForm(Request $request)
 
 public function getLimit(Request $request)
 {
-    $empid = $request->get('empid');
-    $cid = $request->get('cid');
+    $empid = $request->input('empid');
+    $cid = $request->input('cid');
 
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
@@ -97,7 +97,7 @@ public function getLimit(Request $request)
  * these two actions failed); approving carries the verified amount into ApprTAmt when the approver set none. */
 public function verifyClaim(Request $request)
 {
-    $expid = $request->get('expid');
+    $expid = $request->input('expid');
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
 
@@ -115,7 +115,7 @@ public function verifyClaim(Request $request)
 
 public function approveClaim(Request $request)
 {
-    $expid = (int) $request->get('expid');
+    $expid = (int) $request->input('expid');
     $yearId = (int) session('year_id');
     $connection = DB::connection(session('expense_connection'));
     // FIN-APPR-01: through the status gate (VNR: approve only Verified claims)
@@ -136,7 +136,7 @@ public function approveClaim(Request $request)
 
 public function financeClaim(Request $request)
 {
-    $expid = (int) $request->get('expid');
+    $expid = (int) $request->input('expid');
     $yearId = (int) session('year_id');
     $connection = DB::connection(session('expense_connection'));
     // FIN-APPR-01: finance only Approved claims (status gate)
@@ -184,9 +184,9 @@ private function generateClaimFormHTML($claimType, $exp, $yearId, $connection)
 
 public function imagePreview(Request $request)
 {
-    $imglink = $request->get('imglink');
-    $inpage = $request->get('inpage');
-    $expid = $request->get('expid');
+    $imglink = $request->input('imglink');
+    $inpage = $request->input('inpage');
+    $expid = $request->input('expid');
 
     return view('claims.image-preview', compact('imglink', 'inpage', 'expid'));
 }
@@ -194,7 +194,7 @@ public function imagePreview(Request $request)
 
 public function showClaim(Request $request)
 {
-    $expid = $request->get('expid');
+    $expid = $request->input('expid');
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
 
@@ -253,17 +253,17 @@ public function showClaim(Request $request)
 
 public function getFormValue(Request $request)
 {
-    $act = $request->get('act');
+    $act = $request->input('act');
     $yearId = session('year_id');
 
     switch($act) {
         case 'get_citycategory':
-            $ccid = $request->get('ccid');
+            $ccid = $request->input('ccid');
             $result = DB::selectOne("SELECT city_category FROM city_category WHERE ccid = ?", [$ccid]);
             return $result->city_category ?? 'C';
 
         case 'get_hotel':
-            $ccid = $request->get('ccid');
+            $ccid = $request->input('ccid');
             $hotels = DB::select("SELECT * FROM hotel_list WHERE ccid = ?", [$ccid]);
             $html = '<select class="form-control" name="hotel_name" onchange="FunHotel(this.value)" required>';
             $html .= '<option value="">Select Hotel</option>';
@@ -275,22 +275,22 @@ public function getFormValue(Request $request)
             return $html;
 
         case 'get_HotelAddress':
-            $hid = $request->get('hid');
+            $hid = $request->input('hid');
             $result = DB::selectOne("SELECT hotel_address FROM hotel_list WHERE hid = ?", [$hid]);
             return $result->hotel_address ?? '';
 
         case 'get_hotelC':
-            $hid = $request->get('hid');
+            $hid = $request->input('hid');
             $result = DB::selectOne("SELECT HotelContact FROM hotel_list WHERE hid = ?", [$hid]);
             return $result->HotelContact ?? '';
 
         case 'get_hotelE':
-            $hid = $request->get('hid');
+            $hid = $request->input('hid');
             $result = DB::selectOne("SELECT HotelEmail FROM hotel_list WHERE hid = ?", [$hid]);
             return $result->HotelEmail ?? '';
 
         case 'get_agencyAddress':
-            $v = $request->get('v');
+            $v = $request->input('v');
             $result = DB::selectOne("SELECT address FROM agency WHERE name = ?", [$v]);
             return $result->address ?? '';
 
@@ -303,24 +303,24 @@ public function getFormValue(Request $request)
 
 public function updateClaim(Request $request)
 {
-    $expid = $request->get('expid');
-    $claimid = $request->get('ClaimId');
+    $expid = $request->input('expid');
+    $claimid = $request->input('ClaimId');
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
 
     // Prepare update data
     $updateData = [
-        'BillDate' => $request->get('BillDate') ? (\App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($request->get('BillDate')) ?? date('Y-m-d', strtotime($request->get('BillDate')))) : null, // BILLDATE-03 day-first
-        'Remark' => $request->get('M_Remark'),
+        'BillDate' => $request->input('BillDate') ? (\App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($request->input('BillDate')) ?? date('Y-m-d', strtotime($request->input('BillDate')))) : null, // BILLDATE-03 day-first
+        'Remark' => $request->input('M_Remark'),
     ];
 
     // Set amount based on role
     if ($request->has('TotalAmt')) {
-        $updateData['FilledTAmt'] = $request->get('TotalAmt');
+        $updateData['FilledTAmt'] = $request->input('TotalAmt');
     }
 
     // Set status based on save type
-    $savetype = $request->get('savetype');
+    $savetype = $request->input('savetype');
     if ($savetype == 'Draft') {
         $updateData['ClaimStatus'] = 'Draft';
     } else {
@@ -338,16 +338,16 @@ public function updateClaim(Request $request)
         if ($request->has("fdtitle{$i}")) {
             $detailCount++;
             $detailData = [
-                'Title' => $request->get("fdtitle{$i}"),
-                'Remark' => $request->get("fdremark{$i}"),
-                'Amount' => $request->get("fdamount{$i}") ?? 0,
+                'Title' => $request->input("fdtitle{$i}"),
+                'Remark' => $request->input("fdremark{$i}"),
+                'Amount' => $request->input("fdamount{$i}") ?? 0,
                 'ExpId' => $expid,
             ];
 
             if ($request->has("fdid{$i}")) {
                 // Update existing detail
                 $connection->table("y{$yearId}_expenseclaimsdetails")
-                    ->where('ecdId', $request->get("fdid{$i}"))
+                    ->where('ecdId', $request->input("fdid{$i}"))
                     ->update($detailData);
             } else {
                 // Insert new detail
@@ -362,19 +362,19 @@ public function updateClaim(Request $request)
             if ($request->has("Open{$i}")) {
                 $entryData = [
                     'ExpId' => $expid,
-                    'DistTraOpen' => $request->get("Open{$i}") ?? 0,
-                    'DistTraClose' => $request->get("Close{$i}") ?? 0,
-                    'Totalkm' => $request->get("KmRunning{$i}") ?? 0,
-                    'Rate_PerKm' => $request->get("KMRate{$i}") ?? 0,
-                    'FilledTAmt' => $request->get("Amt{$i}") ?? 0,
-                    'JourneyStartDt' => $request->get('JourneyStartDt') ? date('Y-m-d H:i:s', strtotime($request->get('JourneyStartDt'))) : null,
-                    'JourneyEndDt' => $request->get('JourneyEndDt') ? date('Y-m-d H:i:s', strtotime($request->get('JourneyEndDt'))) : null,
-                    'VehicleReg' => $request->get('RegNo'),
+                    'DistTraOpen' => $request->input("Open{$i}") ?? 0,
+                    'DistTraClose' => $request->input("Close{$i}") ?? 0,
+                    'Totalkm' => $request->input("KmRunning{$i}") ?? 0,
+                    'Rate_PerKm' => $request->input("KMRate{$i}") ?? 0,
+                    'FilledTAmt' => $request->input("Amt{$i}") ?? 0,
+                    'JourneyStartDt' => $request->input('JourneyStartDt') ? date('Y-m-d H:i:s', strtotime($request->input('JourneyStartDt'))) : null,
+                    'JourneyEndDt' => $request->input('JourneyEndDt') ? date('Y-m-d H:i:s', strtotime($request->input('JourneyEndDt'))) : null,
+                    'VehicleReg' => $request->input('RegNo'),
                 ];
 
                 $existing = $connection->table("y{$yearId}_24_wheeler_entry")
                     ->where('ExpId', $expid)
-                    ->where('DistTraOpen', $request->get("Open{$i}"))
+                    ->where('DistTraOpen', $request->input("Open{$i}"))
                     ->first();
 
                 if ($existing) {
@@ -408,7 +408,7 @@ public function updateClaim(Request $request)
 
         foreach ($fillableFields as $field) {
             if ($request->has($field)) {
-                $fillData[$field] = $request->get($field);
+                $fillData[$field] = $request->input($field);
             }
         }
 
@@ -437,16 +437,16 @@ public function updateClaim(Request $request)
 
 // public function updateClaim(Request $request)
 // {
-//     $expid = $request->get('expid');
+//     $expid = $request->input('expid');
 //     $yearId = session('year_id');
 //     $connection = DB::connection(session('expense_connection'));
 
 //     // Basic update
 //     $updateData = [
-//         'BillDate' => $request->get('BillDate') ? date('Y-m-d', strtotime($request->get('BillDate'))) : null,
-//         'FilledTAmt' => $request->get('TotalAmt') ?? $request->get('FilledTAmt'),
-//         'Remark' => $request->get('M_Remark'),
-//         'ClaimStatus' => $request->get('savetype') == 'Draft' ? 'Draft' : 'Filled',
+//         'BillDate' => $request->input('BillDate') ? date('Y-m-d', strtotime($request->input('BillDate'))) : null,
+//         'FilledTAmt' => $request->input('TotalAmt') ?? $request->input('FilledTAmt'),
+//         'Remark' => $request->input('M_Remark'),
+//         'ClaimStatus' => $request->input('savetype') == 'Draft' ? 'Draft' : 'Filled',
 //     ];
 
 //     $connection->table("y{$yearId}_expenseclaims")
@@ -459,11 +459,11 @@ public function updateClaim(Request $request)
 
     public function displayRecords(Request $request)
     {
-        $chkval = $request->get('chkval', 2);
-        $month = $request->get('v', 0);
-        $page = $request->get('page', 1);
-        $search = trim($request->get('search', ''));
-        $department = trim($request->get('department', ''));
+        $chkval = $request->input('chkval', 2);
+        $month = $request->input('v', 0);
+        $page = $request->input('page', 1);
+        $search = trim($request->input('search', ''));
+        $department = trim($request->input('department', ''));
         $offset = 15;
         $from = ($page - 1) * $offset;
 
@@ -601,10 +601,10 @@ public function updateClaim(Request $request)
 
     public function getMonthDetails(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $sts = $request->get('sts');
-        $csts = $request->get('csts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $sts = $request->input('sts');
+        $csts = $request->input('csts');
 
         $yearId = session('year_id');
         $connection = DB::connection(session('expense_connection'));
@@ -774,8 +774,8 @@ public function updateClaim(Request $request)
 
     public function getClaimDetail(Request $request)
 {
-    $claimId = $request->get('claim_id');
-    $expid = $request->get('expid');
+    $claimId = $request->input('claim_id');
+    $expid = $request->input('expid');
     $yearId = session('year_id');
     $connection = DB::connection(session('expense_connection'));
 
@@ -1118,8 +1118,8 @@ public function updateClaim(Request $request)
 public function closeClaimMonth(Request $request)
 {
     try {
-        $month = (int) $request->get('month');
-        $employeeId = (int) $request->get('crby');
+        $month = (int) $request->input('month');
+        $employeeId = (int) $request->input('crby');
         $yearId = (int) session('year_id', 8);
 
         // Get exact logged-in employee ID (no fallback dummy IDs)
@@ -1138,7 +1138,7 @@ public function closeClaimMonth(Request $request)
         $connection = DB::connection(session('expense_connection', 'expense'));
 
         // 1. Check submitted claims from frontend (if details table was open when clicking Finance Close)
-        $claimsData = $request->get('claims');
+        $claimsData = $request->input('claims');
         if (is_array($claimsData)) {
             foreach ($claimsData as $c) {
                 $cExpId = (int)($c['expid'] ?? 0);
@@ -1318,10 +1318,10 @@ public function closeClaimMonth(Request $request)
     public function approveClaimFinance(Request $request)
     {
         try {
-            $expid = (int) $request->get('expid');
-            $ftamt = $request->get('ftamt');
-            $remark = trim($request->get('remark') ?? $request->get('financetremark') ?? '');
-            $type = $request->get('t', 'A'); // A = Approve, R = Reject
+            $expid = (int) $request->input('expid');
+            $ftamt = $request->input('ftamt');
+            $remark = trim($request->input('remark') ?? $request->input('financetremark') ?? '');
+            $type = $request->input('t', 'A'); // A = Approve, R = Reject
 
             $yearId = (int) session('year_id', 8);
             $connection = DB::connection(session('expense_connection', 'expense'));
@@ -1408,8 +1408,8 @@ public function closeClaimMonth(Request $request)
     public function rejectClaimFinance(Request $request)
     {
         try {
-            $expid = (int) $request->get('expid');
-            $remark = $request->get('remark');
+            $expid = (int) $request->input('expid');
+            $remark = $request->input('remark');
 
             $yearId = (int) session('year_id', 8);
             $connection = DB::connection(session('expense_connection', 'expense'));

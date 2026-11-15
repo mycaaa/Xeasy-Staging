@@ -33,9 +33,9 @@ class ExpensePaymentController extends Controller
     public function exportExcel(Request $request)
     {
         // Get the same data as your index method for pending payments
-        $chkval = $request->get('chkval', 1);
-        $month = $request->get('v', 0);
-        $employeeSearch = $request->get('employee_search', '');
+        $chkval = $request->input('chkval', 1);
+        $month = $request->input('v', 0);
+        $employeeSearch = $request->input('employee_search', '');
         $yearId = session('year_id');
 
         // Prepare data array for pendingPayments method
@@ -43,17 +43,17 @@ class ExpensePaymentController extends Controller
             'chkval' => $chkval,
             'v' => $month,
             'yearId' => $yearId,
-            'mmord' => $request->get('Mmord', 0),
+            'mmord' => $request->input('Mmord', 0),
             'moveCondition' => '1=1', // For export, we don't need move condition
-            'employee_name' => $request->get('employee_name', ''),
-            'employee_code' => $request->get('employee_code', ''),
+            'employee_name' => $request->input('employee_name', ''),
+            'employee_code' => $request->input('employee_code', ''),
             'employee_search' => $employeeSearch,
-            'finance_date_from' => $request->get('finance_date_from', ''),
-            'finance_date_to' => $request->get('finance_date_to', ''),
-            'min_amount' => $request->get('min_amount', ''),
-            'max_amount' => $request->get('max_amount', ''),
-            'doc_no' => $request->get('doc_no', ''),
-            'move_focus_sheet' => $request->get('move_focus_sheet', ''),
+            'finance_date_from' => $request->input('finance_date_from', ''),
+            'finance_date_to' => $request->input('finance_date_to', ''),
+            'min_amount' => $request->input('min_amount', ''),
+            'max_amount' => $request->input('max_amount', ''),
+            'doc_no' => $request->input('doc_no', ''),
+            'move_focus_sheet' => $request->input('move_focus_sheet', ''),
         ];
 
         // Get all records without pagination for export
@@ -606,10 +606,10 @@ class ExpensePaymentController extends Controller
 
     public function displayRecords(Request $request)
     {
-        $chkval = $request->get('chkval', 1);
-        $month = $request->get('v', 0);
+        $chkval = $request->input('chkval', 1);
+        $month = $request->input('v', 0);
         $yearId = session('year_id');
-        $mmord = $request->get('Mmord', 0);
+        $mmord = $request->input('Mmord', 0);
 
         $moveCondition = $mmord == 1 ? "Move_FocuseSheet='N'" : '1=1';
 
@@ -620,17 +620,17 @@ class ExpensePaymentController extends Controller
             'mmord' => $mmord,
             'moveCondition' => $moveCondition,
             // Add all filter parameters to data array
-            'employee_name' => $request->get('employee_name', ''),
-            'employee_code' => $request->get('employee_code', ''),
-            'employee_search' => $request->get('employee_search', ''),
-            'finance_date_from' => $request->get('finance_date_from', ''),
-            'finance_date_to' => $request->get('finance_date_to', ''),
-            'approved_date' => $request->get('approved_date', ''),
-            'min_amount' => $request->get('min_amount', ''),
-            'max_amount' => $request->get('max_amount', ''),
-            'doc_no' => $request->get('doc_no', ''),
-            'move_focus_sheet' => $request->get('move_focus_sheet', ''),
-            'per_page' => $request->get('per_page', 12),
+            'employee_name' => $request->input('employee_name', ''),
+            'employee_code' => $request->input('employee_code', ''),
+            'employee_search' => $request->input('employee_search', ''),
+            'finance_date_from' => $request->input('finance_date_from', ''),
+            'finance_date_to' => $request->input('finance_date_to', ''),
+            'approved_date' => $request->input('approved_date', ''),
+            'min_amount' => $request->input('min_amount', ''),
+            'max_amount' => $request->input('max_amount', ''),
+            'doc_no' => $request->input('doc_no', ''),
+            'move_focus_sheet' => $request->input('move_focus_sheet', ''),
+            'per_page' => $request->input('per_page', 12),
         ];
 
         switch ($chkval) {
@@ -849,8 +849,8 @@ class ExpensePaymentController extends Controller
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $perPage = $request->get('per_page', 12);
-        $currentPage = $request->get('page', 1);
+        $perPage = $request->input('per_page', 12);
+        $currentPage = $request->input('page', 1);
         $offset = ($currentPage - 1) * $perPage;
 
         $query .= ' LIMIT '.(int) $offset.', '.(int) $perPage;
@@ -995,7 +995,7 @@ class ExpensePaymentController extends Controller
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $page = $request->get('page', 1);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * $this->perPage;
 
         $query .= ' LIMIT '.(int) $offset.', '.(int) $this->perPage;
@@ -1102,7 +1102,7 @@ class ExpensePaymentController extends Controller
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $page = $request->get('page', 1);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * $this->perPage;
 
         $query .= ' LIMIT '.(int) $offset.', '.(int) $this->perPage;
@@ -1339,10 +1339,10 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
     public function instructedtreasury(Request $request)
     {
 
-        $chkval = $request->get('chkval', 3);
-        $month = $request->get('v', 0);
+        $chkval = $request->input('chkval', 3);
+        $month = $request->input('v', 0);
         $yearId = session('year_id');
-        $mmord = $request->get('Mmord', 0);
+        $mmord = $request->input('Mmord', 0);
 
         $moveCondition = $mmord == 1 ? "Move_FocuseSheet='N'" : '1=1';
 
@@ -1353,16 +1353,16 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
             'mmord' => $mmord,
             'moveCondition' => $moveCondition,
             // Add all filter parameters to data array
-            'employee_name' => $request->get('employee_name', ''),
-            'employee_code' => $request->get('employee_code', ''),
-            'employee_search' => $request->get('employee_search', ''),
-            'finance_date_from' => $request->get('finance_date_from', ''),
-            'finance_date_to' => $request->get('finance_date_to', ''),
-            'min_amount' => $request->get('min_amount', ''),
-            'max_amount' => $request->get('max_amount', ''),
-            'doc_no' => $request->get('doc_no', ''),
-            'move_focus_sheet' => $request->get('move_focus_sheet', ''),
-            'per_page' => $request->get('per_page', 12),
+            'employee_name' => $request->input('employee_name', ''),
+            'employee_code' => $request->input('employee_code', ''),
+            'employee_search' => $request->input('employee_search', ''),
+            'finance_date_from' => $request->input('finance_date_from', ''),
+            'finance_date_to' => $request->input('finance_date_to', ''),
+            'min_amount' => $request->input('min_amount', ''),
+            'max_amount' => $request->input('max_amount', ''),
+            'doc_no' => $request->input('doc_no', ''),
+            'move_focus_sheet' => $request->input('move_focus_sheet', ''),
+            'per_page' => $request->input('per_page', 12),
         ];
 
         return $this->instructedPaymentsForTreasury($request, $data);
@@ -1376,7 +1376,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $yearId = $data['yearId'];
         $month = $data['v'];
         $moveCondition = $data['moveCondition'];
-        $exportFilter = $request->get('export_filter');
+        $exportFilter = $request->input('export_filter');
 
         $connection = DB::connection(session('expense_connection'));
         $tableName = 'y'.$yearId.'_monthexpensefinal';
@@ -1436,7 +1436,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $page = $request->get('page', 1);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * $this->perPage;
 
         $query .= ' LIMIT '.(int) $offset.', '.(int) $this->perPage;
@@ -1452,7 +1452,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $yearId = $data['yearId'];
         $month = $data['v'];
         $moveCondition = $data['moveCondition'];
-        $exportFilter = $request->get('export_filter');
+        $exportFilter = $request->input('export_filter');
 
         $connection = DB::connection(session('expense_connection'));
         $tableName = 'y'.$yearId.'_monthexpensefinal';
@@ -1517,7 +1517,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $page = $request->get('page', 1);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * $this->perPage;
 
         $query .= ' LIMIT '.(int) $offset.', '.(int) $this->perPage;
@@ -1636,7 +1636,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $page = $request->get('page', 1);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * 15;
 
         $query .= ' LIMIT '.(int) $offset.', 15';
@@ -1769,8 +1769,8 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         }
 
         // Sorting
-        $sortField = $request->get('sort_field', 'payment_unsettled_date');
-        $sortOrder = $request->get('sort_order', 'DESC');
+        $sortField = $request->input('sort_field', 'payment_unsettled_date');
+        $sortOrder = $request->input('sort_order', 'DESC');
 
         $allowedSortFields = [
             'payment_amount',
@@ -1798,8 +1798,8 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $totalRecords = $connection->selectOne($countQuery, $bindings)->total;
 
         // Pagination
-        $perPage = $request->get('per_page', 15);
-        $page = $request->get('page', 1);
+        $perPage = $request->input('per_page', 15);
+        $page = $request->input('page', 1);
         $offset = ($page - 1) * $perPage;
 
         $query .= " LIMIT {$offset}, {$perPage}";
@@ -2845,8 +2845,8 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
 
         $yearId = session('year_id');
         $companyId = session('company_id', 1);
-        $recordId = $request->get('record_id');
-        $employeeId = $request->get('employee_id');
+        $recordId = $request->input('record_id');
+        $employeeId = $request->input('employee_id');
 
         try {
             $this->ensureRevertLogsTableExists();
@@ -3566,8 +3566,8 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
             // }
 
             // Sorting
-            $sortField = $request->get('sort_field', 'EmpCode');
-            $sortOrder = $request->get('sort_order', 'asc');
+            $sortField = $request->input('sort_field', 'EmpCode');
+            $sortOrder = $request->input('sort_order', 'asc');
 
             switch ($sortField) {
                 case 'employee_code':
@@ -3588,7 +3588,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
                     break;
             }
 
-            $perPage = $request->get('per_page', 20);
+            $perPage = $request->input('per_page', 20);
             $ledgerRecords = $query->paginate($perPage);
 
             $totalRecords = $ledgerRecords->total();
@@ -4224,9 +4224,9 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         try {
             $request->validate(['as_of_date' => 'required|date']);
             $asOfDate  = $request->as_of_date;           // Y-m-d
-            $search    = $request->get('search', '');
-            $perPage   = (int) $request->get('per_page', 20);
-            $page      = (int) $request->get('page', 1);
+            $search    = $request->input('search', '');
+            $perPage   = (int) $request->input('per_page', 20);
+            $page      = (int) $request->input('page', 1);
             $expConn   = session('expense_connection') ?: 'expense';
             $companyId = session('company_id', 1);
             $hrimsDb   = DatabaseSwitcher::getHrimsDatabaseName();
@@ -4390,7 +4390,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
             }
             $request->validate(['as_of_date' => 'date']);
             $asOfDate  = $request->as_of_date;
-            $search    = $request->get('search', '');
+            $search    = $request->input('search', '');
             $expConn   = session('expense_connection') ?: 'expense';
             $companyId = session('company_id', 1);
             $hrimsDb   = DatabaseSwitcher::getHrimsDatabaseName();

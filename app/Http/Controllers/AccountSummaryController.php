@@ -9,10 +9,10 @@ class AccountSummaryController extends Controller
 {
     public function index(Request $request)
     {
-        $employeeId   = (int) $request->get('e');
-        $currentMonth = (int) $request->get('m', date('n'));
+        $employeeId   = (int) $request->input('e');
+        $currentMonth = (int) $request->input('m', date('n'));
         $conn         = session('expense_connection') ?: 'expense';
-        $yearId       = (int) $request->get('y', session('year_id') ?: 8);
+        $yearId       = (int) $request->input('y', session('year_id') ?: 8);
 
         if (!session()->has('year_id') || $request->has('y')) {
             session(['year_id' => $yearId]);

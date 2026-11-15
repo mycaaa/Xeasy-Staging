@@ -15,6 +15,27 @@ use Illuminate\Support\Facades\Schema;
  */
 class SafeTable
 {
+    /** @var array<string,bool> */
+    private static array $seen = [];
+
+    /**
+     * HR-TABLE-01 (15 Nov 2026): some HRIMS tables the code expects (hrm_employee_separation, hrm_company,
+     * hrm_branch, ...) do not exist on this HRIMS. Callers check first and skip that part instead of failing.
+     */
+    public static function exists(string $conn, string $table): bool
+    {
+        $k = $conn.'|'.$table;
+        if (! array_key_exists($k, self::$seen)) {
+            try {
+                self::$seen[$k] = Schema::connection($conn)->hasTable($table);
+            } catch (\Throwable $e) {
+                self::$seen[$k] = false;
+            }
+        }
+
+        return self::$seen[$k];
+    }
+
     public static function create(string $conn, string $table, Closure $blueprint): void
     {
         if (Schema::connection($conn)->hasTable($table)) {

@@ -31,7 +31,7 @@ class ClaimantController extends Controller
 
     public function claimant(Request $request)
     {
-        $status = $request->get('status', 'open');
+        $status = $request->input('status', 'open');
         $employeeId = session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
@@ -58,7 +58,7 @@ class ClaimantController extends Controller
 
     public function approver(Request $request)
     {
-        $status = $request->get('status', 'pending');
+        $status = $request->input('status', 'pending');
         $employeeId = session('employee_id');
         $yearId = session('year_id');
         $companyId = session('company_id');
@@ -270,7 +270,7 @@ class ClaimantController extends Controller
 
     public function getDraftList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -287,7 +287,7 @@ class ClaimantController extends Controller
 
     public function deleteDraft(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -305,7 +305,7 @@ class ClaimantController extends Controller
 
     public function getOpenList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -322,7 +322,7 @@ class ClaimantController extends Controller
 
     public function getOpenDayDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -340,7 +340,7 @@ class ClaimantController extends Controller
 
     public function getCloseList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -469,7 +469,7 @@ class ClaimantController extends Controller
 
     public function getCloseDayDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -591,7 +591,7 @@ class ClaimantController extends Controller
     public function submitMonth(Request $request)
     {
         $request->validate(['month' => 'required']);
-        $employeeId = $request->get('ei') ?? $request->get('empid') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? $request->input('empid') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -617,7 +617,7 @@ class ClaimantController extends Controller
      */
     public function getRunningKm(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -637,8 +637,8 @@ class ClaimantController extends Controller
      */
     public function getExpenseDetail(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $expId = $request->get('expid') ?? $request->get('exp_id');
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $expId = $request->input('expid') ?? $request->input('exp_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();
@@ -717,7 +717,7 @@ class ClaimantController extends Controller
         }
     }
 
-    private function resolveYearId(Request $request = null)
+    private function resolveYearId(?Request $request = null)
     {
         if ($request && ($request->filled('YearId') || $request->filled('yearId') || $request->filled('year_id'))) {
             return (int) ($request->YearId ?? $request->yearId ?? $request->year_id);
@@ -746,7 +746,7 @@ class ClaimantController extends Controller
         return 7;
     }
 
-    private function resolveCompanyId(Request $request = null, $employeeId = null)
+    private function resolveCompanyId(?Request $request = null, $employeeId = null)
     {
         if ($request && ($request->filled('CompanyId') || $request->filled('companyId') || $request->filled('company_id'))) {
             return (int) ($request->CompanyId ?? $request->companyId ?? $request->company_id);
@@ -805,8 +805,8 @@ class ClaimantController extends Controller
     // Add this method to your existing ClaimantController.php
     public function claimantEmbed(Request $request)
     {
-        $status = $request->get('status', 'drafts');
-        $employeeId = $request->get('ei') ?? session('employee_id');
+        $status = $request->input('status', 'drafts');
+        $employeeId = $request->input('ei') ?? session('employee_id');
         $yearId = $this->resolveYearId($request);
         $companyId = $this->resolveCompanyId($request, $employeeId);
         $tokenId = $this->tokenId();

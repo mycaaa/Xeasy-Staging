@@ -56,8 +56,8 @@ class AdvanceRequestAdminController extends Controller
     public function getEmployees(Request $request)
     {
         try {
-            $search = $request->get('search', '');
-            $departmentId = $request->get('department_id');
+            $search = $request->input('search', '');
+            $departmentId = $request->input('department_id');
             $query = DB::connection('hrims')->table('hrm_employee as e')->join('hrm_employee_general as g', 'e.EmployeeID', '=', 'g.EmployeeID')->join('core_departments as d', 'g.DepartmentId', '=', 'd.id')->join('core_designation as des', 'g.DesigId', '=', 'des.id')->where('e.EmpStatus', 'A')->select(['e.EmployeeID', 'e.EmpCode', DB::raw("CONCAT(TRIM(COALESCE(e.Fname, '')), ' ', TRIM(COALESCE(e.Sname, '')), ' ', TRIM(COALESCE(e.Lname, ''))) as EmployeeName"), 'd.department_name as DepartmentName', 'des.designation_name as Designation']);
             if ($search) {
                 $query->where(function ($q) use ($search) {
@@ -127,7 +127,7 @@ class AdvanceRequestAdminController extends Controller
     public function getVarieties(Request $request)
     {
         try {
-            $cropIds = $request->get('crop_ids', []);
+            $cropIds = $request->input('crop_ids', []);
             $query = DB::connection('hrims')->table('core_varieties')->where('is_active', 1)->select('id', 'variety_name', 'crop_id');
             if (!empty($cropIds)) {
                 $query->whereIn('crop_id', $cropIds);

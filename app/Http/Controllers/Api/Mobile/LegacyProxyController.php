@@ -55,6 +55,14 @@ class LegacyProxyController extends BaseMobileController
             'Closelist_Day' => $this->handleCloselistDay($request),
             'Closelist_Month' => $this->handleCloselistMonth($request),
             'Closelist_All_Month' => $this->handleCloselistAllMonth($request),
+            // APP-V1-01: the app sends the _v1 names for company 1; the old API's _v1 lists add a company badge
+            // and, for employees moved from VVNR to VNR, the other company's months as well.
+            'Openlist_v1' => $this->v1List($request, 'handleOpenlist', 'Open_list', 'month_list'),
+            'Closelist_v1' => $this->v1List($request, 'handleCloselist', 'Close_list', 'Closed_months'),
+            'Closelist_Month_v1' => $this->v1List($request, 'handleCloselistMonth', 'Close_list', 'Closed_months'),
+            'Closelist_All_Month_v1' => $this->v1List($request, 'handleCloselistAllMonth', 'Close_list', 'Closed_months'),
+            'Openlist_Day_v1' => $this->handleOpenlistDay($request),
+            'Closelist_Day_v1' => $this->handleCloselistDay($request),
             'Team_Pending_Claimlist' => $this->handleTeamPendingClaimlist($request),
             'Team_Pending_Claimlist_Day' => $this->handleTeamPendingClaimlistDay($request),
             'Team_Approved_Claimlist' => $this->handleTeamApprovedClaimlist($request),
@@ -138,17 +146,19 @@ class LegacyProxyController extends BaseMobileController
             $query = DB::connection($this->con2)
                 ->table('hrm_employee AS emp')
                 ->leftJoin('hrm_employee_general AS g', 'emp.EmployeeID', '=', 'g.EmployeeID')
-                ->leftJoin('hrm_department AS d', 'g.DepartmentId', '=', 'd.DepartmentId')
+                // PAX-HR-01: hrm_company does not exist in HRIMS (search failed every time); department and
+                // company names come from the core_* masters that hrm_employee_general points to.
+                ->leftJoin('core_departments AS d', 'g.DepartmentId', '=', 'd.id')
                 ->leftJoin('core_grades AS cg', 'g.GradeId', '=', 'cg.id')
-                ->leftJoin('hrm_company AS c', 'emp.CompanyId', '=', 'c.CompanyId')
+                ->leftJoin('core_company AS c', 'emp.CompanyId', '=', 'c.id')
                 ->select(
                     'emp.EmployeeID',
                     'emp.EmpCode',
                     'emp.EmpCode_New',
                     DB::raw("CONCAT_WS(' ', emp.Fname, emp.Sname, emp.Lname) AS EmployeeName"),
-                    'd.DepartmentName AS department_name',
+                    'd.department_name AS department_name',
                     'cg.grade_name AS grade_name',
-                    'c.CompanyName AS company_name'
+                    'c.company_name AS company_name'
                 );
 
             if (!$isManagement) {
@@ -339,7 +349,11 @@ class LegacyProxyController extends BaseMobileController
 
     private function handleCompanyList(Request $request): JsonResponse
     {
-        $results = $this->rawSelect($this->con2, "select CompanyId as ComId,CompanyName as ComName from hrm_company_basic where Status='A' AND (CompanyId=1 OR CompanyId=3) order by CompanyId asc");
+        // HR-TABLE-01: hrm_company_basic is not in HRIMS (company list failed with a server error);
+        // the company master is core_company.
+        $results = \App\Support\SafeTable::exists($this->con2, 'hrm_company_basic')
+            ? $this->rawSelect($this->con2, "select CompanyId as ComId,CompanyName as ComName from hrm_company_basic where Status='A' AND (CompanyId=1 OR CompanyId=3) order by CompanyId asc")
+            : $this->rawSelect($this->con2, "select CAST(id AS CHAR) as ComId, company_name as ComName from core_company where is_active=1 AND id IN (1,3) order by id asc");
 
         if (count($results) > 0) {
             return response()->json(["Code" => "300", "company_list" => $results]);
@@ -395,6 +409,68 @@ class LegacyProxyController extends BaseMobileController
     {
         $controller = new ClaimListController();
         return $controller->handleDraftlist($request);
+    }
+
+    /**
+     * APP-V1-01: run the plain list for the requested company and, when the employee moved from VVNR to VNR
+     * (hrm_employee.MoveVESStoESS = 'Y'), also for the other company (VVNR year id = VNR year id - 2).
+     * Each row carries CompanyBadge and ComId as in the old API.
+     */
+    private function v1List(Request $request, string $handler, string $listKey, string $monthsKey): JsonResponse
+    {
+        $comId = (int) $request->input('ComId');
+        $yearId = (int) $request->input('YearId');
+        $badges = [1 => 'VNR', 11 => 'VVNR'];
+        $parts = [[$comId, $yearId]];
+        try {
+            $moved = DB::connection($this->con2)->table('hrm_employee')->where('EmployeeID', (int) $request->input('empid'))->value('MoveVESStoESS') === 'Y';
+        } catch (\Throwable $e) {
+            $moved = false;
+        }
+        if ($moved && isset($badges[$comId])) {
+            $parts[] = $comId === 1 ? [11, $yearId - 2] : [1, $yearId + 2];
+        }
+        $first = null;
+        $list = [];
+        $months = [];
+        foreach ($parts as $i => [$cid, $yid]) {
+            $sub = $i === 0 ? $request : $request->duplicate(array_merge($request->query->all(), ['ComId' => $cid, 'YearId' => $yid]), array_merge($request->request->all(), ['ComId' => $cid, 'YearId' => $yid]));
+            try {
+                if ($i > 0) {
+                    $this->setupConnections($sub);
+                }
+                $data = $this->{$handler}($sub)->getData(true);
+            } catch (\Throwable $e) {
+                Log::warning('v1 list: other company skipped', ['company' => $cid, 'error' => $e->getMessage()]);
+                continue;
+            } finally {
+                if ($i > 0) {
+                    $this->setupConnections($request);
+                }
+            }
+            $first ??= $data;
+            foreach ((array) ($data[$listKey] ?? []) as $row) {
+                if (is_array($row)) {
+                    $row['CompanyBadge'] = $badges[$cid] ?? null;
+                    $row['ComId'] = (string) $cid;
+                }
+                $list[] = $row;
+            }
+            foreach ((array) ($data[$monthsKey] ?? []) as $m) {
+                $months[json_encode($m)] = $m;
+            }
+        }
+        $out = $first ?? ['Code' => '100', 'msg' => 'Data Not Available!'];
+        if ($list !== []) {
+            $out['Code'] = '300';
+            $out['msg'] = 'Data Available!';
+            $out[$listKey] = $list;
+        }
+        if ($months !== [] || array_key_exists($monthsKey, $out)) {
+            $out[$monthsKey] = array_values($months);
+        }
+
+        return response()->json($out);
     }
 
     private function handleOpenlist(Request $request): JsonResponse

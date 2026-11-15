@@ -774,13 +774,28 @@ class EmployeeVehicleController extends Controller
             $gradeId = $employee->GradeId;
 
             // Retrieve ALL mapped fields for this policy
-            $fields = DB::connection('hrims')->table('hrm_master_eligibility_mapping_tblfield as m')
-                ->join('hrm_master_eligibility_field as f', 'm.FieldId', '=', 'f.FieldId')
-                ->where('m.PolicyId', $policyId)
-                ->where('m.Sts', 1)
-                ->select('m.MappId', 'm.PolicyId', 'm.FieldId', 'm.FOrder', 'f.FiledName')
-                ->orderBy('m.FOrder', 'asc')
-                ->get();
+            if (\App\Support\SafeTable::exists('hrims', 'hrm_master_eligibility_mapping_tblfield')) {
+                $fields = DB::connection('hrims')->table('hrm_master_eligibility_mapping_tblfield as m')
+                    ->join('hrm_master_eligibility_field as f', 'm.FieldId', '=', 'f.FieldId')
+                    ->where('m.PolicyId', $policyId)
+                    ->where('m.Sts', 1)
+                    ->select('m.MappId', 'm.PolicyId', 'm.FieldId', 'm.FOrder', 'f.FiledName')
+                    ->orderBy('m.FOrder', 'asc')
+                    ->get();
+            } else {
+                // HR-TABLE-01: the mapping table is not in HRIMS; the policy table's own FnN columns say which
+                // fields the policy uses, in their column order.
+                $fields = collect();
+                $ptbl = 'hrm_master_eligibility_policy_tbl'.(int) $policyId;
+                if (\App\Support\SafeTable::exists('hrims', $ptbl)) {
+                    $names = DB::connection('hrims')->table('hrm_master_eligibility_field')->pluck('FiledName', 'FieldId');
+                    foreach (\Illuminate\Support\Facades\Schema::connection('hrims')->getColumnListing($ptbl) as $i => $col) {
+                        if (preg_match('/^Fn(\d+)$/', $col, $mm) && isset($names[(int) $mm[1]])) {
+                            $fields->push((object) ['MappId' => null, 'PolicyId' => $policyId, 'FieldId' => (int) $mm[1], 'FOrder' => $i, 'FiledName' => $names[(int) $mm[1]]]);
+                        }
+                    }
+                }
+            }
 
             $policyTable = "hrm_master_eligibility_policy_tbl{$policyId}";
             $tableExists = DB::connection('hrims')->select("SHOW TABLES LIKE '{$policyTable}'");

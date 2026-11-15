@@ -315,7 +315,7 @@ class PaymentApiController extends Controller
         return ['file_name' => $originalName, 'stored_name' => $fileName, 'relative_path' => $relativePath, 'full_path' => $destinationPath];
     }
 
-    private function importPaymentFile(UploadedFile $file, string $sourceApp = 'API', int $yearId = null): array
+    private function importPaymentFile(UploadedFile $file, string $sourceApp = 'API', ?int $yearId = null): array
     {
         $importBatchId = Str::uuid()->toString();
         $importDate = now()->format('Y-m-d');

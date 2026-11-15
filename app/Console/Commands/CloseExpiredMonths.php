@@ -89,6 +89,12 @@ class CloseExpiredMonths extends Command
 
                 foreach ($yearsToCheck as $checkYearId) {
                     $table = MonthExpenseFinal::tableName($checkYearId);
+                    // CLOSE-COL-01: older year tables have no SubPermission column (the nightly run failed on them)
+                    try {
+                        $sp = \Illuminate\Support\Facades\Schema::connection($connection)->hasColumn($table, 'SubPermission') ? ['SubPermission' => 'N'] : [];
+                    } catch (\Throwable $e) {
+                        $sp = [];
+                    }
 
                     // Check if table exists
                     try {
@@ -121,7 +127,7 @@ class CloseExpiredMonths extends Command
                                 ->where('Status', '!=', 'Closed')
                                 ->where('DateOfSubmit', '!=', '0000-00-00')
                                 ->whereNotNull('DateOfSubmit')
-                                ->update(['Status' => 'Closed', 'SubPermission' => 'N']);
+                                ->update(['Status' => 'Closed'] + $sp);
 
                             // Close without DateOfSubmit — set it to today
                             $c2 = DB::connection($connection)->table($table)
@@ -129,7 +135,7 @@ class CloseExpiredMonths extends Command
                                 ->where(function ($q) {
                                     $q->whereNull('DateOfSubmit')->orWhere('DateOfSubmit', '0000-00-00');
                                 })
-                                ->update(['Status' => 'Closed', 'SubPermission' => 'N', 'DateOfSubmit' => $today]);
+                                ->update(['Status' => 'Closed', 'DateOfSubmit' => $today] + $sp);
 
                             $closed = $c1 + $c2;
                             $companyTotal += $closed;
@@ -177,7 +183,7 @@ class CloseExpiredMonths extends Command
                                 ->whereIn('Month', $monthsToClose)
                                 ->where('DateOfSubmit', '!=', '0000-00-00')
                                 ->whereNotNull('DateOfSubmit')
-                                ->update(['Status' => 'Closed', 'SubPermission' => 'N']);
+                                ->update(['Status' => 'Closed'] + $sp);
 
                             // Close without DateOfSubmit — set it to today
                             $c2 = DB::connection($connection)->table($table)
@@ -187,7 +193,7 @@ class CloseExpiredMonths extends Command
                                 ->where(function ($q) {
                                     $q->whereNull('DateOfSubmit')->orWhere('DateOfSubmit', '0000-00-00');
                                 })
-                                ->update(['Status' => 'Closed', 'SubPermission' => 'N', 'DateOfSubmit' => $today]);
+                                ->update(['Status' => 'Closed', 'DateOfSubmit' => $today] + $sp);
 
                             $closed = $c1 + $c2;
                             $companyTotal += $closed;

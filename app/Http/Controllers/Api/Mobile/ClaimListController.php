@@ -349,6 +349,9 @@ class ClaimListController extends BaseMobileController
 
         try {
             $sql = "SELECT ec.ExpId, ec.ClaimId, ct.ClaimName, ec.CrDate, ec.BillDate, ec.ClaimYearId, ec.CrBy, ec.TotKm, ec.FilledTAmt as FilledAmt, ec.Remark, ec.DateEntryRemark, ec.odomtr_opening, ec.opening_filepath, ec.odomtr_closing, ec.closing_filepath, ec.offline_opening_filepath, ec.offline_clossing_filepath, ec.Img_1, ec.Img_2, ec.Img_3, ec.Img_4 as pdf_1, ec.Img_5 as pdf_2, ec.Img1_offline, ec.Img2_offline, ec.Img3_offline, ec.Pdf1_offline, ec.Pdf2_offline, ec.offline_exp_id, er.Remark AS remark, er.`by` AS sent_by, ec.Backdate_Odometer_Status, ec.App_Odometer, ec.ClaimMonth, er.CrDateTime AS remark_date FROM y{$YearId}_expenseclaims ec LEFT JOIN y{$YearId}_expenseremark er ON ec.ExpId = er.ExpId LEFT JOIN claimtype ct ON ct.ClaimId = ec.ClaimId WHERE ec.CrBy = '{$empid}' AND ec.ClaimStatus != 'Deactivate' AND ((ec.ClaimStatus IN ('Submitted','Draft') AND ec.AttachTo = 0) OR (ec.ClaimStatus IN ('Submitted','Draft') AND (ec.Backdate_Odometer_Status != 'A' OR (ec.ClaimId = 7 and ec.v_verify = 'N')))) ORDER BY ec.ExpId DESC";
+            if (! \App\Support\SafeTable::exists($expenseConn, "y{$YearId}_expenseremark")) {   // HR-TABLE-01: older years have no remark table
+                $sql = str_replace("LEFT JOIN y{$YearId}_expenseremark er ON", "LEFT JOIN (SELECT NULL AS ExpId, NULL AS Remark, NULL AS `by`, NULL AS CrDateTime) er ON 1=0 AND", $sql);
+            }
             $draftRows = DB::connection($expenseConn)->select($sql);
 
             if (empty($draftRows)) {

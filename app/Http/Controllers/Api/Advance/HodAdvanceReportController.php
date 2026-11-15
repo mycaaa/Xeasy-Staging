@@ -105,7 +105,7 @@ class HodAdvanceReportController extends Controller
     private function getTeamMembers(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
+            $employeeId = $request->input('employee_id');
 
             if (! $employeeId) {
                 return [];
@@ -144,7 +144,7 @@ class HodAdvanceReportController extends Controller
     public function getTeamMembersList(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
+            $employeeId = $request->input('employee_id');
 
             if (! $employeeId) {
                 return $this->jsonError('Employee ID is required');
@@ -196,16 +196,16 @@ class HodAdvanceReportController extends Controller
     public function consolidatedReport(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
-            $month = $request->get('month');
-            $yearId = ($request->filled('year_id') ? (int) $request->get('year_id') : null);
-            $specificEmployeeId = $request->get('specific_employee_id');
+            $employeeId = $request->input('employee_id');
+            $month = $request->input('month');
+            $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
+            $specificEmployeeId = $request->input('specific_employee_id');
 
             // Hierarchy filters
-            $buId = $request->get('bu_id');
-            $zoneId = $request->get('zone_id');
-            $regionId = $request->get('region_id');
-            $terrId = $request->get('terr_id');
+            $buId = $request->input('bu_id');
+            $zoneId = $request->input('zone_id');
+            $regionId = $request->input('region_id');
+            $terrId = $request->input('terr_id');
 
             if (! $employeeId) {
                 return $this->jsonError('Employee ID is required');
@@ -517,11 +517,29 @@ class HodAdvanceReportController extends Controller
         }
     }
 
+    /**
+     * APP-HOD-01 (15 Nov 2026): the app's team advance report loads its activity-type filter from
+     * advance/hod/activity-types, which did not exist (the filter stayed empty). Active types, as {id, name}.
+     */
+    public function getActivityTypes(Request $request)
+    {
+        try {
+            $types = DB::table('adv_activity_types')->where('status', 1)
+                ->select(['id', 'type_name as name'])->orderBy('type_name')->get();
+
+            return $this->jsonSuccess($types, 'Activity types retrieved successfully');
+        } catch (Exception $e) {
+            \Log::error('Error fetching activity types: '.$e->getMessage());
+
+            return $this->jsonError('Failed to retrieve activity types', 500);
+        }
+    }
+
     public function getBusinessUnits(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
-            $search = $request->get('search');
+            $employeeId = $request->input('employee_id');
+            $search = $request->input('search');
 
 
             $query = DB::connection('hrims')->table('core_business_unit')->where('is_active', '1');
@@ -564,10 +582,10 @@ class HodAdvanceReportController extends Controller
     public function getZones(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
-            $search = $request->get('search');
+            $employeeId = $request->input('employee_id');
+            $search = $request->input('search');
 
-            $businessUnitId = $request->get('business_unit_id');
+            $businessUnitId = $request->input('business_unit_id');
 
             $query = DB::connection('hrims')->table('core_zones as z')->where('z.is_active', '1');
 
@@ -631,11 +649,11 @@ class HodAdvanceReportController extends Controller
     public function getRegions(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
-            $search = $request->get('search');
+            $employeeId = $request->input('employee_id');
+            $search = $request->input('search');
 
-            $businessUnitId = $request->get('business_unit_id');
-            $zoneId = $request->get('zone_id');
+            $businessUnitId = $request->input('business_unit_id');
+            $zoneId = $request->input('zone_id');
 
             $query = DB::connection('hrims')->table('core_regions as r')->where('r.is_active', '1');
 
@@ -756,14 +774,14 @@ class HodAdvanceReportController extends Controller
     public function getTerritories(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
-            $search = $request->get('search');
-            $regionId = $request->get('region_id');
+            $employeeId = $request->input('employee_id');
+            $search = $request->input('search');
+            $regionId = $request->input('region_id');
             $request->validate([
                 'region_id' => 'required|integer|min:1',
             ]);
 
-            $regionId = (int) $request->get('region_id');
+            $regionId = (int) $request->input('region_id');
             $query = DB::connection('hrims')
                 ->table('core_region_territory as rt')
                 ->leftJoin('core_territory as t', 't.id', '=', 'rt.territory_id')
@@ -816,6 +834,8 @@ class HodAdvanceReportController extends Controller
                 ->orderBy('t.territory_name')
                 ->get();
             return $this->jsonSuccess($territories, 'Territories retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {   // a missing filter is the caller's error (422), not a server error
+            return $this->jsonError($e->getMessage(), 422);
         } catch (Exception $e) {
             \Log::error('Error fetching territories: '.$e->getMessage());
 
@@ -830,7 +850,7 @@ class HodAdvanceReportController extends Controller
     public function getEmployeeLevel(Request $request)
     {
         try {
-            $employeeId = $request->get('employee_id');
+            $employeeId = $request->input('employee_id');
 
             if (! $employeeId) {
                 return $this->jsonError('Employee ID is required');

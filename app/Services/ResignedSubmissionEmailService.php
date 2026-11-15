@@ -615,8 +615,8 @@ class ResignedSubmissionEmailService
             'employee_name'       => $employee->employee_name ?? null,
             'email'               => $recipientEmail,
             'department_name'     => $employee->department_name ?? null,
-            'date_of_resignation' => $employee->DateOfResignation ?? null,
-            'date_of_separation'  => $employee->DateOfSepration ?? null,
+            'date_of_resignation' => \App\Support\ZeroDate::has($employee->DateOfResignation ?? null) ? $employee->DateOfResignation : null,   // ZERO-DATE-02
+            'date_of_separation'  => \App\Support\ZeroDate::has($employee->DateOfSepration ?? null) ? $employee->DateOfSepration : null,
             'reminder_count'      => $newReminderCount,
             'total_sent_count'    => $totalSent,
             'last_sent_at'        => now(),
@@ -653,8 +653,8 @@ class ResignedSubmissionEmailService
             'employee_name'       => $employee->employee_name ?? null,
             'email'               => $recipientEmail,
             'department_name'     => $employee->department_name ?? null,
-            'date_of_resignation' => $employee->DateOfResignation ?? null,
-            'date_of_separation'  => $employee->DateOfSepration ?? null,
+            'date_of_resignation' => \App\Support\ZeroDate::has($employee->DateOfResignation ?? null) ? $employee->DateOfResignation : null,   // ZERO-DATE-02
+            'date_of_separation'  => \App\Support\ZeroDate::has($employee->DateOfSepration ?? null) ? $employee->DateOfSepration : null,
             'last_trigger_type'   => $isCron ? 'cron' : 'api',
             'last_status'         => 'failed',
             'last_error'          => substr($error, 0, 500),

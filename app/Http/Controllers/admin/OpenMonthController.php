@@ -14,7 +14,7 @@ class OpenMonthController extends Controller
      */
     public function index(Request $request)
     {
-        $departmentId = $request->get('d', 0);
+        $departmentId = $request->input('d', 0);
         $yearId = \App\Support\CurrentYear::id();
         $companyId = (int) session('company_id', 1);
 

@@ -197,7 +197,7 @@ class AdvanceFinanceController extends Controller
     public function approve(FinanceApproveRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to approve
             $requestId = $request->input('request_id');  // Advance request ID
             $activityId = $request->input('activity_id');  // Specific activity ID (optional)
@@ -218,7 +218,7 @@ class AdvanceFinanceController extends Controller
     public function reject(RejectRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to reject
             $requestId = $request->input('request_id');  // Advance request ID
             $activityId = $request->input('activity_id');  // Specific activity ID (optional)
@@ -237,7 +237,7 @@ class AdvanceFinanceController extends Controller
     public function revert(RevertRequest $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $employeeId = $request->input('employee_id');  // Employee ID to revert
             $requestId = $request->input('request_id');  // Advance request ID
             $activityId = $request->input('activity_id');  // Specific activity ID (optional)
@@ -566,7 +566,7 @@ class AdvanceFinanceController extends Controller
             $request->validate(['payment_file' => 'required|file|mimes:xlsx,xls|max:10240', 'year_id' => 'nullable|integer', 'company_id' => 'nullable|integer']);
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             $companyId = $request->input('company_id', 1);
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $result = $this->processPaymentConfirmationFile($request->file('payment_file'), $yearId, $companyId, $userId);
             return $this->jsonSuccess($result, 'Payment confirmation processed successfully');
         } catch (\Exception $e) {
@@ -1855,7 +1855,7 @@ class AdvanceFinanceController extends Controller
     public function releasePayment(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $selectedRequests = $request->input('selected_requests', []);
             // Validate required parameters
             if (!$userId) {
@@ -2247,7 +2247,7 @@ class AdvanceFinanceController extends Controller
     public function markAsExported(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $activityIds = $request->input('activity_ids', []);
             $focusBatchId = $request->input('focus_batch_id');
             $remarks = $request->input('remarks');
@@ -2283,7 +2283,7 @@ class AdvanceFinanceController extends Controller
     public function markAsImported(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $focusBatchId = $request->input('focus_batch_id');
             $remarks = $request->input('remarks');
             // Validate required parameters
@@ -2403,7 +2403,7 @@ class AdvanceFinanceController extends Controller
     //         $yearId = $request->input('year_id');
     //         $format = $request->input('format', 'excel');  // Default to excel format
     //         $includeExported = $request->input('include_exported', false);  // Option to include already exported records
-    //         $userId = $request->get('user_id');
+    //         $userId = $request->input('user_id');
     //         // Use Eloquent with proper relationships to avoid relationship errors
     //         $activitiesQuery = AdvanceRequestActivity::with(['employee.advanceRequest', 'activityType'])->where('finance_status', AdvanceRequestActivity::FINANCE_STATUS_APPROVED)->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_READY);
     //         // Exclude already exported records unless explicitly requested
@@ -2613,7 +2613,7 @@ class AdvanceFinanceController extends Controller
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             $format = $request->input('format');  // Remove default value
             $includeExported = $request->input('include_exported', false);
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             // Build query
             $activitiesQuery = AdvanceRequestActivity::with(['employee.advanceRequest', 'activityType'])->where('finance_status', AdvanceRequestActivity::FINANCE_STATUS_APPROVED)->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_READY);
             // Exclude already exported records unless explicitly requested
@@ -3029,8 +3029,8 @@ class AdvanceFinanceController extends Controller
     public function confirmAdvancePayments(Request $request)
     {
         try {
-            $userId = $request->get('confirmed_by');
-            $yearId = ($request->filled('yearId') ? (int) $request->get('yearId') : null);
+            $userId = $request->input('confirmed_by');
+            $yearId = ($request->filled('yearId') ? (int) $request->input('yearId') : null);
             DB::beginTransaction();
             // Step 1: Get all activities with PAYMENT_STATUS_READY
             $readyActivities = AdvanceRequestActivity::with(['employee'])->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_READY)->get();
@@ -3312,8 +3312,8 @@ class AdvanceFinanceController extends Controller
     // public function confirmExpensePayments(Request $request)
     // {
     //     try {
-    //         $userId = $request->get('confirmed_by');
-    //         $yearId = $request->get('yearId');
+    //         $userId = $request->input('confirmed_by');
+    //         $yearId = $request->input('yearId');
     //         DB::beginTransaction();
     //         // Get the correct table name based on yearId
     //         $tableName = "y{$yearId}_monthexpensefinal";
@@ -3526,8 +3526,8 @@ class AdvanceFinanceController extends Controller
     public function confirmExpensePayments(Request $request)
     {
         try {
-            $userId = $request->get('confirmed_by');
-            $yearId = ($request->filled('yearId') ? (int) $request->get('yearId') : null);
+            $userId = $request->input('confirmed_by');
+            $yearId = ($request->filled('yearId') ? (int) $request->input('yearId') : null);
 
             \Log::info('=== Expense Payment Confirmation Started ===', [
                 'user_id' => $userId,
@@ -3991,7 +3991,7 @@ class AdvanceFinanceController extends Controller
     public function forceResyncPayments(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             DB::beginTransaction();
             // Reset all payment records to allow re-processing
             $resetCount = DigiNextPaymentFile::where('transaction_status', 'SUCCESS')->where('is_processed', true)->update(['is_processed' => false, 'matched_activity_id' => null, 'processed_at' => null, 'processed_by' => null, 'match_status' => 'PENDING', 'match_remarks' => 'Reset for re-sync processing']);
@@ -4909,7 +4909,7 @@ class AdvanceFinanceController extends Controller
     public function resolveDiscrepancy(Request $request)
     {
         try {
-            $userId             = $request->get('user_id');
+            $userId             = $request->input('user_id');
             $activityId         = $request->input('activity_id');
             $userPaymentAmount  = $request->input('payment_amount');
             $userPaymentDate    = $request->input('payment_date');
@@ -5023,7 +5023,7 @@ class AdvanceFinanceController extends Controller
     public function debugPaymentMatching(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $limit = $request->input('limit', 10);
             // Get ready activities
             $readyActivities = AdvanceRequestActivity::with(['employee'])->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_READY)->limit($limit)->get();
@@ -5070,7 +5070,7 @@ class AdvanceFinanceController extends Controller
     public function manualExpenseSettlement(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             $activityId = $request->input('activity_id');  // MonthExpenseFinal ID
             $transactionRef = $request->input('transaction_ref');  // Payment record transaction reference
@@ -5284,7 +5284,7 @@ class AdvanceFinanceController extends Controller
     {
         try {
             $activityIds = $request->input('activity_ids', []);
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             if (empty($activityIds)) {
                 return $this->jsonError('activity_ids are required');
             }

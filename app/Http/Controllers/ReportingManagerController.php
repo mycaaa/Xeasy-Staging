@@ -71,7 +71,7 @@ class ReportingManagerController extends Controller
 
     public function approvals(Request $request)
     {
-        $status = $request->get('status', 'pending');
+        $status = $request->input('status', 'pending');
         return view('employee.reporting-manager-approvals', compact('status'));
     }
 

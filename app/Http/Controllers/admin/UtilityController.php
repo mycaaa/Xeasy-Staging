@@ -21,7 +21,7 @@ class UtilityController extends Controller
     public function temp_files(
         Request $request
     ): \Illuminate\Contracts\View\View {
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
 
         if (!Storage::disk("public")->exists($directoryPath)) {
@@ -67,7 +67,7 @@ class UtilityController extends Controller
 
     public function delete(Request $request): \Illuminate\Http\RedirectResponse
     {
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
 
         if ($request->has("filename")) {
@@ -95,7 +95,7 @@ class UtilityController extends Controller
             "directory" => "nullable|string|in:temp,uploads",
         ]);
 
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
 
         $deletedCount = 0;
@@ -136,14 +136,14 @@ class UtilityController extends Controller
         ]);
 
         if (!$request->has("confirm") || $request->confirm != "1") {
-            $directory = $request->get("directory", "temp");
+            $directory = $request->input("directory", "temp");
 
             return redirect()
                 ->route("temp_files", ["directory" => $directory])
                 ->with("error", "Deletion not confirmed.");
         }
 
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
         $files = Storage::disk("public")->files($directoryPath);
         $deletedCount = 0;
@@ -165,7 +165,7 @@ class UtilityController extends Controller
         Request $request,
         $filename
     ): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\RedirectResponse {
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
         $filePath = $directoryPath . "/" . $filename;
 
@@ -188,7 +188,7 @@ class UtilityController extends Controller
             "directory" => "nullable|string|in:temp,uploads",
         ]);
 
-        $directory = $request->get("directory", "temp");
+        $directory = $request->input("directory", "temp");
         $directoryPath = $this->getDirectoryPath($directory);
 
         if (count($request->filenames) === 1) {

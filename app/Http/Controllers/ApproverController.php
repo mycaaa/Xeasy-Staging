@@ -64,7 +64,7 @@ class ApproverController extends Controller
      */
     public function index(Request $request)
     {
-        $status = $request->get('status', 'pending');
+        $status = $request->input('status', 'pending');
         return view('employee.approver', compact('status'));
     }
 
@@ -73,7 +73,7 @@ class ApproverController extends Controller
      */
     public function dashboard(Request $request)
     {
-        $selectedMonth = $request->get('month');
+        $selectedMonth = $request->input('month');
         $selectedMonth = ($selectedMonth && is_numeric($selectedMonth)) ? (int) $selectedMonth : null;
         $dashboardService = new \App\Services\ApproverDashboardService();
         $dashboardData = $dashboardService->getDashboardData($selectedMonth);
@@ -112,7 +112,7 @@ class ApproverController extends Controller
     public function teamExpense(Request $request)
     {
         try {
-            $claimType = $request->get('claim_type', 'ALL');
+            $claimType = $request->input('claim_type', 'ALL');
 
             $response = \App\Support\LegacyApi::http()
                 ->get($this->baseUrl(), array_merge($this->baseParams(), [
@@ -193,8 +193,8 @@ class ApproverController extends Controller
     public function teamRunningKm(Request $request)
     {
         try {
-            $userId = $request->get('user_id', 'ALL');
-            $yearId = (int) ($request->get('year_id', session('year_id')));
+            $userId = $request->input('user_id', 'ALL');
+            $yearId = (int) ($request->input('year_id', session('year_id')));
 
             $teamMembers = $this->getTeamMembers($userId);
 
@@ -327,10 +327,10 @@ class ApproverController extends Controller
     public function claimDetails(Request $request)
     {
         try {
-            $empid  = $request->get('empid');
-            $month  = $request->get('month');
-               $comId  = $request->get('comid', session('company_id'));
-            $yearId = (int) ($request->get('yearid', session('year_id')));
+            $empid  = $request->input('empid');
+            $month  = $request->input('month');
+               $comId  = $request->input('comid', session('company_id'));
+            $yearId = (int) ($request->input('yearid', session('year_id')));
           $yearId =  $yearId - 2;
 
             if (!$empid || !$month) {
@@ -364,11 +364,11 @@ class ApproverController extends Controller
     public function approve(Request $request)
     {
         try {
-            $empid           = $request->get('empid');
-            $month           = $request->get('month');
-            $yearId          = (int) ($request->get('yearid', session('year_id')));
-            $comId           = $request->get('comid', session('company_id'));
-            $approvedAmounts = $request->get('approved_amounts', []);
+            $empid           = $request->input('empid');
+            $month           = $request->input('month');
+            $yearId          = (int) ($request->input('yearid', session('year_id')));
+            $comId           = $request->input('comid', session('company_id'));
+            $approvedAmounts = $request->input('approved_amounts', []);
 
             if (!$empid || !$month || empty($approvedAmounts)) {
                 return response()->json(['Code' => '400', 'msg' => 'Missing required parameters'], 400);
@@ -436,11 +436,11 @@ class ApproverController extends Controller
     public function deny(Request $request)
     {
         try {
-            $empid  = $request->get('empid');
-            $month  = $request->get('month');
-            $yearId = (int) ($request->get('yearid', session('year_id')));
-            $comId  = $request->get('comid', session('company_id'));
-            $remark = $request->get('remark');
+            $empid  = $request->input('empid');
+            $month  = $request->input('month');
+            $yearId = (int) ($request->input('yearid', session('year_id')));
+            $comId  = $request->input('comid', session('company_id'));
+            $remark = $request->input('remark');
 
             if (!$empid || !$month || !$remark) {
                 return response()->json(['Code' => '400', 'msg' => 'Missing required parameters'], 400);
@@ -557,12 +557,12 @@ class ApproverController extends Controller
      */
     public function expenseDetails(Request $request)
     {
-        $employeeId = $request->get('empid');
-        $month      = $request->get('month');
-        $yearId     = (int) ($request->get('yearid', session('year_id')));
-        $comId      = $request->get('comid', session('company_id'));
-        $nn         = $request->get('nn', 2);
-        $tab        = $request->get('tab', 'vnr'); // which company tab triggered the modal
+        $employeeId = $request->input('empid');
+        $month      = $request->input('month');
+        $yearId     = (int) ($request->input('yearid', session('year_id')));
+        $comId      = $request->input('comid', session('company_id'));
+        $nn         = $request->input('nn', 2);
+        $tab        = $request->input('tab', 'vnr'); // which company tab triggered the modal
 
         // Resolve the correct DB connections based on the active tab,
         // not the session (which reflects the user's primary company).
@@ -870,7 +870,7 @@ class ApproverController extends Controller
     public function updateToken(Request $request)
     {
         try {
-            $newToken = $request->get('token');
+            $newToken = $request->input('token');
             if ($newToken) {
                 // Store in session or database based on your requirements
                 session(['approver_token' => $newToken]);

@@ -117,8 +117,8 @@ class LedgerSummaryApiController extends Controller
             }
 
             // Sorting
-            $sortField = $request->get('sort_field', 'EmpCode');
-            $sortOrder = $request->get('sort_order', 'asc');
+            $sortField = $request->input('sort_field', 'EmpCode');
+            $sortOrder = $request->input('sort_order', 'asc');
 
             switch ($sortField) {
                 case 'employee_code':
@@ -138,7 +138,7 @@ class LedgerSummaryApiController extends Controller
                     break;
             }
 
-            $perPage = $request->get('per_page', 20);
+            $perPage = $request->input('per_page', 20);
             $ledgerRecords = $query->paginate($perPage);
 
             // Compute real balance for each employee matching account summary / advance report

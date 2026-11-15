@@ -83,8 +83,8 @@ class ClaimReportController extends Controller
         try {
             $empId = $empid ?? $request->empid;
             $month = $month ?? $request->month;
-            $page = $request->get('page', 1);
-            $perPage = $request->get('per_page', 10);
+            $page = $request->input('page', 1);
+            $perPage = $request->input('per_page', 10);
 
             $yearId = session('year_id');
             $companyId = session('company_id');

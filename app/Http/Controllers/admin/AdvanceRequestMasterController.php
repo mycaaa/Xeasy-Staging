@@ -273,7 +273,7 @@ class AdvanceRequestMasterController extends Controller
     public function getGrades(Request $request)
         {
             try {
-                $departmentId = $request->get('department_id');
+                $departmentId = $request->input('department_id');
 
                 if (!$departmentId) {
                     return response()->json(['success' => false, 'message' => 'Department ID is required'], 400);
@@ -433,7 +433,7 @@ class AdvanceRequestMasterController extends Controller
     public function getActivities(Request $request)
     {
         try {
-            $departmentId = $request->get('department_id');
+            $departmentId = $request->input('department_id');
             if (!$departmentId) {
                 return response()->json(['success' => false, 'message' => 'Department ID is required'], 400);
             }

@@ -13,10 +13,10 @@ class VerifierClaimantController extends Controller
     // Main View for Verifier
     public function index(Request $request)
     {
-        $status = $request->get('status', 'drafts');
-       $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $status = $request->input('status', 'drafts');
+       $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = \App\Support\LegacyApi::webToken();
         $fYear = session('FYear', date('Y') . '-' . (date('Y') + 1));
 
@@ -42,9 +42,9 @@ class VerifierClaimantController extends Controller
     // Draft List API
     public function draftList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = \App\Support\LegacyApi::webToken();
 
         $url = \App\Support\LegacyApi::url('common.php') . "?value=Draftlist&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&tokenid={$tokenId}";
@@ -60,9 +60,9 @@ class VerifierClaimantController extends Controller
     // Open List API
     public function openList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = \App\Support\LegacyApi::webToken();
 
         $url = \App\Support\LegacyApi::url('common.php') . "?value=Openlist&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&tokenid={$tokenId}";
@@ -78,9 +78,9 @@ class VerifierClaimantController extends Controller
     // Close List API
     public function closeList(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = \App\Support\LegacyApi::webToken();
 
         $url = \App\Support\LegacyApi::url('common.php') . "?value=Closelist_All_Month&empid={$employeeId}&YearId={$yearId}&ComId={$companyId}&tokenid={$tokenId}";
@@ -96,9 +96,9 @@ class VerifierClaimantController extends Controller
     // Open Day Details
     public function openDayDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $month = $request->month;
 
@@ -115,9 +115,9 @@ class VerifierClaimantController extends Controller
     // Close Day Details
     public function closeDayDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $month = $request->month;
 
@@ -134,9 +134,9 @@ class VerifierClaimantController extends Controller
     // Add Remark (for verifier)
     public function addRemark(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $expId = $request->exp_id;
         $remark = $request->remark;
@@ -155,9 +155,9 @@ class VerifierClaimantController extends Controller
     // Delete Draft
     public function deleteDraft(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $expId = $request->exp_id;
 
@@ -174,9 +174,9 @@ class VerifierClaimantController extends Controller
     // Verify Claim
     public function verifyClaim(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $expId = $request->exp_id;
 
@@ -193,9 +193,9 @@ class VerifierClaimantController extends Controller
     // Deny Claim
     public function denyClaim(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $expId = $request->exp_id;
         $remark = $request->remark;
@@ -213,9 +213,9 @@ class VerifierClaimantController extends Controller
     // Submit Month
     public function submitMonth(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $month = $request->month;
 
@@ -232,9 +232,9 @@ class VerifierClaimantController extends Controller
     // Update Courier Details
     public function updateCourier(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $month = $request->month;
         $postDate = $request->post_date;
@@ -258,9 +258,9 @@ class VerifierClaimantController extends Controller
     // Get Courier Details
     public function getCourierDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
         $month = $request->month;
 
@@ -277,9 +277,9 @@ class VerifierClaimantController extends Controller
     // Running KM Details
     public function runningKmDetails(Request $request)
     {
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $month = $request->month;
         $token = \App\Support\LegacyApi::webToken(); // LV-S11: no hard-coded device token
 
@@ -297,9 +297,9 @@ class VerifierClaimantController extends Controller
     public function showClaim(Request $request)
     {
         $expId = $request->expid;
-        $employeeId = $request->get('ei') ?? session('employee_id');
-        $yearId = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('ei') ?? session('employee_id');
+        $yearId = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId = session('token_id');
 
         return view('verifier.showclaim', [
@@ -336,9 +336,9 @@ class VerifierClaimantController extends Controller
     // Get Courier Details (Claimant's own closed month)
     public function getCourierDetail(Request $request)
     {
-        $employeeId = $request->get('empid') ?? $request->get('ei') ?? session('employee_id');
-        $yearId     = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId  = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('empid') ?? $request->input('ei') ?? session('employee_id');
+        $yearId     = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId  = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId    = session('token_id');
         $month      = $request->month;
 
@@ -376,9 +376,9 @@ class VerifierClaimantController extends Controller
     // Update / Save Courier Details (Claimant posting their physical hardcopy)
     public function updateCourierDetail(Request $request)
     {
-        $employeeId = $request->get('empid') ?? $request->get('ei') ?? session('employee_id');
-        $yearId     = (int) ($request->get('YearId') ?? session('FYearId', 1));
-        $companyId  = $request->get('CompanyId') ?? session('CompanyId', 1);
+        $employeeId = $request->input('empid') ?? $request->input('ei') ?? session('employee_id');
+        $yearId     = (int) ($request->input('YearId') ?? session('FYearId', 1));
+        $companyId  = $request->input('CompanyId') ?? session('CompanyId', 1);
         $tokenId    = session('token_id');
         $month      = $request->month;
         $postDate   = $request->post_date;

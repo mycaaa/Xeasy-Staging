@@ -160,21 +160,22 @@ class PaxDetailsController extends Controller
 
                 try {
                     $hrimsConn = session('hrims_connection') ?: 'hrims';
+                    // PAX-HR-01: hrm_branch / hrm_division do not exist in HRIMS and department, designation and
+                    // grade sit on hrm_employee_general; the old joins failed every time ("Employee not found").
                     $employees = DB::connection($hrimsConn)->table('hrm_employee')
-                        ->leftJoin('hrm_department', 'hrm_employee.DeptID', '=', 'hrm_department.DepartmentID')
-                        ->leftJoin('hrm_designation', 'hrm_employee.DesigID', '=', 'hrm_designation.DesignationID')
-                        ->leftJoin('hrm_grade', 'hrm_employee.GradeID', '=', 'hrm_grade.GradeID')
-                        ->leftJoin('hrm_branch', 'hrm_employee.BranchID', '=', 'hrm_branch.BranchID')
-                        ->leftJoin('hrm_division', 'hrm_employee.DivisionID', '=', 'hrm_division.DivisionID')
+                        ->leftJoin('hrm_employee_general as g', 'g.EmployeeID', '=', 'hrm_employee.EmployeeID')
+                        ->leftJoin('core_departments as cd', 'cd.id', '=', 'g.DepartmentId')
+                        ->leftJoin('core_designation as cds', 'cds.id', '=', 'g.DesigId')
+                        ->leftJoin('core_grades as cg', 'cg.id', '=', 'g.GradeId')
                         ->whereIn('hrm_employee.EmployeeID', $keys)
                         ->where('hrm_employee.EmpStatus', 'A')
                         ->select(
                             'hrm_employee.*',
-                            'hrm_department.DeptName',
-                            'hrm_designation.DesigName',
-                            'hrm_grade.GradeName',
-                            'hrm_branch.BranchName',
-                            'hrm_division.DivisionName'
+                            'g.DepartmentId as DeptID', 'g.DesigId as DesigID', 'g.GradeId as GradeID',
+                            'g.EmailId_Vnr as EmailID', 'g.MobileNo_Vnr as MobileNo', 'g.RepEmployeeID as ReportingManagerID',
+                            'cd.department_name as DeptName',
+                            'cds.designation_name as DesigName',
+                            'cg.grade_name as GradeName'
                         )
                         ->get();
 

@@ -78,7 +78,7 @@ class DashboardController extends Controller
         }
 
         // Determine requested month filter or default to current month - 1
-        $selectedMonth = $request->get('month');
+        $selectedMonth = $request->input('month');
         $currentMonthNum = (int) now()->month;
         $defaultMonth = $currentMonthNum === 1 ? 12 : $currentMonthNum - 1;
 

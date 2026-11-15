@@ -142,6 +142,14 @@ class ClaimRatingService
             $query->where('eg.DepartmentId', $filters['department_id']);
         }
 
+        // RATING-MEM-01: per employee-month claim counts in SQL, then stream the rows (cursor) instead of holding
+        // every claim of the year as an object twice (611 MB for 1.29 lakh claims)
+        $claimCounts = [];
+        foreach ((clone $query)->selectRaw('ec.CrBy as e, ec.ClaimMonth as m, COUNT(*) as n')->groupBy('ec.CrBy', 'ec.ClaimMonth')->get() as $cc) {
+            $claimCounts[$cc->e.'_'.$cc->m] = (int) $cc->n;
+        }
+        $totalQueried = array_sum($claimCounts);
+
         $claims = $query->select([
             'ec.ExpId',
             'ec.CrBy as EmployeeID',
@@ -173,14 +181,7 @@ class ClaimRatingService
             'mef.Finance_Date',
             'mef.Fin_PayDate',
             'mef.Fin_AppDate',
-        ])->get();
-
-        // Count claims per employee per month (for min_claims check)
-        $claimCounts = [];
-        foreach ($claims as $claim) {
-            $key = $claim->EmployeeID . '_' . $claim->Month;
-            $claimCounts[$key] = ($claimCounts[$key] ?? 0) + 1;
-        }
+        ])->cursor();
 
         // PERF-04: plain copies of the rules for the loop (Eloquent attribute access per claim per rule was most of the 30 s)
         $plainRules = [];
@@ -333,7 +334,7 @@ class ClaimRatingService
             'rules' => $rules->toArray(),
             'total_claims' => count($results),
             'debug' => [
-                'total_claims_queried' => $claims->count(),
+                'total_claims_queried' => $totalQueried,
                 'total_skipped_stages' => $debugSkipped,
                 'rules_count' => $rules->count(),
             ],

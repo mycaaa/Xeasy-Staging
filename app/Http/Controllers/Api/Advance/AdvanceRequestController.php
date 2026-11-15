@@ -36,8 +36,8 @@ class AdvanceRequestController extends Controller
     public function index(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
-            $status = $request->get('status');
+            $userId = $request->input('user_id');
+            $status = $request->input('status');
             // Get the Activity advance type ID
             $activityType = DB::table('advance_request_types')->where('type_code', 'Act')->where('is_active', 1)->first();
             if (!$activityType) {
@@ -193,7 +193,7 @@ class AdvanceRequestController extends Controller
     //         return response('', 200)->header('Access-Control-Allow-Origin', \App\Support\AllowedOrigin::for())->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')->header('Access-Control-Allow-Credentials', 'true')->header('Access-Control-Max-Age', '86400');
     //     }
     //     try {
-    //         $userId = $request->get('user_id');
+    //         $userId = $request->input('user_id');
     //         $data = $request->validated();
     //         \Log::info('Validated data received:', $data);
     //         $data['request']['created_by'] = $userId;
@@ -237,7 +237,7 @@ class AdvanceRequestController extends Controller
         }
 
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $data = $request->validated();
 
             \Log::info('Validated data received:', $data);
@@ -395,7 +395,7 @@ class AdvanceRequestController extends Controller
     public function updateDraft(StoreDraftRequest $request, $requestId)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $data = $request->validated();
             $data['request']['updated_by'] = $userId;
             foreach ($data['employees'] as &$employee) {
@@ -419,7 +419,7 @@ class AdvanceRequestController extends Controller
     public function submit(Request $request, $requestId)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $advanceRequest = $this->submitRequest($requestId, $userId);
 
             // Notify Central Notification Service - Raise action
@@ -448,7 +448,7 @@ class AdvanceRequestController extends Controller
     // public function submit(Request $request, $requestId)
     // {
     //     try {
-    //         $userId = $request->get('user_id');
+    //         $userId = $request->input('user_id');
     //         $advanceRequest = $this->submitRequest($requestId, $userId);
     //         $approvalRequired = true;
     //         try {
@@ -518,7 +518,7 @@ class AdvanceRequestController extends Controller
     public function resubmit(Request $request, $requestId)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $advanceRequest = $this->resubmitRequest($requestId, $userId);
             return $this->jsonSuccess(new AdvanceRequestResource($advanceRequest), 'Advance request resubmitted successfully');
         } catch (Exception $e) {
@@ -529,9 +529,9 @@ class AdvanceRequestController extends Controller
     public function employeeSummary(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
-            $month = $request->get('month');
-            $year = $request->get('year', date('Y'));
+            $userId = $request->input('user_id');
+            $month = $request->input('month');
+            $year = $request->input('year', date('Y'));
             // Get employee-wise summary
             $query = AdvanceRequestActivity::join('advance_request_employees', 'advance_request_activities.advance_request_employee_id', '=', 'advance_request_employees.id')->join('advance_requests', 'advance_request_employees.advance_request_id', '=', 'advance_requests.id')->select(['advance_request_employees.employee_id', DB::raw('COUNT(advance_request_activities.id) as total_activities'), DB::raw('SUM(advance_request_activities.amount) as total_amount'), DB::raw('SUM(advance_request_activities.finance_approved_amount) as total_finance_approved'), DB::raw('COUNT(CASE WHEN advance_request_activities.approval_status = "Approved" THEN 1 END) as approved_activities'), DB::raw('COUNT(CASE WHEN advance_request_activities.finance_status = "Approved" THEN 1 END) as finance_approved_activities')])->groupBy('advance_request_employees.employee_id');
             if ($userId) {
@@ -557,11 +557,11 @@ class AdvanceRequestController extends Controller
     public function tableView(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
-            $status = $request->get('status');
-            $month = $request->get('month');
-            $year = $request->get('year', date('Y'));
-            $employeeId = $request->get('employee_id');
+            $userId = $request->input('user_id');
+            $status = $request->input('status');
+            $month = $request->input('month');
+            $year = $request->input('year', date('Y'));
+            $employeeId = $request->input('employee_id');
             // Build query for activities with employee and request details
             $query = AdvanceRequestActivity::with(['employee.advanceRequest', 'activityType'])->join('advance_request_employees', 'advance_request_activities.advance_request_employee_id', '=', 'advance_request_employees.id')->join('advance_requests', 'advance_request_employees.advance_request_id', '=', 'advance_requests.id');
             // Apply filters
@@ -1644,8 +1644,8 @@ class AdvanceRequestController extends Controller
     public function indexExpense(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
-            $status = $request->get('status');
+            $userId = $request->input('user_id');
+            $status = $request->input('status');
             // Get the Expense advance type ID
             $expenseType = DB::table('advance_request_types')->where('type_code', 'Exp')->where('is_active', 1)->first();
             if (!$expenseType) {
@@ -1743,8 +1743,8 @@ class AdvanceRequestController extends Controller
     public function indexOther(Request $request)
     {
         try {
-            $userId = $request->get('user_id');
-            $status = $request->get('status');
+            $userId = $request->input('user_id');
+            $status = $request->input('status');
             // Get the Other advance type ID
             $otherType = DB::table('advance_request_types')->where('type_code', 'Oth')->where('is_active', 1)->first();
             if (!$otherType) {
@@ -1836,7 +1836,7 @@ class AdvanceRequestController extends Controller
     public function delete(Request $request, $requestId)
     {
         try {
-            $userId = $request->get('user_id');
+            $userId = $request->input('user_id');
             $advanceRequest = AdvanceRequest::findOrFail($requestId);
             if ($advanceRequest->current_status !== AdvanceRequest::STATUS_DRAFT) {
                 return $this->jsonError('Only draft requests can be deleted');

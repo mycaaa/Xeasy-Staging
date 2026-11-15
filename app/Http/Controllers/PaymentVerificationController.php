@@ -1098,8 +1098,8 @@ public function resolveUnsettled(Request $request, $id)
      */
     public function getUnsettled(Request $request)
     {
-        $yearId = (int) ($request->get('year_id', session('year_id')));
-        $type = $request->get('type', 'all');
+        $yearId = (int) ($request->input('year_id', session('year_id')));
+        $type = $request->input('type', 'all');
 
         $results = [];
 

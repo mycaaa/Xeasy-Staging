@@ -27,7 +27,7 @@ class SystemNotificationController extends Controller
         }
 
         $data = $this->alertsService->getNotificationSummary();
-        $activeTab = $request->get('tab', 'transfers');
+        $activeTab = $request->input('tab', 'transfers');
 
         return view('admin.notifications.index', array_merge($data, [
             'activeTab' => $activeTab,

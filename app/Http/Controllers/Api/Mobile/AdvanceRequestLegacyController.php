@@ -1110,7 +1110,8 @@ class AdvanceRequestLegacyController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection($comId);
 
         // Check if existing request
-        if ($requestId > 0) {
+        // HR-TABLE-01: the old per-year advance table is not on the new server; skip the lookup instead of failing
+        if ($requestId > 0 && \App\Support\SafeTable::exists($expenseConn, "y{$yearId}_advance_requests")) {
             $tableName = "y{$yearId}_advance_requests";
             $row = DB::connection($expenseConn)->table($tableName)
                 ->where('emp_id', $employeeId)

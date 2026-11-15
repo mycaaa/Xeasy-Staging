@@ -72,14 +72,14 @@ class EmployeeController extends Controller
                     ->where(function ($q) use ($blankDates) {
                         $q->whereNull('emp.DateOfResignation')->orWhereIn('emp.DateOfResignation', $blankDates);
                     })
-                    ->whereNotExists(function ($sub) {
+                    ->when(\App\Support\SafeTable::exists('hrims', 'hrm_employee_separation'), fn ($q) => $q->whereNotExists(function ($sub) {
                         $sub->select(DB::raw(1))
                             ->from('hrm_employee_separation AS sep')
                             ->whereColumn('sep.EmployeeID', 'emp.EmployeeID')
                             ->where('sep.Rep_Approved', '!=', 'C')
                             ->where('sep.Hod_Approved', '!=', 'C')
                             ->where('sep.HR_Approved', '!=', 'C');
-                    });
+                    }));
             } elseif ($statusParam === 'R') {
                 // Resigned only: not deactivated, and has resignation date or separation date >= today or active separation record
                 $query->whereNotIn('emp.EmpStatus', ['D', 'De'])
@@ -94,14 +94,14 @@ class EmployeeController extends Controller
                                ->whereNotIn('emp.DateOfSepration', $blankDates)
                                ->where('emp.DateOfSepration', '>=', $today);
                         })
-                        ->orWhereExists(function ($sub) {
+                        ->when(\App\Support\SafeTable::exists('hrims', 'hrm_employee_separation'), fn ($q) => $q->orWhereExists(function ($sub) {
                             $sub->select(DB::raw(1))
                                 ->from('hrm_employee_separation AS sep')
                                 ->whereColumn('sep.EmployeeID', 'emp.EmployeeID')
                                 ->where('sep.Rep_Approved', '!=', 'C')
                                 ->where('sep.Hod_Approved', '!=', 'C')
                                 ->where('sep.HR_Approved', '!=', 'C');
-                        });
+                        }));
                     })
                     ->where(function ($q) use ($blankDates, $today) {
                         $q->whereNull('emp.DateOfSepration')

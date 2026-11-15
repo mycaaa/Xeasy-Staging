@@ -11,7 +11,7 @@ class ReportCacheService
     /**
      * Get cached report data or generate fresh
      */
-    public static function remember(string $reportKey, array $filters, callable $callback, int $ttl = null): mixed
+    public static function remember(string $reportKey, array $filters, callable $callback, ?int $ttl = null): mixed
     {
         $cacheKey = self::buildCacheKey($reportKey, $filters);
         $ttl = $ttl ?? self::TTL_MINUTES;

@@ -86,8 +86,8 @@ class ReportController extends Controller
             $hrimsConnection = \App\Helpers\DatabaseSwitcher::getHrimsConnection();
             $hrimsDb = DB::connection($hrimsConnection)->getDatabaseName();
 
-            $vehicleType = $request->get('vehicle_type');
-            $minVehicles = $request->get('min_vehicles', 2);
+            $vehicleType = $request->input('vehicle_type');
+            $minVehicles = $request->input('min_vehicles', 2);
 
             // Get all employees who have more than one vehicle
             $query = DB::connection($hrimsConnection)

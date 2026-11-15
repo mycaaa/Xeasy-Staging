@@ -20,8 +20,8 @@ class CityCategoryController extends Controller
         // Ensure log table exists
         CityCategoryLog::ensureTableExists();
 
-        $selectedCategory = $request->get('category', '');
-        $search = $request->get('search', '');
+        $selectedCategory = $request->input('category', '');
+        $search = $request->input('search', '');
 
         // Fetch distinct categories for filtering
         $distinctCategories = CityCategory::select('city_category')

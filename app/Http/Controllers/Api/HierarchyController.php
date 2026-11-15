@@ -42,7 +42,7 @@ class HierarchyController extends Controller
     public function getZones(Request $request)
     {
         try {
-            $buId = $request->get('bu_id');
+            $buId = $request->input('bu_id');
 
             $query = DB::connection('hrims')
                 ->table('core_zones as z')
@@ -77,7 +77,7 @@ class HierarchyController extends Controller
     public function getRegions(Request $request)
     {
         try {
-            $zoneId = $request->get('zone_id');
+            $zoneId = $request->input('zone_id');
 
             $query = DB::connection('hrims')
                 ->table('core_regions as r')
@@ -112,7 +112,7 @@ class HierarchyController extends Controller
     public function getTerritories(Request $request)
     {
         try {
-            $regionId = $request->get('region_id');
+            $regionId = $request->input('region_id');
 
             $query = DB::connection('hrims')
                 ->table('core_city_village_by_state as t')
@@ -154,7 +154,7 @@ class HierarchyController extends Controller
     public function getBuZoneMappings(Request $request)
     {
         try {
-            $buId = $request->get('bu_id');
+            $buId = $request->input('bu_id');
 
             $query = DB::connection('hrims')
                 ->table('core_bu_zone_mapping as bzm')
@@ -192,7 +192,7 @@ class HierarchyController extends Controller
     public function getZoneRegionMappings(Request $request)
     {
         try {
-            $zoneId = $request->get('zone_id');
+            $zoneId = $request->input('zone_id');
 
             $query = DB::connection('hrims')
                 ->table('core_zone_region_mapping as zrm')
@@ -230,7 +230,7 @@ class HierarchyController extends Controller
     public function getTerritoryMappings(Request $request)
     {
         try {
-            $regionId = $request->get('region_id');
+            $regionId = $request->input('region_id');
 
             $query = DB::connection('hrims')
                 ->table('core_terr_mapping as tm')
@@ -274,9 +274,9 @@ class HierarchyController extends Controller
     public function getHierarchyTree(Request $request)
     {
         try {
-            $buId = $request->get('bu_id');
-            $zoneId = $request->get('zone_id');
-            $regionId = $request->get('region_id');
+            $buId = $request->input('bu_id');
+            $zoneId = $request->input('zone_id');
+            $regionId = $request->input('region_id');
 
             // Get Business Units
             $buQuery = DB::connection('hrims')

@@ -775,7 +775,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('api-manager', APIManagerController::class);
     Route::get('api/fields-mapping/{claim_id}', [APIManagerController::class, 'showMappingPage'])->name('fields.mapping.page'); // UAT-03: the API manager page links to this name
     Route::post('api/fields-mapping/{claim_id}', [APIManagerController::class, 'storeFieldMapping']);
-    Route::get('api/fields/mapping/{claim_id}', [APIManagerController::class, 'getFieldMappings']);
+    // ROUTE-CLEAN-01 (method does not exist): Route::get('api/fields/mapping/{claim_id}', [APIManagerController::class, 'getFieldMappings']);
     Route::get('api/tables', [APIManagerController::class, 'getTables']);
     Route::get('api/columns/{table}', [APIManagerController::class, 'getColumns']);
     Route::post('api/map-fields', [APIManagerController::class, 'mapFields']);
@@ -814,7 +814,7 @@ Route::middleware('auth')->group(function () {
         Route::get('employee-vehicles', [EmployeeVehicleController::class, 'employeeVehicles'])->name('employee.vehicles');
         Route::post('employee-vehicles/data', [EmployeeVehicleController::class, 'getEmployeeVehiclesData'])->name('employee.vehicles.data');
         Route::post('employee-vehicles/policy-details', [EmployeeVehicleController::class, 'getPolicyDetails'])->name('employee.vehicles.policy.details');
-        Route::post('employee-vehicles/running-km', [EmployeeVehicleController::class, 'getRunningKmDetails'])->name('employee.vehicles.running.km');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('employee-vehicles/running-km', [EmployeeVehicleController::class, 'getRunningKmDetails'])->name('employee.vehicles.running.km');
         Route::post('employee-vehicles/documents', [EmployeeVehicleController::class, 'getVehicleDocuments'])->name('employee.vehicles.documents');
         Route::post('employee/vehicles/export', [EmployeeVehicleController::class, 'exportVehicles'])->name('employee.vehicles.export');
         Route::get('verify-pending', [VerifierController::class, 'verifyPendingClaims'])->name('verify-pending');
@@ -900,8 +900,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:payment_section')->group(function () {
         Route::get('advance/finance', [AdvanceFinanceController::class, 'index'])->name('advance.finance.index');
         Route::get('advance/finance/pending', [AdvanceFinanceController::class, 'pending'])->name('advance.finance.pending');
-        Route::get('advance/finance/rejected', [AdvanceFinanceController::class, 'rejected'])->name('advance.finance.rejected');
-        Route::get('advance/finance/approved', [AdvanceFinanceController::class, 'approved'])->name('advance.finance.approved');
+        // ROUTE-CLEAN-01 (method does not exist): Route::get('advance/finance/rejected', [AdvanceFinanceController::class, 'rejected'])->name('advance.finance.rejected');
+        // ROUTE-CLEAN-01 (method does not exist): Route::get('advance/finance/approved', [AdvanceFinanceController::class, 'approved'])->name('advance.finance.approved');
         Route::post('advance/finance/approve', [AdvanceFinanceController::class, 'approve'])->name('advance.finance.approve');
         Route::post('advance/finance/reject', [AdvanceFinanceController::class, 'reject'])->name('advance.finance.reject');
         Route::post('advance/finance/revert', [AdvanceFinanceController::class, 'revert'])->name('advance.finance.revert');
@@ -932,13 +932,13 @@ Route::middleware('auth')->group(function () {
     });
     Route::prefix('advance-requests')->group(function () {
         Route::get('/', [AdvanceRequestViewController::class, 'index'])->name('advance.requests.index');
-        Route::post('/update-status', [AdvanceRequestViewController::class, 'updateStatus'])->name('advance.requests.update-status');
-        Route::get('/{id}/edit', [AdvanceRequestViewController::class, 'edit'])->name('advance.requests.edit');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('/update-status', [AdvanceRequestViewController::class, 'updateStatus'])->name('advance.requests.update-status');
+        // ROUTE-CLEAN-01 (method does not exist): Route::get('/{id}/edit', [AdvanceRequestViewController::class, 'edit'])->name('advance.requests.edit');
         Route::get('/create', [AdvanceRequestViewController::class, 'create'])->name('advance.requests.create');
-        Route::post('/', [AdvanceRequestViewController::class, 'store'])->name('advance.requests.store');
-        Route::post('/advance-create', [AdvanceRequestViewController::class, 'store'])->name('advance_approvals.advance_create');
-        Route::put('/{id}', [AdvanceRequestViewController::class, 'update'])->name('advance.requests.update');
-        Route::delete('/{id}', [AdvanceRequestViewController::class, 'destroy'])->name('advance.requests.destroy');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('/', [AdvanceRequestViewController::class, 'store'])->name('advance.requests.store');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('/advance-create', [AdvanceRequestViewController::class, 'store'])->name('advance_approvals.advance_create');
+        // ROUTE-CLEAN-01 (method does not exist): Route::put('/{id}', [AdvanceRequestViewController::class, 'update'])->name('advance.requests.update');
+        // ROUTE-CLEAN-01 (method does not exist): Route::delete('/{id}', [AdvanceRequestViewController::class, 'destroy'])->name('advance.requests.destroy');
         Route::get('/advanceApprovals', [AdvanceRequestViewController::class, 'advanceapproval'])->name('advanceApprovals.requests.destroy');
         Route::get('/report', [AdvanceRequestViewController::class, 'report'])->name('advance.requests.report');
         Route::get('/hod-report', [AdvanceRequestViewController::class, 'report'])->name('advance.requests.hod-report');
@@ -988,14 +988,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/expense-payments/revert-logs', [ExpensePaymentController::class, 'getRevertLogs'])->name('expense-payments.revert-logs');
         Route::post('/expense-payments/get-unsettled-details', [ExpensePaymentController::class, 'getUnsettledPaymentDetails'])->name('expense-payments.unsettled-details');
         Route::post('/expense-payments/get-available-records', [ExpensePaymentController::class, 'getAvailablePaymentRecords'])->name('expense-payments.available-records');
-        Route::post('/expense-payments/get-financial-amounts', [ExpensePaymentController::class, 'getFinancialAmounts'])->name('expense-payments.financial-amounts');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('/expense-payments/get-financial-amounts', [ExpensePaymentController::class, 'getFinancialAmounts'])->name('expense-payments.financial-amounts');
         Route::post('/update-remark', [ExpensePaymentController::class, 'updateRemark'])->name('update-remark');
 
         Route::post('/expense-payments/update-remark', [ExpensePaymentController::class, 'updateRemark'])->name('expense-payments.update-remark');
         Route::post('/expense-payments/update-other-adjustment', [ExpensePaymentController::class, 'updateOtherAdjustment'])->name('expense-payments.update-other-adjustment');
         Route::post('/expense-payments/get-available-records', [ExpensePaymentController::class, 'getAvailablePaymentRecords'])->name('expense-payments.get-available-records');
         Route::post('/expense-payments/get-unsettled-details', [ExpensePaymentController::class, 'getUnsettledPaymentDetails'])->name('expense-payments.get-unsettled-details');
-        Route::post('/expense-payments/resolve-unsettled', [ExpensePaymentController::class, 'resolveUnsettledPayment'])->name('expense-payments.resolve-unsettled');
+        // ROUTE-CLEAN-01 (method does not exist): Route::post('/expense-payments/resolve-unsettled', [ExpensePaymentController::class, 'resolveUnsettledPayment'])->name('expense-payments.resolve-unsettled');
         Route::post('/expense-payments/mark-as-hold', [ExpensePaymentController::class, 'markAsHold'])->name('mark.as.hold');
         Route::get('/expense-payments/export-excel', [ExpensePaymentController::class, 'exportExcel'])->name('expense-payments.export-excel');
         // Ledger Summary Routes
@@ -1022,8 +1022,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/ledger-details/{employeeId}', [ExpensePaymentController::class, 'getEmployeeLedgerDetails'])
             ->name('ledger.details');
 
-        Route::get('/print-ledger/{employeeId}', [ExpensePaymentController::class, 'printLedger'])
-            ->name('print.ledger');
+        // ROUTE-CLEAN-01 (method does not exist): Route::get('/print-ledger/{employeeId}', [ExpensePaymentController::class, 'printLedger'])
+            // ROUTE-CLEAN-01 (method does not exist): ->name('print.ledger');
 
         // Route::get('/printdetails', [PrintDetailsController::class, 'printDetails'])->name('print.details');
         // Route::get('/account-summary', [AccountSummaryController::class, 'index']);
@@ -1089,7 +1089,7 @@ Route::get('/img-preview', [ClaimController::class, 'imagePreview'])->name('img-
 
 // Additional AJAX endpoints
 Route::post('/claimlistajax', [\App\Http\Controllers\ClaimAjaxController::class, 'handleAjax'])->name('claimlistajax');
-Route::post('/claim-pending', [ClaimController::class, 'getEmployeeClaimsAjax'])->name('claims.pending.get.claims');
+// ROUTE-CLEAN-01 (method does not exist): Route::post('/claim-pending', [ClaimController::class, 'getEmployeeClaimsAjax'])->name('claims.pending.get.claims');
 
 Route::get('/employees-multiple-vehicles', [ReportController::class, 'getEmployeesWithMultipleVehiclesView'])->name('employees.multiple.vehicles');
 Route::get('/api/employees-multiple-vehicles', [ReportController::class, 'getEmployeesWithMultipleVehicles'])->name('api.employees.multiple.vehicles');

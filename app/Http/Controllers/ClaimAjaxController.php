@@ -10,7 +10,7 @@ class ClaimAjaxController extends Controller
 {
     public function handleAjax(Request $request)
     {
-        $act = $request->get('act');
+        $act = $request->input('act');
 
         switch($act) {
             case 'clGrpShowMonthDet':
@@ -36,7 +36,7 @@ class ClaimAjaxController extends Controller
 
     private function clGrpShowMonthDet(Request $request)
     {
-        $month = $request->get('month');
+        $month = $request->input('month');
         $employeeId = session('EmployeeID');
         $yearId = session('year_id');
 
@@ -88,11 +88,11 @@ class ClaimAjaxController extends Controller
 
     private function daysOfMonthDetToClaimer(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $cgid = $request->get('cgid');
-        $csts = $request->get('csts');
-        $msts = $request->get('msts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $cgid = $request->input('cgid');
+        $csts = $request->input('csts');
+        $msts = $request->input('msts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -243,10 +243,10 @@ class ClaimAjaxController extends Controller
 
     private function clShowDaydet(Request $request)
     {
-        $date = $request->get('date');
-        $emp = $request->get('emp');
-        $cgid = $request->get('cgid');
-        $csts = $request->get('csts');
+        $date = $request->input('date');
+        $emp = $request->input('emp');
+        $cgid = $request->input('cgid');
+        $csts = $request->input('csts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -382,9 +382,9 @@ class ClaimAjaxController extends Controller
 
     private function monthdettomediator(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $csts = $request->get('csts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $csts = $request->input('csts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -498,9 +498,9 @@ class ClaimAjaxController extends Controller
 
     private function monthdettoverifier(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $csts = $request->get('csts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $csts = $request->input('csts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -652,9 +652,9 @@ class ClaimAjaxController extends Controller
 
     private function monthdettoapprover(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $csts = $request->get('csts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $csts = $request->input('csts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -791,10 +791,10 @@ class ClaimAjaxController extends Controller
 
     private function monthdettofinance(Request $request)
     {
-        $month = $request->get('month');
-        $emp = $request->get('emp');
-        $sts = $request->get('sts');
-        $csts = $request->get('csts');
+        $month = $request->input('month');
+        $emp = $request->input('emp');
+        $sts = $request->input('sts');
+        $csts = $request->input('csts');
         $yearId = session('year_id');
 
         // Use expense connection
@@ -932,8 +932,8 @@ class ClaimAjaxController extends Controller
 
     private function submitrem(Request $request)
     {
-        $expid = $request->get('expid');
-        $remark = $request->get('remark');
+        $expid = $request->input('expid');
+        $remark = $request->input('remark');
         $yearId = session('year_id');
 
         // Use expense connection

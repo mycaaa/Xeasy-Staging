@@ -62,10 +62,11 @@ class FilterController extends Controller
                 ->select('d.id', 'd.department_name');
 
             if (!empty($verticalIds)) {
-                $query->join('core_fun_vertical_dept_mapping as vdm', 'd.id', '=', 'vdm.department_id')
+                // HR-TABLE-01: HRIMS names these core_vertical_department_mapping / core_vertical_function_mapping
+                $query->join('core_vertical_department_mapping as vdm', 'd.id', '=', 'vdm.department_id')
                     ->whereIn('vdm.function_vertical_id', function ($subQuery) use ($verticalIds) {
                         $subQuery->select('vfm.id')
-                            ->from('core_function_vertical_mapping   as vfm')
+                            ->from('core_vertical_function_mapping as vfm')
                             ->whereIn('vfm.vertical_id', $verticalIds);
                     });
             }

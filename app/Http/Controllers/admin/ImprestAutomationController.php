@@ -235,8 +235,8 @@ class ImprestAutomationController extends Controller
     public function index(Request $request)
     {
         $conn = $this->getImprestConnection();
-        $status = $request->get('status', 'pending');
-        $trigger = $request->get('trigger', '');
+        $status = $request->input('status', 'pending');
+        $trigger = $request->input('trigger', '');
 
         $query = DB::connection($conn)
             ->table('imprest_requests')

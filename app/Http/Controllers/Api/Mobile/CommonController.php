@@ -51,8 +51,10 @@ class CommonController extends BaseMobileController
     public function companyList(Request $request): JsonResponse
     {
         $hrimsConn = $this->getHrimsConnection();
-        $run_qry = DB::connection($hrimsConn)
-            ->select("select CompanyId as ComId,CompanyName as ComName from hrm_company_basic where Status='A' AND (CompanyId=1 OR CompanyId=3) order by CompanyId asc");
+        // HR-TABLE-01: hrm_company_basic is not in HRIMS; the company master is core_company.
+        $run_qry = \App\Support\SafeTable::exists($hrimsConn, 'hrm_company_basic')
+            ? DB::connection($hrimsConn)->select("select CompanyId as ComId,CompanyName as ComName from hrm_company_basic where Status='A' AND (CompanyId=1 OR CompanyId=3) order by CompanyId asc")
+            : DB::connection($hrimsConn)->select("select CAST(id AS CHAR) as ComId, company_name as ComName from core_company where is_active=1 AND id IN (1,3) order by id asc");
 
         if (count($run_qry) > 0) {
             $carray = $this->stringifyRows($run_qry);
