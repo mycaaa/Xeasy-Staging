@@ -112,6 +112,8 @@ class ClaimRatingService
         // PERF-04: compact = the dashboard's shape (one employee list + one small array per claim);
         // the full shape for a year is about 235 MB of JSON
         $compact = !empty($filters['compact']);
+        $empOnly = $compact && !empty($filters['emp_totals']);
+        $empTot = [];
         $ruleIdx = [];
         foreach ($rules->values() as $i => $r) {
             $ruleIdx[$r->stage_key] = $i;
@@ -276,7 +278,18 @@ class ClaimRatingService
                     $empPos[$eid] = count($emps);
                     $emps[] = [$eid, $claim->EmpCode, trim(preg_replace('/\s+/', ' ', (string) $claim->employee_name)), $claim->department_name];
                 }
-                $results[] = [$empPos[$eid], (int) $claim->Month, $claimRatings];
+                if ($empOnly) {
+                    // RATING-MEM-01: employee summary only - add up here instead of keeping every claim
+                    $p = $empPos[$eid];
+                    $empTot[$p] ??= [0, 0, 0];
+                    $empTot[$p][2]++;
+                    foreach ($claimRatings as $cr) {
+                        $empTot[$p][0] += $cr[1];
+                        $empTot[$p][1]++;
+                    }
+                } else {
+                    $results[] = [$empPos[$eid], (int) $claim->Month, $claimRatings];
+                }
             } elseif (!empty($claimRatings)) {
                 $results[] = [
                     'exp_id' => $claim->ExpId,
@@ -321,6 +334,7 @@ class ClaimRatingService
             return [
                 'compact' => 1,
                 'claims_c' => $results,
+                'emp_tot' => $empTot,
                 'emps' => $emps,
                 'role_summary' => $roleSummary,
                 'rules' => $rules->values()->toArray(),
@@ -423,30 +437,22 @@ class ClaimRatingService
      */
     public function getEmployeeRatingSummary(array $filters = []): array
     {
-        $ratingData = $this->calculateRatings(['compact' => true] + $filters);
+        $ratingData = $this->calculateRatings(['compact' => true, 'emp_totals' => true] + $filters);
         if (isset($ratingData['error'])) return $ratingData;
 
         $employeeSummary = [];
 
-        foreach ($ratingData['claims_c'] as [$pos, $month, $ratings]) {
+        // RATING-MEM-01: totals per employee come from the calculation (stars, ratings, claims)
+        foreach ($ratingData['emp_tot'] ?? [] as $pos => [$stars, $nRatings, $nClaims]) {
             [$empId, $code, $name, $dept] = $ratingData['emps'][$pos];
-            if (!isset($employeeSummary[$empId])) {
-                $employeeSummary[$empId] = [
-                    'emp_code' => $code,
-                    'employee_name' => $name,
-                    'department' => $dept,
-                    'total_stars' => 0,
-                    'total_ratings' => 0,
-                    'claims_count' => 0,
-                ];
-            }
-
-            $employeeSummary[$empId]['claims_count']++;
-            // Include all stage ratings for this employee's claims
-            foreach ($ratings as [, $stars]) {
-                $employeeSummary[$empId]['total_stars'] += $stars;
-                $employeeSummary[$empId]['total_ratings']++;
-            }
+            $employeeSummary[$empId] = [
+                'emp_code' => $code,
+                'employee_name' => $name,
+                'department' => $dept,
+                'total_stars' => $stars,
+                'total_ratings' => $nRatings,
+                'claims_count' => $nClaims,
+            ];
         }
 
         // Calculate averages
