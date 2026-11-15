@@ -461,6 +461,10 @@ class LegacyProxyController extends BaseMobileController
             }
         }
         $out = $first ?? ['Code' => '100', 'msg' => 'Data Not Available!'];
+        if (count($parts) > 1) {   // merged companies: latest month of the financial year first
+            $fy = fn ($r) => is_array($r) ? ((int) ($r['Month'] ?? $r['month'] ?? 0) + 8) % 12 : 0;
+            usort($list, fn ($a, $b) => $fy($b) <=> $fy($a));
+        }
         if ($list !== []) {
             $out['Code'] = '300';
             $out['msg'] = 'Data Available!';
@@ -570,6 +574,11 @@ class LegacyProxyController extends BaseMobileController
                 "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?", [$empId]
             );
             $memberIds = array_map(fn($m) => $m->EmployeeID, $teamMembers);
+            // TEAM-EXP-FILTER-01 (15 Nov 2026): optional one team member (same answer shape as the whole team)
+            $only = (int) $request->input('memempid', $request->input('member', 0));
+            if ($only > 0) {
+                $memberIds = in_array($only, array_map('intval', $memberIds), true) ? [$only] : [];
+            }
 
             if (empty($memberIds)) {
                 return response()->json(['success' => true, 'data' => ['ExpenseType' => ['ClaimTypes' => [], 'MonthlyGrandTotals' => $this->emptyMonths(), 'OverallGrandTotal' => '0']], 'error' => null]);

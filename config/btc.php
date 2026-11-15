@@ -19,6 +19,19 @@ return [
         'direct_bill' => 'C · Final bill after the activity',
     ],
 
+    // BTC-FORM-01: routes an employee may choose on the request form (the BTC admin may choose all)
+    'employee_routes' => ['employee_advance'],
+
+    // BTC-FORM-02: vendor types (vendor_list.vendor_type) offered for each category; [] = all vendors
+    'vendor_types_by_category' => [
+        'hotel' => ['hotel'],
+        'vehicle' => ['agency', 'agent'],
+        'air' => ['agency', 'agent'],
+        'train' => ['agency', 'agent'],
+        'meeting' => [],
+        'other' => [],
+    ],
+
     // Category rules (section 4 of the note). key => [label, gate document, original bill needed before closure]
     'categories' => [
         'hotel' => ['label' => 'Hotel / Accommodation', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],

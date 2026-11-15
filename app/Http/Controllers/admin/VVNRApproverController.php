@@ -132,7 +132,7 @@ class VVNRApproverController extends Controller
                         ->where(function ($q) {
                             $q->whereNull('Approved_Date')->orWhere('Approved_Date', '0000-00-00');
                         })
-                        ->orderBy('Month', 'desc')
+                        ->orderByRaw('MOD(Month + 8, 12) DESC')
                         ->get();
 
                     if ($localPending->isNotEmpty()) {
@@ -425,6 +425,9 @@ class VVNRApproverController extends Controller
             'empid' => $s['employeeId'],
         ]);
 
+        if ($request->filled('only_member')) {   // TEAM-EXP-FILTER-01: one member, same table shape as the whole team
+            $params['memempid'] = (int) $request->input('only_member');
+        }
         $memId   = $request->input('member');
         $claimId = $request->input('claim_id');
 

@@ -180,6 +180,16 @@ class ApproverController extends Controller
         try {
             $userId = $request->input('user_id', 'ALL');
             $yearId = (int) ($request->input('year_id', session('year_id')));
+            // TEAM-KM-CO-01 (15 Nov 2026): the company of the Approvals tab (VNR / VVNR / Nursery) - the VVNR tab showed
+            // the VNR team. That company's database, its number for the same financial year, its employees only.
+            $sessionCo = (int) session('company_id', 1);
+            $comId = (int) $request->input('comid', $sessionCo);
+            $expense = $this->expenseDb();
+            if ($comId !== $sessionCo) {
+                $expense = DB::connection(DatabaseSwitcher::getExpenseConnection($comId));
+                $label = (string) DB::connection(DatabaseSwitcher::getExpenseConnection($sessionCo))->table('financialyear')->where('YearId', $yearId)->value('Year');
+                $yearId = (int) ($label !== '' ? $expense->table('financialyear')->where('Year', $label)->value('YearId') : 0) ?: $yearId;
+            }
 
             $teamMembers = $this->getTeamMembers($userId);
 
@@ -187,13 +197,14 @@ class ApproverController extends Controller
                 ->table('hrm_employee')
                 ->whereIn('EmployeeID', $teamMembers)
                 ->where('EmpStatus', 'A')
+                ->where('CompanyId', $comId)
                 ->select('EmployeeID', DB::raw("CONCAT(EmpCode, ' - ', Fname, ' ', Sname, ' ', Lname) as FullName"))
                 ->get();
 
             $result = [];
 
             foreach ($employees as $emp) {
-                $runningKm = $this->expenseDb()
+                $runningKm = $expense
                     ->table('runningkm')
                     ->where('empid', $emp->EmployeeID)
                     ->where('yearid', $yearId)

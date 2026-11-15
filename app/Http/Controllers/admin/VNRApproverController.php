@@ -137,7 +137,7 @@ class VNRApproverController extends Controller
                             $q->whereNull('Approved_Date')->orWhere('Approved_Date', '0000-00-00');
                         })
                         ->when(\App\Support\ApproverAfterVerifier::applies((int) (session('company_id') ?: 1)), fn ($q) => $q->whereRaw(\App\Support\ApproverAfterVerifier::verifiedSql())) // APPR-VER-01
-                        ->orderBy('Month', 'desc')
+                        ->orderByRaw('MOD(Month + 8, 12) DESC')
                         ->get();
 
                     if ($localPending->isNotEmpty()) {
@@ -479,6 +479,9 @@ class VNRApproverController extends Controller
         ]);
 
         // Support filtering by member or claim type (same as Flutter)
+        if ($request->filled('only_member')) {   // TEAM-EXP-FILTER-01: one member, same table shape as the whole team
+            $params['memempid'] = (int) $request->input('only_member');
+        }
         $memId   = $request->input('member');
         $claimId = $request->input('claim_id');
 

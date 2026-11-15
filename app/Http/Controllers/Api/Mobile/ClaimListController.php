@@ -33,11 +33,11 @@ class ClaimListController extends BaseMobileController
 
         try {
             // Get open months from monthexpensefinal
-            $sql = "SELECT Month, SubPermission, YearId, EmployeeID FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Open' group by Month order by Month asc";
+            $sql = "SELECT Month, SubPermission, YearId, EmployeeID FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Open' group by Month ORDER BY MOD(Month + 8, 12) DESC";
             $openMonths = DB::connection($expenseConn)->select($sql);
 
             // Get month_list
-            $sqlMonthList = "SELECT Month FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' AND YearId={$YearId} AND Status='Open' GROUP BY Month ORDER BY Month ASC";
+            $sqlMonthList = "SELECT Month FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' AND YearId={$YearId} AND Status='Open' GROUP BY Month ORDER BY MOD(Month + 8, 12) DESC";
             $monthListRows = DB::connection($expenseConn)->select($sqlMonthList);
 
             $month_list = [];
@@ -158,7 +158,7 @@ class ClaimListController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection((int) $ComId);
 
         try {
-            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 and Fin_PayBy = 0 and (Fin_PayDate IS NULL OR Fin_PayDate = '0000-00-00') group by Month order by Month asc";
+            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 and Fin_PayBy = 0 and (Fin_PayDate IS NULL OR Fin_PayDate = '0000-00-00') group by Month ORDER BY MOD(Month + 8, 12) DESC";
             $closeRows = DB::connection($expenseConn)->select($sql);
 
             if (empty($closeRows)) {
@@ -233,7 +233,7 @@ class ClaimListController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection((int) $ComId);
 
         try {
-            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 group by Month order by Month asc";
+            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 group by Month ORDER BY MOD(Month + 8, 12) DESC";
             $closeRows = DB::connection($expenseConn)->select($sql);
 
             if (empty($closeRows)) {
@@ -291,7 +291,7 @@ class ClaimListController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection((int) $ComId);
 
         try {
-            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 and Fin_PayBy = 0 and (Fin_PayDate IS NULL OR Fin_PayDate = '0000-00-00') and Month='{$Month}' group by Month order by Month asc";
+            $sql = "SELECT * FROM y{$YearId}_monthexpensefinal WHERE EmployeeID='{$empid}' and YearId={$YearId} and Status='Closed' and Total_Claim>0 and Fin_PayBy = 0 and (Fin_PayDate IS NULL OR Fin_PayDate = '0000-00-00') and Month='{$Month}' group by Month ORDER BY MOD(Month + 8, 12) DESC";
             $closeRows = DB::connection($expenseConn)->select($sql);
 
             if (empty($closeRows)) {

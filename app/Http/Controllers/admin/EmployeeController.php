@@ -752,7 +752,7 @@ class EmployeeController extends Controller
         if (empty($openList)) {
             try {
                 $openMonths = DB::connection($expenseConn)->select(
-                    "SELECT Month, SubPermission, YearId, EmployeeID FROM y{$yearId}_monthexpensefinal WHERE EmployeeID = ? AND YearId = ? AND Status = 'Open' GROUP BY Month ORDER BY Month ASC",
+                    "SELECT Month, SubPermission, YearId, EmployeeID FROM y{$yearId}_monthexpensefinal WHERE EmployeeID = ? AND YearId = ? AND Status = 'Open' GROUP BY Month ORDER BY MOD(Month + 8, 12) DESC",
                     [$employeeId, $yearId]
                 );
 
@@ -860,7 +860,7 @@ class EmployeeController extends Controller
         if (empty($closeList)) {
             try {
                 $dbClosed = DB::connection($expenseConn)->select(
-                    "SELECT * FROM y{$yearId}_monthexpensefinal WHERE EmployeeID = ? AND YearId = ? AND Status = 'Closed' ORDER BY Month ASC",
+                    "SELECT * FROM y{$yearId}_monthexpensefinal WHERE EmployeeID = ? AND YearId = ? AND Status = 'Closed' ORDER BY MOD(Month + 8, 12) DESC",
                     [$employeeId, $yearId]
                 );
                 foreach ($dbClosed as $row) {

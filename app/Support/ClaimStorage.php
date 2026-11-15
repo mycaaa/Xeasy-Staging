@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
  *   VNR (company 1) -> xeasy/   VVNR (11) -> xeasy_vvnr/   any other company -> xeasy/
  * (settable: CLAIM_FILES_PREFIX_VNR / _VVNR / _DEFAULT). Files stored before the change stay where they are
  * (Expense/ for VNR and Nursery, VVNR_Expense/ for VVNR). A file asked for under one of these folders that is not
- * there is looked for under the others, so old files keep opening and screens that still build the old path find
+ * there is looked for under the others (S3-FOLDER-02: the company's new folder is always tried first), so old files keep opening and screens that still build the old path find
  * the new files. Paths below the folder are unchanged: {folder}/{yearId}/{employeeId}/{file}.
  */
 class ClaimStorage
@@ -90,6 +90,15 @@ class ClaimStorage
         }
         try {
             $d = Storage::disk($disk);
+            // S3-FOLDER-02 (15 Nov 2026): the company's new folder (xeasy/, xeasy_vvnr/) first - a file copied there is
+            // read from there even when the screen still builds the old Expense/ path; then the path as given,
+            // then the other folders
+            $new = self::prefix().'/';
+            foreach ($alts as $a) {
+                if (str_starts_with($a, $new) && $d->exists($a)) {
+                    return self::$resolved[$key] = $a;
+                }
+            }
             if ($d->exists($path)) {
                 return self::$resolved[$key] = $path;
             }

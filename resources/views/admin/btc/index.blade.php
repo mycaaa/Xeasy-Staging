@@ -73,20 +73,21 @@
                     <div class="col-md-3"><label class="btc-label">Service from</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
                     <div class="col-md-3"><label class="btc-label">Service to</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
                     <div class="col-md-6"><label class="btc-label">Vendor</label>
-                        <select class="form-select form-select-sm" name="vendor_id" id="btcVendor"><option value="">— new / not listed —</option>@foreach ($vendors as $vd)<option value="{{ $vd->id }}">{{ $vd->vendor_name }}{{ $vd->gst_no ? ' · '.$vd->gst_no : '' }}</option>@endforeach</select></div>
+                        <select class="form-select form-select-sm" name="vendor_id" id="btcVendor"><option value="">— new / not listed —</option></select>
+                        <div class="form-text" id="btcVendorHint"></div></div>
                     <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor name (register in Vendor list too)</label><input class="form-control form-control-sm" name="vendor_name"></div>
                     <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor GSTIN</label><input class="form-control form-control-sm" name="vendor_gstin" maxlength="20"></div>
-                    <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" class="form-control form-control-sm" name="quotation_amount"></div>
-                    <div class="col-md-4 btc-b"><label class="btc-label">Advance needed (₹)</label><input type="number" step="0.01" class="form-control form-control-sm" name="advance_amount"></div>
+                    <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="quotation_amount"></div>
+                    <div class="col-md-4 btc-b"><label class="btc-label">Advance needed (₹)</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="advance_amount"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">PNR</label><input class="form-control form-control-sm" name="pnr" maxlength="20"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Sector</label><input class="form-control form-control-sm" name="travel_sector" placeholder="RPR-DEL" aria-label="RPR-DEL"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Travel date</label><input type="date" class="form-control form-control-sm" name="travel_date"></div>
                     <div class="col-12 btc-c"><hr class="my-1"><div class="btc-label fw-semibold">Final bill</div></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill no.</label><input class="form-control form-control-sm" name="bill_no"></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill date</label><input type="date" class="form-control form-control-sm" name="bill_date" max="{{ now()->toDateString() }}"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">Taxable ₹</label><input type="number" step="0.01" class="form-control form-control-sm" name="taxable_amount"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">GST ₹</label><input type="number" step="0.01" class="form-control form-control-sm" name="gst_amount"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">Bill total ₹</label><input type="number" step="0.01" class="form-control form-control-sm" name="bill_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">Taxable ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="taxable_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">GST ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="gst_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">Bill total ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="bill_amount"></div>
                     <div class="col-12"><label class="btc-label">Attachments</label>
                         <div id="btcFiles"></div>
                         <button type="button" class="btn btn-sm btn-link px-0" id="btcAddFile"><i class="ri-attachment-2"></i> Add file</button></div>
@@ -141,6 +142,20 @@ $(function () {
             ${['quotation','approval','bill','supporting','boarding_pass'].map(k => `<option value="${k}" ${k===kind?'selected':''}>${k.replace('_',' ')}</option>`).join('')}</select>
             <input type="file" class="form-control form-control-sm" name="files[]" accept=".pdf,.jpg,.jpeg,.png"></div>`;
     }
+    // BTC-FORM-02: one entry per vendor, only vendors of the chosen category
+    const BTC_VENDORS = @json($vendors);
+    const BTC_VENDOR_TYPES = @json($vendorTypesByCategory);
+    function fillVendors() {
+        const c = $('#btcCategory').val(), keep = $('#btcVendor').val();
+        const want = BTC_VENDOR_TYPES[c] || [];
+        const list = BTC_VENDORS.filter(v => !want.length || v.types.some(t => want.includes(t)));
+        const dupName = {}; list.forEach(v => { dupName[v.name.toLowerCase()] = (dupName[v.name.toLowerCase()] || 0) + 1; });
+        const $s = $('#btcVendor').empty().append('<option value="">— new / not listed —</option>');
+        list.forEach(v => $s.append($('<option>').val(v.id).text(v.name + (dupName[v.name.toLowerCase()] > 1 && v.gst ? ' · ' + v.gst : ''))));
+        if (keep && list.some(v => String(v.id) === keep)) $s.val(keep);
+        $('#btcVendorHint').text(list.length + ' vendor(s) for this category');
+    }
+    $('#btcCategory').on('change', fillVendors); fillVendors();
     function shape() {
         const r = $('#btcRoute').val(), c = $('#btcCategory').val();
         $('.btc-b').toggle(r === 'employee_advance'); $('.btc-c').toggle(r === 'direct_bill');
@@ -152,7 +167,35 @@ $(function () {
     if ($('#btcEmployee').length) {
         $('#btcEmployee').select2({dropdownParent: $('#btcNewModal'), placeholder: 'Myself', allowClear: true, ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: d => ({results: d})}});
     }
+    // BTC-AMT-01: amounts up to 99,99,99,99,999.99 with two decimals; advance not above the quotation
+    const BTC_AMT_MAX = 9999999999.99;
+    function amtError(el) {
+        const v = String(el.value || '').trim();
+        if (v === '') return '';
+        if (!/^\d+(\.\d{1,2})?$/.test(v)) return 'Enter an amount with up to two decimals.';
+        if (parseFloat(v) > BTC_AMT_MAX) return 'Amount is too large.';
+        return '';
+    }
+    function checkAmounts($form) {
+        let ok = true;
+        $form.find('input[type=number]').filter((i, el) => /amount|paid|adjusted|tds_on/.test(el.name)).each(function () {
+            let msg = amtError(this);
+            if (!msg && this.name === 'advance_amount') {
+                const q = parseFloat($form.find('[name=quotation_amount]').val() || '0'), adv = parseFloat(this.value || '0');
+                if (q > 0 && adv > q) msg = 'Advance needed cannot be more than the quotation amount.';
+            }
+            $(this).toggleClass('is-invalid', !!msg).next('.invalid-feedback').remove();
+            if (msg) { $(this).after('<div class="invalid-feedback">' + msg + '</div>'); ok = false; }
+        });
+        return ok;
+    }
+    $(document).on('input', '#btcNewForm input[type=number], #btcActForm input[type=number]', function () {
+        $(this).attr({min: 0, max: BTC_AMT_MAX});
+        const $f = $(this).closest('form'); const ok = checkAmounts($f);
+        $f.find('[data-submit], #btcDo').prop('disabled', !ok);
+    });
     $('#btcNewForm [data-submit]').on('click', function () {
+        if (!checkAmounts($('#btcNewForm'))) return;
         const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit'));
         $.ajax({url: '{{ route('btc.store') }}', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
             .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); $('#btcNewForm')[0].reset(); shape(); load(); })
@@ -217,6 +260,7 @@ $(function () {
                 $('#btcActForm').html(actionForm(a, d) + `<div class="col-12"><input type="hidden" name="action" value="${a}"><button type="button" class="btn btn-sm btn-primary" id="btcDo">${LABEL[a]}</button></div>`).show();
                 if (a === 'send_dept_approval') $('#btcApprover').select2({dropdownParent: $('#btcCaseModal'), ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: r => ({results: r})}});
                 $('#btcDo').on('click', function () {
+                    if (!checkAmounts($('#btcActForm'))) return;   // BTC-AMT-01
                     $.ajax({url: '{{ url('btc/case') }}/' + c.id + '/act', method: 'POST', data: new FormData($('#btcActForm')[0]), processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
                         .done(r => { Swal.fire('Done', r.message, 'success'); openCase(c.id); load(); })
                         .fail(x => Swal.fire('Not done', (x.responseJSON && x.responseJSON.message) || 'Error', 'warning'));

@@ -125,7 +125,7 @@
 
 {{-- Modals --}}
 <div class="modal fade" id="dayModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-fullscreen"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><h6 class="modal-title" id="dayModalTitle">Claims</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="dayModalBody"></div></div></div></div>
-<div class="modal fade" id="teamExpModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><div><h6 class="modal-title mb-0"><i class="ri-team-line me-1"></i> Team All Expenses</h6><small class="text-muted">Claimed amounts of punched bills, all stages (not verified, approved or paid)</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="teamExpBody"></div></div></div></div>
+<div class="modal fade" id="teamExpModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><div><h6 class="modal-title mb-0"><i class="ri-team-line me-1"></i> Team All Expenses</h6><small class="text-muted">Claimed amounts of punched bills, all stages (not verified, approved or paid)</small></div><select id="teamExpMember" class="form-select form-select-sm ms-auto me-3" style="max-width:280px" aria-label="Employee"><option value="">All team members</option></select><button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="teamExpBody"></div></div></div></div>
 <div class="modal fade" id="runKmModal" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-xl"><div class="modal-content border-0 shadow"><div class="modal-header py-2 bg-light"><div><h6 class="modal-title mb-0"><i class="ri-roadster-line me-1"></i> Team Running KM</h6><small class="text-muted">Approved km: odometer bills approved by the manager (not driven or claimed km)</small></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body" id="runKmBody"></div></div></div></div>
 
 {{-- Claim Detail Modal (same as eHome/Verifier) --}}
@@ -196,6 +196,7 @@
     {{-- LIB-ONCE-01: sweetalert2 comes from the layout footer (a second copy stacked pop-ups) --}}
 <script>
 $(function(){
+    const APPR_COMID = {{ $prefix === 'vvnr' ? 11 : ($prefix === 'nursery' ? 3 : 1) }}; // TEAM-KM-CO-01: company of this Approvals tab
     const R=@json($approverRoutes);const csrf=@json(csrf_token());const status=@json($status);const comId=@json((string)$companyId);const prefix=@json($prefix);
     const M=['','January','February','March','April','May','June','July','August','September','October','November','December'];
     if(status==='pending')loadPending();
@@ -855,8 +856,12 @@ $(function(){
     function loadMembers(){if(!R.teamMembers)return;$.getJSON(R.teamMembers).done(res=>{(res.Team_list||[]).forEach(m=>{$('#filterMember').append(`<option value="${e(m.EmployeeID||'')}">${e((m.EmpCode||'')+' - '+(m.FullName||m.Ename||''))}</option>`);});});}
 
     // ═══ TEAM EXP ═══
-    function loadTeamExp(){if(!R.teamExpenses)return;$('#teamExpBody').html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
-        $.getJSON(R.teamExpenses).done(res=>{const et=res.data?.ExpenseType||res.ExpenseType||{};const claims=et.ClaimTypes||[];if(!claims.length){$('#teamExpBody').html('<div class="empty-state"><i class="ri-inbox-line"></i><p>No data</p></div>');return;}
+    // TEAM-EXP-FILTER-01: employee filter in Team All Expenses (same team list as the page filter)
+    $(document).on('change','#teamExpMember',function(){loadTeamExp();});
+    function fillTeamExpMembers(){const $t=$('#teamExpMember');if($t.children().length>1)return;$('#filterMember option').each(function(){if(this.value)$t.append($('<option>').val(this.value).text($(this).text()));});}
+    function loadTeamExp(){if(!R.teamExpenses)return;fillTeamExpMembers();$('#teamExpBody').html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
+        const only=$('#teamExpMember').val();
+        $.getJSON(R.teamExpenses, only?{only_member:only}:{}).done(res=>{const et=res.data?.ExpenseType||res.ExpenseType||{};const claims=et.ClaimTypes||[];if(!claims.length){$('#teamExpBody').html('<div class="empty-state"><i class="ri-inbox-line"></i><p>No data</p></div>');return;}
         const fm=[4,5,6,7,8,9,10,11,12,1,2,3],mh=['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];let tots={},ov=0,rows='';
         // Show Only Expense Heads Actually Claimed by the Team (Point C)
         const claimedTypes = claims.filter(c => {
@@ -876,7 +881,7 @@ $(function(){
     }
     // ═══ RUNNING KM ═══
     function loadRunKm(){$('#runKmBody').html('<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>');
-        $.getJSON(R.teamRunningKm).done(res=>{const data=res.data||[];if(!data.length){$('#runKmBody').html('<div class="empty-state"><i class="ri-roadster-line"></i><p>No running KM data</p></div>');return;}
+        $.getJSON(R.teamRunningKm, {comid: APPR_COMID}).done(res=>{const data=res.data||[];if(!data.length){$('#runKmBody').html('<div class="empty-state"><i class="ri-roadster-line"></i><p>No running KM data</p></div>');return;}
         const fm=[4,5,6,7,8,9,10,11,12,1,2,3],mh=['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];let tots={},ov=0,rows='';
         data.forEach(emp=>{const m=emp.months||{};let rt=0,cells='';fm.forEach((mon,i)=>{const v=n(m[mon]||m[String(mon)]||0);tots[i]=(tots[i]||0)+v;rt+=v;cells+=`<td class="text-end">${v>0?v.toLocaleString('en-IN'):'-'}</td>`;});ov+=rt;rows+=`<tr><td class="fw-semibold">${e(emp.employee_name||'')}</td>${cells}<td class="text-end fw-bold">${rt.toLocaleString('en-IN')} km</td></tr>`;});
         let foot='<td class="fw-bold">Total</td>';fm.forEach((_,i)=>{foot+=`<td class="text-end fw-bold">${(tots[i]||0).toLocaleString('en-IN')}</td>`;});foot+=`<td class="text-end fw-bold">${ov.toLocaleString('en-IN')} km</td>`;

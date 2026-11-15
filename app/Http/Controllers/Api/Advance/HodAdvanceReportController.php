@@ -128,7 +128,7 @@ class HodAdvanceReportController extends Controller
     private function getEmployeeDetails($employeeId)
     {
         try {
-            $employee = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_region_territory as rt', 'eg.TerrId', '=', 'rt.territory_id')->where('e.EmployeeID', $employeeId)->select(['e.EmployeeID', DB::raw("CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, '')) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.name as TerritoryName', 'rt.territory_id as TerritoryCode'])->first();
+            $employee = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_territory as rt', 'eg.TerrId', '=', 'rt.id')->where('e.EmployeeID', $employeeId)->select(['e.EmployeeID', DB::raw("CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, '')) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.territory_name as TerritoryName', 'rt.id as TerritoryCode'])->first();
             if (! $employee) {
                 return ['EmployeeID' => $employeeId, 'EmployeeName' => 'N/A', 'EmployeeCode' => $employeeId, 'EmailId_Vnr' => 'N/A', 'DepartmentName' => 'N/A', 'Designation' => 'N/A', 'BUId' => null, 'BUName' => null, 'BUCode' => null, 'ZoneId' => null, 'ZoneName' => null, 'ZoneCode' => null, 'RegionId' => null, 'RegionName' => null, 'RegionCode' => null, 'TerrId' => null, 'TerritoryName' => null, 'TerritoryCode' => null];
             }
@@ -167,12 +167,18 @@ class HodAdvanceReportController extends Controller
             $withAdvances = array_flip(array_map('intval', DB::table('advance_request_employees')
                 ->whereIn('employee_id', $teamMembers)->distinct()->pluck('employee_id')->toArray()));
             $teamMembersData = [];
+            $seenEmp = [];
             foreach (array_chunk(array_values($teamMembers), 500) as $chunk) {
-                $rows = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_region_territory as rt', 'eg.TerrId', '=', 'rt.territory_id')
+                $rows = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_territory as rt', 'eg.TerrId', '=', 'rt.id')
                     ->whereIn('e.EmployeeID', $chunk)
-                    ->select(['e.EmployeeID', DB::raw("TRIM(CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, ''))) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.name as TerritoryName', 'rt.territory_id as TerritoryCode'])
+                    ->select(['e.EmployeeID', DB::raw("TRIM(CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, ''))) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.territory_name as TerritoryName', 'rt.id as TerritoryCode'])
                     ->get();
                 foreach ($rows as $r) {
+                    // ADV-REP-DUP-01: one row per employee (the territory join used to repeat employees)
+                    if (isset($seenEmp[(int) $r->EmployeeID])) {
+                        continue;
+                    }
+                    $seenEmp[(int) $r->EmployeeID] = true;
                     $row = (array) $r;
                     $row['EmployeeCode'] = $row['EmployeeCode'] ?? $row['EmployeeID'];
                     $row['EmployeeName'] = preg_replace('/\s+/', ' ', (string) $row['EmployeeName']);
@@ -181,6 +187,11 @@ class HodAdvanceReportController extends Controller
                 }
             }
             usort($teamMembersData, fn ($a, $b) => [! $a['has_advance'], $a['EmployeeName']] <=> [! $b['has_advance'], $b['EmployeeName']]);
+            // the dropdown sends what the user typed; match name or employee code
+            $term = trim((string) $request->input('search', ''));
+            if ($term !== '') {
+                $teamMembersData = array_values(array_filter($teamMembersData, fn ($m) => stripos($m['EmployeeName'], $term) !== false || stripos((string) $m['EmployeeCode'], $term) !== false));
+            }
 
             return $this->jsonSuccess([
                 'access_level' => $accessLevel,
@@ -894,7 +905,7 @@ class HodAdvanceReportController extends Controller
                 ->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')
                 ->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')
                 ->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')
-                ->leftJoin('core_region_territory as rt', 'eg.TerrId', '=', 'rt.territory_id')
+                ->leftJoin('core_territory as rt', 'eg.TerrId', '=', 'rt.id')
                 ->where('eg.EmployeeID', $employeeId)
                 ->select([
                     'eg.EmployeeID',
@@ -910,8 +921,8 @@ class HodAdvanceReportController extends Controller
                     'r.region_name as RegionName',
                     'r.region_code as RegionCode',
                     'eg.TerrId',
-                    'rt.name as TerritoryName',
-                    'rt.territory_id as TerritoryCode',
+                    'rt.territory_name as TerritoryName',
+                    'rt.id as TerritoryCode',
                 ])
                 ->first();
 

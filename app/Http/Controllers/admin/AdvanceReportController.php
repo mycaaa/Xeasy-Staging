@@ -25,7 +25,12 @@ class AdvanceReportController extends Controller
             ->table('hrm_employee')
             ->select('hrm_employee.EmployeeID', 'hrm_employee.EmpCode', 'hrm_employee.Fname', 'hrm_employee.Sname', 'hrm_employee.Lname', 'hrm_employee.EmpStatus')
             ->join('hrm_employee_general', 'hrm_employee.EmployeeID', '=', 'hrm_employee_general.EmployeeID')
-            ->get();
+            // ADV-REP-DUP-01: only the selected company's employees (people moved from VVNR to VNR have a record in
+            // each company and appeared twice), one row each, by name
+            ->where('hrm_employee.CompanyId', (int) $companyId)
+            ->orderBy('hrm_employee.Fname')->orderBy('hrm_employee.Lname')
+            ->get()
+            ->unique('EmployeeID')->values();
 
         $activityTypes = DB::table('adv_activity_types')->where('status', 1)->orderBy('type_name')->get(['id', 'type_name']);
 

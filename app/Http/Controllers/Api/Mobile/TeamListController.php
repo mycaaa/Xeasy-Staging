@@ -49,7 +49,7 @@ class TeamListController extends BaseMobileController
             // Get pending month expense final records
             // APPR-VER-01: VNR process - the month reaches the reporting manager after verification
             $verifiedCond = \App\Support\ApproverAfterVerifier::applies($comId) ? ' AND ' . \App\Support\ApproverAfterVerifier::verifiedSql('f') : '';
-            $sql = "SELECT f.* FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL){$verifiedCond} ORDER BY Month ASC, EmployeeID";
+            $sql = "SELECT f.* FROM y{$yearId}_monthexpensefinal f WHERE f.EmployeeID IN ({$ee}) AND f.YearId = {$yearId} AND Status = 'Closed' AND Total_Claim > 0 AND (Approved_Date = '0000-00-00' OR Approved_Date IS NULL){$verifiedCond} ORDER BY MOD(Month + 8, 12) DESC, EmployeeID";
             $results = DB::connection($expenseConn)->select($sql);
 
             // APPR-WAIT-01 (14 Nov 2026): months the team has submitted that are still with the verification team,

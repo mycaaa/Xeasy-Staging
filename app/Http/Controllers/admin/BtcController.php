@@ -36,15 +36,48 @@ class BtcController extends Controller
 
         return view('admin.btc.index', [
             'tabs' => $tabs,
-            'routes' => config('btc.routes'),
+            // BTC-FORM-01 (15 Nov 2026): an employee raises only "B - employee-arranged with advance"; admin-arranged
+            // bookings (A) and final-bill-after-activity (C) are raised by the BTC admin
+            'routes' => $user->can('btc.admin') ? config('btc.routes') : array_intersect_key(config('btc.routes'), array_flip((array) config('btc.employee_routes', ['employee_advance']))),
             'categories' => collect(config('btc.categories'))->map(fn ($c) => $c['label'])->all(),
             'statuses' => config('btc.statuses'),
             'tdsSections' => config('btc.tds_sections'),
             'tdsNatures' => collect(config('btc.tds_natures'))->map(fn ($n) => ['label' => $n['label'], 'rate' => $n['rate']])->all(),
             'tdsNatureByCategory' => config('btc.tds_nature_by_category'),
-            'vendors' => DB::table('vendor_list')->where('status', '1')->orderBy('vendor_name')->limit(2000)->get(['id', 'vendor_name', 'gst_no']),
+            'vendors' => $this->formVendors(),
+            'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
             'canAdmin' => $user->can('btc.admin'),
         ]);
+    }
+
+    /**
+     * BTC-FORM-02 (15 Nov 2026): vendor list for the form - one entry per vendor name and GSTIN (the list repeated
+     * the same hotel up to 12 times), placeholder names (NA, OTHER, -) left out, each with its type so the form
+     * shows only vendors of the chosen category. A name with several GSTINs keeps one entry per GSTIN.
+     */
+    private function formVendors(): array
+    {
+        $rows = DB::table('vendor_list')->where('status', '1')->whereNotNull('vendor_name')
+            ->orderBy('vendor_name')->orderBy('id')->get(['id', 'vendor_name', 'gst_no', 'vendor_type']);
+        $junk = ['', 'na', 'n/a', 'other', 'others', '-', '--', '.', 'nil', 'none', 'test'];
+        $out = [];
+        foreach ($rows as $r) {
+            $name = trim(preg_replace('/\s+/', ' ', (string) $r->vendor_name));
+            if (in_array(strtolower($name), $junk, true)) {
+                continue;
+            }
+            $gst = strtoupper(trim((string) $r->gst_no));
+            $key = strtolower($name).'|'.$gst;
+            $type = strtolower(trim((string) $r->vendor_type));
+            if (! isset($out[$key])) {
+                $out[$key] = ['id' => (int) $r->id, 'name' => $name, 'gst' => $gst, 'types' => []];
+            }
+            if ($type !== '' && ! in_array($type, $out[$key]['types'], true)) {
+                $out[$key]['types'][] = $type;
+            }
+        }
+
+        return array_values($out);
     }
 
     public function data(Request $request)
@@ -97,21 +130,27 @@ class BtcController extends Controller
             'vendor_name' => 'nullable|string|max:200',
             'vendor_gstin' => 'nullable|string|max:20',
             'new_vendor' => 'nullable|boolean',
-            'quotation_amount' => 'nullable|numeric|min:0',
-            'advance_amount' => 'nullable|numeric|min:0',
+            'quotation_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',   // BTC-AMT-01
+            'advance_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
             'pnr' => 'nullable|string|max:20',
             'travel_sector' => 'nullable|string|max:120',
             'travel_date' => 'nullable|date',
             'bill_no' => 'nullable|string|max:60',
             'bill_date' => 'nullable|date|before_or_equal:today',
-            'taxable_amount' => 'nullable|numeric|min:0',
-            'gst_amount' => 'nullable|numeric|min:0',
-            'bill_amount' => 'nullable|numeric|min:0',
+            'taxable_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
+            'gst_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
+            'bill_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
             'files.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png',
             'file_kinds.*' => 'nullable|in:quotation,approval,bill,supporting,boarding_pass',
             'submit' => 'nullable|boolean',
         ]);
+        if (! empty($v['quotation_amount']) && (float) ($v['advance_amount'] ?? 0) > (float) $v['quotation_amount']) {
+            return response()->json(['success' => false, 'message' => 'Advance needed cannot be more than the quotation amount.'], 422);   // BTC-AMT-01
+        }
         $user = auth()->user();
+        if (! $user->can('btc.admin') && ! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {
+            return response()->json(['success' => false, 'message' => 'Choose "Employee-arranged with advance". Admin-arranged bookings and bills after the activity are raised by the BTC admin.'], 422);   // BTC-FORM-01
+        }
         // Admin may raise for any employee; others for themselves
         $empId = ($user->can('btc.admin') && ! empty($v['employee_id'])) ? (int) $v['employee_id'] : (int) $user->employee_id;
         $emp = DB::connection('hrims')->table('hrm_employee as e')->join('hrm_employee_general as g', 'g.EmployeeID', '=', 'e.EmployeeID')
@@ -186,6 +225,10 @@ class BtcController extends Controller
         $c = BtcCase::findOrFail($id);
         $user = auth()->user();
         $this->authorizeView($c, $user);
+        // BTC-AMT-01 (15 Nov 2026): amounts must fit the amount columns (up to 99,99,99,99,999.99) with at most two
+        // decimals - an over-long number gave "Server Error"
+        $request->validate(array_fill_keys(['quotation_amount', 'advance_amount', 'taxable_amount', 'gst_amount', 'bill_amount', 'paid_amount', 'advance_adjusted', 'tds_on_advance'],
+            'nullable|numeric|min:0|max:9999999999.99|decimal:0,2'), ['*.max' => 'The amount is too large.', '*.decimal' => 'Use at most two decimals.']);
         $this->saveFiles($request, $c);
         try {
             $c = app(BtcWorkflow::class)->act($c, (string) $request->input('action'), $request->except(['_token', 'files', 'file_kinds']), $user);
