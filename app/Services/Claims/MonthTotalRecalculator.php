@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Schema;
  *
  *   Claim_Amount    = SUM(FilledTAmt)     Verified_Amount = SUM(VerifyTAmt)
  *   Approved_Amount = SUM(ApprTAmt)       Finance_Amount  = SUM(FinancedTAmt)
- * over the employee-month's live claims (not Deactivate / Draft).
+ * over the employee-month's live claims (not Deactivate / Draft) that are part of the claim: confirmed by the
+ * employee (FilledOkay = 1) and not an odometer bill waiting for or refused by the GM - the same bills month
+ * submit counts (E2E-DATA-01, 16 Nov 2026: unconfirmed or denied bills were added to the totals before).
  *
  * Rules
  *  - only closed (submitted) months; a field is recomputed only if it is already set (> 0),
@@ -49,7 +51,8 @@ class MonthTotalRecalculator
             LEFT JOIN {$hr}.hrm_employee h ON h.EmployeeID = m.EmployeeID
             LEFT JOIN (SELECT CrBy, ClaimMonth, SUM(FilledTAmt) f, SUM(VerifyTAmt) v, SUM(ApprTAmt) a, SUM(FinancedTAmt) fi, COUNT(*) n,
                               SUM(CrDate > (SELECT DateOfSubmit FROM {$m} mm WHERE mm.EmployeeID = x.CrBy AND mm.Month = x.ClaimMonth AND mm.YearId = ? LIMIT 1)) added_late
-                         FROM {$c} x WHERE ClaimStatus NOT IN ('Deactivate','Deactivat','Draft') GROUP BY CrBy, ClaimMonth) s
+                         FROM {$c} x WHERE ClaimStatus NOT IN ('Deactivate','Deactivat','Draft') AND IFNULL(FilledOkay,0) = 1
+                           AND (ClaimId <> 7 OR IFNULL(App_Odometer,'') NOT IN ('N','R')) GROUP BY CrBy, ClaimMonth) s
                    ON s.CrBy = m.EmployeeID AND s.ClaimMonth = m.Month
             LEFT JOIN (SELECT CrBy, ClaimMonth, COUNT(*) n FROM {$c} WHERE ClaimStatus IN ('Deactivate','Deactivat') GROUP BY CrBy, ClaimMonth) d
                    ON d.CrBy = m.EmployeeID AND d.ClaimMonth = m.Month
