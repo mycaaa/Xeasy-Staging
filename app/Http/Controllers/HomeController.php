@@ -358,7 +358,10 @@ class HomeController extends Controller
     {
         $startDate = Carbon::parse($request->input('bill_date_from'))->toDateString();
         $endDate = Carbon::parse($request->input('bill_date_to'))->toDateString();
-        $yearId = (int) session('year_id', Carbon::parse($endDate)->year);
+        // YEAR-0-01: without a session year this used the calendar year (2026 -> y2026_ tables, which do not exist);
+        // use the financial year that contains the end date
+        $yearId = (int) session('year_id') ?: (int) (DB::table('financialyear')->where('FromDate', '<=', $endDate)->where('Todate', '>=', $endDate)->value('YearId')
+            ?: DB::table('financialyear')->max('YearId'));
         $previousYearId = $yearId - 1;
         $table = ExpenseClaim::tableName($yearId);
         $previousYearTable = ExpenseClaim::tableName($previousYearId);

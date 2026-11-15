@@ -503,7 +503,7 @@ class EmployeeController extends Controller
                 (int) $employeeId,
                 (int) $month,
                 $reason,
-                ClaimActionLog::ROLE_ADMIN
+                \App\Models\ClaimActionLog::ROLE_ADMIN
             );
         }
 
@@ -648,7 +648,7 @@ class EmployeeController extends Controller
         // EHOME-FY-01 (14 Nov 2026): each company numbers its financial years differently (VVNR 2026-2027 is not
         // VNR's YearId of the same number). When the employee belongs to another company than the one signed in to,
         // carry the year over by its name (2026-2027), not by its number - the number pointed at 2024-2025.
-        $askedYearId = $request->filled('year_id') ? (int) $request->input('year_id') : (int) session('year_id');
+        $askedYearId = (int) $request->input('year_id') > 0 ? (int) $request->input('year_id') : (int) session('year_id');
         if ($askedYearId > 0 && $askedCompany !== $companyId) {
             $askedConn = match ($askedCompany) { 11 => 'expense_vvnr', 3 => 'expense_nursery', default => 'expense' };
             $targetConn = match ($companyId) { 11 => 'expense_vvnr', 3 => 'expense_nursery', default => 'expense' };
@@ -684,7 +684,7 @@ class EmployeeController extends Controller
         $yearValue = $currentFy->Year ?? '2026-2027';
 
         // Use requested year_id if provided, otherwise strictly default to current FY
-        $yearId = $request->filled('year_id') ? (int) $request->input('year_id')
+        $yearId = (int) $request->input('year_id') > 0 ? (int) $request->input('year_id')
             : ((session('year_id') && ! $request->attributes->get('ehome_ignore_session_year')) ? (int) session('year_id') : $currentYearId);
         // Fallback yearValue from yearId
         if (!$currentFy || (int) $currentFy->YearId !== (int) $yearId) {
@@ -1037,7 +1037,7 @@ class EmployeeController extends Controller
             ->value('YearId');
         $currentYearId = $currentFy ? (int) $currentFy : ($companyId === 11 ? 6 : 8);
 
-        $yearId = $request->filled('year_id') ? (int) $request->input('year_id') : (session('year_id') ? (int) session('year_id') : $currentYearId);
+        $yearId = (int) $request->input('year_id') > 0 ? (int) $request->input('year_id') : (session('year_id') ? (int) session('year_id') : $currentYearId);
         $tokenId = env('API_TOKEN_ID');
         $baseUrl = \App\Support\LegacyApi::baseUrl();
 

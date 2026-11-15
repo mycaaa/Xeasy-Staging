@@ -1097,16 +1097,17 @@ class ClaimActionsController extends BaseMobileController
         $empId = (int) $request->input('empid');
         $yearId = $this->getYearId($request);
         $comId = $this->getComId($request);
-        $dateFor = $request->input('datefor', '');
-        $vehicleType = $request->input('vehicleType', '');
-        $odomtrOpening = $request->input('odomtr_opening', '');
-        $odomtrClosing = $request->input('odomtr_closing', '');
-        $totKm = $request->input('TotKm', '');
-        $offlineClosingFilepath = $request->input('offline_clossing_filepath', '');
-        $offlineOpeningFilepath = $request->input('offline_opening_filepath', '');
-        $offlineExpId = $request->input('offline_exp_id', '');
+        // NULL-FIELD-01: empty fields arrive as null; the claim columns are NOT NULL
+        $dateFor = ($request->input('datefor') ?? '');
+        $vehicleType = ($request->input('vehicleType') ?? '');
+        $odomtrOpening = ($request->input('odomtr_opening') ?? '');
+        $odomtrClosing = ($request->input('odomtr_closing') ?? '');
+        $totKm = ($request->input('TotKm') ?? '');
+        $offlineClosingFilepath = ($request->input('offline_clossing_filepath') ?? '');
+        $offlineOpeningFilepath = ($request->input('offline_opening_filepath') ?? '');
+        $offlineExpId = ($request->input('offline_exp_id') ?? '');
         $tempPunchId = (int) ($request->input('temp_punch_id') ?: 0); // OCR-OPTIONAL-01
-        $remark = $request->input('remark', '');
+        $remark = ($request->input('remark') ?? '');
 
         if ($empId <= 0 || $yearId <= 0 || $comId <= 0 || empty($dateFor)) {
             return $this->error('Parameter Missing!');

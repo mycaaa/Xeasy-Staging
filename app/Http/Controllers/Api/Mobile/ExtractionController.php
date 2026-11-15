@@ -605,8 +605,9 @@ class ExtractionController extends BaseMobileController
         $amount = (float) $request->input('amount', 0);
         $activityType = $request->input('activity_type', 0);
         $trailNo = $request->input('traill_no', 0);
-        $cropList = $request->input('crop_list', '0');
-        $varietyList = $request->input('variety_list', '0');
+        // NULL-FIELD-01: an empty field arrives as null (ConvertEmptyStringsToNull); these columns are NOT NULL
+        $cropList = $request->input('crop_list') ?? '0';
+        $varietyList = $request->input('variety_list') ?? '0';
 
         if (empty($activityType) || $activityType == 0) {
             return response()->json(['Code' => '100', 'msg' => 'Activity type is required!']);
