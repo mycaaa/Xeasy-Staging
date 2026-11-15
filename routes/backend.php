@@ -154,7 +154,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:permission_management')->group(function () {
         Route::resource('permission-groups', PermissionGroupController::class);
         Route::resource('permissions', PermissionController::class);
-        Route::get('permissions-old', [PermissionController::class, 'permissionOld']);
+        Route::get('permissions-old', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/permissions');   // PAGE-CLEAN-02: old copy of Permissions retired
         Route::post('permissions/assign', [PermissionController::class, 'assignPermissions']);
         Route::get('permissions-list', [PermissionController::class, 'getAllPermissions']);
     });
@@ -298,7 +298,7 @@ Route::middleware('auth')->group(function () {
             ->name('high.amount.claim.report');
         Route::get('claim-report', [ReportController::class, 'claimReport']);
         Route::get('expense-type-report', [\App\Http\Controllers\admin\ExpenseTypeReportController::class, 'index'])->name('expense-type-report');
-        Route::get('expense_type_report', [\App\Http\Controllers\admin\ExpenseTypeReportController::class, 'index']);
+        Route::get('expense_type_report', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/expense-type-report');   // PAGE-CLEAN-02
         Route::post('expense-type-report/data', [\App\Http\Controllers\admin\ExpenseTypeReportController::class, 'getData'])->name('expense-type-report.data');
         Route::get('expense-type-report/contribution', [\App\Http\Controllers\admin\ExpenseTypeReportController::class, 'getContributionReport'])->name('expense-type-report.contribution');
         Route::get('expense-type-report/functions', [\App\Http\Controllers\admin\ExpenseTypeReportController::class, 'getFunctions'])->name('expense-type-report.functions');
@@ -313,13 +313,13 @@ Route::middleware('auth')->group(function () {
 
         // Expense Tree Report Routes (Hierarchical Drilldown)
         Route::get('expense-tree-report', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'index'])->name('expense-tree-report');
-        Route::get('admin/reports/expense-tree-report', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'index']);
+        Route::get('admin/reports/expense-tree-report', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/expense-tree-report');   // PAGE-CLEAN-02
         Route::match(['get', 'post'], 'expense-tree-report/tree-data', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'getTreeData'])->name('expense-tree-report.tree-data');
         Route::get('expense-tree-report/export', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'export'])->name('expense-tree-report.export');
 
         // Company Multi-Year Expense Report Routes
         Route::get('company-multi-year-expense-report', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'index'])->name('company-multi-year-expense-report');
-        Route::get('admin/reports/company-multi-year-expense-report', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'index']);
+        Route::get('admin/reports/company-multi-year-expense-report', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/company-multi-year-expense-report');   // PAGE-CLEAN-02
         Route::get('company-multi-year-expense-report/data', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'getData'])->name('company-multi-year-expense-report.data');
         Route::get('company-multi-year-expense-report/export', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'export'])->name('company-multi-year-expense-report.export');
 
@@ -382,7 +382,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/clear-cache', [\App\Http\Controllers\admin\ClaimStageReportController::class, 'clearCache'])->name('clear.cache');
 
             // Full Year Report (no stage separation)
-            Route::get('/fy-report', [\App\Http\Controllers\admin\ClaimStageReportController::class, 'fullYearReport'])->name('fy.report');
+            Route::get('/fy-report', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/claim-stage-fy')->name('fy.report');   // PAGE-CLEAN-02: same page as the menu's Claim Stage FY
             Route::get('/fy-report/data', [\App\Http\Controllers\admin\ClaimStageReportController::class, 'getFullYearData'])->name('fy.report.data');
             Route::post('/fy-report/export', [\App\Http\Controllers\admin\ClaimStageReportController::class, 'exportFullYearData'])->name('fy.report.export');
         });
@@ -499,7 +499,7 @@ Route::middleware('auth')->group(function () {
 
         // Odometer Continuity Report (Claim ID 7)
         Route::get('odometer-continuity-report', [OdometerContinuityReportController::class, 'index'])->name('reports.odometer-continuity');
-        Route::get('reports/odometer-continuity', [OdometerContinuityReportController::class, 'index']);
+        Route::get('reports/odometer-continuity', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/odometer-continuity-report');   // PAGE-CLEAN-02
         Route::post('odometer-continuity-report/data', [OdometerContinuityReportController::class, 'getData'])->name('reports.odometer-continuity.data');
         Route::get('odometer-continuity-report/export', [OdometerContinuityReportController::class, 'export'])->name('reports.odometer-continuity.export');
         Route::post('filter-claims', [ReportController::class, 'filterClaims']);
@@ -617,7 +617,7 @@ Route::middleware('auth')->group(function () {
 
     // Verifier routes
     Route::prefix('verifier')->group(function () {
-        Route::get('/claimant', [VerifierClaimantController::class, 'index'])->name('verifier.claimant');
+        Route::get('/claimant', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/claimant-embed')->name('verifier.claimant');   // PAGE-CLEAN-02: same view; claimant-embed has the record-access check
 
         // API endpoints
         Route::get('/draft-list', [VerifierClaimantController::class, 'draftList'])->name('verifier.draft.list');
@@ -942,8 +942,8 @@ Route::middleware('auth')->group(function () {
         // ROUTE-CLEAN-01 (method does not exist): Route::delete('/{id}', [AdvanceRequestViewController::class, 'destroy'])->name('advance.requests.destroy');
         Route::get('/advanceApprovals', [AdvanceRequestViewController::class, 'advanceapproval'])->name('advanceApprovals.requests.destroy');
         Route::get('/report', [AdvanceRequestViewController::class, 'report'])->name('advance.requests.report');
-        Route::get('/hod-report', [AdvanceRequestViewController::class, 'report'])->name('advance.requests.hod-report');
-        Route::get('/advanceReport', [AdvanceRequestViewController::class, 'report'])->name('advance.requests.advance-report');
+        Route::get('/hod-report', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/advance-requests/report')->name('advance.requests.hod-report');   // PAGE-CLEAN-02
+        Route::get('/advanceReport', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/advance-requests/report')->name('advance.requests.advance-report');
     });
 
     Route::post('/expense-payments/mark-exported', [ExpensePaymentController::class, 'markAsExported'])->name('expense-payments.mark-exported');

@@ -59,26 +59,11 @@ class ApproverController extends Controller
     }
 
 
-    /**
-     * Display the approver claim management page (original page, restored)
-     */
-    public function index(Request $request)
-    {
-        $status = $request->input('status', 'pending');
-        return view('employee.approver', compact('status'));
-    }
+    // PAGE-CLEAN-02: index() removed - /approver now redirects to the company Approvals screen
 
-    /**
-     * Display the approver analytics dashboard
-     */
-    public function dashboard(Request $request)
-    {
-        $selectedMonth = $request->input('month');
-        $selectedMonth = ($selectedMonth && is_numeric($selectedMonth)) ? (int) $selectedMonth : null;
-        $dashboardService = new \App\Services\ApproverDashboardService();
-        $dashboardData = $dashboardService->getDashboardData($selectedMonth);
-        return view('employee.approver-dashboard', compact('dashboardData', 'selectedMonth'));
-    }
+
+    // PAGE-CLEAN-02: dashboard() removed - /approver/dashboard now redirects to the company Approvals screen
+
 
     /**
      * Get list of pending claims for approval

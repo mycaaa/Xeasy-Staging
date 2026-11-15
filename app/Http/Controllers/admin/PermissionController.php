@@ -31,22 +31,8 @@ class PermissionController extends Controller
         return view('admin.permissions', compact('permissions', 'roles', 'group'));
     }
 
-    public function permissionOld(Request $request)
-    {
-        $query = Permission::join('permission_groups', 'permissions.permission_group_id', '=', 'permission_groups.id')->select('permissions.*', 'permission_groups.name as group_name');
+    // PAGE-CLEAN-02: permissionOld() removed - /permissions-old now redirects to /permissions
 
-        if ($request->filled('group_id')) {
-            $query->where('permissions.permission_group_id', $request->group_id);
-        }
-
-        $permissions = $query->get();
-        $roles = Roles::where('status', 1)
-            ->where('id', '!=', 1)
-            ->get();
-        $group = PermissionGroup::all();
-
-        return view('admin.permissions_old', compact('permissions', 'roles', 'group'));
-    }
 
     public function create() {}
 

@@ -86,10 +86,11 @@ Route::get('approver/team-runningkm', [ApproverController::class, 'teamRunningKm
 // Approver Routes
 Route::prefix('approver')->group(function () {
     // Main view route — original claim management page
-    Route::get('/', [ApproverController::class, 'index'])->name('approver.index');
+    // PAGE-CLEAN-02: the old approver screen is replaced by the company Approvals screens
+    Route::get('/', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', 'company-approvals')->name('approver.index');
 
     // Analytics dashboard route
-    Route::get('dashboard', [ApproverController::class, 'dashboard'])->name('approver.dashboard');
+    Route::get('dashboard', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', 'company-approvals')->name('approver.dashboard');
 
     // API/Data routes
     Route::get('pending-list', [ApproverController::class, 'pendingList'])->name('approver.pending.list');
@@ -133,7 +134,7 @@ Route::middleware('auth')->group(function () {
     // LV-U04: auto-verify settings are registered once, in routes/backend.php (admin group)
 
     // Activity Log Viewer
-    Route::get('admin/activity-log', [\App\Http\Controllers\admin\ActivityLogController::class, 'index'])->name('admin.activity-log.index');
+    Route::get('admin/activity-log', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/activity-logs')->name('admin.activity-log.index');   // PAGE-CLEAN-02
     Route::get('admin/activity-log/data', [\App\Http\Controllers\admin\ActivityLogController::class, 'getData'])->name('admin.activity-log.data');
     Route::get('admin/activity-log/filters', [\App\Http\Controllers\admin\ActivityLogController::class, 'getFilters'])->name('admin.activity-log.filters');
 
@@ -168,17 +169,8 @@ Route::middleware('auth')->group(function () {
         });
     });
 
-    // Expense Tree Report Routes
-    Route::get('expense-tree-report', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'index'])->name('expense-tree-report');
-    Route::get('admin/reports/expense-tree-report', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'index']);
-    Route::match(['get', 'post'], 'expense-tree-report/tree-data', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'getTreeData'])->name('expense-tree-report.tree-data');
-    Route::get('expense-tree-report/export', [\App\Http\Controllers\admin\ExpenseTreeReportController::class, 'export'])->name('expense-tree-report.export');
-
-    // Company Multi-Year Expense Report Routes
-    Route::get('company-multi-year-expense-report', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'index'])->name('company-multi-year-expense-report');
-    Route::get('admin/reports/company-multi-year-expense-report', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'index']);
-    Route::get('company-multi-year-expense-report/data', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'getData'])->name('company-multi-year-expense-report.data');
-    Route::get('company-multi-year-expense-report/export', [\App\Http\Controllers\admin\CompanyMultiYearExpenseReportController::class, 'export'])->name('company-multi-year-expense-report.export');
+    // PAGE-CLEAN-02: Expense Tree and Company Multi-Year report routes were defined here and again in
+    // routes/backend.php; only the backend.php definitions (with the reports permission) were in effect.
 });
 
 
