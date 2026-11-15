@@ -130,20 +130,20 @@ class BtcController extends Controller
             'vendor_name' => 'nullable|string|max:200',
             'vendor_gstin' => 'nullable|string|max:20',
             'new_vendor' => 'nullable|boolean',
-            'quotation_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',   // BTC-AMT-01
-            'advance_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
+            'quotation_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',   // BTC-AMT-01
+            'advance_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
             'pnr' => 'nullable|string|max:20',
             'travel_sector' => 'nullable|string|max:120',
             'travel_date' => 'nullable|date',
             'bill_no' => 'nullable|string|max:60',
             'bill_date' => 'nullable|date|before_or_equal:today',
-            'taxable_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
-            'gst_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
-            'bill_amount' => 'nullable|numeric|min:0|max:9999999999.99|decimal:0,2',
+            'taxable_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
+            'gst_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
+            'bill_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
             'files.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png',
             'file_kinds.*' => 'nullable|in:quotation,approval,bill,supporting,boarding_pass',
             'submit' => 'nullable|boolean',
-        ]);
+        ], ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         if (! empty($v['quotation_amount']) && (float) ($v['advance_amount'] ?? 0) > (float) $v['quotation_amount']) {
             return response()->json(['success' => false, 'message' => 'Advance needed cannot be more than the quotation amount.'], 422);   // BTC-AMT-01
         }
@@ -225,10 +225,10 @@ class BtcController extends Controller
         $c = BtcCase::findOrFail($id);
         $user = auth()->user();
         $this->authorizeView($c, $user);
-        // BTC-AMT-01 (15 Nov 2026): amounts must fit the amount columns (up to 99,99,99,99,999.99) with at most two
+        // BTC-AMT-01 (15 Nov 2026): amounts must fit the amount columns (up to 99,99,999.99) with at most two
         // decimals - an over-long number gave "Server Error"
         $request->validate(array_fill_keys(['quotation_amount', 'advance_amount', 'taxable_amount', 'gst_amount', 'bill_amount', 'paid_amount', 'advance_adjusted', 'tds_on_advance'],
-            'nullable|numeric|min:0|max:9999999999.99|decimal:0,2'), ['*.max' => 'The amount is too large.', '*.decimal' => 'Use at most two decimals.']);
+            'nullable|numeric|min:0|max:9999999.99|decimal:0,2'), ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         $this->saveFiles($request, $c);
         try {
             $c = app(BtcWorkflow::class)->act($c, (string) $request->input('action'), $request->except(['_token', 'files', 'file_kinds']), $user);

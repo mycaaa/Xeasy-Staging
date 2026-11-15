@@ -77,17 +77,17 @@
                         <div class="form-text" id="btcVendorHint"></div></div>
                     <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor name (register in Vendor list too)</label><input class="form-control form-control-sm" name="vendor_name"></div>
                     <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor GSTIN</label><input class="form-control form-control-sm" name="vendor_gstin" maxlength="20"></div>
-                    <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="quotation_amount"></div>
-                    <div class="col-md-4 btc-b"><label class="btc-label">Advance needed (₹)</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="advance_amount"></div>
+                    <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="quotation_amount"></div>
+                    <div class="col-md-4 btc-b"><label class="btc-label">Advance needed (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="advance_amount"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">PNR</label><input class="form-control form-control-sm" name="pnr" maxlength="20"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Sector</label><input class="form-control form-control-sm" name="travel_sector" placeholder="RPR-DEL" aria-label="RPR-DEL"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Travel date</label><input type="date" class="form-control form-control-sm" name="travel_date"></div>
                     <div class="col-12 btc-c"><hr class="my-1"><div class="btc-label fw-semibold">Final bill</div></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill no.</label><input class="form-control form-control-sm" name="bill_no"></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill date</label><input type="date" class="form-control form-control-sm" name="bill_date" max="{{ now()->toDateString() }}"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">Taxable ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="taxable_amount"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">GST ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="gst_amount"></div>
-                    <div class="col-md-2 btc-c"><label class="btc-label">Bill total ₹</label><input type="number" step="0.01" min="0" max="9999999999.99" class="form-control form-control-sm" name="bill_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">Taxable ₹</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="taxable_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">GST ₹</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="gst_amount"></div>
+                    <div class="col-md-2 btc-c"><label class="btc-label">Bill total ₹</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="bill_amount"></div>
                     <div class="col-12"><label class="btc-label">Attachments</label>
                         <div id="btcFiles"></div>
                         <button type="button" class="btn btn-sm btn-link px-0" id="btcAddFile"><i class="ri-attachment-2"></i> Add file</button></div>
@@ -167,13 +167,13 @@ $(function () {
     if ($('#btcEmployee').length) {
         $('#btcEmployee').select2({dropdownParent: $('#btcNewModal'), placeholder: 'Myself', allowClear: true, ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: d => ({results: d})}});
     }
-    // BTC-AMT-01: amounts up to 99,99,99,99,999.99 with two decimals; advance not above the quotation
-    const BTC_AMT_MAX = 9999999999.99;
+    // BTC-AMT-01: amounts up to 99,99,999.99 with two decimals; advance not above the quotation
+    const BTC_AMT_MAX = 9999999.99;
     function amtError(el) {
         const v = String(el.value || '').trim();
         if (v === '') return '';
         if (!/^\d+(\.\d{1,2})?$/.test(v)) return 'Enter an amount with up to two decimals.';
-        if (parseFloat(v) > BTC_AMT_MAX) return 'Amount is too large.';
+        if (parseFloat(v) > BTC_AMT_MAX) return 'Amount cannot be more than ₹99,99,999.99.';
         return '';
     }
     function checkAmounts($form) {
