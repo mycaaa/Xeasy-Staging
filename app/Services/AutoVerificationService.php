@@ -63,6 +63,11 @@ class AutoVerificationService
             return $this->result('flagged', $claimedAmount, 'Claim not yet submitted by claimant', 'red', $expId);
         }
 
+        // E2E-AV-01: the employee confirms a punched bill before it is verified (denied bills wait for re-punching)
+        if ((int) ($claim->FilledOkay ?? 0) !== 1) {
+            return $this->result('skipped', $claimedAmount, (int) ($claim->FilledOkay ?? 0) === 2 ? 'Denied by the employee; waiting for re-punching' : 'Waiting for the employee to confirm (OK & Verify)', 'none', $expId);
+        }
+
         // 2. Fast Indexed Duplicate Detection
         $duplicate = DB::connection($expenseConnection)->table($claimTable)
             ->where('ExpId', '!=', $expId)
@@ -862,6 +867,9 @@ class AutoVerificationService
 
         $query = DB::connection($conn)->table($claimTable)
             ->whereIn('ClaimStatus', ['Submitted', 'Filled'])
+            // E2E-AV-01 (15 Nov 2026): only bills the employee has confirmed (OK & Verify, or entered himself); a punched
+            // bill waiting for the employee is not verified ahead of him
+            ->where('FilledOkay', 1)
             ->whereNotIn('ClaimStatus', ['Deactivate', 'Draft'])
             ->where(function ($q) {
                 $q->whereNull('v_verify')->orWhere('v_verify', '!=', 'Y');

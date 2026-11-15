@@ -2555,6 +2555,21 @@ class ClaimViewController extends Controller
                             $bookingDate = $existingClaim->BillDate;
                         }
 
+                        // BILL-DATE-01 (15 Nov 2026, E2E): the bill date decides the claim month, so it must be a real date inside
+                        // this financial year and not in the future. Empty dates were saved as 1970-01-01 and dates from earlier
+                        // years (2019, 2024, March 2026) landed in Jan-Mar 2027 of this year.
+                        $fy = \App\Models\FinancialYear::where('YearId', (int) $yearId)->first();
+                        $bd = $bookingDate ? strtotime((string) $bookingDate) : false;
+                        if (! $bd || date('Y', $bd) < 2000) {
+                            throw new \App\Services\ClaimFiles\ClaimFileException('Please enter the bill date.');
+                        }
+                        if ($bd > strtotime('today 23:59:59')) {
+                            throw new \App\Services\ClaimFiles\ClaimFileException('The bill date ('.date('d/m/Y', $bd).') is in the future.');
+                        }
+                        if ($fy && ($bd < strtotime((string) $fy->FromDate) || $bd > strtotime((string) $fy->Todate.' 23:59:59'))) {
+                            throw new \App\Services\ClaimFiles\ClaimFileException('The bill date ('.date('d/m/Y', $bd).') is outside the financial year '.$fy->Year.' ('.date('d/m/Y', strtotime((string) $fy->FromDate)).' to '.date('d/m/Y', strtotime((string) $fy->Todate)).'). Please check the date.');
+                        }
+
                         $globalClaimData = [
                             'BillDate' => $bookingDate,
                             'ClaimId' => $claimId,

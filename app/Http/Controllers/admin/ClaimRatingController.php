@@ -196,7 +196,9 @@ class ClaimRatingController extends Controller
             'months' => $request->input('months', [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]),
             'function_id' => $request->input('function_id'),
             'department_id' => $request->input('department_id'),
-            'compact' => $request->boolean('compact'),
+            // E2E-MEM-01 (15 Nov 2026): compact unless the full shape is asked for (compact=0); the full shape for a year is
+            // about 235 MB and ran the server out of memory when the parameter was left out
+            'compact' => ! $request->has('compact') || $request->boolean('compact'),
         ];
 
         // PERF-04: about 30 s to work out a full year; keep the answer for 10 minutes (file cache, it is a few MB)

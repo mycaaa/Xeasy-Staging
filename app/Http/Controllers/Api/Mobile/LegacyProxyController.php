@@ -897,6 +897,15 @@ class LegacyProxyController extends BaseMobileController
                 AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
                 [$empId, $closingMonth, $yearId]
             );
+            // E2E-AV-01 (15 Nov 2026): a bill the auto-verifier already marked Verified while the month was open is part of
+            // the month too; it is confirmed here (its verified amount is kept), or it would drop out of the totals below.
+            DB::connection($conn)->statement(
+                "UPDATE y{$yearId}_expenseclaims SET FilledOkay=1, c_verify='Y'
+                WHERE CrBy=? AND ClaimMonth=? AND ClaimYearId=? AND ClaimStatus='Verified' AND IFNULL(FilledOkay,0)=0
+                AND ((ClaimId = 7 AND IFNULL(App_Odometer,'') NOT IN ('N','R')) OR (ClaimId != 7))
+                AND (Backdate_Odometer_Status IS NULL OR Backdate_Odometer_Status = 'A')",
+                [$empId, $closingMonth, $yearId]
+            );
 
             // 2. Calculate totals
             $totals = DB::connection($conn)->select(

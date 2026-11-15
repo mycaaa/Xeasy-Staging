@@ -349,7 +349,8 @@ class ApproverDashboardService
                 'mef.DateOfSubmit',
                 'mef.Verified_Date',
                 DB::raw("CASE WHEN mef.Verified_Date IS NOT NULL AND mef.Verified_Date != '0000-00-00' THEN 'Verified' ELSE 'Verification Pending' END as verification_status"),
-                DB::raw("CASE WHEN mef.Verified_Date IS NOT NULL AND mef.Verified_Date != '0000-00-00' THEN mef.Verified_Amount ELSE mef.Filled_Amount END as amount"),
+                // E2E-COL-01 (15 Nov 2026): the month table has no Filled_Amount; the claimed total is Claim_Amount
+                DB::raw("CASE WHEN mef.Verified_Date IS NOT NULL AND mef.Verified_Date != '0000-00-00' THEN mef.Verified_Amount ELSE mef.Claim_Amount END as amount"),
             ])
             ->orderByRaw("CASE WHEN mef.Verified_Date IS NOT NULL AND mef.Verified_Date != '0000-00-00' THEN 0 ELSE 1 END")
             ->orderByDesc('mef.DateOfSubmit')

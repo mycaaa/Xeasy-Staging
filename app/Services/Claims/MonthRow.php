@@ -31,8 +31,18 @@ class MonthRow
             }
             $have = $db->table("y{$yearId}_monthexpensefinal")->where('EmployeeID', $empId)->where('YearId', $yearId)
                 ->whereIn('Month', $months)->pluck('Month')->map(fn ($m) => (int) $m)->all();
+            // BILL-DATE-01: never a month that has not started yet (bills with a wrong date can point at Jan-Mar of next year)
+            $fy = \App\Models\FinancialYear::where('YearId', $yearId)->first();
+            $started = function (int $m) use ($fy) {
+                if (! $fy) { return true; }
+                $y = $m >= 4 ? (int) date('Y', strtotime((string) $fy->FromDate)) : (int) date('Y', strtotime((string) $fy->Todate));
+                return strtotime(sprintf('%04d-%02d-01', $y, $m)) <= time();
+            };
             $made = 0;
             foreach (array_diff($months, $have) as $m) {
+                if (! $started((int) $m)) {
+                    continue;
+                }
                 $db->table("y{$yearId}_monthexpensefinal")->insert(['EmployeeID' => $empId, 'Month' => $m, 'YearId' => $yearId, 'Status' => 'Open', 'Crdate' => now()->toDateString()]);
                 $made++;
                 Log::info('MONTH-ROW-01: missing month row created as Open', ['emp' => $empId, 'month' => $m, 'year' => $yearId, 'conn' => $conn]);
