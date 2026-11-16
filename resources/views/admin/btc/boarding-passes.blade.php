@@ -7,6 +7,7 @@
         <div class="card">
             <div class="card-header d-flex flex-wrap align-items-center gap-2">
                 <h4 class="card-title mb-0 flex-grow-1"><i class="ri-plane-line me-1"></i>Boarding Pass <span class="text-muted fs-13 fw-normal">tickets booked by the company</span></h4>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bpUploadModal"><i class="ri-upload-2-line me-1"></i>Upload boarding pass</button>
                 <a href="{{ route('btc.index') }}" class="btn btn-sm btn-outline-secondary">BTC cases</a>
                 @if ($desk)
                     <a href="{{ route('btc.vendor.links') }}" class="btn btn-sm btn-outline-primary">Vendor links</a>
@@ -88,4 +89,48 @@
         </div>
     </div>
 </div>
+
+{{-- 16 Nov #4: upload a boarding pass for any open air booking --}}
+<div class="modal fade" id="bpUploadModal" tabindex="-1" aria-labelledby="bpUploadTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="post" enctype="multipart/form-data" id="bpUploadForm" action="">
+            @csrf
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="bpUploadTitle"><i class="ri-upload-2-line me-1"></i>Upload boarding pass</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if ($uploadCases->isEmpty())
+                    <p class="small mb-2">There is no air booking {{ $desk ? '' : 'for you ' }}in BTC yet. A boarding pass belongs to an air ticket the company booked:
+                        create the BTC case first with category <strong>Travel Desk – Air</strong>, then upload the boarding pass here after the journey.</p>
+                    <a href="{{ route('btc.index') }}" class="btn btn-sm btn-outline-primary">Go to BTC cases</a>
+                @else
+                    <label class="form-label small mb-1" for="bpCase">Air booking</label>
+                    <select class="form-select form-select-sm mb-2" id="bpCase" required>
+                        <option value="">Choose the booking…</option>
+                        @foreach ($uploadCases as $u)
+                            <option value="{{ route('btc.boarding.upload', $u->id) }}">
+                                {{ $u->case_no }} · {{ $u->emp_name }} · {{ $u->travel_sector ?: 'sector not set' }} · {{ $u->pnr ? 'PNR '.$u->pnr : 'no PNR' }}{{ $u->travel_date ? ' · '.\Carbon\Carbon::parse($u->travel_date)->format('d-m-Y') : '' }}{{ $u->boarding_pass_received_on ? ' · already received (adds a file)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <label class="form-label small mb-1" for="bpFile">Boarding pass (PDF or photo, up to 5 MB)</label>
+                    <input type="file" class="form-control form-control-sm" name="file" id="bpFile" accept=".pdf,.jpg,.jpeg,.png" required>
+                @endif
+            </div>
+            @if ($uploadCases->isNotEmpty())
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-sm btn-primary">Upload</button>
+                </div>
+            @endif
+        </form>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var sel = document.getElementById('bpCase'), form = document.getElementById('bpUploadForm');
+        if (sel) { sel.addEventListener('change', function () { form.action = this.value; }); }
+    });
+</script>
 @endsection

@@ -36,8 +36,24 @@ class VendorBoardingPassController extends Controller
             ->groupBy('vendor_id', 'vendor_name')->orderByDesc('cases')->get();
         $links = $tableOk ? DB::table(self::TABLE)->where('company_id', $co)->orderByDesc('id')->limit(100)->get() : collect();
 
+        // 16 Nov #5: a link can be created for any vendor (before only for vendors with boarding passes pending).
+        // Travel agencies first, then vendors already used on BTC air bookings, then the rest of the vendor master.
+        $vendors = collect();
+        try {
+            $used = BtcCase::where('company_id', $co)->where('category', 'air')->whereNotNull('vendor_name')->pluck('vendor_name')->map(fn ($n) => strtolower(trim($n)))->flip();
+            $vendors = DB::table('vendor_list')->where('status', '1')->whereNotNull('vendor_name')->orderBy('vendor_name')
+                ->get(['id', 'vendor_name', 'vendor_type'])
+                ->map(fn ($v) => (object) ['id' => (int) $v->id, 'name' => trim(preg_replace('/\s+/', ' ', (string) $v->vendor_name)),
+                    'travel' => (bool) preg_match('/agen|travel|air/i', (string) $v->vendor_type.' '.$v->vendor_name)])
+                ->reject(fn ($v) => in_array(strtolower($v->name), ['', 'na', 'n/a', 'other', 'others', '-', 'nil', 'none', 'test'], true))
+                ->unique(fn ($v) => strtolower($v->name))
+                ->sortBy(fn ($v) => [isset($used[strtolower($v->name)]) || $v->travel ? 0 : 1, strtolower($v->name)])->values();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return view('admin.btc.vendor-links', ['pending' => $pending, 'links' => $links, 'newUrl' => session('vendor_link_url'),
-            'setupMissing' => ! $tableOk]);
+            'setupMissing' => ! $tableOk, 'vendors' => $vendors]);
     }
 
     public function create(Request $request)

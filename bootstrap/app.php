@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 \App\Http\Middleware\UnifiedApiResponse::class, // LV-U03: one envelope on request (X-Xeasy-Response: v2); before the login check so 401s are wrapped too
                 \App\Http\Middleware\ApiAuthenticate::class,
             ];
+            // BTC-REQ-07 (16 Nov 2026): Nova (DMS) posts invoices here with its own key (X-Api-Key = BTC_NOVA_API_KEY,
+            // checked in the controller); no Xeasy login. Closed until the key is set.
+            Route::middleware(['api', 'throttle:60,1'])->prefix('api')
+                ->post('btc/nova/invoices', [\App\Http\Controllers\Api\NovaInvoiceApiController::class, 'store'])->name('api.btc.nova.invoices');
             Route::middleware(array_merge(['api'], $apiLogin))
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));

@@ -1176,6 +1176,23 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'links'])->name('vendor.links');
     Route::post('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'create'])->name('vendor.create');
     Route::post('/vendor-links/{id}/revoke', [\App\Http\Controllers\VendorBoardingPassController::class, 'revoke'])->whereNumber('id')->name('vendor.revoke');
+    // BTC-REQ-01..09 (16 Nov 2026): the BTC menu pages (each checks its btc.* permission)
+    Route::get('/dashboard', [\App\Http\Controllers\admin\BtcPagesController::class, 'dashboard'])->name('dashboard');
+    Route::get('/register', [\App\Http\Controllers\admin\BtcPagesController::class, 'register'])->name('register');
+    Route::get('/register/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'registerExport'])->name('register.export');
+    Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
+    Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');
+    Route::get('/invoices', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoices'])->name('invoices');
+    Route::post('/invoices/import', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceImport'])->name('invoices.import');
+    Route::post('/invoices/{id}/link', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceLink'])->whereNumber('id')->name('invoices.link');
+    Route::post('/invoices/{id}/unlink', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceUnlink'])->whereNumber('id')->name('invoices.unlink');
+    Route::get('/matching', [\App\Http\Controllers\admin\BtcPagesController::class, 'matching'])->name('matching');
+    Route::get('/integration', [\App\Http\Controllers\admin\BtcPagesController::class, 'integration'])->name('integration');
+    Route::post('/integration/retry', [\App\Http\Controllers\admin\BtcPagesController::class, 'integrationRetry'])->name('integration.retry');
+    Route::get('/access', [\App\Http\Controllers\admin\BtcPagesController::class, 'access'])->name('access');
+    Route::post('/access/role', [\App\Http\Controllers\admin\BtcPagesController::class, 'accessSaveRole'])->name('access.role');
+    Route::post('/access/role/{roleId}/toggle', [\App\Http\Controllers\admin\BtcPagesController::class, 'accessToggleRole'])->whereNumber('roleId')->name('access.toggle');
+    Route::post('/access/user', [\App\Http\Controllers\admin\BtcPagesController::class, 'accessAssign'])->name('access.user');
 });
 
 Route::middleware('auth')->group(function () {

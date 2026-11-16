@@ -32,10 +32,17 @@ class BtcWorkflow
         'submit' => [['draft'], null, null],
         'manager_approve' => [['pending_manager'], 'manager', null],
         'manager_reject' => [['pending_manager'], 'manager', 'rejected'],
-        'advance_paid' => [['advance_requested'], 'btc.finance', 'advance_paid'],
+        // BTC-REQ-05 (16 Nov 2026): admin booking queue - the BTC admin confirms, changes or cancels the booking
+        'confirm_booking' => [['booking_requested'], 'btc.booking', 'booked'],
+        'modify_booking' => [['booked'], 'btc.booking', null],
+        'cancel_booking' => [['booking_requested', 'booked'], 'btc.booking', 'cancelled'],
+        'complete_activity' => [['booked'], 'owner|btc.booking', null],
+        // BTC-REQ-06: Finance Advance pays the advance; a refund from the vendor is recorded separately
+        'advance_paid' => [['advance_requested'], 'btc.finance|btc.advance', 'advance_paid'],
+        'record_refund' => [['advance_paid', 'booked', 'bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'cancelled'], 'btc.finance|btc.advance', null],
         'booked' => [['advance_paid'], null, 'booked'],
         'submit_bill' => [['booked', 'advance_paid', 'returned'], null, 'bill_submitted'],
-        'dms_process' => [['bill_submitted'], 'btc.dms', 'dms_processed'],
+        'dms_process' => [['bill_submitted'], 'btc.dms|btc.verifier', 'dms_processed'],
         'finance_verify' => [['dms_processed'], 'btc.finance', 'finance_verified'],
         'check' => [['finance_verified'], 'btc.checker', 'checked'],
         'send_dept_approval' => [['checked'], 'btc.treasury', 'with_treasury'],
@@ -43,15 +50,16 @@ class BtcWorkflow
         'pay' => [['dept_approved'], 'btc.treasury', 'paid'],
         'close' => [['paid'], 'btc.finance', 'closed'],
         'return' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury'], 'any_desk', 'returned'],
-        'receive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.dms|btc.finance', null],
-        'cancel' => [['draft', 'pending_manager', 'advance_requested', 'booked', 'returned'], null, 'cancelled'],
+        'receive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.dms|btc.finance|btc.verifier', null],
+        'cancel' => [['draft', 'pending_manager', 'booking_requested', 'advance_requested', 'booked', 'returned'], null, 'cancelled'],
     ];
 
     public static function next(string $route, string $after): string
     {
         // after submit / manager approval
         if ($after === 'submit') {
-            return ['admin_booking' => 'booked', 'employee_advance' => 'pending_manager', 'direct_bill' => 'bill_submitted'][$route] ?? 'booked';
+            // BTC-REQ-03: an admin booking now goes to the admin booking queue (was "booked" at once, with no booking details)
+            return ['admin_booking' => 'booking_requested', 'employee_advance' => 'pending_manager', 'direct_bill' => 'bill_submitted'][$route] ?? 'booking_requested';
         }
 
         return $after;
@@ -96,10 +104,10 @@ class BtcWorkflow
             return $empId > 0 && $empId === (int) $c->dept_approver_id;
         }
         if ($perm === 'any_desk') {
-            return $can('btc.dms') || $can('btc.finance') || $can('btc.checker') || $can('btc.treasury');
+            return $can('btc.dms') || $can('btc.verifier') || $can('btc.finance') || $can('btc.checker') || $can('btc.treasury');
         }
         foreach (explode('|', $perm) as $p) {
-            if ($can($p)) {
+            if ($p === 'owner' ? ($empId > 0 && ($empId === (int) $c->employee_id || (int) $user->id === (int) $c->created_by)) : $can($p)) {
                 return true;
             }
         }
@@ -126,6 +134,14 @@ class BtcWorkflow
         switch ($action) {
             case 'submit':
                 $to = self::next($c->route, 'submit');
+                // BTC-REQ-03: an employee's own admin-booking request is approved by the reporting manager first;
+                // one raised by the BTC admin goes straight to the booking queue
+                if ($c->route === 'admin_booking' && ! $user->can('btc.admin') && ! $user->can('btc.booking') && $c->manager_id) {
+                    $to = 'pending_manager';
+                }
+                if ($c->route === 'admin_booking') {
+                    $c->booking_status = 'requested';
+                }
                 if ($c->route === 'employee_advance') {
                     if (! $c->manager_id) {
                         throw new RuntimeException('No reporting manager found for the approval.');
@@ -141,9 +157,82 @@ class BtcWorkflow
                 }
                 break;
             case 'manager_approve':
-                $to = (float) $c->advance_amount > 0 ? 'advance_requested' : 'booked';
+                $this->withinLimit($user, (float) ($c->quotation_amount ?: $c->estimated_amount ?: $c->advance_amount), 'approve this request');
+                if ($c->route === 'admin_booking') {
+                    $to = 'booking_requested';
+                } else {
+                    // BTC-REQ-06: the manager may approve less advance than requested
+                    $req = (float) $c->advance_amount;
+                    $appr = isset($d['advance_approved']) && $d['advance_approved'] !== '' ? round((float) $d['advance_approved'], 2) : $req;
+                    if ($appr < 0 || $appr > $req + 0.009) {
+                        throw new RuntimeException('Approved advance must be between 0 and the requested '.number_format($req, 2).'.');
+                    }
+                    $c->advance_approved = $req > 0 ? $appr : null;
+                    $to = $appr > 0 ? 'advance_requested' : 'booked';
+                }
                 $c->manager_action_at = $now;
                 $c->manager_remark = $remark ?: 'Approved';
+                break;
+            case 'confirm_booking':
+            case 'modify_booking':
+                $ref = trim((string) ($d['booking_ref'] ?? ''));
+                $amt = round((float) ($d['booking_amount'] ?? 0), 2);
+                if ($ref === '' || $amt <= 0) {
+                    throw new RuntimeException('Enter the booking reference and the booking amount.');
+                }
+                if (! empty($d['vendor_id'])) {
+                    $v = DB::table('vendor_list')->where('id', (int) $d['vendor_id'])->first(['id', 'vendor_name', 'gst_no']);
+                    if ($v) {
+                        $c->vendor_id = $v->id;
+                        $c->vendor_name = $v->vendor_name;
+                        $c->vendor_gstin = $v->gst_no;
+                    }
+                } elseif (! empty($d['vendor_name'])) {
+                    $c->vendor_name = mb_substr(trim((string) $d['vendor_name']), 0, 200);
+                }
+                if (! $c->vendor_name) {
+                    throw new RuntimeException('Choose the vendor / hotel booked.');
+                }
+                if ($action === 'modify_booking' && $remark === '') {
+                    throw new RuntimeException('Give the reason for the change.');
+                }
+                $c->booking_ref = mb_substr($ref, 0, 80);
+                $c->booking_amount = $amt;
+                $c->booking_date = $d['booking_date'] ?? $now->toDateString();
+                $c->booking_status = $action === 'confirm_booking' ? 'confirmed' : 'modified';
+                $c->booking_by = $user->id;
+                $c->booking_remark = $remark ?: null;
+                foreach (['service_from', 'service_to', 'pnr', 'travel_sector', 'travel_date'] as $k) {
+                    if (! empty($d[$k])) {
+                        $c->$k = $d[$k];
+                    }
+                }
+                $remark = trim(($action === 'confirm_booking' ? 'Booked' : 'Booking changed').": {$c->vendor_name}, ref {$c->booking_ref}, Rs ".number_format($amt, 2).($remark ? " - {$remark}" : ''));
+                $to = $action === 'confirm_booking' ? 'booked' : $old;
+                break;
+            case 'cancel_booking':
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for cancelling the booking.');
+                }
+                $c->booking_status = 'cancelled';
+                break;
+            case 'complete_activity':
+                $c->activity_completed_on = $d['activity_completed_on'] ?? $now->toDateString();
+                $to = $old;
+                break;
+            case 'record_refund':
+                $amt = round((float) ($d['advance_refund'] ?? 0), 2);
+                $f = $c->advanceFigures();
+                if ($amt <= 0) {
+                    throw new RuntimeException('Enter the refund amount received.');
+                }
+                if ($amt > round($f['balance'], 2) + 0.009) {
+                    throw new RuntimeException('Refund '.number_format($amt, 2).' is more than the advance still outstanding '.number_format($f['balance'], 2).'.');
+                }
+                $c->advance_refund = round((float) $c->advance_refund + $amt, 2);
+                $c->advance_refund_on = $d['advance_refund_on'] ?? $now->toDateString();
+                $remark = trim('Refund Rs '.number_format($amt, 2).' received'.($remark ? " - {$remark}" : ''));
+                $to = $old;
                 break;
             case 'manager_reject':
                 if ($remark === '') {
@@ -153,6 +242,14 @@ class BtcWorkflow
                 $c->manager_remark = $remark;
                 break;
             case 'advance_paid':
+                // BTC-REQ-06: the amount actually paid, not the amount requested
+                $limit = $c->advance_approved !== null ? (float) $c->advance_approved : (float) $c->advance_amount;
+                $paid = isset($d['advance_paid_amount']) && $d['advance_paid_amount'] !== '' ? round((float) $d['advance_paid_amount'], 2) : $limit;
+                if ($paid <= 0 || $paid > $limit + 0.009) {
+                    throw new RuntimeException('Advance paid must be more than 0 and not more than the approved '.number_format($limit, 2).'.');
+                }
+                $c->advance_paid_amount = $paid;
+                $c->advance_payment_ref = isset($d['advance_payment_ref']) ? mb_substr(trim((string) $d['advance_payment_ref']), 0, 60) : $c->advance_payment_ref;
                 $c->advance_paid_on = $d['advance_paid_on'] ?? $now->toDateString();
                 $c->advance_activity_id = $d['advance_activity_id'] ?? $c->advance_activity_id;
                 $c->tds_on_advance = (float) ($d['tds_on_advance'] ?? 0);
@@ -198,6 +295,7 @@ class BtcWorkflow
                 $c->treasury_at = $now;
                 break;
             case 'dept_approve':
+                $this->withinLimit($user, (float) $c->net_payable, 'approve this payment');
                 $c->dept_approved_at = $now;
                 $c->dept_remark = $remark ?: 'Approved';
                 break;
@@ -266,6 +364,15 @@ class BtcWorkflow
         return $c->fresh();
     }
 
+    /** BTC-REQ-01: the approver's approval limit (BTC > Roles & Access); no limit set = any amount. */
+    private function withinLimit($user, float $amount, string $what): void
+    {
+        $limit = BtcAccess::approvalLimit($user);
+        if ($limit !== null && $amount > $limit + 0.009) {
+            throw new RuntimeException("Rs ".number_format($amount, 2)." is above your approval limit of Rs ".number_format($limit, 2).", so you cannot {$what}. It needs an approver with a higher limit.");
+        }
+    }
+
     private function requireBill(BtcCase $c): void
     {
         if (! $c->bill_no || ! $c->bill_date || (float) $c->bill_amount <= 0) {
@@ -332,7 +439,10 @@ class BtcWorkflow
             }
         }
         $tds = max(0, round($taxable * $rate / 100, 0) - (float) $c->tds_on_advance);
-        $adv = min((float) ($d['advance_adjusted'] ?? $c->advance_amount), (float) $c->advance_amount);
+        // BTC-REQ-06: set off what was actually paid (with its TDS) less any refund, not the amount requested
+        $f = $c->advanceFigures();
+        $avail = max(0, $f['outstanding'] - $f['refund']);
+        $adv = min((float) ($d['advance_adjusted'] ?? $avail), $avail);
         $net = round((float) $c->bill_amount - $tds - $adv, 2);
         if ($net < 0) {
             throw new RuntimeException('The advance is more than the bill: net payable would be '.number_format($net, 2).'. Recover the difference from the employee / vendor instead.');

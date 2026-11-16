@@ -17,21 +17,22 @@ class BtcController extends Controller
     private function tabs(): array
     {
         return [
-            'mine' => ['My cases', null, null],
+            'mine' => ['My BTC Requests', null, null],
             'approvals' => ['My approvals', ['pending_manager', 'with_treasury'], null],
-            'dms' => ['DMS', ['bill_submitted'], 'btc.dms'],
-            'finance' => ['Finance', ['dms_processed', 'advance_requested', 'paid'], 'btc.finance'],
+            'booking' => ['Booking queue', ['booking_requested'], 'btc.booking'],
+            'dms' => ['DMS', ['bill_submitted'], 'btc.dms|btc.verifier'],
+            'finance' => ['Finance', ['dms_processed', 'advance_requested', 'paid'], 'btc.finance|btc.advance'],
             'checker' => ['Checker', ['finance_verified'], 'btc.checker'],
             'treasury' => ['Treasury', ['checked', 'dept_approved'], 'btc.treasury'],
             'documents' => ['Pending originals / boarding passes', null, 'btc.finance'],
-            'all' => ['All cases', null, 'btc.admin'],
+            'all' => ['All cases', null, 'btc.admin|btc.register'],
         ];
     }
 
     public function index()
     {
         $user = auth()->user();
-        $tabs = collect($this->tabs())->filter(fn ($t) => $t[2] === null || $user->can($t[2]) || $user->can('btc.admin'))
+        $tabs = collect($this->tabs())->filter(fn ($t) => $t[2] === null || $this->canAny($user, $t[2]))
             ->map(fn ($t) => $t[0])->all();
 
         return view('admin.btc.index', [
@@ -39,6 +40,7 @@ class BtcController extends Controller
             // BTC-FORM-01 (15 Nov 2026): an employee raises only "B - employee-arranged with advance"; admin-arranged
             // bookings (A) and final-bill-after-activity (C) are raised by the BTC admin
             'routes' => $user->can('btc.admin') ? config('btc.routes') : array_intersect_key(config('btc.routes'), array_flip((array) config('btc.employee_routes', ['employee_advance']))),
+            'routeChoices' => config('btc.route_choices', []),   // BTC-REQ-03
             'categories' => collect(config('btc.categories'))->map(fn ($c) => $c['label'])->all(),
             'statuses' => config('btc.statuses'),
             'tdsSections' => config('btc.tds_sections'),
@@ -85,11 +87,14 @@ class BtcController extends Controller
         $user = auth()->user();
         $tab = (string) $request->input('tab', 'mine');
         $def = $this->tabs()[$tab] ?? $this->tabs()['mine'];
-        if ($def[2] && ! $user->can($def[2]) && ! $user->can('btc.admin')) {
+        if ($def[2] && ! $this->canAny($user, $def[2])) {
             abort(403);
         }
         $empId = (int) ($user->employee_id ?? 0);
         $q = BtcCase::query()->where('company_id', (int) session('company_id', 1));
+        if (! in_array($tab, ['mine', 'approvals'], true)) {
+            \App\Services\Btc\BtcAccess::applyScope($q, $user);   // BTC-REQ-01: entity / department scope of the user's BTC roles
+        }
         if ($tab === 'mine') {
             $q->where(fn ($w) => $w->where('employee_id', $empId)->orWhere('created_by', $user->id));
         } elseif ($tab === 'approvals') {
@@ -113,6 +118,7 @@ class BtcController extends Controller
             'bill' => $c->bill_no ? $c->bill_no.' / '.optional($c->bill_date)->format('d/m/Y') : '',
             'amount' => $c->bill_amount ?? $c->quotation_amount, 'net' => $c->net_payable, 'status' => $c->status, 'status_label' => $c->statusLabel(),
             'pending' => implode(', ', $c->pendingDocuments()), 'updated' => $c->updated_at?->format('d/m/Y H:i'),
+            'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),   // BTC-REQ-02 / 04
         ])]);
     }
 
@@ -131,6 +137,7 @@ class BtcController extends Controller
             'vendor_gstin' => 'nullable|string|max:20',
             'new_vendor' => 'nullable|boolean',
             'quotation_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',   // BTC-AMT-01
+            'estimated_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',   // BTC-REQ-03
             'advance_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
             'pnr' => 'nullable|string|max:20',
             'travel_sector' => 'nullable|string|max:120',
@@ -149,7 +156,7 @@ class BtcController extends Controller
         }
         $user = auth()->user();
         if (! $user->can('btc.admin') && ! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {
-            return response()->json(['success' => false, 'message' => 'Choose "Employee-arranged with advance". Admin-arranged bookings and bills after the activity are raised by the BTC admin.'], 422);   // BTC-FORM-01
+            return response()->json(['success' => false, 'message' => 'Choose "Admin Booking Required" or "Advance Required". A bill after the activity is raised by the BTC admin.'], 422);   // BTC-FORM-01 / BTC-REQ-03
         }
         // Admin may raise for any employee; others for themselves
         $empId = ($user->can('btc.admin') && ! empty($v['employee_id'])) ? (int) $v['employee_id'] : (int) $user->employee_id;
@@ -176,8 +183,10 @@ class BtcController extends Controller
                 'service_from' => $v['service_from'] ?? null, 'service_to' => $v['service_to'] ?? null,
                 'vendor_id' => $v['vendor_id'] ?? null, 'vendor_name' => $v['vendor_name'] ?? null, 'vendor_gstin' => $v['vendor_gstin'] ?? null,
                 'new_vendor' => (bool) ($v['new_vendor'] ?? false), 'quotation_amount' => $v['quotation_amount'] ?? null,
+                'estimated_amount' => $v['estimated_amount'] ?? ($v['quotation_amount'] ?? null),
                 'advance_amount' => $v['route'] === 'employee_advance' ? (float) ($v['advance_amount'] ?? 0) : 0,
-                'manager_id' => $v['route'] === 'employee_advance' ? (\App\Support\ReportingTree::managerOf((int) $emp->EmployeeID) ?: null) : null, // HIER-LOOP-01: never himself
+                // HIER-LOOP-01: never himself. BTC-REQ-03: an admin booking asked by the employee is approved by the manager too
+                'manager_id' => in_array($v['route'], ['employee_advance', 'admin_booking'], true) ? (\App\Support\ReportingTree::managerOf((int) $emp->EmployeeID) ?: null) : null,
                 'pnr' => $v['pnr'] ?? null, 'travel_sector' => $v['travel_sector'] ?? null, 'travel_date' => $v['travel_date'] ?? null,
                 'boarding_pass_required' => (bool) $cat['boarding_pass'], 'original_required' => (bool) $cat['original_required'],
                 'bill_no' => $v['bill_no'] ?? null, 'bill_date' => $v['bill_date'] ?? null, 'taxable_amount' => $v['taxable_amount'] ?? null,
@@ -217,6 +226,8 @@ class BtcController extends Controller
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,
                 'to' => config("btc.statuses.{$l->to_status}", $l->to_status), 'remark' => $l->remark]),
             'default_ledger' => config("btc.focus.expense_ledgers.{$c->category}"),
+            'advance' => $c->advanceFigures(), 'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),
+            'invoices' => \Illuminate\Support\Facades\Schema::hasTable('btc_invoices') ? DB::table('btc_invoices')->where('btc_case_id', $c->id)->get(['id', 'nova_document_id', 'invoice_no', 'gross_amount', 'document_url']) : [],
         ]);
     }
 
@@ -227,7 +238,8 @@ class BtcController extends Controller
         $this->authorizeView($c, $user);
         // BTC-AMT-01 (15 Nov 2026): amounts must fit the amount columns (up to 99,99,999.99) with at most two
         // decimals - an over-long number gave "Server Error"
-        $request->validate(array_fill_keys(['quotation_amount', 'advance_amount', 'taxable_amount', 'gst_amount', 'bill_amount', 'paid_amount', 'advance_adjusted', 'tds_on_advance'],
+        $request->validate(array_fill_keys(['quotation_amount', 'advance_amount', 'taxable_amount', 'gst_amount', 'bill_amount', 'paid_amount', 'advance_adjusted', 'tds_on_advance',
+            'advance_approved', 'advance_paid_amount', 'advance_refund', 'booking_amount'],
             'nullable|numeric|min:0|max:9999999.99|decimal:0,2'), ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         $this->saveFiles($request, $c);
         try {
@@ -359,7 +371,17 @@ class BtcController extends Controller
         $cases = $q->with(['files' => fn ($f) => $f->where('kind', 'boarding_pass')])
             ->orderByDesc('travel_date')->orderByDesc('id')->paginate(25)->withQueryString();
 
-        return view('admin.btc.boarding-passes', compact('cases', 'desk', 'show', 'counts'));
+        // 16 Nov #4: an "Upload boarding pass" button for any open air booking (the list above only offers upload on
+        // pending rows, so with nothing pending there was no way to upload)
+        $uq = BtcCase::where('company_id', (int) session('company_id', 1))->where('boarding_pass_required', 1)
+            ->whereNotIn('status', ['cancelled', 'rejected', 'draft']);
+        if (! $desk) {
+            $uq->where('employee_id', (int) ($user->employee_id ?? 0));
+        }
+        $uploadCases = $uq->orderByRaw('boarding_pass_received_on IS NOT NULL')->orderByDesc('travel_date')->orderByDesc('id')->limit(500)
+            ->get(['id', 'case_no', 'emp_name', 'emp_code', 'pnr', 'travel_sector', 'travel_date', 'boarding_pass_received_on']);
+
+        return view('admin.btc.boarding-passes', compact('cases', 'desk', 'show', 'counts', 'uploadCases'));
     }
 
     /** BOARDING-02: upload a boarding pass for one booking (the traveller, or the DMS / Finance desk); marks it received. */
@@ -414,10 +436,17 @@ class BtcController extends Controller
         }
     }
 
+    /** "btc.dms|btc.verifier": any of them, or btc.admin. */
+    private function canAny($user, string $perms): bool
+    {
+        return $user->can('btc.admin') || collect(explode('|', $perms))->contains(fn ($p) => $user->can($p));
+    }
+
     private function authorizeView(BtcCase $c, $user): void
     {
         $empId = (int) ($user->employee_id ?? 0);
-        $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.admin'])->contains(fn ($p) => $user->can($p));
+        // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too
+        $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
         abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id, 403);
     }
 }

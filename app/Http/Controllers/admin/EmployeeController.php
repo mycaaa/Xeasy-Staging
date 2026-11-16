@@ -1071,7 +1071,7 @@ class EmployeeController extends Controller
                         ORDER BY BillDate ASC";
                 $dayRows = DB::connection($expenseConn)->select($sql, [$month, $yearId, $employeeId]);
             } else {
-                $sql = "SELECT e.ExpId, e.ClaimYearId, e.CrBy, e.ClaimId, e.BillDate, e.FilledTAmt, e.TotKm, e.VerifyTAmt, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, e.FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, ct.cgCode, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2
+                $sql = "SELECT e.ExpId, e.ClaimYearId, e.CrBy, e.ClaimId, e.BillDate, e.FilledTAmt, e.TotKm, e.VerifyTAmt, VerifyBy, VerifyDate, VerifyTRemark, e.ApprTAmt, ApprBy, ApprDate, ApprTRemark, CASE WHEN e.FinancedBy > 0 AND e.FinancedDate > '2000-01-01' THEN e.FinancedTAmt ELSE 0 END AS FinancedTAmt, FinancedBy, FinancedDate, FinancedTRemark, e.ClaimStatus, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, ct.cgCode, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2
                         FROM y{$yearId}_expenseclaims e
                         LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId
                         WHERE e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.CrBy = ? AND e.ClaimStatus NOT IN ('Deactivate', 'Draft', 'Submitted') AND e.FilledBy > 0

@@ -20,7 +20,14 @@ return [
     ],
 
     // BTC-FORM-01: routes an employee may choose on the request form (the BTC admin may choose all)
-    'employee_routes' => ['employee_advance'],
+    // BTC-REQ-03 (16 Nov 2026, "BTC requirements" tab): the new-requirement form gives two clear choices,
+    // "Admin Booking Required" (A) and "Advance Required" (B); C (final bill after the activity) stays with the BTC admin
+    'employee_routes' => ['admin_booking', 'employee_advance'],
+    'route_choices' => [
+        'admin_booking' => ['Admin Booking Required', 'The BTC admin books the hotel / vehicle / ticket with the vendor; you only state the need.'],
+        'employee_advance' => ['Advance Required', 'You arrange the vendor and attach its quotation; Finance pays an advance after your manager approves.'],
+        'direct_bill' => ['Final bill after the activity', 'The service is over and the vendor bill is in hand (BTC admin only).'],
+    ],
 
     // BTC-FORM-02: vendor types (vendor_list.vendor_type) offered for each category; [] = all vendors
     'vendor_types_by_category' => [
@@ -46,6 +53,7 @@ return [
     'statuses' => [
         'draft' => 'Draft',
         'pending_manager' => 'Waiting for manager approval',
+        'booking_requested' => 'Waiting for admin booking',
         'advance_requested' => 'Advance requested',
         'advance_paid' => 'Advance paid',
         'booked' => 'Booked / service in progress',
@@ -98,4 +106,53 @@ return [
 
     // remind DMS / Finance about missing originals and boarding passes after this many days
     'follow_up_days' => (int) env('BTC_FOLLOW_UP_DAYS', 7),
+
+    // ---- BTC-REQ-01 / 02 (16 Nov 2026, "BTC requirements" tab): roles and access -----------------------------------
+    // Screen-wise and action-wise permissions shown on BTC > Access. Existing names are kept (btc.dms ... btc.admin).
+    'permission_catalog' => [
+        'Screens' => [
+            'btc.dashboard' => 'BTC Dashboard',
+            'btc.register' => 'BTC Request Register (all requests)',
+            'btc.booking' => 'Admin Booking Queue',
+            'btc.advance' => 'Advance Request & Processing',
+            'btc.invoices' => 'Nova Invoice Inbox and request / invoice matching',
+            'btc.integration' => 'Integration Monitoring (Nova sync, retry)',
+            'btc.access' => 'BTC roles, users and access history',
+        ],
+        'Actions' => [
+            'btc.verifier' => 'Verify invoice and supporting documents (DMS step)',
+            'btc.dms' => 'DMS processing',
+            'btc.finance' => 'Finance verification: GST, TDS, ledger and JV',
+            'btc.checker' => 'Finance checker / financial approval',
+            'btc.treasury' => 'Treasury: department approval, payment and UTR',
+            'btc.admin' => 'All BTC cases and every step (full control)',
+        ],
+    ],
+    // The recommended roles (sheet item 2). Employee, Reporting Manager and Authorised Approver also act through the
+    // case itself (the requester, the manager on the case, the department approver chosen by Treasury).
+    'roles' => [
+        'BTC Super Admin' => ['Complete BTC module control', ['btc.admin', 'btc.access', 'btc.dashboard', 'btc.register', 'btc.booking', 'btc.advance', 'btc.invoices', 'btc.integration', 'btc.verifier', 'btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury']],
+        'BTC DMS Admin' => ['Nova integration, invoice inbox and document management', ['btc.invoices', 'btc.integration', 'btc.dms', 'btc.register', 'btc.dashboard']],
+        'BTC Admin' => ['Request management, booking and operational coordination', ['btc.booking', 'btc.register', 'btc.dashboard']],
+        'BTC Employee' => ['Create request, upload documents and track own BTC cases', []],
+        'BTC Reporting Manager' => ['Request approval and business justification', []],
+        'BTC Authorised Approver' => ['Final approval as per approval matrix', []],
+        'BTC Finance Advance' => ['Advance processing and payment', ['btc.advance', 'btc.register']],
+        'BTC Verifier' => ['Invoice and supporting document verification', ['btc.verifier', 'btc.invoices', 'btc.register']],
+        'BTC Finance Verifier' => ['Financial, GST, TDS and accounting verification', ['btc.finance', 'btc.register', 'btc.dashboard']],
+        'BTC Payment User' => ['Payment processing and UTR update', ['btc.treasury', 'btc.register']],
+        'BTC Finance Head' => ['Financial approval and oversight', ['btc.checker', 'btc.dashboard', 'btc.register', 'btc.advance']],
+    ],
+
+    // ---- BTC-REQ-07..09: Nova (DMS) invoice feed ----------------------------------------------------------------------
+    // Nova posts invoices to POST /api/btc/nova/invoices with header X-Api-Key: <BTC_NOVA_API_KEY>. Until the key is
+    // set the endpoint is closed; the inbox also takes a CSV export from Nova.
+    'nova' => [
+        'api_key' => env('BTC_NOVA_API_KEY'),
+        // an invoice is expected this many days after the service ended (used for "Nova has not received the invoice")
+        'expected_after_days' => 7,
+        // matching: suggest a case from this score (0-100); auto-link only when one case scores at least auto_link
+        'suggest_from' => 40,
+        'auto_link' => 90,
+    ],
 ];

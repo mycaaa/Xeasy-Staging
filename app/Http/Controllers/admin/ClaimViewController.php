@@ -2851,7 +2851,7 @@ class ClaimViewController extends Controller
         $conn = session('expense_connection') ?: $expenseConnection;
         $query = DB::connection($conn)->table($table . ' as ec')
             ->leftJoin('claimtype', 'claimtype.ClaimId', '=', 'ec.ClaimId')
-            ->select('ec.ExpId', 'claimtype.ClaimName', 'ec.BillDate', 'ec.CrDate', 'ec.c_verify', 'ec.v_verify', 'ec.FilledOkay', 'ec.FilledTAmt', 'ec.DateEntryRemark', 'ec.ApprTAmt', 'ec.ApprDate', 'ec.ApprTRemark', 'ec.VerifyTAmt', 'ec.VerifyTRemark', 'ec.VerifyDate', 'ec.FinancedTAmt', 'ec.FinancedDate', 'ec.FinancedTRemark', 'ec.App_Odometer', 'ec.Backdate_Odometer_Status', 'ec.ClaimStatus')
+            ->select('ec.ExpId', 'claimtype.ClaimName', 'ec.BillDate', 'ec.CrDate', 'ec.c_verify', 'ec.v_verify', 'ec.FilledOkay', 'ec.FilledTAmt', 'ec.DateEntryRemark', 'ec.ApprTAmt', 'ec.ApprDate', 'ec.ApprTRemark', 'ec.VerifyTAmt', 'ec.VerifyTRemark', 'ec.VerifyDate', DB::raw("CASE WHEN ec.FinancedBy > 0 AND ec.FinancedDate > '2000-01-01' THEN ec.FinancedTAmt ELSE 0 END AS FinancedTAmt"), 'ec.FinancedDate', 'ec.FinancedTRemark', 'ec.App_Odometer', 'ec.Backdate_Odometer_Status', 'ec.ClaimStatus')
             ->where('ec.CrBy', $crby)
             ->where('ec.ClaimStatus', '!=', 'Deactivate');
         if (!empty($month)) {

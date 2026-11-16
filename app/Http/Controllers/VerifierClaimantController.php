@@ -312,24 +312,63 @@ class VerifierClaimantController extends Controller
     }
 
     // Month Report (Print View)
+    /**
+     * 16 Nov #6: Verifier > Month Report. The menu opened this page with no employee or month, and it asked the old
+     * API for "Openlist_Monthwise" / "Closelist_Monthwise", which return nothing, so it always said "No data found".
+     * Now: choose employee, month and year, and the month's bills are read from the database (the same figures as
+     * E-Home: the finance amount only once Finance has acted). Old links with ?e=&m=&y= still work.
+     */
     public function monthReport(Request $request)
     {
-        $employeeId = $request->e;
-        $month = $request->m;
-        $yearId = $request->y;
-        $type = $request->n;
-        $status = $request->nn;
-        $tokenId = session('token_id');
-        $companyId = session('CompanyId', 1);
+        $conn = session('expense_connection', 'expense');
+        $years = \Illuminate\Support\Facades\DB::connection($conn)->table('financialyear')->orderByDesc('YearId')->limit(6)->get(['YearId', 'Year']);
+        $yearId = (int) ($request->input('y') ?: session('year_id') ?: \App\Support\CurrentYear::id($conn));
+        $month = (int) $request->input('m');
+        $empInput = trim((string) $request->input('e'));
+        $employees = \Illuminate\Support\Facades\DB::connection('hrims')->table('hrm_employee')
+            ->where('CompanyId', (int) session('company_id', 1))->whereIn('EmpStatus', ['A', 'R'])
+            ->orderBy('Fname')->get(['EmployeeID', 'EmpCode', \Illuminate\Support\Facades\DB::raw("TRIM(CONCAT(Fname,' ',COALESCE(Sname,''),' ',COALESCE(Lname,''))) AS name")]);
+
+        $employeeId = 0;
+        if ($empInput !== '') {
+            // "1234 - Name" from the picker, an employee id, or an employee code
+            $code = trim(explode(' - ', $empInput)[0]);
+            $hit = $employees->first(fn ($x) => (string) $x->EmpCode === $code) ?? $employees->first(fn ($x) => (string) $x->EmployeeID === $code);
+            $employeeId = $hit ? (int) $hit->EmployeeID : (ctype_digit($code) ? (int) $code : 0);
+        }
+
+        $report = null;
+        $error = null;
+        if ($employeeId > 0 && $month >= 1 && $month <= 12) {
+            if (! \App\Support\RecordAccess::canViewEmployee(auth()->user(), $employeeId)) {
+                $error = 'You do not have access to this employee\'s claims.';
+            } else {
+                $c = "y{$yearId}_expenseclaims";
+                $m = "y{$yearId}_monthexpensefinal";
+                if (! \App\Support\SafeTable::exists($conn, $c)) {
+                    $error = 'No claims table for this year.';
+                } else {
+                    $db = \Illuminate\Support\Facades\DB::connection($conn);
+                    $rows = $db->select("SELECT e.ExpId, e.BillDate, ct.ClaimName, e.FilledTAmt, e.VerifyTAmt, e.ApprTAmt,
+                            CASE WHEN e.FinancedBy > 0 AND e.FinancedDate > '2000-01-01' THEN e.FinancedTAmt ELSE 0 END AS FinancedTAmt,
+                            e.ClaimStatus, e.FilledOkay, e.DateEntryRemark, e.VerifyTRemark, e.ApprTRemark
+                        FROM {$c} e LEFT JOIN claimtype ct ON ct.ClaimId = e.ClaimId
+                        WHERE e.CrBy = ? AND e.ClaimMonth = ? AND e.ClaimYearId = ? AND e.ClaimStatus NOT IN ('Deactivate','Deactivat','Draft')
+                        ORDER BY e.BillDate, e.ExpId", [$employeeId, $month, $yearId]);
+                    $monthRow = \App\Support\SafeTable::exists($conn, $m)
+                        ? $db->table($m)->where('EmployeeID', $employeeId)->where('Month', $month)->where('YearId', $yearId)->first() : null;
+                    $emp = $employees->firstWhere('EmployeeID', $employeeId)
+                        ?? \Illuminate\Support\Facades\DB::connection('hrims')->table('hrm_employee')->where('EmployeeID', $employeeId)
+                            ->first(['EmployeeID', 'EmpCode', \Illuminate\Support\Facades\DB::raw("TRIM(CONCAT(Fname,' ',COALESCE(Sname,''),' ',COALESCE(Lname,''))) AS name")]);
+                    $report = ['rows' => $rows, 'month' => $monthRow, 'emp' => $emp];
+                }
+            }
+        }
 
         return view('verifier.monthreport', [
-            'employeeId' => $employeeId,
-            'month' => $month,
-            'yearId' => $yearId,
-            'type' => $type,
-            'status' => $status,
-            'tokenId' => $tokenId,
-            'companyId' => $companyId,
+            'years' => $years, 'yearId' => $yearId, 'month' => $month, 'employees' => $employees,
+            'empInput' => $empInput, 'employeeId' => $employeeId, 'report' => $report, 'error' => $error,
+            'yearLabel' => optional($years->firstWhere('YearId', $yearId))->Year,
         ]);
     }
 

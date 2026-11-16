@@ -25,6 +25,39 @@
             @endif
             @if (isset($errors) && $errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
+            {{-- 16 Nov #5: create a link for any travel vendor --}}
+            <div class="border rounded p-2 mb-3 bg-light">
+                <div class="fw-semibold small mb-2"><i class="ri-link me-1"></i>Create a boarding-pass link</div>
+                <form method="post" action="{{ route('btc.vendor.create') }}" class="row g-2 align-items-end" id="vlCreate">
+                    @csrf
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1" for="vlVendor">Vendor</label>
+                        <input class="form-control form-control-sm" list="vlVendorList" id="vlVendor" name="vendor_name" required maxlength="200" placeholder="Type to search the vendor master" autocomplete="off">
+                        <datalist id="vlVendorList">
+                            @foreach ($vendors ?? [] as $v)<option value="{{ $v->name }}" data-id="{{ $v->id }}"></option>@endforeach
+                        </datalist>
+                        <input type="hidden" name="vendor_id" id="vlVendorId">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="vlDays">Valid for</label>
+                        <select name="days" id="vlDays" class="form-select form-select-sm">
+                            <option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3"><button class="btn btn-sm btn-primary w-100" @if (! empty($setupMissing)) disabled @endif>Create link</button></div>
+                    <div class="col-12 small text-muted">The vendor sees its own air bookings waiting for a boarding pass (matched on this vendor). The link is shown once, after it is created.</div>
+                </form>
+            </div>
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    var inp = document.getElementById('vlVendor'), hid = document.getElementById('vlVendorId');
+                    inp.addEventListener('input', function () {
+                        var o = Array.from(document.querySelectorAll('#vlVendorList option')).find(function (x) { return x.value === inp.value; });
+                        hid.value = o ? o.dataset.id : '';
+                    });
+                });
+            </script>
+
             <h6>Vendors with boarding passes pending</h6>
             <table class="table table-sm table-bordered small">
                 <thead class="table-light"><tr><th>Vendor</th><th class="text-end">Cases pending</th><th>Oldest travel date</th><th style="width:280px">Create link</th></tr></thead>
