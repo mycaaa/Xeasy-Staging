@@ -70,6 +70,15 @@ class SystemAlertsService
         // IMP-SEP-01: resigned / separated employees whose imprest still has to be settled
         $separations    = \App\Services\Imprest\SeparationImprest::pending(session('expense_connection', 'expense'), (int) $companyId);
 
+        // IMP-STATUS-01: imprest status of everyone in the transfers / joinings / promotions tabs (one batch)
+        $impStatus = \App\Services\Imprest\ImprestStatus::forEmployees(
+            array_merge(array_column($transfers, 'EmployeeID'), array_column($joinings, 'EmployeeID'), array_column($promotions, 'EmployeeID')),
+            session('expense_connection', 'expense'));
+        $withStatus = fn (array $rows) => array_map(fn ($r) => $r + ['imprest' => $impStatus[(int) ($r['EmployeeID'] ?? 0)] ?? null], $rows);
+        $transfers  = $withStatus($transfers);
+        $joinings   = $withStatus($joinings);
+        $promotions = $withStatus($promotions);
+
         $totalCount = count($transfers) + count($joinings) + count($missingImprest) + count($promotions) + count($separations);
 
         return [

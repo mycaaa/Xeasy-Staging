@@ -252,6 +252,7 @@
                                                 <th>Designation</th>
                                                 <th>Reporting Manager</th>
                                                 <th>Contact</th>
+                                                <th>Imprest Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -272,10 +273,11 @@
                                                     <small class="text-muted d-block"><i class="ri-phone-line me-1"></i>{{ $t['mobile'] ?? '-' }}</small>
                                                     <small class="text-muted d-block"><i class="ri-mail-line me-1"></i>{{ $t['email'] ?? '-' }}</small>
                                                 </td>
+                                                <td>@include('admin.notifications._imprest_status', ['st' => $t['imprest'] ?? null])</td>
                                             </tr>
                                             @empty
                                             <tr>
-                                                <td colspan="10" class="text-center py-4 text-muted">
+                                                <td colspan="11" class="text-center py-4 text-muted">
                                                     <i class="ri-inbox-line fs-24 d-block mb-1"></i>
                                                     No VVNR to VNR transfers recorded in the last 90 days.
                                                 </td>
@@ -302,6 +304,7 @@
                                                 <th>Headquarter / Territory</th>
                                                 <th>Joining Date</th>
                                                 <th>Reporting Manager</th>
+                                                <th>Imprest Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -324,10 +327,11 @@
                                                     </span>
                                                 </td>
                                                 <td>{{ $j['reporting_name'] ?? '-' }}</td>
+                                                <td>@include('admin.notifications._imprest_status', ['st' => $j['imprest'] ?? null])</td>
                                             </tr>
                                             @empty
                                             <tr>
-                                                <td colspan="10" class="text-center py-4 text-muted">
+                                                <td colspan="11" class="text-center py-4 text-muted">
                                                     <i class="ri-user-follow-line fs-24 d-block mb-1"></i>
                                                     No new joinings recorded in the last 90 days.
                                                 </td>
@@ -354,6 +358,7 @@
                                                 <th>Designation</th>
                                                 <th>Reporting Manager</th>
                                                 <th>Promotion Date</th>
+                                                <th>Imprest Status</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -372,10 +377,11 @@
                                                 <td>{{ $p['designation_name'] ?? '-' }}</td>
                                                 <td>{{ $p['reporting_name'] ?? '-' }}</td>
                                                 <td>{{ !empty($p['promotion_date']) ? date('d M Y', strtotime($p['promotion_date'])) : 'Recent' }}</td>
+                                                <td>@include('admin.notifications._imprest_status', ['st' => $p['imprest'] ?? null])</td>
                                             </tr>
                                             @empty
                                             <tr>
-                                                <td colspan="10" class="text-center py-4 text-muted">
+                                                <td colspan="11" class="text-center py-4 text-muted">
                                                     <i class="ri-award-line fs-24 d-block mb-1"></i>
                                                     No grade promotions recorded in the last 90 days.
                                                 </td>
