@@ -290,63 +290,39 @@ class HierarchyController extends Controller
 
             $businessUnits = $buQuery->get();
 
+            // HIER-LOOP-01 (16 Nov 2026): zones and regions in two queries (was one query per BU and one per zone)
+            $buIds = $businessUnits->pluck('id')->all();
+            $zoneQ = DB::connection('hrims')
+                ->table('core_zones as z')
+                ->join('core_bu_zone_mapping as bzm', 'z.id', '=', 'bzm.zone_id')
+                ->whereIn('bzm.business_unit_id', $buIds ?: [0])
+                ->where('z.is_active', '1')
+                ->select(['bzm.business_unit_id', 'z.id', 'z.zone_name', 'z.zone_code']);
+            if ($zoneId) {
+                $zoneQ->where('z.id', $zoneId);
+            }
+            $zonesByBu = $zoneQ->get()->groupBy('business_unit_id');
+            $regionQ = DB::connection('hrims')
+                ->table('core_regions as r')
+                ->join('core_zone_region_mapping as zrm', 'r.id', '=', 'zrm.region_id')
+                ->whereIn('zrm.zone_id', $zonesByBu->flatten(1)->pluck('id')->unique()->all() ?: [0])
+                ->where('r.is_active', '1')
+                ->select(['zrm.zone_id', 'r.id', 'r.region_name', 'r.region_code']);
+            if ($regionId) {
+                $regionQ->where('r.id', $regionId);
+            }
+            $regionsByZone = $regionQ->get()->groupBy('zone_id');
+
             $hierarchyTree = [];
-
             foreach ($businessUnits as $bu) {
-                $buData = [
-                    'id' => $bu->id,
-                    'name' => $bu->business_unit_name,
-                    'code' => $bu->business_unit_code,
-                    'zones' => []
-                ];
-
-                // Get Zones for this BU
-                $zonesQuery = DB::connection('hrims')
-                    ->table('core_zones as z')
-                    ->join('core_bu_zone_mapping as bzm', 'z.id', '=', 'bzm.zone_id')
-                    ->where('bzm.business_unit_id', $bu->id)
-                    ->where('z.is_active', '1')
-                    ->select(['z.id', 'z.zone_name', 'z.zone_code']);
-
-                if ($zoneId) {
-                    $zonesQuery->where('z.id', $zoneId);
-                }
-
-                $zones = $zonesQuery->get();
-
-                foreach ($zones as $zone) {
-                    $zoneData = [
-                        'id' => $zone->id,
-                        'name' => $zone->zone_name,
-                        'code' => $zone->zone_code,
-                        'regions' => []
-                    ];
-
-                    // Get Regions for this Zone
-                    $regionsQuery = DB::connection('hrims')
-                        ->table('core_regions as r')
-                        ->join('core_zone_region_mapping as zrm', 'r.id', '=', 'zrm.region_id')
-                        ->where('zrm.zone_id', $zone->id)
-                        ->where('r.is_active', '1')
-                        ->select(['r.id', 'r.region_name', 'r.region_code']);
-
-                    if ($regionId) {
-                        $regionsQuery->where('r.id', $regionId);
+                $buData = ['id' => $bu->id, 'name' => $bu->business_unit_name, 'code' => $bu->business_unit_code, 'zones' => []];
+                foreach ($zonesByBu->get($bu->id, collect()) as $zone) {
+                    $zoneData = ['id' => $zone->id, 'name' => $zone->zone_name, 'code' => $zone->zone_code, 'regions' => []];
+                    foreach ($regionsByZone->get($zone->id, collect()) as $region) {
+                        $zoneData['regions'][] = ['id' => $region->id, 'name' => $region->region_name, 'code' => $region->region_code];
                     }
-
-                    $regions = $regionsQuery->get();
-
-                    foreach ($regions as $region) {
-                        $zoneData['regions'][] = [
-                            'id' => $region->id,
-                            'name' => $region->region_name,
-                            'code' => $region->region_code
-                        ];
-                    }
-
                     $buData['zones'][] = $zoneData;
                 }
-
                 $hierarchyTree[] = $buData;
             }
 

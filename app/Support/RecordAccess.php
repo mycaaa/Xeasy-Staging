@@ -56,24 +56,10 @@ class RecordAccess
         if (isset(self::$chains[$employeeId])) {
             return self::$chains[$employeeId];
         }
-        $ids = [];
-        $current = $employeeId;
+        // HIER-LOOP-01 (16 Nov 2026): in-memory walk, guarded against loops (was one query per level per employee)
         $levels = (int) config('record_access.chain_levels', 6);
-        try {
-            for ($i = 0; $i < $levels; $i++) {
-                $rep = (int) DB::connection('hrims')->table('hrm_employee_general')
-                    ->where('EmployeeID', $current)->value('RepEmployeeID');
-                if ($rep <= 0 || $rep === $current || in_array($rep, $ids, true) || $rep === $employeeId) {
-                    break;
-                }
-                $ids[] = $rep;
-                $current = $rep;
-            }
-        } catch (\Throwable $e) {
-            // HRIMS unreachable: no chain (staff and own access still work)
-        }
 
-        return self::$chains[$employeeId] = $ids;
+        return self::$chains[$employeeId] = ReportingTree::ancestors($employeeId, $levels);
     }
 
     /** True if the user has at least one direct report (used for the old approver screens). */
@@ -83,13 +69,8 @@ class RecordAccess
         if ($self <= 0) {
             return false;
         }
-        try {
-            return DB::connection('hrims')->table('hrm_employee_general as g')
-                ->join('hrm_employee as e', 'e.EmployeeID', '=', 'g.EmployeeID')
-                ->where('g.RepEmployeeID', $self)->where('e.EmpStatus', 'A')->exists();
-        } catch (\Throwable $e) {
-            return false;
-        }
+        // HIER-LOOP-01: a person who reports to himself (the top) is not his own report
+        return ReportingTree::directReports($self, true) !== [];
     }
 
     /**

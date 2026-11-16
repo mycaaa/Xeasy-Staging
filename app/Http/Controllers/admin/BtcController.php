@@ -177,7 +177,7 @@ class BtcController extends Controller
                 'vendor_id' => $v['vendor_id'] ?? null, 'vendor_name' => $v['vendor_name'] ?? null, 'vendor_gstin' => $v['vendor_gstin'] ?? null,
                 'new_vendor' => (bool) ($v['new_vendor'] ?? false), 'quotation_amount' => $v['quotation_amount'] ?? null,
                 'advance_amount' => $v['route'] === 'employee_advance' ? (float) ($v['advance_amount'] ?? 0) : 0,
-                'manager_id' => $v['route'] === 'employee_advance' ? ($emp->RepEmployeeID ?: null) : null,
+                'manager_id' => $v['route'] === 'employee_advance' ? (\App\Support\ReportingTree::managerOf((int) $emp->EmployeeID) ?: null) : null, // HIER-LOOP-01: never himself
                 'pnr' => $v['pnr'] ?? null, 'travel_sector' => $v['travel_sector'] ?? null, 'travel_date' => $v['travel_date'] ?? null,
                 'boarding_pass_required' => (bool) $cat['boarding_pass'], 'original_required' => (bool) $cat['original_required'],
                 'bill_no' => $v['bill_no'] ?? null, 'bill_date' => $v['bill_date'] ?? null, 'taxable_amount' => $v['taxable_amount'] ?? null,

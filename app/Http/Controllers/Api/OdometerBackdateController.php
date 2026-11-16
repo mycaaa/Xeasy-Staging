@@ -32,12 +32,17 @@ class OdometerBackdateController extends Controller
 
         // claimants who report to me (RM step) and, when I am a BU head / HOD, my BU or department (final step)
         $me = BA::general($employeeId);
-        $team = DB::connection('hrims')->table('hrm_employee_general')->where('RepEmployeeID', $employeeId)->pluck('EmployeeID')->all();
+        // HIER-LOOP-01 (16 Nov 2026): from the in-memory tree - never myself (a person reporting to himself saw his
+        // own claims here) and each person once (a loop in the chain cannot repeat)
+        $team = \App\Support\ReportingTree::directReports($employeeId);
         // ODO-BD-04: also the teams of my reports who are no longer available (their claims come up to me)
         $frontier = array_values(array_filter(array_map('intval', $team), fn ($id) => ! BA::available($id)));
         for ($depth = 0; $depth < 5 && $frontier; $depth++) {
-            $more = DB::connection('hrims')->table('hrm_employee_general')->whereIn('RepEmployeeID', $frontier)->pluck('EmployeeID')->map(fn ($x) => (int) $x)->all();
-            $more = array_values(array_diff($more, $team, [$employeeId]));
+            $more = [];
+            foreach ($frontier as $f) {
+                $more = array_merge($more, \App\Support\ReportingTree::directReports($f));
+            }
+            $more = array_values(array_unique(array_diff($more, $team, [$employeeId])));
             $team = array_merge($team, $more);
             $frontier = array_values(array_filter($more, fn ($id) => ! BA::available($id)));
         }

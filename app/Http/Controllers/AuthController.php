@@ -347,7 +347,7 @@ class AuthController extends Controller
                 // Determine Role (A = Appraiser, E = Employee)
                 $appraiserCount = \Illuminate\Support\Facades\DB::connection($hrimsConnection)
                     ->table('hrm_employee_general')
-                    ->where('RepEmployeeID', $employee->EmployeeID)
+                    ->where('RepEmployeeID', $employee->EmployeeID)->where('EmployeeID', '<>', $employee->EmployeeID)
                     ->count();
 
                 if ($appraiserCount > 0 || ($moveRep && $moveRep->MoveRep == 'Y')) {
@@ -388,7 +388,7 @@ class AuthController extends Controller
                 // Check Reporting_NURSURY (employees in Nursery company reporting to this person)
                 $nurseryCount = \Illuminate\Support\Facades\DB::connection($hrimsConnection)
                     ->table('hrm_employee_general')
-                    ->where('RepEmployeeID', $employee->EmployeeID)
+                    ->where('RepEmployeeID', $employee->EmployeeID)->where('EmployeeID', '<>', $employee->EmployeeID)
                     ->whereIn('EmployeeID', function ($query) {
                         $query->select('EmployeeID')
                               ->from('hrm_employee')
@@ -401,7 +401,7 @@ class AuthController extends Controller
                 $vvnrCount = \Illuminate\Support\Facades\DB::connection($hrimsConnection)
                     ->table('hrm_employee_general as g')
                     ->join('hrm_employee as e', 'g.EmployeeID', '=', 'e.EmployeeID')
-                    ->where('g.RepEmployeeID', $employee->EmployeeID)
+                    ->where('g.RepEmployeeID', $employee->EmployeeID)->where('g.EmployeeID', '<>', $employee->EmployeeID)
                     ->whereIn('e.EmpStatus', ['A', 'R'])
                     ->where('e.CompanyId', 11)
                     ->count();

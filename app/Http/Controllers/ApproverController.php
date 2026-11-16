@@ -202,13 +202,12 @@ class ApproverController extends Controller
                 ->get();
 
             $result = [];
+            // HIER-LOOP-01 (16 Nov 2026): the team's running km in one query (was one per member)
+            $kmRows = $expense->table('runningkm')->whereIn('empid', $employees->pluck('EmployeeID')->all())
+                ->where('yearid', $yearId)->get()->groupBy(fn ($r) => (int) $r->empid)->map->first();
 
             foreach ($employees as $emp) {
-                $runningKm = $expense
-                    ->table('runningkm')
-                    ->where('empid', $emp->EmployeeID)
-                    ->where('yearid', $yearId)
-                    ->first();
+                $runningKm = $kmRows->get((int) $emp->EmployeeID);
 
                 if ($runningKm) {
                     $monthlyData = [];

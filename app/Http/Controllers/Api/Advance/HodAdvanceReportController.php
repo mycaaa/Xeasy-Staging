@@ -66,37 +66,13 @@ class HodAdvanceReportController extends Controller
     }
 
     /**
-     * Recursively fetch all employees reporting to a manager
+     * All active employees under a manager, at any depth.
+     * HIER-LOOP-01 (16 Nov 2026): was a recursive walk with one query per person and no guard - employee 461
+     * reports to himself, so opening the report for him called itself without end. Now one in-memory walk.
      */
     private function fetchEmployeesRecursive($managerId)
     {
-        try {
-            $employees = collect();
-
-            // Get direct reports from hrm_employee_general table using RepEmployeeID
-            $directReports = DB::connection('hrims')
-                ->table('hrm_employee_general as eg')
-                ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-                ->where('eg.RepEmployeeID', $managerId)
-                ->where('e.EmpStatus', 'A')
-                ->select('eg.EmployeeID')
-                ->get();
-
-            foreach ($directReports as $employee) {
-                // Add current employee
-                $employees->push($employee->EmployeeID);
-
-                // Recursively get their reports
-                $subEmployees = $this->fetchEmployeesRecursive($employee->EmployeeID);
-                $employees = $employees->merge($subEmployees);
-            }
-
-            return $employees->unique()->values()->toArray();
-        } catch (Exception $e) {
-            \Log::error('Error in fetchEmployeesRecursive: '.$e->getMessage());
-
-            return [];
-        }
+        return \App\Support\ReportingTree::descendants((int) $managerId, true);
     }
 
     /**
@@ -125,7 +101,24 @@ class HodAdvanceReportController extends Controller
         }
     }
 
+    /** @var array<string,mixed> HIER-LOOP-01: employee details already read in this request */
+    private array $employeeDetailsCache = [];
+
+    /**
+     * HIER-LOOP-01 (16 Nov 2026): the advance lists asked HRIMS for the same employee once per row, approval level
+     * and activity; each employee is now read once per request.
+     */
     private function getEmployeeDetails($employeeId)
+    {
+        $k = (string) $employeeId;
+        if (! array_key_exists($k, $this->employeeDetailsCache)) {
+            $this->employeeDetailsCache[$k] = $this->readEmployeeDetails($employeeId);
+        }
+
+        return $this->employeeDetailsCache[$k];
+    }
+
+    private function readEmployeeDetails($employeeId)
     {
         try {
             $employee = DB::connection('hrims')->table('hrm_employee as e')->leftJoin('hrm_employee_general as eg', 'e.EmployeeID', '=', 'eg.EmployeeID')->leftJoin('core_departments as d', 'eg.DepartmentId', '=', 'd.id')->leftJoin('core_designation as des', 'eg.DesigId', '=', 'des.id')->leftJoin('core_business_unit as bu', 'eg.BUId', '=', 'bu.id')->leftJoin('core_zones as z', 'eg.ZoneId', '=', 'z.id')->leftJoin('core_regions as r', 'eg.RegionId', '=', 'r.id')->leftJoin('core_territory as rt', 'eg.TerrId', '=', 'rt.id')->where('e.EmployeeID', $employeeId)->select(['e.EmployeeID', DB::raw("CONCAT(COALESCE(e.Fname, ''), ' ', COALESCE(e.Sname, ''), ' ', COALESCE(e.Lname, '')) as EmployeeName"), 'eg.EC as EmployeeCode', 'eg.EmailId_Vnr', 'd.department_name as DepartmentName', 'des.designation_name as Designation', 'eg.BUId', 'bu.business_unit_name as BUName', 'bu.business_unit_code as BUCode', 'eg.ZoneId', 'z.zone_name as ZoneName', 'z.zone_code as ZoneCode', 'eg.RegionId', 'r.region_name as RegionName', 'r.region_code as RegionCode', 'eg.TerrId', 'rt.territory_name as TerritoryName', 'rt.id as TerritoryCode'])->first();

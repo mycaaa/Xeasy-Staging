@@ -52,35 +52,8 @@ class ExpenseTypeReportApiController extends Controller
      */
     private function getReportingEmployeeIds(int $managerId): array
     {
-        $hrimsConn = DatabaseSwitcher::getHrimsConnection();
-
-        $visited = [];
-        $queue = [$managerId];
-
-        while (!empty($queue)) {
-            $directReports = DB::connection($hrimsConn)
-                ->table('hrm_employee_general')
-                ->whereIn('RepEmployeeID', $queue)
-                ->whereNotIn('EmployeeID', array_merge($visited, [$managerId]))
-                ->pluck('EmployeeID')
-                ->toArray();
-
-            $directReports = array_map('intval', array_unique($directReports));
-            $newIds = array_diff($directReports, $visited, [$managerId]);
-
-            $visited = array_merge($visited, $queue);
-            $queue = array_values($newIds);
-        }
-
-        $reporteeIds = array_values(array_diff($visited, [$managerId]));
-
-        Log::info("ExpenseTypeReportApi: getReportingEmployeeIds completed", [
-            'manager_id' => $managerId,
-            'reportee_count' => count($reporteeIds),
-            'reportee_ids' => $reporteeIds,
-        ]);
-
-        return $reporteeIds;
+        // HIER-LOOP-01 (16 Nov 2026): one in-memory walk (was one query per level with a growing NOT IN list)
+        return \App\Support\ReportingTree::descendants($managerId);
     }
 
     /**

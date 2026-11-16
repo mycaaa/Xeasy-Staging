@@ -64,25 +64,8 @@ class RunningKmReportApiController extends Controller
     // ── Recursive BFS: all descendant employee IDs ────────────────────────────
  private function getReportingEmployeeIds(int $managerId): array
     {
-        $hrimsConn = DatabaseSwitcher::getHrimsConnection();
-        $visited   = [];
-        $queue     = [$managerId];
-
-        while (! empty($queue)) {
-            $direct = DB::connection($hrimsConn)
-                ->table('hrm_employee_general')
-                ->whereIn('RepEmployeeID', $queue)
-                ->whereNotIn('EmployeeID', array_merge($visited, [$managerId]))
-                ->pluck('EmployeeID')
-                ->toArray();
-
-            $direct  = array_map('intval', array_unique($direct));
-            $newIds  = array_diff($direct, $visited, [$managerId]);
-            $visited = array_merge($visited, $queue);
-            $queue   = array_values($newIds);
-        }
-
-        return array_values(array_diff($visited, [$managerId]));
+        // HIER-LOOP-01 (16 Nov 2026): one in-memory walk (was one query per level with a growing NOT IN list)
+        return \App\Support\ReportingTree::descendants($managerId);
     }
 
     // ── Fetch rows for one company ────────────────────────────────────────────

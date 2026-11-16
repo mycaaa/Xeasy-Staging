@@ -921,11 +921,16 @@ class AdvanceRequestController extends Controller
             $approvers = [];
             // Build approval hierarchy based on configured level
             $currentEmployee = $employee;
-            for ($level = 1; $level <= $configuredLevel; $level++) {
-                if (!$currentEmployee->RepEmployeeID || $currentEmployee->EmployeeID == $currentEmployee->RepEmployeeID) {
+            // HIER-LOOP-01 (16 Nov 2026): a chain that loops (A -> B -> A) made the requester his own approver or put the
+            // same manager on two levels; stop at anyone already in the chain
+            $seenChain = [(int) $employee->EmployeeID => true];
+            for ($level = 1; $level <= min((int) $configuredLevel, \App\Support\ReportingTree::MAX_DEPTH); $level++) {
+                if (!$currentEmployee->RepEmployeeID || $currentEmployee->EmployeeID == $currentEmployee->RepEmployeeID
+                    || isset($seenChain[(int) $currentEmployee->RepEmployeeID])) {
                     // No more managers in hierarchy
                     break;
                 }
+                $seenChain[(int) $currentEmployee->RepEmployeeID] = true;
                 $approverDetails = $this->getEmployeeDetails($currentEmployee->RepEmployeeID);
                 if (!$approverDetails) {
                     \Log::warning("Level {$level} approver not found for Employee ID: {$currentEmployee->RepEmployeeID}");
@@ -1069,7 +1074,24 @@ class AdvanceRequestController extends Controller
         }
     }
 
+    /** @var array<string,mixed> HIER-LOOP-01: employee details already read in this request */
+    private array $employeeDetailsCache = [];
+
+    /**
+     * HIER-LOOP-01 (16 Nov 2026): the advance lists asked HRIMS for the same employee once per row, approval level
+     * and activity; each employee is now read once per request.
+     */
     private function getEmployeeDetails($employeeId)
+    {
+        $k = (string) $employeeId;
+        if (! array_key_exists($k, $this->employeeDetailsCache)) {
+            $this->employeeDetailsCache[$k] = $this->readEmployeeDetails($employeeId);
+        }
+
+        return $this->employeeDetailsCache[$k];
+    }
+
+    private function readEmployeeDetails($employeeId)
     {
         try {
             $employee = DB::connection('hrims')->selectOne("

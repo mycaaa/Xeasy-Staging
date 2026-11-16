@@ -375,7 +375,24 @@ class AdvanceFinanceController extends Controller
     /**
      * Get employee details from HRIMS
      */
+    /** @var array<string,mixed> HIER-LOOP-01: employee details already read in this request */
+    private array $employeeDetailsCache = [];
+
+    /**
+     * HIER-LOOP-01 (16 Nov 2026): the advance lists asked HRIMS for the same employee once per row, approval level
+     * and activity; each employee is now read once per request.
+     */
     private function getEmployeeDetails($employeeId)
+    {
+        $k = (string) $employeeId;
+        if (! array_key_exists($k, $this->employeeDetailsCache)) {
+            $this->employeeDetailsCache[$k] = $this->readEmployeeDetails($employeeId);
+        }
+
+        return $this->employeeDetailsCache[$k];
+    }
+
+    private function readEmployeeDetails($employeeId)
     {
         try {
             $employee = DB::connection('hrims')->selectOne("

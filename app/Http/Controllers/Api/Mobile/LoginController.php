@@ -133,7 +133,7 @@ class LoginController extends BaseMobileController
 
                 // Determine role
                 $apprsel = DB::connection($hrimsConn)
-                    ->select("select EmployeeID from hrm_employee_general where RepEmployeeID=?", [$info["EmployeeID"]]);
+                    ->select("select EmployeeID from hrm_employee_general where RepEmployeeID=? AND EmployeeID <> RepEmployeeID", [$info["EmployeeID"]]);
                 $EmpRole = (count($apprsel) > 0 || $resv["MoveRep"] == "Y") ? "A" : "E";
 
                 // Get employee details
@@ -146,13 +146,13 @@ class LoginController extends BaseMobileController
                 $VVRep = 'N';
 
                 $sNr = DB::connection($hrimsConn)
-                    ->select("select * from hrm_employee_general g inner join hrm_employee e on g.EmployeeID=e.EmployeeID where g.RepEmployeeID=? AND (e.EmpStatus='A' or e.EmpStatus='R') and e.CompanyId=3", [$info["EmployeeID"]]);
+                    ->select("select * from hrm_employee_general g inner join hrm_employee e on g.EmployeeID=e.EmployeeID where g.RepEmployeeID=? AND g.EmployeeID <> g.RepEmployeeID AND (e.EmpStatus='A' or e.EmpStatus='R') and e.CompanyId=3", [$info["EmployeeID"]]);
                 if (count($sNr) > 0) {
                     $NrRep = 'Y';
                 }
 
                 $sVV = DB::connection($hrimsConn)
-                    ->select("select * from hrm_employee_general g inner join hrm_employee e on g.EmployeeID=e.EmployeeID where g.RepEmployeeID=? AND (e.EmpStatus='A' or e.EmpStatus='R') and e.CompanyId=11", [$info["EmployeeID"]]);
+                    ->select("select * from hrm_employee_general g inner join hrm_employee e on g.EmployeeID=e.EmployeeID where g.RepEmployeeID=? AND g.EmployeeID <> g.RepEmployeeID AND (e.EmpStatus='A' or e.EmpStatus='R') and e.CompanyId=11", [$info["EmployeeID"]]);
                 if (count($sVV) > 0) {
                     $VVRep = 'Y';
                 }
@@ -160,7 +160,7 @@ class LoginController extends BaseMobileController
                 // Nursery reporting check
                 $employeeId = (int) $info["EmployeeID"];
                 $nurseryChk = DB::connection($hrimsConn)
-                    ->select("SELECT 1 FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID IN (SELECT EmployeeID FROM hrm_employee WHERE CompanyId = 3 AND (EmpStatus = 'A' OR EmpStatus = 'R'))", [$employeeId]);
+                    ->select("SELECT 1 FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID AND EmployeeID IN (SELECT EmployeeID FROM hrm_employee WHERE CompanyId = 3 AND (EmpStatus = 'A' OR EmpStatus = 'R'))", [$employeeId]);
                 $Reporting_NURSURY = (count($nurseryChk) > 0) ? "Y" : "N";
 
                 // Get financial year dates (FromDate, ToDate)
@@ -228,20 +228,20 @@ class LoginController extends BaseMobileController
         $rMove = !empty($sMove) ? (array) $sMove[0] : ['MoveRep' => 'N'];
 
         // Does anyone report to this employee?
-        $sAppr = DB::connection($hrimsConn)->select("SELECT 1 FROM hrm_employee_general WHERE RepEmployeeID = ? LIMIT 1", [$employeeId]);
+        $sAppr = DB::connection($hrimsConn)->select("SELECT 1 FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID LIMIT 1", [$employeeId]);
         $role = (!empty($sAppr) || ($rMove["MoveRep"] ?? '') === "Y") ? "A" : "E";
 
         // VESS (CompanyId 11)
         $sVV = DB::connection($hrimsConn)->select("SELECT 1 FROM hrm_employee_general g
                                     INNER JOIN hrm_employee e ON g.EmployeeID = e.EmployeeID
-                                    WHERE g.RepEmployeeID = ?
+                                    WHERE g.RepEmployeeID = ? AND g.EmployeeID <> g.RepEmployeeID
                                     AND e.EmpStatus != 'De' AND e.CompanyId = 11 LIMIT 1", [$employeeId]);
         $VVRep = !empty($sVV) ? "Y" : "N";
 
         // Nursery (CompanyId 3)
         $sNr = DB::connection($hrimsConn)->select("SELECT 1 FROM hrm_employee_general g
                                     INNER JOIN hrm_employee e ON g.EmployeeID = e.EmployeeID
-                                    WHERE g.RepEmployeeID = ?
+                                    WHERE g.RepEmployeeID = ? AND g.EmployeeID <> g.RepEmployeeID
                                     AND e.EmpStatus != 'De' AND e.CompanyId = 3 LIMIT 1", [$employeeId]);
         $NrRep = !empty($sNr) ? "Y" : "N";
 

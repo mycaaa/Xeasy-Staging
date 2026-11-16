@@ -571,7 +571,7 @@ class LegacyProxyController extends BaseMobileController
         try {
             // Get team member IDs
             $teamMembers = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?", [$empId]
+                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID", [$empId]
             );
             $memberIds = array_map(fn($m) => $m->EmployeeID, $teamMembers);
             // TEAM-EXP-FILTER-01 (15 Nov 2026): optional one team member (same answer shape as the whole team)

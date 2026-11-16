@@ -32,8 +32,9 @@ class TeamListController extends BaseMobileController
 
             // Get team members under this appraiser
             $teamMembers = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?",
-                [$empId]
+                // HIER-LOOP-01 (16 Nov 2026): never the approver himself (a person reporting to himself listed his own months)
+                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> ?",
+                [$empId, $empId]
             );
 
             if (empty($teamMembers)) {
@@ -67,21 +68,21 @@ class TeamListController extends BaseMobileController
                 return response()->json(['Code' => '100', 'msg' => 'Data Not Available!', 'Awaiting_verification' => $awaiting]);
             }
 
+            // HIER-LOOP-01 (16 Nov 2026): names in one query (was one per month row)
+            $names = $this->teamNames($hrimsConn, array_column(array_map(fn ($r) => (array) $r, $results), 'EmployeeID'));
+            // and the approved total of every listed month in one query (was one per month row)
+            $apprTotals = [];
+            foreach (DB::connection($expenseConn)->select("SELECT e.CrBy, e.ClaimMonth, SUM(CASE WHEN ApprBy > 0 AND ApprBy IS NOT NULL AND ApprDate IS NOT NULL AND ApprDate != '' THEN e.ApprTAmt ELSE 0 END) AS t FROM y{$yearId}_expenseclaims e WHERE e.ClaimYearId = ? AND e.CrBy IN ({$ee}) AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7)) GROUP BY e.CrBy, e.ClaimMonth", [$yearId]) as $t) {
+                $apprTotals[(int) $t->CrBy.'-'.(int) $t->ClaimMonth] = $t->t ?? '0';
+            }
+
             $carray = [];
             foreach ($results as $row) {
                 $res = (array) $row;
 
-                // Get employee name
-                $empNameResult = DB::connection($hrimsConn)->select(
-                    "SELECT CONCAT(EmpCode, ' - ', TRIM(CONCAT(Fname, ' ', IFNULL(Sname, ''), ' ', Lname))) AS Ename FROM hrm_employee WHERE EmployeeID = ?",
-                    [$res['EmployeeID']]
-                );
-                $res['EmpName'] = !empty($empNameResult) ? (array) $empNameResult[0] : ['Ename' => ''];
+                $res['EmpName'] = ['Ename' => $names[(int) $res['EmployeeID']] ?? ''];
 
-                // Get TotalApprovedAmt
-                $approvedSql = "SELECT SUM(CASE WHEN ApprBy > 0 AND ApprBy IS NOT NULL AND ApprDate IS NOT NULL AND ApprDate != '' THEN e.ApprTAmt ELSE 0 END) AS TotalApprovedAmt FROM y{$yearId}_expenseclaims e WHERE e.ClaimMonth = '{$res['Month']}' AND e.ClaimYearId = '{$yearId}' AND e.CrBy = {$res['EmployeeID']} AND e.FilledOkay = 1 AND e.ClaimStatus != 'Deactivate' AND e.ClaimStatus != 'Draft' AND ((e.ClaimId = 7 AND IFNULL(e.App_Odometer,'') NOT IN ('N','R')) OR (e.ClaimId != 7))";
-                $approvedResult = DB::connection($expenseConn)->select($approvedSql);
-                $res['TotalApprovedAmt'] = !empty($approvedResult) ? (((array) $approvedResult[0])['TotalApprovedAmt'] ?? '0') : '0';
+                $res['TotalApprovedAmt'] = (string) ($apprTotals[(int) $res['EmployeeID'].'-'.(int) $res['Month']] ?? '0');
 
                 // Stringify all values (Flutter uses non-null String types)
                 $stringified = [];
@@ -230,8 +231,9 @@ class TeamListController extends BaseMobileController
 
             // Get team members from hrm_employee_general
             $teamMembers = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?",
-                [$empId]
+                // HIER-LOOP-01 (16 Nov 2026): never the approver himself (a person reporting to himself listed his own months)
+                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> ?",
+                [$empId, $empId]
             );
 
             if (empty($teamMembers)) {
@@ -252,16 +254,14 @@ class TeamListController extends BaseMobileController
                 return response()->json(['Code' => '100', 'msg' => 'Data Not Available!']);
             }
 
+            // HIER-LOOP-01 (16 Nov 2026): names in one query (was one per month row)
+            $names = $this->teamNames($hrimsConn, array_column(array_map(fn ($r) => (array) $r, $results), 'EmployeeID'));
+
             $carray = [];
             foreach ($results as $row) {
                 $res = (array) $row;
 
-                // Get employee name
-                $empNameResult = DB::connection($hrimsConn)->select(
-                    "SELECT CONCAT(EmpCode, ' - ', TRIM(CONCAT(Fname, ' ', IFNULL(Sname, ''), ' ', Lname))) AS Ename FROM hrm_employee WHERE EmployeeID = ?",
-                    [$res['EmployeeID']]
-                );
-                $res['EmpName'] = !empty($empNameResult) ? (array) $empNameResult[0] : ['Ename' => ''];
+                $res['EmpName'] = ['Ename' => $names[(int) $res['EmployeeID']] ?? ''];
 
                 // Stringify all values
                 $stringified = [];
@@ -364,7 +364,7 @@ class TeamListController extends BaseMobileController
         try {
             $hrimsConn = $this->getHrimsConnection();
 
-            $sql = "SELECT e.EmployeeID, e.EmpCode, CONCAT(e.Fname, ' ', e.Sname, ' ', e.Lname) AS FullName, eg.HqId AS HeadQuarterId, CASE WHEN eg.TerrId > 0 THEN ct.territory_name ELSE ccvs.city_village_name END AS HeadQuarterName FROM hrm_employee e INNER JOIN hrm_employee_general eg ON e.EmployeeID = eg.EmployeeID LEFT JOIN core_territory ct ON eg.TerrId = ct.id LEFT JOIN core_city_village_by_state ccvs ON eg.HqId = ccvs.id WHERE e.EmpStatus = 'A' AND e.CompanyId = ? AND eg.RepEmployeeID = ?";
+            $sql = "SELECT e.EmployeeID, e.EmpCode, CONCAT(e.Fname, ' ', e.Sname, ' ', e.Lname) AS FullName, eg.HqId AS HeadQuarterId, CASE WHEN eg.TerrId > 0 THEN ct.territory_name ELSE ccvs.city_village_name END AS HeadQuarterName FROM hrm_employee e INNER JOIN hrm_employee_general eg ON e.EmployeeID = eg.EmployeeID LEFT JOIN core_territory ct ON eg.TerrId = ct.id LEFT JOIN core_city_village_by_state ccvs ON eg.HqId = ccvs.id WHERE e.EmpStatus = 'A' AND e.CompanyId = ? AND eg.RepEmployeeID = ? AND eg.EmployeeID <> eg.RepEmployeeID";
 
             $results = DB::connection($hrimsConn)->select($sql, [$comId, $empId]);
 
@@ -404,7 +404,7 @@ class TeamListController extends BaseMobileController
         try {
             $hrimsConn = $this->getHrimsConnection();
 
-            $sql = "SELECT e.EmployeeID, e.EmpCode, CONCAT(e.Fname, ' ', e.Sname, ' ', e.Lname) AS FullName, eg.HqId AS HeadQuarterId, CASE WHEN eg.TerrId > 0 THEN ct.territory_name ELSE ccvs.city_village_name END AS HeadQuarterName FROM hrm_employee e LEFT JOIN hrm_employee_general eg ON e.EmployeeID = eg.EmployeeID LEFT JOIN core_territory ct ON eg.TerrId = ct.id LEFT JOIN core_city_village_by_state ccvs ON eg.HqId = ccvs.id WHERE e.EmpStatus = 'A' AND e.CompanyId = ? AND (eg.RepEmployeeID = ?)";
+            $sql = "SELECT e.EmployeeID, e.EmpCode, CONCAT(e.Fname, ' ', e.Sname, ' ', e.Lname) AS FullName, eg.HqId AS HeadQuarterId, CASE WHEN eg.TerrId > 0 THEN ct.territory_name ELSE ccvs.city_village_name END AS HeadQuarterName FROM hrm_employee e LEFT JOIN hrm_employee_general eg ON e.EmployeeID = eg.EmployeeID LEFT JOIN core_territory ct ON eg.TerrId = ct.id LEFT JOIN core_city_village_by_state ccvs ON eg.HqId = ccvs.id WHERE e.EmpStatus = 'A' AND e.CompanyId = ? AND (eg.RepEmployeeID = ? AND eg.EmployeeID <> eg.RepEmployeeID)";
 
             $results = DB::connection($hrimsConn)->select($sql, [$comId, $empId]);
 
@@ -509,5 +509,21 @@ class TeamListController extends BaseMobileController
         } catch (\Exception $e) {
             return response()->json(['Code' => '100', 'msg' => 'Data Not Available!']);
         }
+    }
+
+    /** HIER-LOOP-01: "EmpCode - Name" of several employees in one query. */
+    private function teamNames(string $hrimsConn, array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if (! $ids) {
+            return [];
+        }
+        $out = [];
+        foreach (DB::connection($hrimsConn)->table('hrm_employee')->whereIn('EmployeeID', $ids)
+            ->get(['EmployeeID', DB::raw("CONCAT(EmpCode, ' - ', TRIM(CONCAT(Fname, ' ', IFNULL(Sname, ''), ' ', Lname))) AS Ename")]) as $r) {
+            $out[(int) $r->EmployeeID] = (string) $r->Ename;
+        }
+
+        return $out;
     }
 }

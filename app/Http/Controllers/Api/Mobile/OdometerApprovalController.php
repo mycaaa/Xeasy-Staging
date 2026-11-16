@@ -26,7 +26,7 @@ class OdometerApprovalController extends BaseMobileController
                 "SELECT eg.EmployeeID, eg.DepartmentId, eg.EmpVertical
                  FROM hrm_employee_general eg
                  JOIN hrm_employee e ON eg.EmployeeID = e.EmployeeID
-                 WHERE eg.RepEmployeeID = ? AND e.EmpStatus = 'A'",
+                 WHERE eg.RepEmployeeID = ? AND eg.EmployeeID <> eg.RepEmployeeID AND e.EmpStatus = 'A'",
                 [$empId]
             );
 

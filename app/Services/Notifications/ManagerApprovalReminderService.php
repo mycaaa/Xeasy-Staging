@@ -137,7 +137,8 @@ class ManagerApprovalReminderService
         return $months->map(function ($m) use ($emps, $mgrs, $name) {
             $e = $emps[$m->EmployeeID] ?? null;
             $g = $e ? ($mgrs[$e->RepEmployeeID] ?? null) : null;
-            if (! $e || ! $g) {
+            // HIER-LOOP-01: a person who reports to himself is not reminded to approve his own month
+            if (! $e || ! $g || (int) $e->RepEmployeeID === (int) $m->EmployeeID) {
                 return null;
             }
 

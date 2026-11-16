@@ -62,7 +62,7 @@ class HodAccess
         try {
             return DB::connection('hrims')->table('hrm_employee_general as eg')
                 ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-                ->where('eg.RepEmployeeID', $self)->where('e.EmpStatus', 'A')->exists();
+                ->where('eg.RepEmployeeID', $self)->where('eg.EmployeeID', '<>', $self)->where('e.EmpStatus', 'A')->exists();
         } catch (\Throwable $e) {
             return false;
         }

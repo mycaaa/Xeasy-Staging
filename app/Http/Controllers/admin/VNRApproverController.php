@@ -116,7 +116,7 @@ class VNRApproverController extends Controller
 
                 $teamMembers = DB::table($hrimsDb . '.hrm_employee_general as eg')
                     ->join($hrimsDb . '.hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-                    ->where('eg.RepEmployeeID', $employeeId)
+                    ->where('eg.RepEmployeeID', $employeeId)->where('eg.EmployeeID', '<>', $employeeId)
                     ->where('e.EmpStatus', 'A')
                     ->select('e.EmployeeID', 'e.EmpCode', DB::raw("CONCAT(e.Fname, ' ', COALESCE(e.Lname, '')) as EmpName"))
                     ->get();

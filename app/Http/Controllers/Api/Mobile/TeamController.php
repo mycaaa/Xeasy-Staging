@@ -31,7 +31,7 @@ class TeamController extends BaseMobileController
         $members = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->where('e.CompanyId', $comId)
             ->select([
@@ -74,7 +74,7 @@ class TeamController extends BaseMobileController
         $members = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->where('e.CompanyId', $comId)
             ->select([
@@ -127,7 +127,7 @@ class TeamController extends BaseMobileController
         $teamMemberIds = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->where('e.CompanyId', $comId)
             ->pluck('eg.EmployeeID')
@@ -329,7 +329,7 @@ class TeamController extends BaseMobileController
         $teamMemberIds = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->pluck('eg.EmployeeID')
             ->toArray();
@@ -418,7 +418,7 @@ class TeamController extends BaseMobileController
         $teamMemberIds = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->pluck('eg.EmployeeID')
             ->toArray();
@@ -427,21 +427,13 @@ class TeamController extends BaseMobileController
             return $this->success(['team_last_odo' => []]);
         }
 
+        // HIER-LOOP-01 (16 Nov 2026): one query for the whole team (was one per member)
+        $latest = \App\Support\LastOdometer::forEmployees($expenseConn, $this->claimsTable($yearId), $teamMemberIds, ['odomtr_closing', 'BillDate']);
         $lastOdo = [];
         foreach ($teamMemberIds as $memberId) {
-            $odo = DB::connection($expenseConn)
-                ->table($this->claimsTable($yearId))
-                ->where('CrBy', $memberId)
-                ->where('ClaimId', 7)
-                ->where('ClaimStatus', '!=', 'Deactivate')
-                ->where('odomtr_closing', '>', 0)
-                ->orderByDesc('BillDate')
-                ->orderByDesc('ExpId')
-                ->select('odomtr_closing', 'BillDate', 'CrBy')
-                ->first();
-
-            if ($odo) {
-                $lastOdo[] = $odo;
+            if (isset($latest[(int) $memberId])) {
+                $r = $latest[(int) $memberId];
+                $lastOdo[] = (object) ['odomtr_closing' => $r->odomtr_closing, 'BillDate' => $r->BillDate, 'CrBy' => $r->CrBy];
             }
         }
 
@@ -474,7 +466,7 @@ class TeamController extends BaseMobileController
     private function appraiseeIds(int $empId): array
     {
         return DB::connection($this->getHrimsConnection())->table('hrm_employee_general')
-            ->where('RepEmployeeID', $empId)->pluck('EmployeeID')->map(fn ($v) => (int) $v)->all();
+            ->where('RepEmployeeID', $empId)->where('EmployeeID', '<>', $empId)->pluck('EmployeeID')->map(fn ($v) => (int) $v)->all();
     }
 
     /**
@@ -486,7 +478,7 @@ class TeamController extends BaseMobileController
         return DB::connection($this->getHrimsConnection())->table('hrm_employee_general as g')
             ->join('hrm_employee as e', 'g.EmployeeID', '=', 'e.EmployeeID')
             ->where('e.EmpStatus', 'A')->where('e.CompanyId', $comId)
-            ->where('g.RepEmployeeID', $empId)
+            ->where('g.RepEmployeeID', $empId)->where('g.EmployeeID', '<>', $empId)
             ->pluck('g.EmployeeID')->map(fn ($v) => (int) $v)->unique()->values()->all();
     }
 

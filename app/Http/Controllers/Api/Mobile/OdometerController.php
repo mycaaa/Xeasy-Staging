@@ -125,7 +125,7 @@ class OdometerController extends BaseMobileController
         $teamMembers = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->pluck('eg.EmployeeID')
             ->toArray();
@@ -416,7 +416,7 @@ class OdometerController extends BaseMobileController
         $teamMembers = DB::connection($hrimsConn)
             ->table('hrm_employee_general as eg')
             ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-            ->where('eg.RepEmployeeID', $empId)
+            ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)
             ->where('e.EmpStatus', 'A')
             ->pluck('eg.EmployeeID')
             ->toArray();

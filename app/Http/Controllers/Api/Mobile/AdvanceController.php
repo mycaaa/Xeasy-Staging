@@ -129,7 +129,7 @@ class AdvanceController extends BaseMobileController
         // Check if employee is an approver
         $isApprover = DB::connection($hrimsConn)
             ->table('hrm_employee_general')
-            ->where('RepEmployeeID', $empId)
+            ->where('RepEmployeeID', $empId)->where('EmployeeID', '<>', $empId)
             ->exists();
 
         // Check if employee is a second-level approver

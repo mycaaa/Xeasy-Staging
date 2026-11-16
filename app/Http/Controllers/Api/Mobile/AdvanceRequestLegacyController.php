@@ -548,7 +548,7 @@ class AdvanceRequestLegacyController extends BaseMobileController
 
         try {
             $teamMembersRows = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?",
+                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID",
                 [$employeeID]
             );
 
@@ -745,7 +745,7 @@ class AdvanceRequestLegacyController extends BaseMobileController
         // 1. Check if employee is in hrm_employee_general as reporting manager
         try {
             $repCheck = DB::connection($hrimsConn)->select(
-                "SELECT COUNT(*) as cnt FROM hrm_employee_general WHERE RepEmployeeID = ?",
+                "SELECT COUNT(*) as cnt FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID",
                 [$employeeId]
             );
             if (!empty($repCheck) && $repCheck[0]->cnt > 0) {

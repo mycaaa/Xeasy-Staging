@@ -520,25 +520,10 @@ class AdvanceRequestMasterController extends Controller
         }
     }
 
-    private function fetchEmployeesRecursive($managerId, $depth = 0, $maxDepth = 10, &$visited = [])
+    /** HIER-LOOP-01 (16 Nov 2026): in-memory walk (was one query per person, repeated for every manager listed). */
+    private function fetchEmployeesRecursive($managerId, $depth = 0, $maxDepth = 10)
     {
-        try {
-            if ($depth >= $maxDepth || in_array($managerId, $visited)) {
-                return [];
-            }
-            $visited[] = $managerId;
-            $employees = collect();
-            $directReports = DB::connection('hrims')->table('hrm_employee_general as eg')->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')->where('eg.RepEmployeeID', $managerId)->where('e.EmpStatus', 'A')->select('eg.EmployeeID')->get();
-            foreach ($directReports as $employee) {
-                $employees->push($employee->EmployeeID);
-                $subEmployees = $this->fetchEmployeesRecursive($employee->EmployeeID, $depth + 1, $maxDepth, $visited);
-                $employees = $employees->merge($subEmployees);
-            }
-            return $employees->unique()->values()->toArray();
-        } catch (Exception $e) {
-            \Log::error('Error in fetchEmployeesRecursive: ' . $e->getMessage());
-            return [];
-        }
+        return \App\Support\ReportingTree::descendants((int) $managerId, true, (int) $maxDepth);
     }
 
     private function logChange($masterId, $action, $oldData, $newData, $advanceTypeId, $departmentId = null, $employeeId = null)

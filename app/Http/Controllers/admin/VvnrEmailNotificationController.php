@@ -1136,6 +1136,24 @@ class VvnrEmailNotificationController extends Controller
                 )->get()->keyBy('manager_id');
         }
 
+        // HIER-LOOP-01 (16 Nov 2026): the managers' managers in one query (was one query per employee in the loop)
+        $l2Ids = $managerMasters->pluck('manager_rep_id')->map(fn ($x) => (int) $x)->filter()
+            ->reject(fn ($x) => $managerMasters->has($x))->unique()->values()->all();
+        if ($l2Ids) {
+            $l2Masters = DB::connection('hrims')
+                ->table('hrm_employee as e')
+                ->join('hrm_employee_general as g', 'e.EmployeeID', '=', 'g.EmployeeID')
+                ->whereIn('e.EmployeeID', $l2Ids)
+                ->select(
+                    'e.EmployeeID as manager_id',
+                    'e.EmpCode_New as manager_code',
+                    DB::raw("TRIM(CONCAT(COALESCE(e.Fname,''),' ',COALESCE(e.Sname,''),' ',COALESCE(e.Lname,''))) as manager_name"),
+                    'g.EmailId_Vnr as manager_email',
+                    'g.RepEmployeeID as manager_rep_id'
+                )->get()->keyBy('manager_id');
+            $managerMasters = $managerMasters->union($l2Masters);
+        }
+
         $hierarchyMap = [];
         foreach ($employees as $emp) {
             $empId = (int) $emp->employee_id;
@@ -1152,21 +1170,6 @@ class VvnrEmailNotificationController extends Controller
             }
 
             $l2Mgr = $l2Id ? $managerMasters->get($l2Id) : null;
-            if (!$l2Mgr && $l2Id) {
-                $l2Direct = DB::connection('hrims')
-                    ->table('hrm_employee as e')
-                    ->join('hrm_employee_general as g', 'e.EmployeeID', '=', 'g.EmployeeID')
-                    ->where('e.EmployeeID', $l2Id)
-                    ->select(
-                        'e.EmployeeID as manager_id',
-                        'e.EmpCode_New as manager_code',
-                        DB::raw("TRIM(CONCAT(COALESCE(e.Fname,''),' ',COALESCE(e.Sname,''),' ',COALESCE(e.Lname,''))) as manager_name"),
-                        'g.EmailId_Vnr as manager_email'
-                    )->first();
-                if ($l2Direct) {
-                    $l2Mgr = $l2Direct;
-                }
-            }
 
             $hierarchyMap[$empId] = [
                 'employee_id'            => $empId,

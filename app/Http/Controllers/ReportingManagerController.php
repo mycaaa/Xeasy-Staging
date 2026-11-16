@@ -97,7 +97,7 @@ class ReportingManagerController extends Controller
     {
         return DB::connection(session('hrims_connection', 'hrims'))->table('hrm_employee_general as g')
             ->join('hrm_employee as e', 'e.EmployeeID', '=', 'g.EmployeeID')
-            ->where('g.RepEmployeeID', (int) $rmId)->where('e.EmpStatus', 'A')
+            ->where('g.RepEmployeeID', (int) $rmId)->where('g.EmployeeID', '<>', (int) $rmId)->where('e.EmpStatus', 'A')
             ->pluck('g.EmployeeID')->map(fn ($v) => (int) $v)->all();
     }
 
@@ -261,7 +261,7 @@ class ReportingManagerController extends Controller
         return DB::connection(session('hrims_connection', 'hrims'))->table('hrm_employee_general as g')
             ->join('hrm_employee as e', 'e.EmployeeID', '=', 'g.EmployeeID')
             ->leftJoin('core_designation as d', 'd.id', '=', 'g.DesigId')
-            ->where('g.RepEmployeeID', (int) $reportingManagerId)->where('e.EmpStatus', 'A')
+            ->where('g.RepEmployeeID', (int) $reportingManagerId)->where('g.EmployeeID', '<>', (int) $reportingManagerId)->where('e.EmpStatus', 'A')
             ->selectRaw("e.EmployeeID, e.Fname as FirstName, TRIM(CONCAT(COALESCE(e.Sname,''),' ',COALESCE(e.Lname,''))) as LastName, COALESCE(d.designation_name, g.Designation) as Designation, g.DepartmentId")
             ->orderBy('e.Fname')
             ->get();

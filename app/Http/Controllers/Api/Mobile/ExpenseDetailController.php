@@ -893,7 +893,7 @@ class ExpenseDetailController extends BaseMobileController
             // for active team members only, with photo links through claim-file.php (the app sends its login headers).
             $teamMembers = DB::connection($hrimsConn)->table('hrm_employee_general as eg')
                 ->join('hrm_employee as e', 'eg.EmployeeID', '=', 'e.EmployeeID')
-                ->where('eg.RepEmployeeID', $empId)->where('e.EmpStatus', 'A')
+                ->where('eg.RepEmployeeID', $empId)->where('eg.EmployeeID', '<>', $empId)->where('e.EmpStatus', 'A')
                 ->orderBy('e.Fname')
                 ->get(['e.EmployeeID', 'e.EmpCode', DB::raw("TRIM(CONCAT(COALESCE(e.Fname,''),' ',COALESCE(e.Sname,''),' ',COALESCE(e.Lname,''))) AS EmpName")]);
 
@@ -902,13 +902,11 @@ class ExpenseDetailController extends BaseMobileController
 
             $data = [];
             $teamOdo = [];
+            // HIER-LOOP-01 (16 Nov 2026): one query for the whole team (was one per member)
+            $latest = \App\Support\LastOdometer::forEmployees($expenseConn, "y{$yearId}_expenseclaims", $teamMembers->pluck('EmployeeID')->all(),
+                ['ExpId', 'BillDate', 'odomtr_opening', 'odomtr_closing', 'opening_filepath', 'closing_filepath']);
             foreach ($teamMembers as $m) {
-                $last = DB::connection($expenseConn)->table("y{$yearId}_expenseclaims")
-                    ->where('CrBy', $m->EmployeeID)->where('ClaimId', 7)
-                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat'])
-                    ->where('odomtr_closing', '>', 0)
-                    ->orderByDesc('BillDate')->orderByDesc('ExpId')
-                    ->first(['ExpId', 'BillDate', 'odomtr_opening', 'odomtr_closing', 'opening_filepath', 'closing_filepath']);
+                $last = $latest[(int) $m->EmployeeID] ?? null;
                 $teamOdo[] = [
                     'EmployeeID' => (string) $m->EmployeeID,
                     'EmpCode' => (string) $m->EmpCode,
@@ -973,7 +971,7 @@ class ExpenseDetailController extends BaseMobileController
         try {
             // 1. Get team members from reporting hierarchy
             $teamMembers = DB::connection($hrimsConn)->select(
-                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ?",
+                "SELECT EmployeeID FROM hrm_employee_general WHERE RepEmployeeID = ? AND EmployeeID <> RepEmployeeID",
                 [$empId]
             );
 

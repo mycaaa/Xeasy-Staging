@@ -369,13 +369,15 @@ class NotificationController extends Controller
                     ->distinct()
                     ->get();
 
+                // HIER-LOOP-01 (16 Nov 2026): who was already mailed, in one query (was one per employee)
+                $sentIds = DB::table('eml_stage_email_logs')
+                    ->where('notification_type', 'pending_hardcopy')
+                    ->where('stage', $notification->stage)
+                    ->where('sent_for_month', now()->format('Y-m'))
+                    ->whereIn('employee_id', $employees->pluck('EmployeeId')->unique()->all())
+                    ->pluck('employee_id')->map(fn ($x) => (string) $x)->flip();
                 foreach ($employees as $employee) {
-                    $alreadySent = DB::table('eml_stage_email_logs')
-                        ->where('employee_id', $employee->EmployeeId)
-                        ->where('notification_type', 'pending_hardcopy')
-                        ->where('stage', $notification->stage)
-                        ->where('sent_for_month', now()->format('Y-m'))
-                        ->exists();
+                    $alreadySent = $sentIds->has((string) $employee->EmployeeId);
 
                     if ($isPreview) {
                         $allEmployees->push([
@@ -437,6 +439,7 @@ class NotificationController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                    $sentIds->put((string) $employee->EmployeeId, true);
 
                     // New comprehensive log
                     app(EmailLogService::class)->log([
@@ -533,13 +536,15 @@ class NotificationController extends Controller
                     ->distinct()
                     ->get();
 
+                // HIER-LOOP-01 (16 Nov 2026): who was already mailed, in one query (was one per employee)
+                $sentIds = DB::table('eml_stage_email_logs')
+                    ->where('notification_type', 'expense_submission')
+                    ->where('stage', $notification->stage)
+                    ->where('sent_for_month', now()->format('Y-m'))
+                    ->whereIn('employee_id', $employees->pluck('EmployeeId')->unique()->all())
+                    ->pluck('employee_id')->map(fn ($x) => (string) $x)->flip();
                 foreach ($employees as $employee) {
-                    $alreadySent = DB::table('eml_stage_email_logs')
-                        ->where('employee_id', $employee->EmployeeId)
-                        ->where('notification_type', 'expense_submission')
-                        ->where('stage', $notification->stage)
-                        ->where('sent_for_month', now()->format('Y-m'))
-                        ->exists();
+                    $alreadySent = $sentIds->has((string) $employee->EmployeeId);
 
                     if ($isPreview) {
                         $allEmployees->push([
@@ -601,6 +606,7 @@ class NotificationController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                    $sentIds->put((string) $employee->EmployeeId, true);
 
                     // New comprehensive log
                     app(EmailLogService::class)->log([

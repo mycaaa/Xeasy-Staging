@@ -386,7 +386,7 @@ class EmployeeController extends Controller
                     'DateOfResignation'
                 ]);
             }])
-            ->where('RepEmployeeID', $employeeId)
+            ->where('RepEmployeeID', $employeeId)->where('EmployeeID', '<>', $employeeId)
             ->whereHas('employee', function ($q) {
                 $q->where('EmpStatus', 'A')
                   ->where(function ($q2) {
