@@ -33,7 +33,9 @@
 .cs .ladder { position: relative; margin-top: 14px; max-width: 520px; }
 .cs .ladder .track { display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: var(--hero-track); }
 .cs .ladder .pin { position: absolute; top: -5px; width: 4px; height: 20px; border-radius: 2px; background: #fff; transform: translateX(-2px); }
-.cs .ladder .ticks { display: flex; justify-content: space-between; font-size: .68rem; color: var(--on-hero-2); margin-top: 5px; }
+.cs .ladder .ticks { position: relative; height: 16px; font-size: .68rem; color: var(--on-hero-2); margin-top: 5px; }
+.cs .ladder .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.cs .ladder .ticks span:first-child { transform: none; } .cs .ladder .ticks span:last-child { transform: translateX(-100%); }
 .cs .hero-side { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 10px; }
 .cs .stat { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 10px 12px; }
 .cs .stat b { display: block; font: 700 1.35rem var(--fh); line-height: 1.15; color: #fff; } .cs .stat span { font-size: .72rem; color: var(--on-hero-2); }
@@ -48,7 +50,7 @@
 .cs .bdg { display: grid; justify-items: center; text-align: center; gap: 4px; padding: 10px 8px; border-radius: 14px; border: 1px solid var(--line); }
 .cs .bdg svg { width: 54px; height: 54px; } .cs .bdg b { font-size: .8rem; } .cs .bdg span { font-size: .7rem; color: var(--muted); }
 .cs .bdg.off { opacity: .55; } .cs .bdg.off svg { filter: grayscale(1); }
-.cs .shape { display: grid; gap: 16px; }
+.cs .cs-shape { display: grid; gap: 16px; position: static; }
 .cs .sh-top { display: flex; justify-content: space-between; align-items: baseline; } .cs .sh-top span { font: 700 1.15rem var(--fh); }
 .cs .sh-track { position: relative; height: 18px; border-radius: 10px; background: var(--sunk); margin: 4px 0; }
 .cs .sh-fill { position: absolute; inset: 0 auto 0 0; border-radius: 10px; background: var(--pc); opacity: .9; }
@@ -71,7 +73,9 @@
 .cs .chip.good { background: var(--good-soft); color: var(--good); } .cs .chip.bad { background: var(--bad-soft); color: var(--bad); } .cs .chip.warn { background: var(--warn-soft); color: var(--warn); } .cs .chip.eq { background: var(--sunk); color: var(--muted); }
 .cs .lvl { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 1px 9px 1px 3px; border: 1.5px solid var(--lc); color: var(--lc); white-space: nowrap; }
 .cs .lvl svg { width: 16px; height: 16px; }
-.cs table.t { width: 100%; border-collapse: collapse; } .cs .t th, .cs .t td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.cs table.t { width: 100%; border-collapse: collapse; } .cs .t td.emp { min-width: 210px; }
+.cs .t td.emp b { white-space: nowrap; }
+.cs .t th, .cs .t td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .cs .t th { font-size: .72rem; color: var(--muted); font-weight: 600; white-space: nowrap; } .cs .t .r { text-align: right; } .cs .t .c { text-align: center; }
 .cs .tscroll { overflow-x: auto; }
 .cs .heat { border-radius: 8px; font: 700 .8rem var(--fh); text-align: center; min-width: 46px; padding: 6px 4px; }
@@ -79,7 +83,7 @@
 .cs .alert2.warn { border-left-color: var(--warn); }
 .cs .btn2 { border: 0; border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: .8rem; cursor: pointer; background: var(--accent-soft); color: var(--accent); }
 .cs .scope { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
-.cs .scope .lab { font-size: .72rem; font-weight: 600; color: var(--on-hero-2); }
+.cs .scope .scope-lab { font-size: .72rem; font-weight: 600; color: var(--on-hero-2); }
 .cs .scope a { display: inline-flex; align-items: center; gap: 7px; font: 700 .86rem inherit; color: #fff; background: rgba(255,255,255,.12); border: 1.5px solid rgba(255,255,255,.6); border-radius: 999px; padding: 7px 14px; text-decoration: none; }
 .cs .scope a:hover { background: rgba(255,255,255,.24); } .cs .scope a.on { background: #fff; color: var(--hero1); border-color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 .cs .scope svg { width: 18px; height: 18px; fill: currentColor; }
@@ -113,7 +117,7 @@ window.CS = (function () {
     const levelOf = (s, levels) => levels.find(l => s >= l.min) || levels[levels.length - 1];
     function ladder(s, levels) {
         const asc = levels.slice().reverse(), stops = asc.map((l, i) => [l.min, i + 1 < asc.length ? asc[i + 1].min : 1000, l.c]);
-        return `<div class="track">${stops.map(([a, b, c]) => `<i style="width:${(b - a) / 10}%;background:var(${c})"></i>`).join('')}</div><div class="pin" style="left:${Math.min(100, s / 10)}%"></div><div class="ticks">${['0', ...asc.slice(1).map(l => l.min), '1000'].map(x => `<span>${x}</span>`).join('')}</div>`;
+        return `<div class="track">${stops.map(([a, b, c]) => `<i style="width:${(b - a) / 10}%;background:var(${c})"></i>`).join('')}</div><div class="pin" style="left:${Math.min(100, s / 10)}%"></div><div class="ticks">${[0, ...asc.slice(1).map(l => l.min), 1000].map(x => `<span style="left:${x / 10}%">${x}</span>`).join('')}</div>`;
     }
     const avatar = (name, hue, lvl, cls = '') => `<span class="av ${cls}" style="background:var(--a${hue || 1})">${esc(initials(name))}${lvl ? `<span class="md">${medal(lvl.n, lvl.c, 20)}</span>` : ''}</span>`;
     const pbars = (pil, pillars) => `<span class="pbars" aria-hidden="true">${pillars.map(p => `<i style="height:${Math.max(2, (pil[p.k] || 0) / 100 * 24)}px;background:var(${p.c})"></i>`).join('')}</span>`;

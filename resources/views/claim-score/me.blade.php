@@ -37,7 +37,7 @@
 
     <div class="card2"><div class="card-h"><h3>Missions for this month</h3><span class="muted small">The changes worth the most points for you</span></div><div class="missions" id="meMissions"></div></div>
     <div class="g2">
-        <div class="card2"><div class="card-h"><h3>My shape</h3><span class="muted small">Each bar is your mark out of 100</span></div><div class="shape" id="meShape"></div>
+        <div class="card2"><div class="card-h"><h3>My shape</h3><span class="muted small">Each bar is your mark out of 100</span></div><div class="cs-shape" id="meShape"></div>
             <div class="small muted mt-2"><span style="display:inline-block;width:3px;height:12px;background:var(--ink);vertical-align:-2px"></span> Department average &nbsp; <span style="display:inline-block;width:3px;height:12px;background:var(--gold);vertical-align:-2px"></span> Best in department</div></div>
         <div class="card2"><div class="card-h"><h3>My score over the year</h3><span class="muted small">Coloured bands are the levels</span></div><div class="cw tall"><canvas id="cTrend"></canvas></div></div>
     </div>
@@ -92,6 +92,7 @@
     let h = G.slice(3, 10).map(row).join('');
     if (me >= 10) h += (me > 11 ? '<div class="text-center small muted">· · ·</div>' : '') + G.slice(Math.max(10, me - 1), me + 2).map(row).join('');
     if (G.length > Math.max(10, me + 2)) h += `<div class="text-center small muted py-1">${G.length - Math.max(10, me + 2)} more below</div>`;
+    if (me < 0) h += `<div class="row2 me"><span class="rk">–</span>${C.avatar(P.person.nm, 1, lv)}<span class="who"><b>${C.esc(P.person.nm)} (you)</b><span>Not ranked this month: ${R.claims} claims, ranking needs ${P.minClaims}</span></span><span></span><span class="sc num">${R.score}</span></div>`;
     document.getElementById('lbRows').innerHTML = h;
     const bands = { id: 'bands', beforeDraw(c) { const y = c.scales.y, a = c.chartArea, ctx = c.ctx; ctx.save(); const asc = L.slice().reverse();
         asc.forEach((l, i) => { const hi = i + 1 < asc.length ? asc[i + 1].min : 1000, t = y.getPixelForValue(Math.min(hi, y.max)), b = y.getPixelForValue(Math.max(l.min, y.min)); if (b > t) { ctx.fillStyle = C.css(l.c); ctx.globalAlpha = .1; ctx.fillRect(a.left, t, a.right - a.left, b - t); } }); ctx.restore(); } };
