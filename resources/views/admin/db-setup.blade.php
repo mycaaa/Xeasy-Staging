@@ -9,7 +9,7 @@
                 @if ($pending > 0)
                     <form method="post" action="{{ route('admin.db-setup.run') }}" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').innerText = 'Running…';">
                         @csrf
-                        <button class="btn btn-sm btn-primary">Run {{ $pending }} missing {{ $pending === 1 ? 'change' : 'changes' }}</button>
+                        <button class="btn btn-sm btn-primary">Run {{ $pending }} missing or incomplete {{ $pending === 1 ? 'change' : 'changes' }}</button>
                     </form>
                 @else
                     <span class="badge bg-success-subtle text-success">Up to date</span>
@@ -37,14 +37,17 @@
 
                 <div class="table-responsive">
                     <table class="table table-sm table-hover align-middle mb-0">
-                        <thead class="table-light"><tr><th style="width:60px">#</th><th>Database change</th><th style="width:140px">On this server</th></tr></thead>
+                        <thead class="table-light"><tr><th style="width:60px">#</th><th>Database change</th><th style="width:260px">On this server</th></tr></thead>
                         <tbody>
                         @foreach (array_reverse($rows, true) as $i => $r)
                             <tr>
                                 <td class="small text-muted">{{ $i + 1 }}</td>
                                 <td class="small">{{ $r['name'] }}</td>
                                 <td class="small">
-                                    @if ($r['ran'])
+                                    @if ($r['ran'] && ! empty($r['missing']))
+                                        <span class="text-danger fw-semibold">Incomplete</span>
+                                        <div class="text-muted" style="font-size:.7rem">recorded as done, but not here: {{ implode(', ', array_slice($r['missing'], 0, 6)) }}{{ count($r['missing']) > 6 ? ' …' : '' }}</div>
+                                    @elseif ($r['ran'])
                                         <span class="text-success">Done</span>
                                     @elseif (! $r['file'])
                                         <span class="text-muted">File not in this version</span>
