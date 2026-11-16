@@ -160,6 +160,8 @@
                     $previewJoinings   = array_slice($sysAlertsSummary['joinings'] ?? [], 0, 4);
                     $previewPromotions = array_slice($sysAlertsSummary['promotions'] ?? [], 0, 4);
                     $previewImprest    = array_slice($sysAlertsSummary['missing_imprest'] ?? [], 0, 4);
+                    $sepCount          = $sysAlertsSummary['separations_count'] ?? 0;
+                    $previewSeparations = array_slice($sysAlertsSummary['separations'] ?? [], 0, 4);
                 @endphp
                 <div class="dropdown topbar-head-dropdown ms-1 header-item" id="notificationDropdown">
                     <button type="button"
@@ -207,6 +209,11 @@
                                     <li class="nav-item waves-effect waves-light">
                                         <a class="nav-link fs-12" data-bs-toggle="tab" href="#imprest-noti-tab" role="tab">
                                             Imprest ({{ $imprestCount }})
+                                        </a>
+                                    </li>
+                                    <li class="nav-item waves-effect waves-light">
+                                        <a class="nav-link fs-12" data-bs-toggle="tab" href="#separations-noti-tab" role="tab">
+                                            Exits ({{ $sepCount }})
                                         </a>
                                     </li>
                                 </ul>
@@ -318,6 +325,35 @@
                                     @empty
                                     <div class="text-center text-muted py-3 fs-13">
                                         <i class="ri-checkbox-circle-line me-1 text-success"></i> All eligible employees have imprest!
+                                    </div>
+                                    @endforelse
+                                </div>
+                            </div>
+
+
+                            {{-- TAB 5: Separation / Resignation (IMP-SEP-01) --}}
+                            <div class="tab-pane fade py-2 ps-2" id="separations-noti-tab" role="tabpanel">
+                                <div data-simplebar style="max-height: 280px;" class="pe-2">
+                                    @forelse($previewSeparations as $x)
+                                    <a href="{{ route('admin.system-notifications.index') }}?tab=separations" class="text-reset notification-item d-block dropdown-item position-relative">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-xs me-3 flex-shrink-0">
+                                                <span class="avatar-title bg-danger-subtle text-danger rounded-circle fs-16">
+                                                    <i class="ri-logout-box-r-line"></i>
+                                                </span>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mt-0 mb-1 fs-13 fw-semibold">{{ $x['emp_name'] ?? '' }} <small class="text-muted">({{ $x['emp_code'] ?? '' }})</small></h6>
+                                                <div class="fs-12 text-muted">
+                                                    {{ $x['separation_date'] ? 'Separated '.date('d M Y', strtotime($x['separation_date'])) : 'Resigned '.date('d M Y', strtotime($x['resignation_date'])) }}
+                                                    • Imprest held: <strong class="text-danger">₹{{ number_format($x['imprest_held'] ?? 0) }}</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    @empty
+                                    <div class="text-center text-muted py-3 fs-13">
+                                        <i class="ri-checkbox-circle-line me-1 text-success"></i> No imprest waiting for settlement.
                                     </div>
                                     @endforelse
                                 </div>

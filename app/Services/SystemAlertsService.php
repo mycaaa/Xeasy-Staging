@@ -67,8 +67,10 @@ class SystemAlertsService
         $joinings       = $this->getNewJoinings(90);
         $missingImprest = $this->getMissingImprest($companyId);
         $promotions     = $this->getPromotions(90);
+        // IMP-SEP-01: resigned / separated employees whose imprest still has to be settled
+        $separations    = \App\Services\Imprest\SeparationImprest::pending(session('expense_connection', 'expense'), (int) $companyId);
 
-        $totalCount = count($transfers) + count($joinings) + count($missingImprest) + count($promotions);
+        $totalCount = count($transfers) + count($joinings) + count($missingImprest) + count($promotions) + count($separations);
 
         return [
             'total_count'           => $totalCount,
@@ -76,6 +78,8 @@ class SystemAlertsService
             'new_joinings_count'   => count($joinings),
             'missing_imprest_count' => count($missingImprest),
             'promotions_count'      => count($promotions),
+            'separations_count'     => count($separations),
+            'separations'           => $separations,
             'transfers'             => $transfers,
             'joinings'              => $joinings,
             'missing_imprest'       => $missingImprest,
@@ -422,6 +426,9 @@ class SystemAlertsService
                 ->leftJoin('core_company as c', 'e.CompanyId', '=', 'c.id')
                 ->leftJoin('core_city_village_by_state as hq', 'eg.HqId', '=', 'hq.id')
                 ->where('e.EmpStatus', 'A')
+                // IMP-SEP-01: nobody who has resigned or separated (their imprest is settled, not released - Policy 25.1)
+                ->where(fn ($q) => $q->whereNull('e.DateOfResignation')->orWhere('e.DateOfResignation', '<', '2000-01-01'))
+                ->where(fn ($q) => $q->whereNull('e.DateOfSepration')->orWhere('e.DateOfSepration', '<', '2000-01-01'))
                 ->where(function ($q) use ($eligibleGradeIds, $eligibleGradeKeys) {
                     if (!empty($eligibleGradeIds)) {
                         $q->whereIn('eg.GradeId', $eligibleGradeIds);

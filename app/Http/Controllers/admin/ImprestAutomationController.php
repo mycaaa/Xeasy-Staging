@@ -56,9 +56,38 @@ class ImprestAutomationController extends Controller
                     $table->boolean('is_imprest')->default(false)->index();
                 });
             }
+            self::ensureSeparationTable($conn);
         } catch (\Exception $e) {
             Log::warning('ImprestAutomationController::ensureTableExists failed on connection [' . $conn . ']: ' . $e->getMessage());
         }
+    }
+
+    /** IMP-SEP-01: one row per employee whose imprest was settled on resignation / separation. */
+    public static function ensureSeparationTable(string $conn): void
+    {
+        $schema = Schema::connection($conn);
+        if ($schema->hasTable(\App\Services\Imprest\SeparationImprest::TABLE) || ! $schema->hasTable('imprest_requests')) {
+            return;
+        }
+        $schema->create(\App\Services\Imprest\SeparationImprest::TABLE, function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('employee_id')->unique();
+            $t->unsignedSmallInteger('company_id')->default(1);
+            $t->string('emp_code', 30)->nullable();
+            $t->string('emp_name', 150)->nullable();
+            $t->string('grade', 30)->nullable();
+            $t->date('resignation_date')->nullable();
+            $t->date('separation_date')->nullable();
+            $t->decimal('imprest_held', 12, 2)->default(0);
+            $t->decimal('policy_amount', 12, 2)->default(0);
+            $t->string('action', 30);               // recover_ff | returned | not_applicable
+            $t->decimal('amount', 12, 2)->default(0); // imprest to recover / recorded as returned
+            $t->unsignedSmallInteger('requests_closed')->default(0);
+            $t->text('remarks')->nullable();
+            $t->unsignedBigInteger('actor_user_id')->nullable();
+            $t->string('actor_name', 100)->nullable();
+            $t->timestamps();
+        });
     }
 
     /**
@@ -420,6 +449,9 @@ class ImprestAutomationController extends Controller
             ->join('core_grades as g',           'eg.GradeId',   '=', 'g.id')
             ->join('core_departments as d',      'eg.DepartmentId', '=', 'd.id')
             ->where('e.EmpStatus', 'A')
+            // IMP-SEP-01: nobody who has resigned or separated (their imprest is settled, not released - Policy 25.1)
+            ->where(fn ($q) => $q->whereNull('e.DateOfResignation')->orWhere('e.DateOfResignation', '<', '2000-01-01'))
+            ->where(fn ($q) => $q->whereNull('e.DateOfSepration')->orWhere('e.DateOfSepration', '<', '2000-01-01'))
             ->where(function ($q) use ($eligibleGradeIds, $eligibleGradeKeys) {
                 if (!empty($eligibleGradeIds)) {
                     $q->whereIn('eg.GradeId', $eligibleGradeIds);
@@ -656,6 +688,11 @@ class ImprestAutomationController extends Controller
 
         if (!$emp) {
             return response()->json(['success' => false, 'message' => 'Employee not found.'], 404);
+        }
+
+        // IMP-SEP-01 (Policy 25.1): imprest is settled on resignation / separation, so none is released after it
+        if ($exit = \App\Services\Imprest\SeparationImprest::exitText($employeeId)) {
+            return response()->json(['success' => false, 'message' => "{$emp->emp_name} {$exit}: imprest is not released after a resignation or separation (Imprest Policy 25.1). Settle it on System Notifications > Separation / Resignation."], 409);
         }
 
         $cleanGrade = strtoupper(str_replace(['-', ' '], '', $emp->grade_name ?? ''));
@@ -912,6 +949,71 @@ class ImprestAutomationController extends Controller
             'success' => true,
             'message' => 'Imprest request rejected for ' . $emp->emp_name . '.',
         ]);
+    }
+
+    /**
+     * IMP-SEP-01 (16 Nov 2026): settle the imprest of an employee who resigned or separated (Policy 25.1), from
+     * System Notifications > Separation / Resignation. Records the settlement (one row per employee), closes the
+     * employee's open imprest requests and writes the action history; the employee then leaves the list.
+     * The amount is the imprest the ledger shows as held now (not taken from the browser).
+     */
+    public function settleSeparation(Request $request, int $employeeId)
+    {
+        $request->validate([
+            'action'  => 'required|in:'.implode(',', array_keys(\App\Services\Imprest\SeparationImprest::ACTIONS)),
+            'remarks' => 'nullable|string|max:500|required_unless:action,recover_ff',
+        ], ['remarks.required_unless' => 'Write a reason (what was returned / adjusted, or why it does not apply).']);
+
+        $conn = $this->getImprestConnection();
+        if ($historyError = $this->historyUnavailable($conn)) {
+            return $historyError;
+        }
+        self::ensureSeparationTable($conn);
+        $companyId = (int) session('company_id', 1);
+        $row = collect(\App\Services\Imprest\SeparationImprest::pending($conn, $companyId))->firstWhere('EmployeeID', $employeeId);
+        if (! $row) {
+            return response()->json(['success' => false, 'message' => 'This employee is no longer waiting for an imprest settlement (already settled, no imprest held, or no resignation / separation date).'], 409);
+        }
+
+        $action = $request->input('action');
+        $label = \App\Services\Imprest\SeparationImprest::ACTIONS[$action];
+        $actor = session('emp_name', auth()->user()?->name ?? 'Admin');
+        $amount = $action === 'not_applicable' ? 0.0 : (float) $row['imprest_held'];
+        $exitWord = $row['separation_date'] ? 'separation '.date('d-m-Y', strtotime($row['separation_date'])) : 'resignation '.date('d-m-Y', strtotime($row['resignation_date']));
+        $remarks = trim(($request->input('remarks') ?? '') ?: "{$label}: imprest Rs ".number_format($amount, 2)." on {$exitWord} (Imprest Policy 25.1)");
+
+        try {
+            $closed = DB::connection($conn)->transaction(function () use ($conn, $row, $companyId, $action, $amount, $remarks, $actor, $exitWord) {
+                DB::connection($conn)->table(\App\Services\Imprest\SeparationImprest::TABLE)->insert([
+                    'employee_id' => $row['EmployeeID'], 'company_id' => $companyId, 'emp_code' => $row['emp_code'], 'emp_name' => $row['emp_name'],
+                    'grade' => $row['grade_name'], 'resignation_date' => $row['resignation_date'], 'separation_date' => $row['separation_date'],
+                    'imprest_held' => $row['imprest_held'], 'policy_amount' => $row['policy_amount'], 'action' => $action, 'amount' => $amount,
+                    'requests_closed' => $row['open_requests'], 'remarks' => $remarks, 'actor_user_id' => auth()->id(), 'actor_name' => $actor,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+                // open imprest requests are not released after a resignation / separation
+                $open = DB::connection($conn)->table('imprest_requests')->where('employee_id', $row['EmployeeID'])->where('status', 'pending')->get();
+                foreach ($open as $r) {
+                    DB::connection($conn)->table('imprest_requests')->where('id', $r->id)->where('status', 'pending')->update(array_merge([
+                        'status' => 'rejected', 'remarks' => "Not released: {$exitWord} (Imprest Policy 25.1)", 'updated_at' => now(),
+                    ], $this->rejectorFields($conn, $actor)));
+                    $this->recordAction($conn, (int) $r->id, (int) $row['EmployeeID'], 'rejected', 'pending', 'rejected', (float) ($r->request_amount ?? 0),
+                        "Not released: {$exitWord} (Imprest Policy 25.1)", $actor);
+                }
+                $this->recordAction($conn, null, (int) $row['EmployeeID'], 'separation_'.$action, null, $action, $amount, $remarks, $actor);
+
+                return $open->count();
+            });
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return response()->json(['success' => false, 'message' => 'Already settled by someone else just now.'], 409);
+        }
+        try {
+            \Illuminate\Support\Facades\Cache::forget('sys_alerts_summary:'.$companyId.':'.session('expense_connection', 'expense'));
+        } catch (\Throwable $e) {
+        }
+        Log::info('Imprest settled on separation', ['employee_id' => $employeeId, 'action' => $action, 'amount' => $amount, 'requests_closed' => $closed, 'by' => $actor]);
+
+        return response()->json(['success' => true, 'message' => "{$row['emp_name']}: {$label}".($amount > 0 ? ' - Rs '.number_format($amount) : '').($closed ? "; {$closed} open imprest request(s) closed" : '').'.']);
     }
 
     /**

@@ -121,6 +121,8 @@ Route::middleware('auth')->group(function () {
             Route::post('{id}/reject', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'reject'])->name('reject');
             Route::post('missing-imprest/{employeeId}/release', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'releaseMissing'])->name('release-missing');
             Route::post('missing-imprest/{employeeId}/reject', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'rejectMissing'])->name('reject-missing');
+            // IMP-SEP-01: settle imprest on resignation / separation (System Notifications)
+            Route::post('separation/{employeeId}/settle', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'settleSeparation'])->whereNumber('employeeId')->name('separation-settle');
         });
         Route::post('run-manual', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'runManual'])->name('run-manual');
         Route::get('clean-raised-by', [\App\Http\Controllers\admin\ImprestAutomationController::class, 'cleanRaisedBy'])->name('clean-raised-by');

@@ -7,18 +7,21 @@
     $isJoinActive  = in_array($tabReq, ['joinings', 'joining']);
     $isImpActive   = in_array($tabReq, ['imprest', 'missing']);
     $isPromActive  = in_array($tabReq, ['promotions', 'promotion', 'promoted']);
+    $isSepActive   = in_array($tabReq, ['separations', 'separation', 'resignation', 'exits']);
+    $separationsList = $separations ?? [];
+    $canSettle = auth()->user() && (auth()->user()->hasRole('Super Admin') || auth()->user()->can('imprest.approve'));
 
     $promotionsList = $promotions ?? [];
 
     // Extract unique departments & companies for filtering
-    $allDepts = collect(array_merge($transfers, $joinings, $missing_imprest, $promotionsList))
+    $allDepts = collect(array_merge($transfers, $joinings, $missing_imprest, $promotionsList, $separationsList))
         ->pluck('department_name')
         ->filter()
         ->unique()
         ->sort()
         ->values();
 
-    $allCompanies = collect(array_merge($transfers, $joinings, $missing_imprest, $promotionsList))
+    $allCompanies = collect(array_merge($transfers, $joinings, $missing_imprest, $promotionsList, $separationsList))
         ->pluck('company_name')
         ->filter()
         ->unique()
@@ -35,7 +38,7 @@
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
                         <h4 class="mb-1 fw-bold text-dark">System Alerts & Notifications</h4>
-                        <p class="text-muted mb-0 fs-13">Monitor VVNR to VNR transfers, recent new joinings, grade promotions (Last 90 Days), and missing fixed imprest records</p>
+                        <p class="text-muted mb-0 fs-13">Monitor VVNR to VNR transfers, recent new joinings, grade promotions (Last 90 Days), missing fixed imprest records, and imprest to settle on resignation / separation</p>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
                         <a href="{{ url('/dashboard') }}" class="btn btn-sm btn-soft-secondary">
@@ -219,6 +222,12 @@
                                 <a class="nav-link {{ $isImpActive ? 'active' : '' }}" data-bs-toggle="tab" href="#imprest-tab" role="tab">
                                     <i class="ri-alert-line me-1 align-bottom"></i> Missing Imprest Alerts
                                     <span class="badge bg-warning-subtle text-warning ms-1 fs-11">{{ $missing_imprest_count }}</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ $isSepActive ? 'active' : '' }}" data-bs-toggle="tab" href="#separations-tab" role="tab">
+                                    <i class="ri-logout-box-r-line me-1 align-bottom"></i> Separation / Resignation
+                                    <span class="badge bg-danger-subtle text-danger ms-1 fs-11" id="separationsCount">{{ $separations_count ?? count($separationsList) }}</span>
                                 </a>
                             </li>
                         </ul>
@@ -444,6 +453,81 @@
                                 </div>
                             </div>
 
+                            {{-- TAB 5: Separation / Resignation (IMP-SEP-01) --}}
+                            <div class="tab-pane {{ $isSepActive ? 'active' : '' }}" id="separations-tab" role="tabpanel">
+                                <div class="alert alert-light border small mb-3">
+                                    <i class="ri-information-line me-1"></i>
+                                    Employees with a resignation or separation date who still hold imprest, or have an open imprest request.
+                                    Imprest Policy 25.1: imprest (J1–J2 ₹20,000, J3–M1 ₹40,000) is settled on resignation / separation and no new imprest is released.
+                                    Check the imprest held against the policy amount, then record the settlement; the employee then leaves this list. Latest first.
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle table-nowrap mb-0 alert-datatable" id="separationsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Emp Code</th>
+                                                <th>Employee Name</th>
+                                                <th>Company</th>
+                                                <th>Grade</th>
+                                                <th>Department</th>
+                                                <th>Resignation</th>
+                                                <th>Separation</th>
+                                                <th>Imprest Held (₹)</th>
+                                                <th>Policy Amount (₹)</th>
+                                                <th>Open Requests</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($separationsList as $index => $x)
+                                            <tr data-emp="{{ $x['EmployeeID'] }}">
+                                                <td>{{ $index + 1 }}</td>
+                                                <td><span class="fw-bold font-monospace text-danger">{{ $x['emp_code'] ?? '-' }}</span></td>
+                                                <td>
+                                                    <div class="fw-semibold">{{ $x['emp_name'] ?? '-' }}</div>
+                                                    <small class="text-muted">{{ ['A' => 'Active (notice period)', 'R' => 'Resigned', 'D' => 'Left'][$x['emp_status']] ?? $x['emp_status'] }} · Rep: {{ $x['reporting_name'] ?? '-' }}</small>
+                                                </td>
+                                                <td><span class="badge bg-secondary-subtle text-secondary">{{ $x['company_name'] ?? 'VNR' }}</span></td>
+                                                <td><span class="badge bg-info-subtle text-info font-monospace">{{ $x['grade_name'] ?? '-' }}</span></td>
+                                                <td>{{ $x['department_name'] ?? '-' }}</td>
+                                                <td data-order="{{ $x['resignation_date'] }}">{{ $x['resignation_date'] ? date('d M Y', strtotime($x['resignation_date'])) : '-' }}</td>
+                                                <td data-order="{{ $x['separation_date'] }}">{{ $x['separation_date'] ? date('d M Y', strtotime($x['separation_date'])) : '-' }}</td>
+                                                <td data-order="{{ $x['imprest_held'] }}"><span class="fw-bold text-danger">₹{{ number_format($x['imprest_held']) }}</span></td>
+                                                <td data-order="{{ $x['policy_amount'] }}">
+                                                    {{ $x['policy_amount'] ? '₹'.number_format($x['policy_amount']) : 'Not eligible' }}
+                                                    @if($x['policy_amount'] && abs($x['imprest_held'] - $x['policy_amount']) >= 1)
+                                                        <small class="d-block text-warning fs-11"><i class="ri-error-warning-line me-1"></i>held differs from policy</small>
+                                                    @elseif(! $x['policy_amount'] && $x['imprest_held'] > 0)
+                                                        <small class="d-block text-warning fs-11"><i class="ri-error-warning-line me-1"></i>grade not eligible</small>
+                                                    @endif
+                                                </td>
+                                                <td>{{ $x['open_requests'] ? $x['open_requests'].' (₹'.number_format($x['open_request_amount']).')' : '-' }}</td>
+                                                <td>
+                                                    @if($canSettle)
+                                                        <button type="button" class="btn btn-sm btn-soft-danger js-settle-separation"
+                                                            data-emp="{{ $x['EmployeeID'] }}" data-name="{{ $x['emp_name'] }}" data-held="{{ $x['imprest_held'] }}"
+                                                            data-open="{{ $x['open_requests'] }}">
+                                                            <i class="ri-hand-coin-line me-1"></i>Settle Imprest
+                                                        </button>
+                                                    @else
+                                                        <span class="text-muted fs-12">Finance settles</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            @empty
+                                            <tr>
+                                                <td colspan="12" class="text-center py-4 text-muted">
+                                                    <i class="ri-checkbox-circle-line fs-24 d-block text-success mb-1"></i>
+                                                    No resigned or separated employee is holding imprest.
+                                                </td>
+                                            </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -514,9 +598,22 @@ $(document).ready(function() {
         }
     });
 
+    // IMP-SEP-01: keep the server order (latest resignation / separation first)
+    var dtSeparations = $('#separationsTable tbody tr[data-emp]').length ? $('#separationsTable').DataTable({
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        order: [],
+        responsive: true,
+        dom: "<'row mb-2'<'col-sm-6'l><'col-sm-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        language: { search: "_INPUT_", searchPlaceholder: "Search separations..." }
+    }) : null;
+
     // Custom Filters
     $('#globalAlertSearch').on('keyup change', function() {
         var val = $(this).val();
+        if (dtSeparations) dtSeparations.search(val).draw();
         dtTransfers.search(val).draw();
         dtJoinings.search(val).draw();
         dtPromotions.search(val).draw();
@@ -529,6 +626,7 @@ $(document).ready(function() {
         dtJoinings.column(5).search(val ? '^' + val + '$' : '', true, false).draw();
         dtPromotions.column(6).search(val ? '^' + val + '$' : '', true, false).draw();
         dtImprest.column(5).search(val ? '^' + val + '$' : '', true, false).draw();
+        if (dtSeparations) dtSeparations.column(5).search(val ? '^' + val + '$' : '', true, false).draw();
     });
 
     $('#companyFilterSelect').on('change', function() {
@@ -537,6 +635,56 @@ $(document).ready(function() {
         dtJoinings.column(3).search(val ? '^' + val + '$' : '', true, false).draw();
         dtPromotions.column(3).search(val ? '^' + val + '$' : '', true, false).draw();
         dtImprest.column(3).search(val ? '^' + val + '$' : '', true, false).draw();
+        if (dtSeparations) dtSeparations.column(3).search(val ? '^' + val + '$' : '', true, false).draw();
+    });
+
+    // IMP-SEP-01: settle imprest on resignation / separation; the row leaves the list once done
+    $(document).on('click', '.js-settle-separation', function () {
+        var btn = $(this), emp = btn.data('emp'), name = btn.data('name'), held = Number(btn.data('held') || 0), open = Number(btn.data('open') || 0);
+        var fmt = function (n) { return n.toLocaleString('en-IN'); };
+        Swal.fire({
+            title: 'Settle imprest',
+            html: '<div class="text-start small">' +
+                  '<p class="mb-2"><strong>' + $('<div>').text(name).html() + '</strong> - imprest held <strong>₹' + fmt(held) + '</strong>' +
+                  (open ? '; ' + open + ' open imprest request(s) will be closed (not released)' : '') + '.</p>' +
+                  '<label class="form-label mb-1">Settlement</label>' +
+                  '<select id="sepAction" class="form-select form-select-sm mb-2">' +
+                  '<option value="recover_ff">Recover ₹' + fmt(held) + ' in the F&amp;F settlement</option>' +
+                  '<option value="returned">Already returned / adjusted by the employee</option>' +
+                  '<option value="not_applicable">Not applicable (e.g. resignation withdrawn)</option>' +
+                  '</select>' +
+                  '<label class="form-label mb-1">Remarks <span id="sepRemReq" class="text-danger d-none">(required)</span></label>' +
+                  '<textarea id="sepRemarks" class="form-control form-control-sm" rows="2" maxlength="500" placeholder="e.g. F&amp;F no. / receipt / reason"></textarea>' +
+                  '</div>',
+            showCancelButton: true,
+            confirmButtonText: 'Record settlement',
+            focusConfirm: false,
+            didOpen: function () {
+                $('#sepAction').on('change', function () { $('#sepRemReq').toggleClass('d-none', this.value === 'recover_ff'); });
+            },
+            preConfirm: function () {
+                var a = $('#sepAction').val(), r = $.trim($('#sepRemarks').val());
+                if (a !== 'recover_ff' && !r) { Swal.showValidationMessage('Write what was returned / adjusted, or why it does not apply.'); return false; }
+                return { action: a, remarks: r };
+            }
+        }).then(function (res) {
+            if (!res.isConfirmed) return;
+            btn.prop('disabled', true);
+            $.ajax({
+                url: '{{ url('imprest-automation/separation') }}/' + emp + '/settle',
+                method: 'POST',
+                data: { action: res.value.action, remarks: res.value.remarks, _token: '{{ csrf_token() }}' },
+                headers: { 'Accept': 'application/json' }
+            }).done(function (r) {
+                Swal.fire('Recorded', r.message, 'success');
+                if (dtSeparations) { dtSeparations.row(btn.closest('tr')).remove().draw(false); } else { btn.closest('tr').remove(); }
+                var c = $('#separationsCount'); c.text(Math.max(0, Number(c.text()) - 1));
+            }).fail(function (x) {
+                btn.prop('disabled', false);
+                var j = x.responseJSON || {};
+                Swal.fire('Not recorded', j.message || Object.values(j.errors || {}).flat().join('\n') || 'Error', 'error');
+            });
+        });
     });
 
     // Tab click triggers
