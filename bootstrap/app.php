@@ -75,7 +75,24 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforceRecordAccess::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {})
+    ->withExceptions(function (Exceptions $exceptions) {
+        // DB-SETUP-01 (16 Nov 2026): a table or column the code needs is missing on this server (its database
+        // changes were not run). Say so - and where a Super Admin fixes it - instead of a bare "Server Error".
+        // The error is still written to the log.
+        $exceptions->render(function (\Illuminate\Database\QueryException $e, \Illuminate\Http\Request $request) {
+            $state = (string) ($e->errorInfo[0] ?? $e->getCode());
+            if (! in_array($state, ['42S02', '42S22'], true)) {
+                return null;
+            }
+            $msg = 'This page needs a database update that has not been run on this server yet. '
+                .'A Super Admin can run it from Admin > Database setup (/admin/db-setup).';
+            if ($request->expectsJson() || $request->ajax() || $request->is('api/*')) {
+                return response()->json(['success' => false, 'message' => $msg, 'msg' => $msg, 'Code' => '100'], 503);
+            }
+
+            return response()->view('errors.db-setup', ['message' => $msg], 503);
+        });
+    })
     ->withSchedule(function (Schedule $schedule) {
         // Close expired months on 15th of every month at midnight
         $schedule->command('claims:close-expired-months --months=3')

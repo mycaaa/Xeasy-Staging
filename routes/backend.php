@@ -90,6 +90,9 @@ Route::middleware('auth')->group(function () {
     Route::get('system-requirements', fn () => view('admin.requirements'))->name('system.requirements');
     // ERRLOG-01: latest application errors (Super Admin, not on production)
     Route::get('admin/error-log', [\App\Http\Controllers\admin\ErrorLogController::class, 'index'])->middleware('role:Super Admin')->name('admin.error-log');
+    // DB-SETUP-01: database changes this version needs, run by a Super Admin on a test server
+    Route::get('admin/db-setup', [\App\Http\Controllers\admin\DbSetupController::class, 'index'])->middleware('role:Super Admin')->name('admin.db-setup');
+    Route::post('admin/db-setup', [\App\Http\Controllers\admin\DbSetupController::class, 'run'])->middleware('role:Super Admin')->name('admin.db-setup.run');
 
     // System Alerts & Notifications Details Page
     Route::get('system-notifications', [SystemNotificationController::class, 'index'])->name('admin.system-notifications.index');
