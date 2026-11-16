@@ -148,6 +148,11 @@ return Application::configure(basePath: dirname(__DIR__))
             $schedule->command("claims:rate --company={$co}")->dailyAt('04:10')->withoutOverlapping()
                 ->appendOutputTo(storage_path('logs/claim-rating.log'));
         }
+        // CLAIM-SCORE-01: monthly claim scores, after the stage ratings
+        foreach ([1, 11] as $co) {
+            $schedule->command("claims:score --company={$co}")->dailyAt('04:40')->withoutOverlapping()
+                ->appendOutputTo(storage_path('logs/claim-score.log'));
+        }
         // D-07: activity_log rows older than 180 days go to monthly compressed files (kept 8 years)
         $schedule->command('logs:archive-activity --apply')->monthlyOn(2, '03:00')->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/archive-activity.log'));

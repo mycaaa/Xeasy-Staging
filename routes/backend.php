@@ -511,7 +511,7 @@ Route::middleware('auth')->group(function () {
         Route::get('odometer-continuity-report/export', [OdometerContinuityReportController::class, 'export'])->name('reports.odometer-continuity.export');
         Route::post('filter-claims', [ReportController::class, 'filterClaims']);
         Route::post('expense-claims/export', [ReportController::class, 'export']);
-        Route::get('top-rating-employee', [ReportController::class, 'topRatingEmployee']);
+        Route::get('top-rating-employee', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/claim-score/team?scope=all');   // CLAIM-SCORE-01: Employee Claim Behavior is now Claim Score
         Route::post('claims/return', [ReportController::class, 'returnClaim']);
         Route::get('same_date', [ReportController::class, 'sameDayClaimUpload']);
         Route::post('execute-refactor-migration', [ReportController::class, 'executeRefactorMigration']);
@@ -1274,4 +1274,18 @@ Route::prefix('api/pax-details')->name('api.pax.')->group(function () {
     // Upload supporting document for PAX details
     Route::post('/upload-document', [\App\Http\Controllers\PaxDetailsController::class, 'uploadDocument'])
         ->name('upload-document');
+});
+
+// CLAIM-SCORE-01..03: monthly claim score (every employee), team view, Finance & Forensics board, settings (Super Admin)
+Route::middleware('auth')->prefix('claim-score')->name('claim-score.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\ClaimScoreController::class, 'me'])->name('me');
+    Route::get('team', [\App\Http\Controllers\ClaimScoreController::class, 'team'])->name('team');
+    Route::middleware('permission:finance.forensics')->group(function () {
+        Route::get('finance', [\App\Http\Controllers\ClaimScoreController::class, 'finance'])->name('finance');
+        Route::post('finance/case', [\App\Http\Controllers\ClaimScoreController::class, 'financeCase'])->name('finance.case');
+    });
+    Route::middleware('role:Super Admin')->group(function () {
+        Route::get('settings', [\App\Http\Controllers\ClaimScoreController::class, 'settings'])->name('settings');
+        Route::post('settings', [\App\Http\Controllers\ClaimScoreController::class, 'saveSettings'])->name('settings.save');
+    });
 });

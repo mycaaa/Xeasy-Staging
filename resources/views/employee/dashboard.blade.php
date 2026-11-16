@@ -392,6 +392,7 @@
                             </div>
 
                             {{-- DRAFTS ROW (Matches Claimant View) --}}
+                            @include('claim-score._card')
                             <div class="card mb-3" id="dashboardDraftsCard">
                                 <div class="card-header align-items-center d-flex py-2 px-3">
                                     <h4 class="card-title mb-0 flex-grow-1 d-flex align-items-center fs-14">
