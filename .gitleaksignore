@@ -1,0 +1,16 @@
+# Example JWT headers in the docs (eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...), not secrets - checked 16 Nov 2026
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/authentication.md:generic-api-key:291
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/authentication.md:generic-api-key:419
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/authentication.md:generic-api-key:424
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/controllers/AuthController.md:generic-api-key:479
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:118
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:152
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:17
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:187
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:217
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:236
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:283
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:286
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:289
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:46
+8695a0d7451380e1cf644b09f95fb457b582e6d0:docs/routing/api-routes.md:generic-api-key:88
