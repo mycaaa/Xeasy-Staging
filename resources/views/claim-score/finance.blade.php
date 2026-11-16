@@ -58,11 +58,11 @@
     const handled = k => (CASES[k] && CASES[k].status && CASES[k].status !== 'open') ? 1 : 0;
     const R = {};
     R.controls = function () {
-        const u = ctl.unsettled, ad = ctl.advances, po = ctl.pay_order, fo = ctl.focus, ra = ctl.raised, ch = ctl.chain, lo = ctl.lodging, le = ctl.leave, sd = ctl.sunday_da, ex = ctl.after_exit, ni = ctl.noimg, sp = ctl.split;
+        const u = ctl.unsettled || {}, ad = ctl.advances, po = ctl.pay_order, fo = ctl.focus, ra = ctl.raised, ch = ctl.chain, lo = ctl.lodging, le = ctl.leave, sd = ctl.sunday_da, ex = ctl.after_exit, ni = ctl.noimg, sp = ctl.split;
         const utr = (ctl.utr || []), utrN = sum(utr, 'k'), utrA = sum(utr, 'amt');
         const G = [
             ['Money at risk now', '--bad', [
-                ['unsettled', 'Bank payments that did not settle', fmt(n(u, 'n')), `Bank file ${lakh(n(u, 'xl'))} vs ${lakh(n(u, 'db'))} in Xeasy; ${fmt(n(u, 'mism'))} amounts differ. ${fmt(n(u, 'resolved'))} resolved.`, 'unsettled_payments'],
+                ['unsettled', 'Payments that did not settle', fmt(n(u.claims, 'n') + n(u.advances, 'n')), `Marked Unsettled after the bank check: ${fmt(n(u.claims, 'n'))} claim months (${lakh(n(u.claims, 'amt'))}) and ${fmt(n(u.advances, 'n'))} advance payments (${lakh(n(u.advances, 'amt'))}).${n(u.bankfile, 'n') ? ' Bank-file mismatches still open: ' + fmt(n(u.bankfile, 'n')) + '.' : ''} Work list: Payment → Expense Payments → Unsettled, and Advance Approvals.`, 'payment_status = Unsettled'],
                 ['advances', 'Advances not adjusted', lakh(n(ad, 'bal')), `${fmt(n(ad, 'n'))} advance lines open; ${fmt(n(ad, 'old60'))} (${lakh(n(ad, 'old60_bal'))}) paid more than 60 days ago.`, 'advance_request_activities'],
                 ['utr', 'Payments with no real UTR', fmt(utrN), `${lakh(utrA)} recorded with a shared placeholder UTR: ${utr.map(x => '"' + esc(x.u) + '" ×' + x.k).join(', ') || 'none'}.`, 'monthexpensefinal.utr_number'],
                 ['payorder', 'Paid before hard copy or approval', fmt(n(po, 'no_hardcopy') + n(po, 'before_appr')), `${fmt(n(po, 'no_hardcopy'))} claim months paid before the hard copy was received; ${fmt(n(po, 'before_appr'))} paid before approval.`, 'monthexpensefinal dates'],

@@ -119,8 +119,13 @@ class FinanceForensics
 
         // controls
         $c = [];
-        $c['unsettled'] = $this->safe(fn () => $one("SELECT SUM(status='Unsettled') n, SUM(CASE WHEN status='Unsettled' THEN excel_amount END) xl, SUM(CASE WHEN status='Unsettled' THEN db_amount END) db,
-            SUM(status='Unsettled' AND ABS(excel_amount-db_amount)>1) mism, SUM(status<>'Unsettled') resolved FROM unsettled_payments WHERE IFNULL(company_id,$co)=$co"), []);
+        // unsettled payments: claim months and advances marked Unsettled by the bank reconciliation (the app's own status),
+        // plus open rows of the older bank-file mismatch table
+        $c['unsettled'] = [
+            'claims' => $this->safe(fn () => $one("SELECT COUNT(*) n, SUM(f.Finance_Amount) amt FROM $mf f JOIN $hdb.hrm_employee e ON e.EmployeeID=f.EmployeeID WHERE f.YearId=$y AND e.CompanyId=$co AND f.payment_status='Unsettled'"), []),
+            'advances' => $this->safe(fn () => $one("SELECT COUNT(*) n, SUM(COALESCE(NULLIF(finance_approved_amount,0), amount)) amt FROM advance_request_activities WHERE deleted_at IS NULL AND payment_status='Unsettled'"), []),
+            'bankfile' => $this->safe(fn () => $one("SELECT SUM(status='Unsettled') n, SUM(status='Unsettled' AND ABS(excel_amount-db_amount)>1) mism FROM unsettled_payments WHERE IFNULL(company_id,$co)=$co"), []),
+        ];
         $c['advances'] = $this->safe(fn () => $one("SELECT COUNT(*) n, SUM(remaining_balance) bal, SUM(payment_date < DATE_SUB(CURDATE(), INTERVAL 60 DAY)) old60,
             SUM(CASE WHEN payment_date < DATE_SUB(CURDATE(), INTERVAL 60 DAY) THEN remaining_balance END) old60_bal FROM advance_request_activities WHERE deleted_at IS NULL AND payment_date IS NOT NULL AND remaining_balance>0"), []);
         $c['utr'] = $this->safe(fn () => $all("SELECT f.utr_number u, COUNT(*) k, SUM(f.payment_amount) amt FROM $mf f WHERE f.YearId=$y AND f.utr_number<>'' GROUP BY f.utr_number HAVING COUNT(DISTINCT f.EmployeeID)>1"), []);
