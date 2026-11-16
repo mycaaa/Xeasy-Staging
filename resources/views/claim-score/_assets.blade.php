@@ -51,7 +51,7 @@
 .cs .bdg svg { width: 54px; height: 54px; } .cs .bdg b { font-size: .8rem; } .cs .bdg span { font-size: .7rem; color: var(--muted); }
 .cs .bdg.off { opacity: .55; } .cs .bdg.off svg { filter: grayscale(1); }
 .cs .cs-shape { display: grid; gap: 16px; position: static; }
-.cs .sh-top { display: flex; justify-content: space-between; align-items: baseline; } .cs .sh-top span { font: 700 1.15rem var(--fh); }
+.cs .sh-top { display: flex; justify-content: space-between; align-items: baseline; } .cs .sh-top > span { font: 700 1.15rem var(--fh); } .cs .sh-top b span { font: 400 .74rem inherit; }
 .cs .sh-track { position: relative; height: 18px; border-radius: 10px; background: var(--sunk); margin: 4px 0; }
 .cs .sh-fill { position: absolute; inset: 0 auto 0 0; border-radius: 10px; background: var(--pc); opacity: .9; }
 .cs .sh-mk { position: absolute; top: -5px; bottom: -5px; width: 3px; border-radius: 2px; transform: translateX(-1.5px); }
