@@ -447,6 +447,8 @@ class BtcController extends Controller
         $empId = (int) ($user->employee_id ?? 0);
         // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too
         $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
-        abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id, 403);
+        // BTC-TEAM-01: a manager anywhere above the requester may open the request (read; actions stay by role)
+        abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id
+            || \App\Support\ReportingTree::isAbove($empId, (int) $c->employee_id), 403);
     }
 }

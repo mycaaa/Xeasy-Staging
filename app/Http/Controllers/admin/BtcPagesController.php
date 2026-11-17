@@ -120,7 +120,13 @@ class BtcPagesController extends Controller
     public function registerExport(Request $request)
     {
         $this->need('btc.register');
-        $rows = $this->cases()->orderByDesc('id')->limit(20000)->get()->map(function ($c) {
+
+        return $this->registerDownload($this->cases(), 'btc_request_register_');
+    }
+
+    private function registerDownload($query, string $prefix)
+    {
+        $rows = $query->orderByDesc('id')->limit(20000)->get()->map(function ($c) {
             $a = $c->advanceFigures();
 
             return [$c->case_no, config("btc.route_choices.{$c->route}.0", $c->route), $c->emp_code, $c->emp_name, $c->department_name, $c->categoryLabel(),
@@ -144,7 +150,126 @@ class BtcPagesController extends Controller
             {
                 return $this->head;
             }
-        }, 'btc_request_register_'.now()->format('Ymd_His').'.xlsx');
+        }, $prefix.now()->format('Ymd_His').'.xlsx');
+    }
+
+    // ---- BTC-TEAM-01 (17 Nov 2026): My Team BTC -------------------------------------------------------------------
+    // A reporting manager sees the BTC requests of the people below him (direct reports, or all levels below) as a
+    // register with stage and who it is pending with, plus a summary by team member and by stage. Read-only: the
+    // manager opens a request to see it; approvals stay where they are (My approvals). Admin may look at any manager.
+
+    /** [managerId, scope, team employee ids, direct report ids, is admin] for the current user, or abort 403. */
+    private function teamScope(Request $request): array
+    {
+        $u = auth()->user();
+        $isAdmin = $u->can('btc.admin');
+        $mgr = $isAdmin && $request->filled('mgr') ? (int) $request->input('mgr') : (int) ($u->employee_id ?? 0);
+        $direct = \App\Support\ReportingTree::directReports($mgr);
+        abort_unless($mgr > 0 && ($direct || $isAdmin), 403, 'Nobody reports to you, so there is no team BTC view.');
+        $scope = $request->input('scope') === 'all' ? 'all' : 'direct';
+        $ids = $scope === 'all' ? \App\Support\ReportingTree::descendants($mgr) : $direct;
+
+        return [$mgr, $scope, $ids ?: [0], $direct, $isAdmin];
+    }
+
+    private function teamCases(array $ids)
+    {
+        return BtcCase::query()->where('company_id', (int) session('company_id', 1))->whereIn('employee_id', $ids)->where('status', '!=', 'draft');
+    }
+
+    public static function hasTeam(): bool
+    {
+        $id = (int) (auth()->user()->employee_id ?? 0);
+
+        return $id > 0 && (bool) \App\Support\ReportingTree::directReports($id);
+    }
+
+    public function team(Request $request)
+    {
+        if (! $this->ready()) {
+            return $this->notReady();
+        }
+        [$mgr, $scope, $ids, $direct, $isAdmin] = $this->teamScope($request);
+        $value = fn ($c) => (float) ($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount);
+        $all = $this->teamCases($ids)->get();
+        $live = $all->whereNotIn('status', ['cancelled', 'rejected']);
+        $open = $live->whereNotIn('status', ['paid', 'closed']);
+        $billed = fn ($c) => $c->bill_no && ! in_array($c->status, ['paid', 'closed'], true);
+
+        // whose branch a person sits in (the direct report above him), for the all-levels view
+        $directSet = array_flip($direct);
+        $branch = function (int $emp) use ($directSet, $mgr) {
+            if (isset($directSet[$emp])) {
+                return $emp;
+            }
+            foreach (\App\Support\ReportingTree::ancestors($emp) as $a) {
+                if (isset($directSet[$a])) {
+                    return $a;
+                }
+                if ($a === $mgr) {
+                    break;
+                }
+            }
+
+            return $emp;
+        };
+        $names = DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', array_merge($ids, $direct, [$mgr]))
+            ->selectRaw("EmployeeID, CONCAT(EmpCode, ' - ', Fname, ' ', Lname) AS n")->pluck('n', 'EmployeeID');
+
+        $summary = $all->groupBy(fn ($c) => $scope === 'all' ? $branch((int) $c->employee_id) : (int) $c->employee_id)
+            ->map(function ($g, $k) use ($names, $value, $billed, $scope, $directSet) {
+                $lv = $g->whereNotIn('status', ['cancelled', 'rejected']);
+
+                return ['id' => $k, 'name' => $names[$k] ?? ('Employee '.$k), 'people' => $g->pluck('employee_id')->unique()->count(),
+                    'requests' => $lv->count(), 'open' => $lv->whereNotIn('status', ['paid', 'closed'])->count(),
+                    'with_manager' => $lv->where('status', 'pending_manager')->count(),
+                    'returned' => $lv->where('status', 'returned')->count(),
+                    'value' => $lv->sum($value), 'paid' => $lv->sum(fn ($c) => (float) $c->paid_amount),
+                    'pending' => $lv->filter($billed)->sum(fn ($c) => (float) ($c->net_payable ?: $c->bill_amount)),
+                    'adv_balance' => $lv->sum(fn ($c) => max(0, $c->advanceFigures()['balance'])),
+                    'closed_out' => $g->whereIn('status', ['cancelled', 'rejected'])->count()];
+            })->sortByDesc('value')->values();
+
+        $stages = $all->groupBy('status')->map(fn ($g, $k) => ['key' => $k, 'label' => config("btc.statuses.{$k}", $k), 'count' => $g->count(),
+            'value' => $g->sum($value), 'with' => $g->first()->pendingWith()])->sortBy(fn ($x) => array_search($x['key'], array_keys(config('btc.statuses'))))->values();
+
+        $kpi = ['requests' => $live->count(), 'value' => $live->sum($value), 'open' => $open->count(),
+            'with_manager' => $live->where('status', 'pending_manager')->count(),
+            'pending' => $live->filter($billed)->sum(fn ($c) => (float) ($c->net_payable ?: $c->bill_amount)),
+            'paid' => $live->sum(fn ($c) => (float) $c->paid_amount),
+            'adv_balance' => $live->sum(fn ($c) => max(0, $c->advanceFigures()['balance'])),
+            'old' => $open->filter(fn ($c) => $c->created_at && now()->diffInDays($c->created_at) > 30)->count()];
+
+        $q = $this->teamCases($ids);
+        foreach (['status', 'route', 'category'] as $f) {
+            if ($request->filled($f)) {
+                $q->where($f, $request->input($f));
+            }
+        }
+        if ($request->filled('member')) {
+            $m = (int) $request->input('member');
+            $q->whereIn('employee_id', $scope === 'all' ? array_values(array_filter($ids, fn ($e) => $branch((int) $e) === $m)) ?: [0] : [$m]);
+        }
+        if ($request->input('show') === 'open') {
+            $q->whereNotIn('status', ['paid', 'closed', 'cancelled', 'rejected']);
+        }
+        if ($s = trim((string) $request->input('q'))) {
+            $q->where(fn ($w) => $w->where('case_no', 'like', "%{$s}%")->orWhere('emp_code', 'like', "%{$s}%")->orWhere('emp_name', 'like', "%{$s}%")
+                ->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('bill_no', 'like', "%{$s}%")->orWhere('booking_ref', 'like', "%{$s}%"));
+        }
+        $rows = $q->orderByDesc('id')->paginate(50)->withQueryString();
+        $via = fn ($c) => $scope === 'all' && ! isset($directSet[(int) $c->employee_id]) ? ($names[$branch((int) $c->employee_id)] ?? '') : '';
+
+        return view('admin.btc.pages.team', compact('rows', 'summary', 'stages', 'kpi', 'scope', 'mgr', 'isAdmin', 'via') + [
+            'mgrName' => $names[$mgr] ?? '', 'teamSize' => count(array_filter($ids)), 'withCases' => $all->pluck('employee_id')->unique()->count(),
+        ]);
+    }
+
+    public function teamExport(Request $request)
+    {
+        [$mgr, $scope, $ids] = $this->teamScope($request);
+
+        return $this->registerDownload($this->teamCases($ids), 'btc_team_requests_');
     }
 
     // ---- 5. Admin booking queue --------------------------------------------------------------------------------

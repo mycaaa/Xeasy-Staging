@@ -1180,6 +1180,9 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/dashboard', [\App\Http\Controllers\admin\BtcPagesController::class, 'dashboard'])->name('dashboard');
     Route::get('/register', [\App\Http\Controllers\admin\BtcPagesController::class, 'register'])->name('register');
     Route::get('/register/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'registerExport'])->name('register.export');
+    // BTC-TEAM-01 (17 Nov 2026): a reporting manager's view of the team's BTC requests (checked in the controller)
+    Route::get('/team', [\App\Http\Controllers\admin\BtcPagesController::class, 'team'])->name('team');
+    Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
     Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
     Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');
     Route::get('/invoices', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoices'])->name('invoices');

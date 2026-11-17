@@ -5,6 +5,7 @@
     $pages = [
         ['btc.dashboard', 'BTC Dashboard', 'ri-dashboard-3-line', 'btc.dashboard'],
         ['btc.index', 'My BTC Requests', 'ri-file-list-3-line', null],
+        ['btc.team', 'My Team BTC', 'ri-team-line', 'team'],   // BTC-TEAM-01: shown to reporting managers
         ['btc.register', 'Request Register', 'ri-list-check-2', 'btc.register'],
         ['btc.booking', 'Admin Booking Queue', 'ri-hotel-line', 'btc.booking'],
         ['btc.advances', 'Advances', 'ri-hand-coin-line', 'btc.advance|btc.finance'],
@@ -23,7 +24,7 @@
 </div>
 <nav class="xe-seg mb-3" aria-label="BTC pages">
     @foreach ($pages as [$route, $label, $ic, $perm])
-        @if ($perm === null || $can($perm))
+        @if ($perm === null || ($perm === 'team' ? \App\Http\Controllers\admin\BtcPagesController::hasTeam() || $can('btc.admin') : $can($perm)))
             <a href="{{ route($route) }}" class="{{ request()->routeIs($route) ? 'active' : '' }}"><i class="{{ $ic }}"></i>{{ $label }}</a>
         @endif
     @endforeach
