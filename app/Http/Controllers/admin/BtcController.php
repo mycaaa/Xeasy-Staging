@@ -23,7 +23,10 @@ class BtcController extends Controller
             'dms' => ['DMS', ['bill_submitted'], 'btc.dms|btc.verifier'],
             'finance' => ['Finance', ['dms_processed', 'advance_requested', 'paid'], 'btc.finance|btc.advance'],
             'checker' => ['Checker', ['finance_verified'], 'btc.checker'],
-            'treasury' => ['Treasury', ['checked', 'dept_approved'], 'btc.treasury'],
+            // BTC-REQ-15 (17 Nov 2026): Treasury sends checked cases for HOD approval; the payment queue holds only
+            // payment-ready (HOD-approved, not on hold) cases
+            'treasury' => ['Treasury: send for HOD approval', ['checked'], 'btc.treasury'],
+            'payments' => ['Payment-ready', ['dept_approved'], 'btc.treasury'],
             'documents' => ['Pending originals / boarding passes', null, 'btc.finance'],
             'all' => ['All cases', null, 'btc.admin|btc.register'],
         ];
@@ -104,6 +107,8 @@ class BtcController extends Controller
             $q->whereNotIn('status', ['cancelled', 'rejected', 'draft'])->where(fn ($w) => $w
                 ->where(fn ($a) => $a->where('original_required', 1)->whereNull('original_received_on')->whereNotNull('bill_submitted_at'))
                 ->orWhere(fn ($a) => $a->where('boarding_pass_required', 1)->whereNull('boarding_pass_received_on')));
+        } elseif ($tab === 'payments') {
+            $q->where('status', 'dept_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0));
         } elseif ($def[1]) {
             $q->whereIn('status', $def[1]);
         }
@@ -222,6 +227,16 @@ class BtcController extends Controller
             'route_label' => config("btc.routes.{$c->route}"), 'manager' => $name($c->manager_id), 'dept_approver' => $name($c->dept_approver_id),
             'pending' => $c->waitingFor(), 'actions' => BtcWorkflow::allowed($c, $user),
             'duplicates' => in_array('finance_verify', BtcWorkflow::allowed($c, $user), true) ? BtcWorkflow::duplicates($c) : [],
+            // BTC-PAY-01 / CLOSE-01 / DUP-02 / TDS-02 / GST-01 (17 Nov 2026)
+            'payments' => \Illuminate\Support\Facades\Schema::hasTable('btc_payments') ? $c->payments()->get()->map(fn ($p) => ['id' => $p->id, 'amount' => (float) $p->amount,
+                'on' => optional($p->paid_on)->format('d/m/Y'), 'mode' => config("btc.payment_modes.{$p->mode}", $p->mode), 'utr' => $p->utr_number, 'bank_ref' => $p->bank_ref,
+                'status' => $p->status, 'failed_reason' => $p->failed_reason]) : [],
+            'payment_modes' => config('btc.payment_modes'),
+            'closure_gaps' => in_array($c->status, ['paid', 'dept_approved'], true) ? $c->closureGaps() : [],
+            'claim_overlaps' => $user->can('btc.finance') || $user->can('btc.checker') || $user->can('btc.admin') || $user->can('btc.verifier') ? BtcWorkflow::claimOverlaps($c) : [],
+            'vendor_year' => $c->bill_no ? \App\Services\Btc\BtcLedger::vendorYearTotal($c) : null,
+            'gstin_ok' => $c->vendor_gstin ? \App\Services\Btc\BtcLedger::gstinValid($c->vendor_gstin) : null,
+            'overdue_advances' => BtcWorkflow::overdueAdvances((int) $c->employee_id, (int) $c->id)->pluck('case_no'),
             'files' => $c->files->map(fn ($f) => ['id' => $f->id, 'kind' => $f->kind, 'name' => $f->file_name, 'url' => route('btc.file', $f->id)]),
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,
                 'to' => config("btc.statuses.{$l->to_status}", $l->to_status), 'remark' => $l->remark]),

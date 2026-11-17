@@ -55,4 +55,48 @@ class BtcLedger
 
         return [(string) $n['section'], $rate, $belowThreshold];
     }
+
+    /** BTC-GST-01 (17 Nov 2026): GSTIN format and check digit (15 characters, mod-36 checksum). */
+    public static function gstinValid(?string $g): bool
+    {
+        $g = strtoupper(trim((string) $g));
+        if (! preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/', $g)) {
+            return false;
+        }
+        $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $sum = 0;
+        for ($i = 0; $i < 14; $i++) {
+            $v = strpos($chars, $g[$i]) * ($i % 2 ? 2 : 1);
+            $sum += intdiv($v, 36) + $v % 36;
+        }
+
+        return $chars[(36 - $sum % 36) % 36] === $g[14];
+    }
+
+    /**
+     * BTC-TDS-02 (17 Nov 2026): what this vendor has billed in the financial year of the bill (other cases), so the
+     * yearly TDS threshold (e.g. contract work Rs 1,00,000 a year) is seen, not only the single bill.
+     */
+    public static function vendorYearTotal(\App\Models\BtcCase $c): array
+    {
+        $date = $c->bill_date ?: now();
+        $fyStart = $date->month >= 4 ? $date->copy()->startOfYear()->addMonths(3) : $date->copy()->subYear()->startOfYear()->addMonths(3);
+        $pan = strlen((string) $c->vendor_gstin) === 15 ? substr(strtoupper($c->vendor_gstin), 2, 10) : null;
+        $rows = \App\Models\BtcCase::where('id', '!=', $c->id)->where('company_id', $c->company_id)->whereNotIn('status', ['cancelled', 'rejected', 'draft'])
+            ->whereNotNull('bill_date')->whereBetween('bill_date', [$fyStart->toDateString(), $fyStart->copy()->addYear()->subDay()->toDateString()])
+            ->where(function ($q) use ($c, $pan) {
+                if ($pan) {
+                    $q->orWhereRaw('SUBSTRING(UPPER(vendor_gstin), 3, 10) = ?', [$pan]);
+                }
+                if ($c->vendor_id) {
+                    $q->orWhere('vendor_id', $c->vendor_id);
+                }
+                if ($c->vendor_name) {
+                    $q->orWhere('vendor_name', $c->vendor_name);
+                }
+            })->get(['taxable_amount', 'bill_amount']);
+
+        return ['fy' => $fyStart->format('Y').'-'.$fyStart->copy()->addYear()->format('y'), 'count' => $rows->count(),
+            'total' => round($rows->sum(fn ($r) => (float) ($r->taxable_amount ?: $r->bill_amount)), 2)];
+    }
 }

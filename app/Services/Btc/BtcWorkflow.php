@@ -48,7 +48,16 @@ class BtcWorkflow
         'send_dept_approval' => [['checked'], 'btc.treasury', 'with_treasury'],
         'dept_approve' => [['with_treasury'], 'dept_approver', 'dept_approved'],
         'pay' => [['dept_approved'], 'btc.treasury', 'paid'],
+        // BTC-PAY-01 (17 Nov 2026): a failed / returned payment is reversed with its reason (back to payment-ready)
+        'payment_failed' => [['dept_approved', 'paid'], 'btc.treasury', 'dept_approved'],
         'close' => [['paid'], 'btc.finance', 'closed'],
+        // BTC-CLOSE-01: documents formally waived by an authorised person; a financial hold blocks payment and closure
+        'waive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.checker|btc.admin', null],
+        'hold' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.finance|btc.checker|btc.admin', null],
+        'release_hold' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.checker|btc.admin', null],
+        // BTC-HOD-01: the department head may return (to Finance / DMS / requester) or reject, not only approve
+        'dept_return' => [['with_treasury'], 'dept_approver', 'returned'],
+        'dept_reject' => [['with_treasury'], 'dept_approver', 'rejected'],
         'return' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury'], 'any_desk', 'returned'],
         'receive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.dms|btc.finance|btc.verifier', null],
         'cancel' => [['draft', 'pending_manager', 'booking_requested', 'advance_requested', 'booked', 'returned'], null, 'cancelled'],
@@ -70,12 +79,27 @@ class BtcWorkflow
     {
         $out = [];
         foreach (self::ACTIONS as $action => [$from, $perm]) {
-            if (in_array($c->status, $from, true) && self::may($c, $user, $perm, $action)) {
+            if (in_array($c->status, $from, true) && self::may($c, $user, $perm, $action) && self::fits($c, $action)) {
                 $out[] = $action;
             }
         }
 
         return $out;
+    }
+
+    /** BTC-PAY-01 / BTC-CLOSE-01: actions that depend on the case's state beyond its status. */
+    private static function fits(BtcCase $c, string $action): bool
+    {
+        $held = (bool) ($c->on_hold ?? false);
+
+        return match ($action) {
+            'hold' => ! $held,
+            'release_hold' => $held,
+            'pay', 'close', 'dept_approve', 'send_dept_approval', 'check' => ! $held,
+            'payment_failed' => (float) $c->paid_amount > 0,
+            'waive_document' => (bool) $c->pendingDocuments(),
+            default => true,
+        };
     }
 
     public static function may(BtcCase $c, $user, ?string $perm, string $action): bool
@@ -127,7 +151,12 @@ class BtcWorkflow
         if (! self::may($c, $user, $perm, $action)) {
             throw new RuntimeException('You are not allowed to do this step on this case.');
         }
+        if (in_array($action, ['pay', 'close', 'dept_approve', 'send_dept_approval', 'check'], true) && ($c->on_hold ?? false)) {
+            throw new RuntimeException('The case is on financial hold ('.$c->hold_reason.'). Release the hold first.');
+        }
         $old = $c->status;
+        $payRow = null;      // BTC-PAY-01: payment row written with the status change
+        $failRow = null;
         $remark = trim((string) ($d['remark'] ?? ''));
         $now = now();
 
@@ -154,6 +183,10 @@ class BtcWorkflow
                     }
                     if (! $c->manager_id) {
                         throw new RuntimeException('No reporting manager found for the approval.');
+                    }
+                    // BTC-ADV-02: no new advance while an old one is unsettled beyond the settlement days
+                    if ((float) $c->advance_amount > 0 && ! $user->can('btc.admin') && ($old = self::overdueAdvances((int) $c->employee_id, (int) $c->id))->isNotEmpty()) {
+                        throw new RuntimeException('An earlier advance is not settled: '.$old->pluck('case_no')->implode(', ').' (paid over '.config('btc.advance_settle_days', 30).' days ago, no bill yet). Submit that bill first, or ask the BTC admin.');
                     }
                     if (! $c->files()->where('kind', 'quotation')->exists() || ! $c->quotation_amount) {
                         throw new RuntimeException('Attach the vendor quotation and its amount first.');
@@ -309,27 +342,110 @@ class BtcWorkflow
                 $c->dept_remark = $remark ?: 'Approved';
                 break;
             case 'pay':
+                // BTC-PAY-01 (17 Nov 2026): mode, UTR and bank reference; part payments add up to the net payable
                 $amt = round((float) ($d['paid_amount'] ?? 0), 2);
                 $utr = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) ($d['utr_number'] ?? '')));
+                $mode = (string) ($d['payment_mode'] ?? '');
+                $already = round((float) $c->paid_amount, 2);
+                $due = round((float) $c->net_payable - $already, 2);
                 if ($amt <= 0) {
                     throw new RuntimeException('Enter the amount paid.');
                 }
-                if ($amt > round((float) $c->net_payable, 2) + 0.009) {
-                    throw new RuntimeException('Paid amount '.number_format($amt, 2).' is more than the net payable '.number_format((float) $c->net_payable, 2).'.');
+                if ($amt > $due + 0.009) {
+                    throw new RuntimeException('Paid amount '.number_format($amt, 2).' is more than the amount still due '.number_format($due, 2).' (net payable '.number_format((float) $c->net_payable, 2).($already > 0 ? ', already paid '.number_format($already, 2) : '').').');
+                }
+                if (! in_array($mode, array_keys(config('btc.payment_modes')), true)) {
+                    throw new RuntimeException('Choose the payment mode.');
                 }
                 if (strlen($utr) < 6) {
-                    throw new RuntimeException('Enter the UTR / bank reference of the payment.');
+                    throw new RuntimeException($mode === 'cheque' ? 'Enter the cheque number.' : 'Enter the UTR of the payment.');
                 }
-                $c->paid_amount = $amt;
-                $c->paid_on = $d['paid_on'] ?? $now->toDateString();
+                if ($dupe = DB::table('btc_payments')->where('utr_number', $utr)->where('status', 'success')->where('btc_case_id', '!=', $c->id)->value('btc_case_id')) {
+                    throw new RuntimeException('UTR '.$utr.' is already used on '.BtcCase::whereKey($dupe)->value('case_no').'.');
+                }
+                $paidOn = $d['paid_on'] ?? $now->toDateString();
+                $bankRef = trim((string) ($d['payment_bank_ref'] ?? '')) ?: null;
+                $c->paid_amount = round($already + $amt, 2);
+                $c->paid_on = $paidOn;
                 $c->utr_number = $utr;
+                $c->payment_mode = $mode;
+                $c->payment_bank_ref = $bankRef;
+                $full = $c->paid_amount >= round((float) $c->net_payable, 2) - 0.009;
+                $c->payment_status = $full ? 'full' : 'partial';
+                $to = $full ? 'paid' : 'dept_approved';
+                $remark = trim(($full ? 'Paid in full' : 'Part payment').' Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.($remark ? ' - '.$remark : ''));
+                $payRow = ['btc_case_id' => $c->id, 'amount' => $amt, 'paid_on' => $paidOn, 'mode' => $mode, 'utr_number' => $utr, 'bank_ref' => $bankRef,
+                    'status' => 'success', 'created_by' => $user->id ?? null, 'created_at' => $now, 'updated_at' => $now];
+                break;
+            case 'payment_failed':
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason the payment failed / came back.');
+                }
+                $p = DB::table('btc_payments')->where('btc_case_id', $c->id)->where('status', 'success')
+                    ->when(! empty($d['payment_id']), fn ($q) => $q->where('id', (int) $d['payment_id']))->orderByDesc('id')->first();
+                if (! $p) {
+                    throw new RuntimeException('No payment found to reverse.');
+                }
+                $c->paid_amount = max(0, round((float) $c->paid_amount - (float) $p->amount, 2));
+                $last = DB::table('btc_payments')->where('btc_case_id', $c->id)->where('status', 'success')->where('id', '!=', $p->id)->orderByDesc('id')->first();
+                $c->utr_number = $last->utr_number ?? null;
+                $c->paid_on = $last->paid_on ?? null;
+                $c->payment_mode = $last->mode ?? null;
+                $c->payment_bank_ref = $last->bank_ref ?? null;
+                $c->payment_status = $c->paid_amount > 0 ? 'partial' : null;
+                $remark = 'Payment failed: Rs '.number_format((float) $p->amount, 2).' UTR '.$p->utr_number.' - '.$remark;
+                $failRow = [$p->id, ['status' => 'failed', 'failed_reason' => mb_substr((string) $d['remark'], 0, 300), 'failed_by' => $user->id ?? null, 'failed_at' => $now, 'updated_at' => $now]];
+                break;
+            case 'waive_document':
+                $kinds = array_values(array_intersect((array) ($d['waive'] ?? []), ['original', 'boarding_pass']));
+                if (! $kinds) {
+                    throw new RuntimeException('Choose the document(s) to waive.');
+                }
+                if (mb_strlen($remark) < 10) {
+                    throw new RuntimeException('Give the reason for the waiver (at least 10 characters).');
+                }
+                $c->doc_waived_kinds = implode(',', array_unique(array_merge(array_filter(explode(',', (string) $c->doc_waived_kinds)), $kinds)));
+                $c->doc_waived_by = $user->id ?? null;
+                $c->doc_waived_at = $now;
+                $c->doc_waiver_reason = mb_substr($remark, 0, 300);
+                $remark = 'Waived: '.str_replace(['original', 'boarding_pass'], ['original bill', 'boarding pass'], implode(', ', $kinds)).' - '.$remark;
+                $to = $old;
+                break;
+            case 'hold':
+                if (mb_strlen($remark) < 5) {
+                    throw new RuntimeException('Give the reason for the hold.');
+                }
+                $c->on_hold = true;
+                $c->hold_reason = mb_substr($remark, 0, 300);
+                $c->hold_by = $user->id ?? null;
+                $c->hold_at = $now;
+                $remark = 'Financial hold: '.$remark;
+                $to = $old;
+                break;
+            case 'release_hold':
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for releasing the hold.');
+                }
+                $c->on_hold = false;
+                $remark = 'Hold released ('.$c->hold_reason.'): '.$remark;
+                $to = $old;
+                break;
+            case 'dept_reject':
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for rejecting.');
+                }
+                $c->dept_remark = $remark;
                 break;
             case 'close':
-                if ($pending = $c->pendingDocuments()) {
-                    throw new RuntimeException('Still waiting for: '.implode(', ', $pending).'.');
+                // BTC-CLOSE-01 (17 Nov 2026): closed only when every applicable condition is met, not just because it is paid
+                if ($open = $c->closureGaps()) {
+                    throw new RuntimeException('Cannot close yet: '.implode('; ', $open).'.');
                 }
                 $c->closed_at = $now;
                 break;
+            case 'dept_return':
+                $d['return_to'] = $d['return_to'] ?? 'finance_verified';
+                // no break: same as a desk return
             case 'return':
                 if ($remark === '') {
                     throw new RuntimeException('Give the reason for returning.');
@@ -361,9 +477,15 @@ class BtcWorkflow
                 break;
         }
 
-        DB::transaction(function () use ($c, $to, $old, $action, $remark, $user) {
+        DB::transaction(function () use ($c, $to, $old, $action, $remark, $user, $payRow, $failRow) {
             $c->status = $to ?? $old;
             $c->save();
+            if ($payRow) {
+                DB::table('btc_payments')->insert($payRow);
+            }
+            if ($failRow) {
+                DB::table('btc_payments')->where('id', $failRow[0])->update($failRow[1]);
+            }
             BtcCaseLog::create([
                 'btc_case_id' => $c->id, 'action' => $action, 'from_status' => $old, 'to_status' => $c->status,
                 'remark' => $remark ?: null, 'user_id' => $user->id ?? null, 'user_name' => $user->name ?? null,
@@ -396,6 +518,55 @@ class BtcWorkflow
     }
 
     /** Duplicate bill risk: same vendor + bill no, or same vendor + amount + date, in another live case. */
+    /**
+     * BTC-DUP-02 (17 Nov 2026): the same stay / ticket / vehicle / meeting claimed by the employee in his own Xeasy
+     * expense claim for the same dates - paid twice if both go through.
+     */
+    public static function claimOverlaps(BtcCase $c): array
+    {
+        $types = ['hotel' => [1], 'air' => [2, 18], 'train' => [14], 'vehicle' => [4], 'meeting' => [13, 24, 25, 32, 33, 42, 45, 46]][$c->category] ?? [];
+        $from = $c->service_from ?: $c->travel_date ?: $c->bill_date;
+        $to = $c->service_to ?: $from;
+        if (! $types || ! $from || ! $c->employee_id) {
+            return [];
+        }
+        try {
+            $db = DB::connection('expense');
+            $a = $from->copy()->subDay()->toDateString();
+            $b = $to->copy()->addDay()->toDateString();
+            $years = $db->table('financialyear')->where('FromDate', '<=', $b)->where('Todate', '>=', $a)->pluck('YearId');
+            $out = [];
+            foreach ($years as $y) {
+                if (! \Illuminate\Support\Facades\Schema::connection('expense')->hasTable("y{$y}_expenseclaims")) {
+                    continue;
+                }
+                foreach ($db->table("y{$y}_expenseclaims as e")->leftJoin('claimtype as t', 't.ClaimId', '=', 'e.ClaimId')
+                    ->where('e.CrBy', $c->employee_id)->whereIn('e.ClaimId', $types)->whereBetween('e.BillDate', [$a, $b])
+                    ->whereNotIn('e.ClaimStatus', ['Deactivate', 'Draft', 'Deny'])->limit(20)
+                    ->get(['e.ExpId', 't.ClaimName', 'e.BillDate', 'e.FilledTAmt', 'e.ClaimStatus', 'e.ClaimMonth']) as $r) {
+                    $out[] = ['exp_id' => $r->ExpId, 'type' => $r->ClaimName, 'date' => substr((string) $r->BillDate, 0, 10),
+                        'amount' => (float) $r->FilledTAmt, 'status' => $r->ClaimStatus, 'month' => $r->ClaimMonth];
+                }
+            }
+
+            return $out;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
+    }
+
+    /** BTC-ADV-02 (17 Nov 2026): the requester's advances paid long ago with no bill yet (block a new advance). */
+    public static function overdueAdvances(int $employeeId, int $exceptId = 0): \Illuminate\Support\Collection
+    {
+        $days = (int) config('btc.advance_settle_days', 30);
+
+        return BtcCase::where('employee_id', $employeeId)->where('id', '!=', $exceptId)->whereNotIn('status', ['cancelled', 'rejected', 'closed', 'draft'])
+            ->whereNotNull('advance_paid_on')->whereDate('advance_paid_on', '<', now()->subDays($days)->toDateString())->whereNull('bill_submitted_at')
+            ->get()->filter(fn ($x) => $x->advanceFigures()['balance'] > 0.5)->values();
+    }
+
     public static function duplicates(BtcCase $c)
     {
         return BtcCase::where('id', '!=', $c->id)->whereNotIn('status', ['cancelled', 'rejected'])
@@ -435,8 +606,21 @@ class BtcWorkflow
         if ($dups->isNotEmpty() && empty($d['duplicate_override'])) {
             throw new RuntimeException('Possible duplicate of '.$dups->pluck('case_no')->implode(', ').'. Tick "not a duplicate" with a remark to go on.');
         }
+        if (($ov = self::claimOverlaps($c)) && empty($d['claim_overlap_override'])) {
+            throw new RuntimeException('The employee has also claimed '.collect($ov)->map(fn ($o) => $o['type'].' '.$o['date'].' Rs '.number_format($o['amount']))->implode(', ').' in his own expense claim for these dates. Tick "not the same expense" with a remark to go on.');
+        }
         $taxable = (float) ($d['taxable_amount'] ?? $c->taxable_amount ?? $c->bill_amount);
         $section = (string) ($d['tds_section'] ?? 'none');
+        // BTC-TDS-02: a 'no TDS' choice while the vendor's yearly total crosses the category's TDS threshold
+        $natureIn = (string) ($d['tds_nature'] ?? '');
+        $catNature = config('btc.tds_nature_by_category.'.$c->category);
+        $catRule = $catNature ? config("btc.tds_natures.{$catNature}") : null;
+        if ($natureIn === 'none' && $catRule && ($catRule['section'] ?? 'none') !== 'none' && empty($d['tds_threshold_override'])) {
+            $yt = BtcLedger::vendorYearTotal($c);
+            if ($yt['total'] + $taxable > (float) ($catRule['threshold'][1] ?? PHP_FLOAT_MAX) || $taxable > (float) ($catRule['threshold'][0] ?? PHP_FLOAT_MAX)) {
+                throw new RuntimeException('No TDS chosen, but this vendor has Rs '.number_format($yt['total'] + $taxable).' in FY '.$yt['fy'].' with this bill (single-bill limit Rs '.number_format($catRule['threshold'][0]).', yearly Rs '.number_format($catRule['threshold'][1]).' for '.$catRule['section'].'). Deduct TDS, or tick "TDS not applicable" with a remark.');
+            }
+        }
         $rate = $section === 'none' ? 0.0 : (float) ($d['tds_rate'] ?? 0);
         // BTC-TDS-01: the nature of the payment decides the section and the rate (Finance may still type a rate)
         $nature = (string) ($d['tds_nature'] ?? '');

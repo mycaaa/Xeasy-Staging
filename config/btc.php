@@ -19,6 +19,12 @@ return [
         'direct_bill' => 'C · Final bill after the activity',
     ],
 
+    // BTC-ADV-02 (17 Nov 2026): an advance not settled by a bill within this many days blocks a new advance
+    'advance_settle_days' => (int) env('BTC_ADVANCE_SETTLE_DAYS', 30),
+
+    // BTC-PAY-01 (17 Nov 2026): payment modes on Payment Confirmation
+    'payment_modes' => ['neft' => 'NEFT', 'rtgs' => 'RTGS', 'imps' => 'IMPS', 'upi' => 'UPI', 'cheque' => 'Cheque', 'other' => 'Other'],
+
     // BTC-REQ-10 (17 Nov 2026): short route names in the lists
     'route_short' => ['admin_booking' => 'Admin booking', 'employee_advance' => 'Advance requested', 'direct_bill' => 'Final bill'],
 

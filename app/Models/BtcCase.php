@@ -18,6 +18,7 @@ class BtcCase extends Model
         'checker_at' => 'datetime', 'treasury_at' => 'datetime', 'dept_approved_at' => 'datetime', 'closed_at' => 'datetime',
         'focus_exported_at' => 'datetime',
         'booking_date' => 'date', 'activity_completed_on' => 'date', 'advance_refund_on' => 'date',
+        'doc_waived_at' => 'datetime', 'hold_at' => 'datetime', 'on_hold' => 'boolean',
         'new_vendor' => 'boolean', 'original_required' => 'boolean', 'boarding_pass_required' => 'boolean', 'duplicate_checked' => 'boolean',
     ];
 
@@ -45,14 +46,57 @@ class BtcCase extends Model
     public function pendingDocuments(): array
     {
         $p = [];
-        if ($this->original_required && ! $this->original_received_on) {
+        $waived = array_filter(explode(',', (string) ($this->doc_waived_kinds ?? '')));   // BTC-CLOSE-01: formally waived
+        if ($this->original_required && ! $this->original_received_on && ! in_array('original', $waived, true)) {
             $p[] = 'original bill';
         }
-        if ($this->boarding_pass_required && ! $this->boarding_pass_received_on) {
+        if ($this->boarding_pass_required && ! $this->boarding_pass_received_on && ! in_array('boarding_pass', $waived, true)) {
             $p[] = 'boarding pass';
         }
 
         return $p;
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(BtcPayment::class, 'btc_case_id')->orderByDesc('id');
+    }
+
+    /**
+     * BTC-CLOSE-01 (17 Nov 2026, requirement item 17): what still stops closure. A case is not closed just because
+     * it is paid: Finance verification and checking, HOD approval, Focus posting, payment reconciled with the net
+     * payable, advance settled, documents received or waived, and no financial hold.
+     */
+    public function closureGaps(): array
+    {
+        $g = [];
+        if (! $this->finance_at) {
+            $g[] = 'Finance verification not done';
+        }
+        if (! $this->checker_at) {
+            $g[] = 'Finance checker step not done';
+        }
+        if (! $this->dept_approved_at) {
+            $g[] = 'department head approval not done';
+        }
+        if ((float) $this->net_payable > 0 && ! $this->focus_voucher_no && ! $this->focus_exported_at) {
+            $g[] = 'Focus posting not confirmed (no Focus voucher no. / JV export)';
+        }
+        if (abs(round((float) $this->paid_amount - (float) $this->net_payable, 2)) > 0.009) {
+            $g[] = 'payment not reconciled (paid Rs '.number_format((float) $this->paid_amount, 2).' vs net payable Rs '.number_format((float) $this->net_payable, 2).')';
+        }
+        $a = $this->advanceFigures();
+        if ($a['outstanding'] > 0.009 && $a['balance'] > 0.5) {
+            $g[] = 'advance balance Rs '.number_format($a['balance'], 2).' not adjusted or refunded';
+        }
+        if ($p = $this->pendingDocuments()) {
+            $g[] = 'waiting for '.implode(', ', $p).' (receive or waive)';
+        }
+        if ($this->on_hold ?? false) {
+            $g[] = 'financial hold: '.$this->hold_reason;
+        }
+
+        return $g;
     }
 
     /**
@@ -140,6 +184,8 @@ class BtcCase extends Model
             default => 'Not received',
         };
         $payment = match (true) {
+            ($this->on_hold ?? false) => 'On hold',
+            (float) $this->paid_amount > 0 && $this->payment_status === 'partial' => 'Part paid '.number_format((float) $this->paid_amount).' of '.number_format((float) $this->net_payable),
             (float) $this->paid_amount > 0 => 'Paid '.number_format((float) $this->paid_amount).' · '.$this->utr_number,
             in_array($this->status, ['checked', 'with_treasury', 'dept_approved'], true) => 'In payment',
             default => '-',
