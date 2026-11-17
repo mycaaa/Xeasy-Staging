@@ -56,6 +56,26 @@ class BtcCase extends Model
     }
 
     /**
+     * BTC-REQ-10 (17 Nov 2026): what the case is waiting for, as shown under the status. Before the bill stage the
+     * original bill / boarding pass is not yet due: a draft advance request waits for its quotation, an admin booking
+     * waiting for the manager shows nothing.
+     */
+    public function waitingFor(): array
+    {
+        if (in_array($this->status, ['cancelled', 'rejected', 'closed'], true)) {
+            return [];
+        }
+        if (in_array($this->status, ['draft', 'returned'], true) && $this->route === 'employee_advance' && ! $this->bill_submitted_at) {
+            return $this->quotation_amount && $this->files()->where('kind', 'quotation')->exists() ? [] : ['Quotation'];
+        }
+        if (! $this->bill_submitted_at) {
+            return [];
+        }
+
+        return $this->pendingDocuments();
+    }
+
+    /**
      * BTC-REQ-06 (16 Nov 2026): the advance in separate figures - the amount requested is not the amount paid.
      *   requested  advance_amount            approved  advance_approved (manager; default = requested)
      *   paid       advance_paid_amount (actually paid by Finance; older cases: requested once paid)

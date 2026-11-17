@@ -19,6 +19,9 @@ return [
         'direct_bill' => 'C · Final bill after the activity',
     ],
 
+    // BTC-REQ-10 (17 Nov 2026): short route names in the lists
+    'route_short' => ['admin_booking' => 'Admin booking', 'employee_advance' => 'Advance requested', 'direct_bill' => 'Final bill'],
+
     // BTC-FORM-01: routes an employee may choose on the request form (the BTC admin may choose all)
     // BTC-REQ-03 (16 Nov 2026, "BTC requirements" tab): the new-requirement form gives two clear choices,
     // "Admin Booking Required" (A) and "Advance Required" (B); C (final bill after the activity) stays with the BTC admin

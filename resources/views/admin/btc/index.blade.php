@@ -51,7 +51,7 @@
             <div class="card-body p-2">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover btc-table mb-0">
-                        <thead class="table-light"><tr><th>Case</th><th>Route</th><th>Category</th><th>Employee</th><th>Vendor</th><th>Purpose</th><th class="text-end">Amount</th><th>Status</th><th>Pending with</th><th>Booking</th><th>Advance</th><th>Invoice</th><th>Payment</th><th>Updated</th></tr></thead>
+                        <thead class="table-light"><tr><th>Case</th><th>Route</th><th>Category</th><th class="btc-emp-col">Employee</th><th>Vendor</th><th>Purpose</th><th class="text-end">Amount</th><th>Status</th><th>Pending with</th><th>Booking</th><th>Advance</th><th>Invoice</th><th>Payment</th><th>Updated</th></tr></thead>
                         <tbody id="btcRows"><tr><td colspan="14" class="text-center text-muted">Loading…</td></tr></tbody>
                     </table>
                 </div>
@@ -94,15 +94,15 @@
                     <div class="col-12"><label class="btc-label">Purpose / business requirement</label><input class="form-control form-control-sm" name="purpose" required maxlength="500"></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
-                    <div class="col-md-3"><label class="btc-label">Estimated amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="estimated_amount"></div>
-                    <div class="col-md-6"><label class="btc-label">Vendor</label>
+                    <div class="col-md-3 btc-nota"><label class="btc-label">Estimated amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="estimated_amount"></div>
+                    <div class="col-md-6 btc-nota"><label class="btc-label">Vendor</label>
                         <select class="form-select form-select-sm" name="vendor_id" id="btcVendor"><option value="">— new / not listed —</option></select>
                         <div class="form-text" id="btcVendorHint"></div></div>
-                    <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor name (register in Vendor list too)</label><input class="form-control form-control-sm" name="vendor_name"></div>
-                    <div class="col-md-6 btc-newvendor"><label class="btc-label">New vendor GSTIN</label><input class="form-control form-control-sm" name="vendor_gstin" maxlength="20"></div>
+                    <div class="col-md-6 btc-newvendor btc-nota"><label class="btc-label">New vendor name (<a href="https://connect.vnrin.in/register" target="_blank" rel="noopener">for registration click here</a>)</label><input class="form-control form-control-sm" name="vendor_name"></div>
+                    <div class="col-md-6 btc-newvendor btc-nota"><label class="btc-label">New vendor GSTIN</label><input class="form-control form-control-sm" name="vendor_gstin" maxlength="20"></div>
                     <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="quotation_amount"></div>
                     <div class="col-md-4 btc-b"><label class="btc-label">Advance required (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="advance_amount"></div>
-                    <div class="col-md-4 btc-air"><label class="btc-label">PNR</label><input class="form-control form-control-sm" name="pnr" maxlength="20"></div>
+                    <div class="col-md-4 btc-air btc-pnr"><label class="btc-label">PNR</label><input class="form-control form-control-sm" name="pnr" maxlength="20"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Sector</label><input class="form-control form-control-sm" name="travel_sector" placeholder="RPR-DEL" aria-label="RPR-DEL"></div>
                     <div class="col-md-4 btc-air"><label class="btc-label">Travel date</label><input type="date" class="form-control form-control-sm" name="travel_date"></div>
                     <div class="col-12 btc-c"><hr class="my-1"><div class="btc-label fw-semibold">Final bill</div></div>
@@ -151,12 +151,13 @@ $(function () {
         $.get('{{ route('btc.data') }}', {tab: tab, search: $('#btcSearch').val()}, function (r) {
             const st = c => c.stages || {};
             const rows = (r.data || []).map(c => `<tr role="button" data-id="${c.id}">
-                <td class="fw-semibold">${esc(c.case_no)}</td><td>${esc(c.route)}</td><td>${esc(c.category)}</td><td>${esc(c.employee)}</td>
+                <td class="fw-semibold">${esc(c.case_no)}</td><td>${esc(c.route)}</td><td>${esc(c.category)}</td><td class="btc-emp-col">${esc(c.employee)}</td>
                 <td>${esc(c.vendor)}</td><td>${esc(c.purpose)}</td><td class="text-end">${fmt(c.amount)}</td>
                 <td><span class="badge bg-primary-subtle text-primary">${esc(c.status_label)}</span>${c.pending ? '<div class="text-danger small">' + esc(c.pending) + '</div>' : ''}</td>
                 <td>${esc(c.pending_with)}</td><td>${esc(st(c).booking)}</td><td>${esc(st(c).advance)}</td><td>${esc(st(c).invoice)}</td><td>${esc(st(c).payment)}</td>
                 <td>${esc(c.updated)}</td></tr>`).join('');
             $('#btcRows').html(rows || '<tr><td colspan="14" class="text-center text-muted">No cases</td></tr>');
+            $('.btc-emp-col').toggle(tab !== 'mine');   // BTC-REQ-10: own requests - no employee column
         });
     }
     $('#btcTabs').on('click', '.nav-link', function (e) { e.preventDefault(); $('#btcTabs .nav-link').removeClass('active'); $(this).addClass('active'); tab = $(this).data('tab'); load(); });
@@ -165,12 +166,16 @@ $(function () {
 
     // new case form
     function fileRow(kind) {
+        // BTC-REQ-09 (17 Nov 2026): an admin booking request attaches only supporting papers and approvals
+        const r = $('.btc-route-radio:checked').val() || $('#btcRoute').val();
+        const kinds = r === 'admin_booking' ? ['supporting', 'approval'] : ['quotation','approval','bill','supporting','boarding_pass'];
         return `<div class="d-flex gap-2 mb-1"><select class="form-select form-select-sm" name="file_kinds[]" style="width:170px">
-            ${['quotation','approval','bill','supporting','boarding_pass'].map(k => `<option value="${k}" ${k===kind?'selected':''}>${k.replace('_',' ')}</option>`).join('')}</select>
+            ${kinds.map(k => `<option value="${k}" ${k===kind?'selected':''}>${k.replace('_',' ')}</option>`).join('')}</select>
             <input type="file" class="form-control form-control-sm" name="files[]" accept=".pdf,.jpg,.jpeg,.png"></div>`;
     }
     // BTC-FORM-02: one entry per vendor, only vendors of the chosen category
     const BTC_VENDORS = @json($vendors);
+    const AIR_LABEL = $('#btcCategory option[value=air]').text();
     const BTC_VENDOR_TYPES = @json($vendorTypesByCategory);
     function fillVendors() {
         const c = $('#btcCategory').val(), keep = $('#btcVendor').val();
@@ -193,6 +198,12 @@ $(function () {
         $('.btc-choice').removeClass('border-primary bg-primary-subtle'); $('.btc-route-radio:checked').closest('.btc-choice').addClass('border-primary bg-primary-subtle');
         $('.btc-b').toggle(r === 'employee_advance'); $('.btc-c').toggle(r === 'direct_bill');
         $('.btc-air').toggle(c === 'air'); $('.btc-newvendor').toggle(!$('#btcVendor').val());
+        // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books); advance request -
+        // "Air fare", no PNR (the ticket is not booked yet)
+        $('.btc-nota').toggle(r !== 'admin_booking');
+        if (r === 'admin_booking') { $('#btcVendor').val('').trigger('change.select2'); $('[name=estimated_amount],[name=vendor_name],[name=vendor_gstin]').val(''); }
+        $('#btcCategory option[value=air]').text(r === 'employee_advance' ? 'Air fare' : AIR_LABEL);
+        $('.btc-pnr').toggle(r !== 'employee_advance'); if (r === 'employee_advance') $('[name=pnr]').val('');
         $('#btcFiles').html(fileRow(r === 'employee_advance' ? 'quotation' : (r === 'direct_bill' ? 'bill' : 'supporting')));
     }
     $('#btcCategory, #btcVendor').on('change', shape); shape();
@@ -245,7 +256,11 @@ $(function () {
         const rmk = (req) => `<div class="col-md-6"><label class="btc-label">Remark${req ? ' (required)' : ''}</label><input class="form-control form-control-sm" name="remark"></div>`;
         const file = (k, l) => `<div class="col-md-4"><label class="btc-label">${l}</label><input type="hidden" name="file_kinds[]" value="${k}"><input type="file" class="form-control form-control-sm" name="files[]" accept=".pdf,.jpg,.jpeg,.png"></div>`;
         switch (a) {
-            case 'submit': f.push(rmk(false)); break;
+            case 'submit':
+                // BTC-REQ-13 (17 Nov 2026): attach the quotation from the case itself
+                if (c.route === 'employee_advance') f.push(inp('quotation_amount', 'Quotation amount ₹', 'number', c.quotation_amount), inp('advance_amount', 'Advance required ₹', 'number', c.advance_amount), file('quotation', 'Quotation' + ((d.files || []).some(x => x.kind === 'quotation') ? ' (one attached; add another)' : '')));
+                else f.push(file('supporting', 'Attach a file (optional)'));
+                f.push(rmk(false)); break;
             case 'manager_approve': if (c.route === 'employee_advance' && Number(c.advance_amount) > 0) f.push(inp('advance_approved', 'Advance approved ₹ (requested ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount)); f.push(rmk(false)); break;
             case 'dept_approve': f.push(rmk(false)); break;
             case 'confirm_booking': case 'modify_booking': f.push(`<div class="col-md-4"><label class="btc-label">Vendor / hotel booked</label><input class="form-control form-control-sm" name="vendor_name" value="${esc(c.vendor_name)}" list="btcVendorNames"></div>`,

@@ -113,11 +113,11 @@ class BtcController extends Controller
         }
 
         return response()->json(['data' => $q->orderByDesc('id')->limit(1000)->get()->map(fn ($c) => [
-            'id' => $c->id, 'case_no' => $c->case_no, 'route' => config("btc.routes.{$c->route}"), 'category' => $c->categoryLabel(),
+            'id' => $c->id, 'case_no' => $c->case_no, 'route' => config("btc.route_short.{$c->route}", config("btc.routes.{$c->route}")), 'category' => $c->categoryLabel(),
             'employee' => trim($c->emp_code.' - '.$c->emp_name), 'vendor' => $c->vendor_name, 'purpose' => $c->purpose,
             'bill' => $c->bill_no ? $c->bill_no.' / '.optional($c->bill_date)->format('d/m/Y') : '',
             'amount' => $c->bill_amount ?? $c->quotation_amount, 'net' => $c->net_payable, 'status' => $c->status, 'status_label' => $c->statusLabel(),
-            'pending' => implode(', ', $c->pendingDocuments()), 'updated' => $c->updated_at?->format('d/m/Y H:i'),
+            'pending' => implode(', ', $c->waitingFor()), 'updated' => $c->updated_at?->format('d/m/Y H:i'),
             'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),   // BTC-REQ-02 / 04
         ])]);
     }
@@ -220,7 +220,7 @@ class BtcController extends Controller
         return response()->json([
             'case' => $c, 'status_label' => $c->statusLabel(), 'category_label' => $c->categoryLabel(),
             'route_label' => config("btc.routes.{$c->route}"), 'manager' => $name($c->manager_id), 'dept_approver' => $name($c->dept_approver_id),
-            'pending' => $c->pendingDocuments(), 'actions' => BtcWorkflow::allowed($c, $user),
+            'pending' => $c->waitingFor(), 'actions' => BtcWorkflow::allowed($c, $user),
             'duplicates' => in_array('finance_verify', BtcWorkflow::allowed($c, $user), true) ? BtcWorkflow::duplicates($c) : [],
             'files' => $c->files->map(fn ($f) => ['id' => $f->id, 'kind' => $f->kind, 'name' => $f->file_name, 'url' => route('btc.file', $f->id)]),
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,

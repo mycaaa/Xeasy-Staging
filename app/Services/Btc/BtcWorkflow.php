@@ -143,6 +143,15 @@ class BtcWorkflow
                     $c->booking_status = 'requested';
                 }
                 if ($c->route === 'employee_advance') {
+                    // BTC-REQ-13: quotation / advance amounts entered with the submit
+                    foreach (['quotation_amount', 'advance_amount'] as $k) {
+                        if (isset($d[$k]) && $d[$k] !== '') {
+                            $c->{$k} = round((float) $d[$k], 2);
+                        }
+                    }
+                    if ((float) $c->advance_amount > (float) $c->quotation_amount && (float) $c->quotation_amount > 0) {
+                        throw new RuntimeException('Advance required cannot be more than the quotation amount.');
+                    }
                     if (! $c->manager_id) {
                         throw new RuntimeException('No reporting manager found for the approval.');
                     }
