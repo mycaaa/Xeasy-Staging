@@ -949,7 +949,7 @@ class LegacyProxyController extends BaseMobileController
                         $parts[] = 'Some of your uploaded bills are still pending for data punching. The claim amount will not include bills that are pending for punching. If you proceed with submission, these bills will not be considered in the current claim. ('.count($pending).' bill(s): '.$ids($pending).')';
                     }
                     if ($unchecked) {
-                        $parts[] = count($unchecked).' punched bill(s) have not been checked by you yet (Pending: OK & Verify or Deny): '.$ids($unchecked).'. If you proceed, they will be submitted as punched.';
+                        $parts[] = count($unchecked).' punched bill(s) have not been checked by you yet (Pending: OK & Confirm or Deny): '.$ids($unchecked).'. If you proceed, they will be submitted as punched.';
                     }
 
                     return response()->json(['Code' => '101', 'needs_ack' => 'unpunched', 'pending_count' => count($pending),

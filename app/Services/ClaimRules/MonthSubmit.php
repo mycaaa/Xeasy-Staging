@@ -48,7 +48,7 @@ class MonthSubmit
             $unchecked = $base()->where('ClaimStatus', 'Filled')->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', 0))
                 ->where('ClaimId', '!=', 7)->whereColumn('FilledBy', '!=', 'CrBy')->count();
             if ($unchecked) {
-                $warning = trim(($warning ?? '')." {$unchecked} punched bill(s) are waiting for your OK & Verify.");
+                $warning = trim(($warning ?? '')." {$unchecked} punched bill(s) are waiting for your OK & Confirm.");
             }
         }
 

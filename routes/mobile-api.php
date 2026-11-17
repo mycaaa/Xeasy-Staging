@@ -169,6 +169,9 @@ Route::match(['get', 'post'], '{comId}/extract-data.php', [ExtractionController:
 Route::match(['get', 'post'], '{comId}/advance_request.php', [App\Http\Controllers\Api\Mobile\AdvanceRequestLegacyController::class, 'handleLegacy'])->where('comId', '[0-9]+');
 Route::match(['get', 'post'], '{comId}/login_new.php', [LegacyProxyController::class, 'login'])->where('comId', '[0-9]+');
 Route::match(['get', 'post'], '{comId}/appversion.php', [AppVersionController::class, 'version'])->where('comId', '[0-9]+');
+// CLAIM-SCORE-06 (17 Nov 2026): My Claim Score / My Team for the app
+Route::match(['get', 'post'], 'claim_score.php', [App\Http\Controllers\Api\Mobile\ClaimScoreApiController::class, 'handle']);
+Route::match(['get', 'post'], '{comId}/claim_score.php', [App\Http\Controllers\Api\Mobile\ClaimScoreApiController::class, 'handle'])->where('comId', '[0-9]+');
 // APP-VVNR-01 (12 Nov 2026): the app's VVNR approver screens call {base}/api/11/api/common_rep.php and claim_rep.php
 // (the old VVNR API path). Same handlers; the company comes from ComId in the request.
 Route::match(['get', 'post'], '{comId}/api/common_rep.php', [LegacyProxyController::class, 'common'])->where('comId', '[0-9]+');

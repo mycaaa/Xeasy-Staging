@@ -478,7 +478,7 @@ class ClaimListController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection((int) $ComId);
 
         try {
-            $sql = "SELECT e.ExpId, e.ClaimYearId, e.BillDate, e.FilledTAmt, e.ClaimStatus, e.CrBy, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2, e.TotKm, e.v_verify, e.ClaimId FROM y{$YearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = '{$Month}' AND e.ClaimYearId = '{$YearId}' AND e.CrBy = {$empid} AND e.ClaimStatus NOT IN ('Deactivate', 'Draft', 'Submitted') AND e.FilledBy > 0 AND (e.Backdate_Odometer_Status IS NULL OR e.Backdate_Odometer_Status = '' OR (e.Backdate_Odometer_Status = 'A' AND e.v_verify = 'Y')) ORDER BY BillDate ASC";
+            $sql = "SELECT e.ExpId, e.ClaimYearId, e.BillDate, e.FilledTAmt, e.ClaimStatus, e.CrBy, e.Remark, e.DateEntryRemark, e.FilledOkay, e.ClaimAtStep, ct.ClaimName, ct.cgId, e.ClaimMonth, e.opening_filepath, e.closing_filepath, Img_1, Img_2, Img_3, Img_4 as pdf_1, Img_5 as pdf_2, e.TotKm, e.v_verify, e.ClaimId, e.VerifyBy, e.VerifyDate FROM y{$YearId}_expenseclaims e LEFT JOIN claimtype ct ON e.ClaimId = ct.ClaimId WHERE e.ClaimMonth = '{$Month}' AND e.ClaimYearId = '{$YearId}' AND e.CrBy = {$empid} AND e.ClaimStatus NOT IN ('Deactivate', 'Draft', 'Submitted') AND e.FilledBy > 0 AND (e.Backdate_Odometer_Status IS NULL OR e.Backdate_Odometer_Status = '' OR (e.Backdate_Odometer_Status = 'A' AND e.v_verify = 'Y')) ORDER BY BillDate ASC";
             $dayRows = DB::connection($expenseConn)->select($sql);
 
             if (empty($dayRows)) {
@@ -497,6 +497,11 @@ class ClaimListController extends BaseMobileController
                 $rowArr['Img_3'] = $this->resolveFileUrl($rowArr['Img_3'] ?? '', (int) $YearId, $userId);
                 $rowArr['pdf_1'] = $this->resolveFileUrl($rowArr['pdf_1'] ?? '', (int) $YearId, $userId);
                 $rowArr['pdf_2'] = $this->resolveFileUrl($rowArr['pdf_2'] ?? '', (int) $YearId, $userId);
+                // DASH-NUM-02 (17 Nov 2026): the app shows 'Verified' only for a verifier-checked bill; FilledOkay=1 alone is the
+                // employee's own 'Confirmed' (same rule as the website's DayWiseDetails.IsVerified)
+                $rowArr['IsVerified'] = (in_array($rowArr['ClaimStatus'] ?? '', ['Verified', 'Approved', 'Financed', 'Payment', 'Close'], true)
+                    || ((int) ($rowArr['VerifyBy'] ?? 0) > 0 && \App\Support\ZeroDate::has($rowArr['VerifyDate'] ?? null))) ? '1' : '0';
+                unset($rowArr['VerifyBy'], $rowArr['VerifyDate']);
                 $DayWiseDetails[] = $rowArr;
             }
 

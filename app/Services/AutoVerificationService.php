@@ -65,7 +65,7 @@ class AutoVerificationService
 
         // E2E-AV-01: the employee confirms a punched bill before it is verified (denied bills wait for re-punching)
         if ((int) ($claim->FilledOkay ?? 0) !== 1) {
-            return $this->result('skipped', $claimedAmount, (int) ($claim->FilledOkay ?? 0) === 2 ? 'Denied by the employee; waiting for re-punching' : 'Waiting for the employee to confirm (OK & Verify)', 'none', $expId);
+            return $this->result('skipped', $claimedAmount, (int) ($claim->FilledOkay ?? 0) === 2 ? 'Denied by the employee; waiting for re-punching' : 'Waiting for the employee to confirm (OK & Confirm)', 'none', $expId);
         }
 
         // 2. Fast Indexed Duplicate Detection
