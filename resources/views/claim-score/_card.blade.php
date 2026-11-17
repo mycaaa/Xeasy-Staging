@@ -1,15 +1,20 @@
-{{-- CLAIM-SCORE-01: Claim Score card on the employee Dashboard --}}
+{{-- CLAIM-SCORE-01: Claim Score card on the employee Dashboard (DASH-CARD-02, 17 Nov 2026: same frame as the BTC card) --}}
 @php($csCard = \App\Http\Controllers\ClaimScoreController::card())
 @if ($csCard)
-<a href="{{ route('claim-score.me') }}" class="card mb-3 text-decoration-none" style="border:0;border-radius:16px;overflow:hidden;background:radial-gradient(120% 140% at 0% 0%,#3a2a9a 0%,#23185f 55%,#15648c 120%);color:#fff">
-    <div class="card-body d-flex flex-wrap align-items-center gap-3">
-        <div style="width:74px;height:74px;border-radius:50%;display:grid;place-content:center;border:6px solid rgba(255,255,255,.18);border-top-color:#f0c44a;font:700 1.35rem 'Space Grotesk',system-ui,sans-serif">{{ $csCard['score'] }}</div>
-        <div class="flex-grow-1" style="min-width:180px">
-            <div style="font-size:.75rem;opacity:.75">My Claim Score · {{ $csCard['month'] }}</div>
-            <div style="font-weight:700;font-size:1.05rem">{{ $csCard['level']['n'] }}@if ($csCard['drank']) · #{{ $csCard['drank'] }} of {{ $csCard['dof'] }} in {{ $csCard['dept'] }}@endif</div>
-            @if ($csCard['mission'])<div style="font-size:.8rem;opacity:.85">Quickest gain: {{ strtolower($csCard['mission']['title']) }} (up to +{{ $csCard['mission']['gain'] }} points)</div>@endif
+<div class="col-12 col-lg-5 col-xl-4">
+<a href="{{ route('claim-score.me') }}" class="dash-flash dash-flash-score text-decoration-none">
+    <div class="dash-flash-head">
+        <div><div class="dash-flash-title"><i class="ri-trophy-line"></i> My Claim Score</div><div class="dash-flash-sub">{{ $csCard['month'] }}</div></div>
+        <span class="dash-flash-btn">Open my score</span>
+    </div>
+    <div class="dash-flash-body dash-flash-row">
+        <div class="dash-flash-ring">{{ $csCard['score'] }}</div>
+        <div style="min-width:0">
+            <div class="dash-flash-big">{{ $csCard['level']['n'] }}</div>
+            @if ($csCard['drank'])<div class="dash-flash-line">#{{ $csCard['drank'] }} of {{ $csCard['dof'] }} in {{ $csCard['dept'] }}</div>@endif
+            @if ($csCard['mission'])<div class="dash-flash-line">Quickest gain: {{ strtolower($csCard['mission']['title']) }} (up to +{{ $csCard['mission']['gain'] }})</div>@endif
         </div>
-        <span style="font-weight:600;font-size:.82rem;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:6px 14px">Open my score</span>
     </div>
 </a>
+</div>
 @endif
