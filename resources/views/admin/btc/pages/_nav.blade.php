@@ -4,7 +4,7 @@
     $can = fn ($p) => $u && ($u->can('btc.admin') || collect(explode('|', $p))->contains(fn ($x) => $u->can($x)));
     $pages = [
         ['btc.dashboard', 'BTC Dashboard', 'ri-dashboard-3-line', 'btc.dashboard|btc.audit'],
-        ['btc.index', 'My BTC Requests', 'ri-file-list-3-line', null],
+        ['btc.index', 'BTC Request', 'ri-file-list-3-line', null],   // BTC-REQ-14
         ['btc.team', 'My Team BTC', 'ri-team-line', 'team'],   // BTC-TEAM-01: shown to reporting managers
         ['btc.register', 'Request Register', 'ri-list-check-2', 'btc.register|btc.audit'],
         ['btc.exceptions', 'Exception Queue', 'ri-error-warning-line', 'btc.exceptions|btc.audit|btc.finance|btc.checker'],   // BTC-EXC-01

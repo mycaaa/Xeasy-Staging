@@ -70,8 +70,35 @@ class BtcAccess
         if ($s['departments'] !== null) {
             $query->whereIn($prefix.'department_id', $s['departments']);
         }
+        // BTC-REQ-18 (17 Nov 2026): dashboard, register and 'All cases' follow the user's role - the booking admin sees the
+        // admin bookings, the advance desk the advance requests; Finance-side desks, audit and BTC admin see every request
+        if ($routes = self::roleRoutes($user)) {
+            $query->whereIn($prefix.'route', $routes);
+        }
 
         return $query;
+    }
+
+    /** null = every route; else the routes this user's desks handle. */
+    public static function roleRoutes($user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+        foreach (['btc.admin', 'btc.audit', 'btc.access', 'btc.dms', 'btc.verifier', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.invoices', 'btc.integration'] as $p) {
+            if ($user->can($p)) {
+                return null;
+            }
+        }
+        $r = [];
+        if ($user->can('btc.booking')) {
+            $r[] = 'admin_booking';
+        }
+        if ($user->can('btc.advance')) {
+            $r[] = 'employee_advance';
+        }
+
+        return $r ?: null;
     }
 
     /** Highest approval limit of the user's BTC roles that set one; null = no limit. */

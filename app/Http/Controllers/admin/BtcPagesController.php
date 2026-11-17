@@ -748,11 +748,12 @@ class BtcPagesController extends Controller
 
         $users = collect();
         if ($s = trim((string) $request->input('user'))) {
-            // name, e-mail, employee id or employee code
-            $byCode = DB::connection('hrims')->table('hrm_employee')->where('EmpCode', $s)->pluck('EmployeeID')->all();
-            $users = \App\Models\User::where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%")
-                ->orWhere('employee_id', $s)->orWhereIn('employee_id', $byCode ?: [0]))->orderBy('name')->limit(30)->get();
+            // BTC-REQ-17 (17 Nov 2026): employee code or name (not the internal employee id)
+            $byCode = DB::connection('hrims')->table('hrm_employee')->where(fn ($w) => $w->where('EmpCode', $s)
+                ->orWhereRaw("CONCAT_WS(' ', Fname, Sname, Lname) LIKE ?", ["%{$s}%"]))->limit(200)->pluck('EmployeeID')->all();
+            $users = \App\Models\User::where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhereIn('employee_id', $byCode ?: [0]))->orderBy('name')->limit(30)->get();
         }
+        $codes = $users->isEmpty() ? collect() : DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', $users->pluck('employee_id')->filter()->all() ?: [0])->pluck('EmpCode', 'EmployeeID');
         $userRoles = $users->isEmpty() ? collect() : DB::table('model_has_roles')->whereIn('model_id', $users->pluck('id')->all())
             ->where('model_type', \App\Models\User::class)->whereIn('role_id', $roles->pluck('id')->all() ?: [0])->get()->groupBy('model_id')->map(fn ($g) => $g->pluck('role_id')->all());
 
@@ -763,7 +764,7 @@ class BtcPagesController extends Controller
 
         return view('admin.btc.pages.access', [
             'roles' => $roles, 'permByRole' => $permByRole, 'userCount' => $userCount, 'catalog' => config('btc.permission_catalog'),
-            'departments' => $departments, 'users' => $users, 'userRoles' => $userRoles, 'history' => $history, 'activity' => $activity,
+            'departments' => $departments, 'users' => $users, 'codes' => $codes, 'userRoles' => $userRoles, 'history' => $history, 'activity' => $activity,
             'activityUser' => $activityUser, 'tab' => $request->input('tab', 'roles'),
             'companies' => [1 => 'VNR Seeds', 11 => 'VVNR', 3 => 'Nursery'],
         ]);
@@ -877,7 +878,7 @@ class BtcPagesController extends Controller
         }
         $this->flushPerms();
         BtcAccess::log($v['op'] === 'assign' ? 'user_assigned' : 'user_revoked', ['role_id' => $role->id, 'role_name' => $role->name,
-            'target_user_id' => $user->id, 'target_user' => trim($user->name.' (emp '.($user->employee_id ?? '-').')')]);
+            'target_user_id' => $user->id, 'target_user' => trim($user->name.' (code '.(DB::connection('hrims')->table('hrm_employee')->where('EmployeeID', $user->employee_id)->value('EmpCode') ?? '-').')')]);
 
         return back()->with('success', ($v['op'] === 'assign' ? 'Assigned ' : 'Removed ').$role->name.($v['op'] === 'assign' ? ' to ' : ' from ').$user->name.'.');
     }

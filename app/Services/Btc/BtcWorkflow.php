@@ -36,6 +36,10 @@ class BtcWorkflow
         'confirm_booking' => [['booking_requested'], 'btc.booking', 'booked'],
         'modify_booking' => [['booked'], 'btc.booking', null],
         'cancel_booking' => [['booking_requested', 'booked'], 'btc.booking', 'cancelled'],
+        // BTC-REQ-19 (17 Nov 2026): the BTC admin changes the vendor before / after booking (reason logged)
+        'change_vendor' => [['booking_requested', 'booked'], 'btc.booking', null],
+        // BTC-REQ-21: the BTC admin forwards the vendor's bill to DMS (date); DMS records the bill details
+        'forward_to_dms' => [['booked'], 'btc.booking', 'bill_submitted'],
         'complete_activity' => [['booked'], 'owner|btc.booking', null],
         // BTC-REQ-06: Finance Advance pays the advance; a refund from the vendor is recorded separately
         'advance_paid' => [['advance_requested'], 'btc.finance|btc.advance', 'advance_paid'],
@@ -293,6 +297,43 @@ class BtcWorkflow
                 }
                 $c->booking_status = 'cancelled';
                 break;
+            case 'change_vendor':
+                $oldV = $c->vendor_name;
+                if (! empty($d['vendor_id']) && ($v = DB::table('vendor_list')->where('id', (int) $d['vendor_id'])->first(['id', 'vendor_name', 'gst_no']))) {
+                    $c->vendor_id = $v->id;
+                    $c->vendor_name = $v->vendor_name;
+                    $c->vendor_gstin = $v->gst_no;
+                    $c->new_vendor = false;
+                } elseif (trim((string) ($d['vendor_name'] ?? '')) !== '') {
+                    $c->vendor_id = null;
+                    $c->vendor_name = mb_substr(trim((string) $d['vendor_name']), 0, 200);
+                    $c->vendor_gstin = null;
+                    $c->new_vendor = true;
+                } else {
+                    throw new RuntimeException('Choose the new vendor or type its name.');
+                }
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for changing the vendor.');
+                }
+                $remark = 'Vendor changed from '.($oldV ?: '-').' to '.$c->vendor_name.' - '.$remark;
+                $to = $old;
+                break;
+            case 'forward_to_dms':
+                $on = $d['bill_forwarded_dms_on'] ?? null;
+                if (! $on || ! strtotime($on) || $on > $now->toDateString()) {
+                    throw new RuntimeException('Enter the date the bill was forwarded to DMS (not a future date).');
+                }
+                $c->bill_forwarded_dms_on = $on;
+                foreach (['bill_no', 'bill_date', 'bill_amount'] as $k) {
+                    if (! empty($d[$k])) {
+                        $c->{$k} = $d[$k];
+                    }
+                }
+                $c->bill_submitted_at = $now;
+                $c->bill_submitted_by = $user->id;
+                $c->submitted_via = 'admin_forwarded';
+                $remark = trim('Bill forwarded to DMS on '.\Carbon\Carbon::parse($on)->format('d-m-Y').($c->bill_no ? ' (bill '.$c->bill_no.')' : '').($remark ? ' - '.$remark : ''));
+                break;
             case 'complete_activity':
                 $c->activity_completed_on = $d['activity_completed_on'] ?? $now->toDateString();
                 $to = $old;
@@ -344,6 +385,14 @@ class BtcWorkflow
                 $c->return_to = null;
                 break;
             case 'dms_process':
+                foreach (['bill_no', 'bill_date', 'taxable_amount', 'gst_amount', 'bill_amount'] as $k) {   // BTC-REQ-21
+                    if (array_key_exists($k, $d) && $d[$k] !== null && $d[$k] !== '') {
+                        $c->{$k} = $d[$k];
+                    }
+                }
+                if (! $c->bill_no || (float) $c->bill_amount <= 0) {
+                    throw new RuntimeException('Enter the bill no., date and amount (the bill was forwarded without them).');
+                }
                 $c->dms_by = $user->id;
                 $c->dms_at = $now;
                 $c->dms_doc_no = $d['dms_doc_no'] ?? $c->dms_doc_no;

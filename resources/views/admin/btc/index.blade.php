@@ -19,7 +19,7 @@
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
             <div>
                 <h5 class="fw-bold mb-0" style="color:#1e3a5f;"><i class="ri-bill-line me-1 text-primary"></i> Bill To Company (BTC)</h5>
-                <div class="btc-flow">Requirement → Admin booking / quotation + manager approval + advance → service → final bill → DMS → Finance verification &amp; JV → Checker → Treasury → Department approval → Payment → Closure</div>
+                @if ($showFlow)<div class="btc-flow">Requirement → Admin booking / quotation + manager approval + advance → service → final bill → DMS → Finance verification &amp; JV → Checker → Treasury → Department approval → Payment → Closure</div>@endif
             </div>
             <div class="d-flex gap-2 flex-wrap">
                 @php $u = auth()->user(); @endphp
@@ -46,6 +46,9 @@
                         <li class="nav-item"><a class="nav-link {{ $loop->first ? 'active' : '' }}" href="#" data-tab="{{ $k }}">{{ $label }}</a></li>
                     @endforeach
                 </ul>
+                <select class="form-select form-select-sm" id="btcApFilter" style="width:170px;display:none" aria-label="Approvals to show">
+                    <option value="pending">Pending with me</option><option value="approved">Approved by me</option><option value="rejected">Rejected / returned by me</option><option value="all">All</option>
+                </select>
                 <input type="text" class="form-control form-control-sm" id="btcSearch" placeholder="Search case, employee, vendor, bill, PNR" aria-label="Search case, employee, vendor, bill, PNR" style="width:280px;">
             </div>
             <div class="card-body p-2">
@@ -94,6 +97,10 @@
                     <div class="col-12"><label class="btc-label">Purpose / business requirement</label><input class="form-control form-control-sm" name="purpose" required maxlength="500"></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
+                    {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
+                    <div class="col-md-2"><label class="btc-label" for="btcPax">No. of pax</label><input type="number" min="1" max="500" class="form-control form-control-sm" name="pax_count" id="btcPax" value="1"></div>
+                    <div class="col-md-6"><label class="btc-label">Employees (code or name)</label><select class="form-select form-select-sm" name="travellers[]" id="btcTravellers" multiple></select></div>
+                    <div class="col-md-4"><label class="btc-label" for="btcGuests">Guests (names, comma-separated)</label><input class="form-control form-control-sm" name="guests" id="btcGuests" maxlength="500" placeholder="e.g. Dealer Ram Kumar, Farmer Suresh"></div>
                     <div class="col-md-3 btc-nota"><label class="btc-label">Estimated amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="estimated_amount"></div>
                     <div class="col-md-6 btc-nota"><label class="btc-label">Vendor</label>
                         <select class="form-select form-select-sm" name="vendor_id" id="btcVendor"><option value="">— new / not listed —</option></select>
@@ -148,7 +155,7 @@ $(function () {
     let tab = $('#btcTabs .nav-link.active').data('tab') || 'mine', timer;
 
     function load() {
-        $.get('{{ route('btc.data') }}', {tab: tab, search: $('#btcSearch').val()}, function (r) {
+        $.get('{{ route('btc.data') }}', {tab: tab, search: $('#btcSearch').val(), ap: $('#btcApFilter').val()}, function (r) {
             const st = c => c.stages || {};
             const rows = (r.data || []).map(c => `<tr role="button" data-id="${c.id}">
                 <td class="fw-semibold">${esc(c.case_no)}</td><td>${esc(c.route)}</td><td>${esc(c.category)}</td><td class="btc-emp-col">${esc(c.employee)}</td>
@@ -156,10 +163,12 @@ $(function () {
                 <td><span class="badge bg-primary-subtle text-primary">${esc(c.status_label)}</span>${c.pending ? '<div class="text-danger small">' + esc(c.pending) + '</div>' : ''}</td>
                 <td>${esc(c.pending_with)}</td><td>${esc(st(c).booking)}</td><td>${esc(st(c).advance)}</td><td>${esc(st(c).invoice)}</td><td>${esc(st(c).payment)}</td>
                 <td>${esc(c.updated)}</td></tr>`).join('');
+            $('#btcApFilter').toggle(tab === 'approvals');
             $('#btcRows').html(rows || '<tr><td colspan="14" class="text-center text-muted">No cases</td></tr>');
             $('.btc-emp-col').toggle(tab !== 'mine');   // BTC-REQ-10: own requests - no employee column
         });
     }
+    $('#btcApFilter').on('change', load);   // BTC-REQ-15
     $('#btcTabs').on('click', '.nav-link', function (e) { e.preventDefault(); $('#btcTabs .nav-link').removeClass('active'); $(this).addClass('active'); tab = $(this).data('tab'); load(); });
     $('#btcSearch').on('input', () => { clearTimeout(timer); timer = setTimeout(load, 300); });
     load();
@@ -209,6 +218,12 @@ $(function () {
     $('#btcCategory, #btcVendor').on('change', shape); shape();
     $('#btcEmployee').on('change', function () { $('#btcFor').text($(this).find(':selected').text() || '{{ auth()->user()->name }}'); });
     $('#btcAddFile').on('click', () => $('#btcFiles').append(fileRow('supporting')));
+    // BTC-REQ-20: employees by code or name
+    $('#btcTravellers').select2({dropdownParent: $('#btcNewModal'), width: '100%', placeholder: 'Type employee code or name', ajax: {url: '{{ route('btc.approvers') }}', delay: 250, data: p => ({q: p.term}), processResults: d => ({results: d})}, minimumInputLength: 2});
+    $('#btcTravellers, #btcGuests').on('change', function () {
+        const n = ($('#btcTravellers').val() || []).length + $('#btcGuests').val().split(',').filter(x => x.trim()).length;
+        if (n > Number($('#btcPax').val() || 0)) $('#btcPax').val(n);
+    });
     if ($('#btcEmployee').length) {
         $('#btcEmployee').select2({dropdownParent: $('#btcNewModal'), placeholder: 'Myself', allowClear: true, ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: d => ({results: d})}});
     }
@@ -248,10 +263,18 @@ $(function () {
     });
 
     // case detail
+    const SHOW_FLOW = @json($showFlow);   // BTC-REQ-08
     const FLOW = ['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'closed'];
     const kv = (l, v) => v ? `<div class="col-md-3"><p class="btc-label">${l}</p><div class="btc-val">${v}</div></div>` : '';
     // BTC-FIN-02: Dr/Cr lines as a table
     const journalTable = (lines) => `<table class="table table-sm table-bordered small mb-0"><tr class="table-light"><th>Ledger</th><th>Sub-ledger</th><th class="text-end">Debit ₹</th><th class="text-end">Credit ₹</th><th>TDS</th></tr>${lines.map(l => `<tr><td>${esc(l.ledger)}</td><td>${esc(l.sub)}</td><td class="text-end">${l.dr ? fmt(l.dr) : ''}</td><td class="text-end">${l.cr ? fmt(l.cr) : ''}</td><td>${esc(l.tds)}</td></tr>`).join('')}<tr class="fw-semibold"><td colspan="2">Total</td><td class="text-end">${fmt(lines.reduce((s, l) => s + Number(l.dr || 0), 0))}</td><td class="text-end">${fmt(lines.reduce((s, l) => s + Number(l.cr || 0), 0))}</td><td></td></tr></table>`;
+    // BTC-REQ-19 (17 Nov 2026): vendor chosen from the vendor list (searchable), or a new name typed
+    const vendorPick = (c) => {
+        const want = BTC_VENDOR_TYPES[c.category] || [];
+        const list = BTC_VENDORS.filter(v => !want.length || v.types.some(t => want.includes(t)));
+        return `<div class="col-md-5"><label class="btc-label">Vendor / hotel (from the vendor list)</label><select class="form-select form-select-sm btc-vpick" name="vendor_id"><option value="">— not listed: type the name —</option>${list.map(v => `<option value="${v.id}" ${String(v.id) === String(c.vendor_id) ? 'selected' : ''}>${esc(v.name + (v.gst ? ' · ' + v.gst : ''))}</option>`).join('')}</select></div>
+            <div class="col-md-4"><label class="btc-label">or new vendor name (<a href="https://connect.vnrin.in/register" target="_blank" rel="noopener">register</a>)</label><input class="form-control form-control-sm" name="vendor_name" value="${c.vendor_id ? '' : esc(c.vendor_name || '')}"></div>`;
+    };
     function actionForm(a, d) {
         const c = d.case, f = [];
         const dl = (k, l, v, opts) => `<div class="col-md-3"><label class="btc-label">${l}</label><input class="form-control form-control-sm" name="dim_${k}" value="${esc(v || '')}" list="btcDl_${k}"><datalist id="btcDl_${k}">${(opts || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`;
@@ -266,19 +289,22 @@ $(function () {
                 f.push(rmk(false)); break;
             case 'manager_approve': if (c.route === 'employee_advance' && Number(c.advance_amount) > 0) f.push(inp('advance_approved', 'Advance approved ₹ (requested ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount)); f.push(rmk(false)); break;
             case 'dept_approve': f.push(rmk(false)); break;
-            case 'confirm_booking': case 'modify_booking': f.push(`<div class="col-md-4"><label class="btc-label">Vendor / hotel booked</label><input class="form-control form-control-sm" name="vendor_name" value="${esc(c.vendor_name)}" list="btcVendorNames"></div>`,
+            case 'change_vendor': f.push(vendorPick(c), rmk(true)); break;   // BTC-REQ-19
+            case 'confirm_booking': case 'modify_booking': f.push(vendorPick(c),
                 inp('booking_ref', 'Booking reference', 'text', c.booking_ref), inp('booking_amount', 'Booking amount ₹', 'number', c.booking_amount || c.estimated_amount || c.quotation_amount), inp('booking_date', 'Booking date', 'date', (c.booking_date || '').substring(0, 10)),
                 inp('service_from', 'Activity from', 'date', (c.service_from || '').substring(0, 10)), inp('service_to', 'Activity to', 'date', (c.service_to || '').substring(0, 10)),
                 ...(c.category === 'air' ? [inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10))] : []),
                 file('supporting', 'Booking confirmation'), rmk(a === 'modify_booking')); break;
             case 'cancel_booking': f.push(rmk(true)); break;
+            case 'forward_to_dms': f.push(inp('bill_forwarded_dms_on', 'Bill forwarded to DMS on', 'date', new Date().toISOString().substring(0, 10)), inp('bill_no', 'Bill no. (if known)', 'text', c.bill_no), inp('bill_amount', 'Bill total ₹ (if known)', 'number', c.bill_amount), rmk(false)); break;   // BTC-REQ-21
             case 'complete_activity': f.push(inp('activity_completed_on', 'Activity completed on', 'date'), rmk(false)); break;
             case 'record_refund': f.push(inp('advance_refund', 'Refund received ₹ (balance ₹' + fmt(d.advance.balance) + ')', 'number'), inp('advance_refund_on', 'Received on', 'date'), rmk(false)); break;
             case 'manager_reject': case 'cancel': f.push(rmk(true)); break;
             case 'advance_paid': f.push(inp('advance_paid_amount', 'Actual advance paid ₹ (approved ₹' + fmt(c.advance_approved ?? c.advance_amount) + ')', 'number', c.advance_approved ?? c.advance_amount), inp('advance_payment_ref', 'Payment reference / UTR'), inp('advance_paid_on', 'Advance paid on', 'date'), inp('advance_activity_id', 'Xeasy Advance ID (if raised there)', 'number'), inp('tds_on_advance', 'TDS deducted on advance ₹', 'number', 0)); break;
             case 'booked': f.push(rmk(false)); break;
             case 'submit_bill': f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount), file('bill', 'Final bill'), file('supporting', 'Supporting')); if (c.category === 'air') f.push(inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10)), file('boarding_pass', 'Boarding pass (if available)')); break;
-            case 'dms_process': f.push(inp('dms_doc_no', 'DMS / Nova doc no.', 'text', c.dms_doc_no), `<div class="col-md-3 pt-3"><label><input type="checkbox" name="original_received" value="1"> Original bill received</label></div>`); break;
+            case 'dms_process': if (!c.bill_no || !Number(c.bill_amount)) f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount));
+                f.push(inp('dms_doc_no', 'DMS / Nova doc no.', 'text', c.dms_doc_no), `<div class="col-md-3 pt-3"><label><input type="checkbox" name="original_received" value="1"> Original bill received</label></div>`); break;
             case 'finance_verify': {
                 const dup = (d.duplicates || []).length ? `<div class="col-12 text-danger small">Possible duplicate: ${d.duplicates.map(x => esc(x.case_no + ' (' + x.bill_no + ', ₹' + fmt(x.bill_amount) + ')')).join(', ')} <label class="ms-2"><input type="checkbox" name="duplicate_override" value="1"> not a duplicate</label></div>` : '';
                 f.push(inp('expense_ledger', 'Expense ledger', 'text', c.expense_ledger || d.default_ledger), inp('cost_centre', 'Cost centre', 'text', c.cost_centre || c.department_name), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount || c.bill_amount),
@@ -321,7 +347,7 @@ $(function () {
         }
         return f.join('');
     }
-    const LABEL = {confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Submit bill', dms_process: 'DMS processed', finance_verify: 'Verify & prepare JV', check: 'Checked', send_dept_approval: 'Send for department approval', dept_approve: 'Approve payment', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', authorise_payment: 'Authorise payment', reject_payment_entry: 'Reject payment entry', assign_maker: 'Assign Finance maker', waive_document: 'Waive document', hold: 'Put on financial hold', release_hold: 'Release hold', dept_return: 'Return', dept_reject: 'Reject', return: 'Return for correction', receive_document: 'Document received', cancel: 'Cancel case'};
+    const LABEL = {change_vendor: 'Change vendor', forward_to_dms: 'Bill forwarded to DMS', confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Submit bill', dms_process: 'DMS processed', finance_verify: 'Verify & prepare JV', check: 'Checked', send_dept_approval: 'Send for department approval', dept_approve: 'Approve payment', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', authorise_payment: 'Authorise payment', reject_payment_entry: 'Reject payment entry', assign_maker: 'Assign Finance maker', waive_document: 'Waive document', hold: 'Put on financial hold', release_hold: 'Release hold', dept_return: 'Return', dept_reject: 'Reject', return: 'Return for correction', receive_document: 'Document received', cancel: 'Cancel case'};
 
     function openCase(id) {
         $.get('{{ url('btc/case') }}/' + id, function (d) {
@@ -331,13 +357,13 @@ $(function () {
             const files = d.files.map(f => `<a class="me-3" target="_blank" href="${f.url}"><i class="ri-file-line"></i> ${esc(f.kind.replace('_', ' '))}: ${esc(f.name)}</a>`).join('') || '<span class="text-muted">none</span>';
             const logs = d.logs.map(l => `<div class="btc-log"><b>${esc(l.at)}</b> ${esc(l.by)} · ${esc(l.action.replace(/_/g, ' '))} → ${esc(l.to)}${l.remark ? '<br>' + esc(l.remark) : ''}</div>`).join('');
             const acts = d.actions.map(a => `<button class="btn btn-sm ${['return', 'manager_reject', 'cancel', 'dept_return', 'dept_reject', 'payment_failed', 'hold', 'reject_payment_entry'].includes(a) ? 'btn-outline-danger' : 'btn-outline-primary'} me-1 mb-1" data-act="${a}">${LABEL[a] || a}</button>`).join('');
-            $('#btcCaseBody').html(`<div class="mb-2">${flow}</div>
+            $('#btcCaseBody').html(`${SHOW_FLOW ? '<div class="mb-2">' + flow + '</div>' : ''}
                 <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
                 ${kv('Purpose', esc(c.purpose))}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
                 ${kv('Quotation ₹', fmt(c.quotation_amount))}${kv('Advance ₹', fmt(c.advance_amount))}${kv('Bill', esc((c.bill_no || '') + ' ' + (c.bill_date || '').substring(0, 10)))}${kv('Bill ₹', fmt(c.bill_amount))}
                 ${kv('TDS ₹', fmt(c.tds_amount))}${kv('Net payable ₹', fmt(c.net_payable))}${kv('PNR / sector', esc((c.pnr || '') + ' ' + (c.travel_sector || '')))}${kv('Dept approver', esc(d.dept_approver))}
                 ${kv('Paid', c.paid_amount ? '₹' + fmt(c.paid_amount) + ' on ' + esc((c.paid_on || '').substring(0, 10)) + ' · ' + esc(c.utr_number) : '')}${kv('Waiting for', esc(d.pending.join(', ')))}
-                ${kv('Pending with', esc(d.pending_with))}${kv('Estimated ₹', fmt(c.estimated_amount))}${kv('Booking', c.booking_ref ? esc(c.booking_ref + ' · ₹' + fmt(c.booking_amount) + ' · ' + (c.booking_date || '').substring(0, 10) + ' · ' + (c.booking_status || '')) : '')}${kv('Activity completed', esc((c.activity_completed_on || '').substring(0, 10)))}</div>
+                ${c.pax_count ? kv('Pax', esc(String(c.pax_count))) : ''}${c.travellers ? kv('Employees', esc((() => { try { return JSON.parse(c.travellers).map(t => t.code + ' ' + t.name).join(', '); } catch (e) { return ''; } })())) : ''}${c.guests ? kv('Guests', esc(c.guests)) : ''}${c.bill_forwarded_dms_on ? kv('Bill to DMS', esc(c.bill_forwarded_dms_on.substring(0, 10))) : ''}${kv('Pending with', esc(d.pending_with))}${kv('Estimated ₹', fmt(c.estimated_amount))}${kv('Booking', c.booking_ref ? esc(c.booking_ref + ' · ₹' + fmt(c.booking_amount) + ' · ' + (c.booking_date || '').substring(0, 10) + ' · ' + (c.booking_status || '')) : '')}${kv('Activity completed', esc((c.activity_completed_on || '').substring(0, 10)))}</div>
                 ${Number(d.advance.requested) > 0 ? `<div class="mb-2"><p class="btc-label">Advance</p><table class="table table-sm table-bordered small mb-0"><tr class="table-light"><th>Requested</th><th>Approved</th><th>Actually paid</th><th>TDS on advance</th><th>Outstanding</th><th>Adjusted against invoice</th><th>Refund received</th><th>Balance outstanding</th></tr>
                     <tr><td>${fmt(d.advance.requested)}</td><td>${d.advance.approved === null ? '-' : fmt(d.advance.approved)}</td><td>${fmt(d.advance.paid)}${c.advance_payment_ref ? '<div class="text-muted">' + esc(c.advance_payment_ref) + '</div>' : ''}</td><td>${fmt(d.advance.tds)}</td><td>${fmt(d.advance.outstanding)}</td><td>${fmt(d.advance.adjusted)}</td><td>${fmt(d.advance.refund)}</td><td class="fw-semibold">${fmt(d.advance.balance)}</td></tr></table></div>` : ''}
                 ${(d.invoices || []).length ? '<div class="mb-2"><p class="btc-label">Nova invoices</p>' + d.invoices.map(i => `<span class="me-3">${esc(i.nova_document_id || '')} · ${esc(i.invoice_no || '')} · ₹${fmt(i.gross_amount)} ${i.document_url ? '<a target="_blank" rel="noopener" href="' + esc(i.document_url) + '">document</a>' : ''}</span>`).join('') + '</div>' : ''}
@@ -364,6 +390,7 @@ $(function () {
                         .done(r => $('#btcPreviewOut').html(journalTable(r.lines) + `<div class="small mt-1">TDS ₹${fmt(r.tds)} (${esc(r.section)}) · Net payable ₹${fmt(r.net)}</div>`))
                         .fail(x => $('#btcPreviewOut').html('<div class="text-danger small">' + esc((x.responseJSON && x.responseJSON.message) || 'Preview failed') + '</div>'));
                 });
+                $('#btcActForm .btc-vpick').each(function () { if ($.fn.select2) $(this).select2({dropdownParent: $('#btcCaseModal'), width: '100%', allowClear: true, placeholder: 'Type to search the vendor'}); });
                 if (a === 'send_dept_approval') $('#btcApprover').select2({dropdownParent: $('#btcCaseModal'), ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: r => ({results: r})}});
                 $('#btcDo').on('click', function () {
                     if (!checkAmounts($('#btcActForm'))) return;   // BTC-AMT-01

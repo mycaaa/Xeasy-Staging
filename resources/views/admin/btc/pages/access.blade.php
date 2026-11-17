@@ -78,13 +78,13 @@
         </section>
     @elseif ($tab === 'users')
         <form method="get" class="d-flex gap-2 mb-2"><input type="hidden" name="tab" value="users">
-            <input type="search" name="user" value="{{ request('user') }}" class="form-control form-control-sm" style="max-width:320px" placeholder="Name, e-mail, employee ID or code" aria-label="Find user" required>
+            <input type="search" name="user" value="{{ request('user') }}" class="form-control form-control-sm" style="max-width:320px" placeholder="Employee code or name" aria-label="Find user" required>
             <button class="xe-btn xe-btn-blue">Find</button></form>
         @if (request('user') && $users->isEmpty())<div class="small text-muted">No user found.</div>@endif
         @foreach ($users as $u)
             @php $has = $userRoles[$u->id] ?? []; @endphp
             <section class="xe-section">
-                <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-user-line"></i>{{ $u->name }}</span><span class="small text-muted">{{ $u->email }} · emp {{ $u->employee_id ?: '-' }}</span>
+                <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-user-line"></i>{{ $u->name }}</span><span class="small text-muted">{{ $u->email }} · Emp. code {{ $codes[$u->employee_id] ?? '-' }}</span>
                     <a class="small ms-auto" href="{{ route('btc.access', ['tab' => 'activity', 'activity_user' => $u->id]) }}">activity</a></div>
                 <div class="xe-section-body d-flex flex-wrap gap-2">
                     @foreach ($roles as $r)

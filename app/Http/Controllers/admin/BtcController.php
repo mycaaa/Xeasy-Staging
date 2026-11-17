@@ -17,7 +17,7 @@ class BtcController extends Controller
     private function tabs(): array
     {
         return [
-            'mine' => ['My BTC Requests', null, null],
+            'mine' => ['My requests', null, null],   // BTC-REQ-14: menu reads 'BTC Request'
             'approvals' => ['My approvals', ['pending_manager', 'with_treasury'], null],
             'booking' => ['Booking queue', ['booking_requested'], 'btc.booking'],
             'dms' => ['DMS', ['bill_submitted'], 'btc.dms|btc.verifier'],
@@ -53,6 +53,8 @@ class BtcController extends Controller
             'vendors' => $this->formVendors(),
             'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
             'canAdmin' => $user->can('btc.admin'),
+            // BTC-REQ-08/16/19 (17 Nov 2026): the process flow (header line and the stage bar) only for the Finance side
+            'showFlow' => collect(['btc.admin', 'btc.audit', 'btc.dms', 'btc.verifier', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker'])->contains(fn ($p) => $user->can($p)),
         ]);
     }
 
@@ -102,8 +104,17 @@ class BtcController extends Controller
         if ($tab === 'mine') {
             $q->where(fn ($w) => $w->where('employee_id', $empId)->orWhere('created_by', $user->id));
         } elseif ($tab === 'approvals') {
-            $q->where(fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $empId))
-                ->orWhere(fn ($a) => $a->where('status', 'with_treasury')->where('dept_approver_id', $empId)));
+            // BTC-REQ-15 (17 Nov 2026): pending with me, or what I approved / rejected / returned, or all of these
+            $pending = fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $empId))
+                ->orWhere(fn ($a) => $a->where('status', 'with_treasury')->where('dept_approver_id', $empId));
+            $did = fn (array $acts) => fn ($w) => $w->whereIn('id', DB::table('btc_case_logs')->where('user_id', $user->id)->whereIn('action', $acts)->pluck('btc_case_id'));
+            $ap = (string) $request->input('ap', 'pending');
+            match ($ap) {
+                'approved' => $q->where($did(['manager_approve', 'dept_approve'])),
+                'rejected' => $q->where($did(['manager_reject', 'dept_reject', 'dept_return'])),
+                'all' => $q->where(fn ($w) => $w->where($pending)->orWhere($did(['manager_approve', 'dept_approve', 'manager_reject', 'dept_reject', 'dept_return']))),
+                default => $q->where($pending),
+            };
         } elseif ($tab === 'documents') {
             $q->whereNotIn('status', ['cancelled', 'rejected', 'draft'])->where(fn ($w) => $w
                 ->where(fn ($a) => $a->where('original_required', 1)->whereNull('original_received_on')->whereNotNull('bill_submitted_at'))
@@ -162,6 +173,9 @@ class BtcController extends Controller
             'files.*' => 'file|max:10240|mimes:pdf,jpg,jpeg,png',
             'file_kinds.*' => 'nullable|in:quotation,approval,bill,supporting,boarding_pass',
             'submit' => 'nullable|boolean',
+            'pax_count' => 'nullable|integer|min:1|max:500',          // BTC-REQ-20
+            'travellers' => 'nullable|array|max:100', 'travellers.*' => 'integer',
+            'guests' => 'nullable|string|max:500',
         ], ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         if (! empty($v['quotation_amount']) && (float) ($v['advance_amount'] ?? 0) > (float) $v['quotation_amount']) {
             return response()->json(['success' => false, 'message' => 'Advance needed cannot be more than the quotation amount.'], 422);   // BTC-AMT-01
@@ -204,7 +218,11 @@ class BtcController extends Controller
                 'bill_no' => $v['bill_no'] ?? null, 'bill_date' => $v['bill_date'] ?? null, 'taxable_amount' => $v['taxable_amount'] ?? null,
                 'gst_amount' => $v['gst_amount'] ?? 0, 'bill_amount' => $v['bill_amount'] ?? null,
                 'status' => 'draft', 'created_by' => $user->id,
-            ]);
+            ] + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'pax_count') ? [
+                'pax_count' => $v['pax_count'] ?? null, 'guests' => trim((string) ($v['guests'] ?? '')) ?: null,
+                'travellers' => ! empty($v['travellers']) ? json_encode(DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', $v['travellers'])
+                    ->get(['EmployeeID as id', 'EmpCode as code', DB::raw("TRIM(CONCAT_WS(' ', Fname, Sname, Lname)) as name")])) : null,
+            ] : []));
             $c->case_no = sprintf('BTC/%s/%05d', now('Asia/Kolkata')->format('y'), $c->id);
             $c->save();
 

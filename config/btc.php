@@ -39,7 +39,7 @@ return [
     'payment_modes' => ['neft' => 'NEFT', 'rtgs' => 'RTGS', 'imps' => 'IMPS', 'upi' => 'UPI', 'cheque' => 'Cheque', 'other' => 'Other'],
 
     // BTC-REQ-10 (17 Nov 2026): short route names in the lists
-    'route_short' => ['admin_booking' => 'Admin booking', 'employee_advance' => 'Advance requested', 'direct_bill' => 'Final bill'],
+    'route_short' => ['admin_booking' => 'Admin booking', 'employee_advance' => 'Advance paid to vendor', 'direct_bill' => 'Final bill'],
 
     // BTC-FORM-01: routes an employee may choose on the request form (the BTC admin may choose all)
     // BTC-REQ-03 (16 Nov 2026, "BTC requirements" tab): the new-requirement form gives two clear choices,
