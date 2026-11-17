@@ -127,9 +127,43 @@
                 {{-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• --}}
                 <div class="tab-pane {{ $requestedTab === 'claimant-tab' ? 'active show' : '' }}" id="claimant-tab" role="tabpanel">
 
+                    {{-- DASH-CARD-03 (17 Nov 2026): Quick Actions with the Claim Score card on its right; BTC card below --}}
+                    <style>
+                                .dash-flash { display: flex; flex-direction: column; height: 100%; border-radius: 16px; padding: 14px 16px; color: #fff; overflow: hidden; }
+                                .dash-flash-score { background: radial-gradient(120% 140% at 0% 0%, #3a2a9a 0%, #23185f 55%, #15648c 120%); }
+                                .dash-flash-btc { background: linear-gradient(120deg, #0f4c5c 0%, #136f63 60%, #2f8a4a 120%); }
+                                .dash-flash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+                                .dash-flash-title { font-weight: 700; font-size: 1rem; line-height: 1.3; }
+                                .dash-flash-sub { font-size: .75rem; opacity: .8; margin-top: 2px; }
+                                .dash-flash-btn { flex: none; font-weight: 600; font-size: .78rem; color: #fff; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 5px 14px; text-decoration: none; white-space: nowrap; }
+                                a.dash-flash-btn:hover, a.dash-flash:hover .dash-flash-btn { background: rgba(255,255,255,.28); color: #fff; }
+                                .dash-flash-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+                                .dash-flash-body.dash-flash-row { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; }
+                                .dash-flash-ring { flex: none; width: 76px; height: 76px; border-radius: 50%; display: grid; place-content: center; border: 6px solid rgba(255,255,255,.18); border-top-color: #f0c44a; font: 700 1.35rem 'Space Grotesk', system-ui, sans-serif; }
+                                .dash-flash-big { font-weight: 700; font-size: 1.2rem; }
+                                .dash-flash-line { font-size: .8rem; opacity: .85; }
+                                .dash-flash-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+                                .dash-flash-tiles.team3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+                                .dash-flash-group { font-size: .72rem; opacity: .8; margin: 10px 0 6px; }
+                                @media (max-width: 575.98px) { .dash-flash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-flash-tiles.team3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+                                .dash-tile { display: flex; flex-direction: column; justify-content: space-between; min-height: 76px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.22); border-radius: 12px; padding: 8px 10px; color: #fff; text-decoration: none; }
+                                a.dash-tile:hover { background: rgba(255,255,255,.2); color: #fff; }
+                                .dash-tile.team { background: rgba(0,0,0,.12); }
+                                .dash-tile b { font-size: 1.25rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+                                .dash-tile span { font-size: .7rem; opacity: .85; line-height: 1.25; }
+                                .dash-tile.hot { background: #fde68a; border-color: #fde68a; color: #713f12; }
+                                .dash-tile.hot span { opacity: 1; }
+                                .dash-flash-score.compact { padding: 10px 14px; }
+                                .dash-flash-score.compact .dash-flash-head { margin-bottom: 6px; }
+                                .dash-flash-score.compact .dash-flash-ring { width: 60px; height: 60px; border-width: 5px; font-size: 1.1rem; }
+                                .dash-flash-score.compact .dash-flash-big { font-size: 1.05rem; }
+                                .dash-flash-score.compact .dash-flash-line { font-size: .75rem; }
+                            </style>
+                    <div class="row g-3 mb-3">
+                    <div class="col-12 col-lg">
                     {{-- Quick Actions Row (replacing old Go to Claimant / New Claim buttons) --}}
-                    <div class="card mb-3">
-                        <div class="card-body py-3">
+                    <div class="card mb-0 h-100">
+                        <div class="card-body py-3 d-flex align-items-center">
                             <div class="d-flex gap-3 flex-wrap align-items-center">
                                 <a href="{{ url('/new-claim') }}" class="quick-action-btn text-center text-decoration-none">
                                     <div class="quick-action-icon bg-primary-subtle text-primary">
@@ -203,6 +237,9 @@
                                 </a>
                             </div>
                         </div>
+                    </div>
+                    </div>
+                    @include('claim-score._card', ['csCompact' => true])
                     </div>
                     {{-- Summary Cards Row (4 cards like Image 1) --}}
                     @php
@@ -392,35 +429,7 @@
                             </div>
 
                             {{-- DRAFTS ROW (Matches Claimant View) --}}
-                            {{-- DASH-CARD-02 (17 Nov 2026): the flash cards side by side, same height and frame --}}
-                            <style>
-                                .dash-flash { display: flex; flex-direction: column; height: 100%; border-radius: 16px; padding: 14px 16px; color: #fff; overflow: hidden; }
-                                .dash-flash-score { background: radial-gradient(120% 140% at 0% 0%, #3a2a9a 0%, #23185f 55%, #15648c 120%); }
-                                .dash-flash-btc { background: linear-gradient(120deg, #0f4c5c 0%, #136f63 60%, #2f8a4a 120%); }
-                                .dash-flash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-                                .dash-flash-title { font-weight: 700; font-size: 1rem; line-height: 1.3; }
-                                .dash-flash-sub { font-size: .75rem; opacity: .8; margin-top: 2px; }
-                                .dash-flash-btn { flex: none; font-weight: 600; font-size: .78rem; color: #fff; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 5px 14px; text-decoration: none; white-space: nowrap; }
-                                a.dash-flash-btn:hover, a.dash-flash:hover .dash-flash-btn { background: rgba(255,255,255,.28); color: #fff; }
-                                .dash-flash-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-                                .dash-flash-body.dash-flash-row { flex-direction: row; align-items: center; justify-content: flex-start; gap: 16px; }
-                                .dash-flash-ring { flex: none; width: 76px; height: 76px; border-radius: 50%; display: grid; place-content: center; border: 6px solid rgba(255,255,255,.18); border-top-color: #f0c44a; font: 700 1.35rem 'Space Grotesk', system-ui, sans-serif; }
-                                .dash-flash-big { font-weight: 700; font-size: 1.2rem; }
-                                .dash-flash-line { font-size: .8rem; opacity: .85; }
-                                .dash-flash-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-                                .dash-flash-tiles.team3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-                                .dash-flash-group { font-size: .72rem; opacity: .8; margin: 10px 0 6px; }
-                                @media (max-width: 575.98px) { .dash-flash-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-flash-tiles.team3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-                                .dash-tile { display: flex; flex-direction: column; justify-content: space-between; min-height: 76px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.22); border-radius: 12px; padding: 8px 10px; color: #fff; text-decoration: none; }
-                                a.dash-tile:hover { background: rgba(255,255,255,.2); color: #fff; }
-                                .dash-tile.team { background: rgba(0,0,0,.12); }
-                                .dash-tile b { font-size: 1.25rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
-                                .dash-tile span { font-size: .7rem; opacity: .85; line-height: 1.25; }
-                                .dash-tile.hot { background: #fde68a; border-color: #fde68a; color: #713f12; }
-                                .dash-tile.hot span { opacity: 1; }
-                            </style>
                             <div class="row g-3 mb-3">
-                                @include('claim-score._card')
                                 @include('admin.btc._card')
                             </div>
                             <div class="card mb-3" id="dashboardDraftsCard">

@@ -1,8 +1,8 @@
 {{-- CLAIM-SCORE-01: Claim Score card on the employee Dashboard (DASH-CARD-02, 17 Nov 2026: same frame as the BTC card) --}}
 @php($csCard = \App\Http\Controllers\ClaimScoreController::card())
 @if ($csCard)
-<div class="col-12 col-lg-5 col-xl-4">
-<a href="{{ route('claim-score.me') }}" class="dash-flash dash-flash-score text-decoration-none">
+<div class="col-12 col-lg-5 col-xl-4 col-xxl-3">
+<a href="{{ route('claim-score.me') }}" class="dash-flash dash-flash-score {{ !empty($csCompact) ? 'compact' : '' }} text-decoration-none">
     <div class="dash-flash-head">
         <div><div class="dash-flash-title"><i class="ri-trophy-line"></i> My Claim Score</div><div class="dash-flash-sub">{{ $csCard['month'] }}</div></div>
         <span class="dash-flash-btn">Open my score</span>
