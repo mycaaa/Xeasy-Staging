@@ -177,10 +177,14 @@ $(function () {
         const want = BTC_VENDOR_TYPES[c] || [];
         const list = BTC_VENDORS.filter(v => !want.length || v.types.some(t => want.includes(t)));
         const dupName = {}; list.forEach(v => { dupName[v.name.toLowerCase()] = (dupName[v.name.toLowerCase()] || 0) + 1; });
-        const $s = $('#btcVendor').empty().append('<option value="">— new / not listed —</option>');
-        list.forEach(v => $s.append($('<option>').val(v.id).text(v.name + (dupName[v.name.toLowerCase()] > 1 && v.gst ? ' · ' + v.gst : ''))));
-        if (keep && list.some(v => String(v.id) === keep)) $s.val(keep);
-        $('#btcVendorHint').text(list.length + ' vendor(s) for this category');
+        // BTC-VENDOR-SPEED-01 (17 Nov 2026): ~2,000 vendors were appended one <option> at a time (one DOM change each)
+        // and could only be found by scrolling; now the list is built in one go and is searchable as you type
+        const $s = $('#btcVendor');
+        if ($s.data('select2')) $s.select2('destroy');
+        $s.html('<option value="">— new / not listed —</option>' + list.map(v => '<option value="' + v.id + '">' + esc(v.name + (dupName[v.name.toLowerCase()] > 1 && v.gst ? ' · ' + v.gst : '')) + '</option>').join(''));
+        $s.val(keep && list.some(v => String(v.id) === keep) ? keep : '');
+        if ($.fn.select2) $s.select2({dropdownParent: $('#btcNewModal'), width: '100%', placeholder: 'Type to search the vendor', allowClear: true});
+        $('#btcVendorHint').text(list.length + ' vendor(s) for this category - type to search');
     }
     $('#btcCategory').on('change', fillVendors); fillVendors();
     $(document).on('change', '.btc-route-radio', function () { $('#btcRoute').val(this.value); shape(); });
@@ -316,6 +320,7 @@ $(function () {
     // BTC-REQ-03: the register / queues / inbox open a case here (?case=ID); "New BTC Requirement" opens the form (#new)
     const qs = new URLSearchParams(location.search);
     if (qs.get('case')) openCase(qs.get('case'));
+    if (qs.get('tab')) $('#btcTabs .nav-link[data-tab="' + qs.get('tab').replace(/[^a-z_]/g, '') + '"]').trigger('click');   // BTC-CARD-01: dashboard links
     if (location.hash === '#new') bootstrap.Modal.getOrCreateInstance(document.getElementById('btcNewModal')).show();
 });
 </script>

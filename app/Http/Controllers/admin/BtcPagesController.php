@@ -184,6 +184,51 @@ class BtcPagesController extends Controller
         return $id > 0 && (bool) \App\Support\ReportingTree::directReports($id);
     }
 
+    /**
+     * BTC-CARD-01 (17 Nov 2026): figures for the BTC flash card on the employee Dashboard - my own requests, what waits
+     * for my approval, and (for a reporting manager) the team. Null when there is nothing to show or BTC is not set up.
+     */
+    public static function card(): ?array
+    {
+        try {
+            $u = auth()->user();
+            $emp = (int) ($u->employee_id ?? 0);
+            if ($emp <= 0 || ! Schema::hasTable('btc_cases')) {
+                return null;
+            }
+            $co = (int) session('company_id', 1);
+            $done = ['paid', 'closed', 'cancelled', 'rejected', 'draft'];
+            $value = fn ($c) => (float) ($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount);
+            $mine = BtcCase::where('company_id', $co)->where(fn ($w) => $w->where('employee_id', $emp)->orWhere('created_by', $u->id))->where('status', '!=', 'draft')->get();
+            $myOpen = $mine->whereNotIn('status', $done);
+            $approve = BtcCase::where('company_id', $co)->where(fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $emp))
+                ->orWhere(fn ($a) => $a->where('status', 'with_treasury')->where('dept_approver_id', $emp)))->count();
+            $team = null;
+            if ($direct = \App\Support\ReportingTree::directReports($emp)) {
+                $all = BtcCase::where('company_id', $co)->whereIn('employee_id', \App\Support\ReportingTree::descendants($emp))->whereNotIn('status', ['draft', 'cancelled', 'rejected'])->get();
+                $open = $all->whereNotIn('status', ['paid', 'closed']);
+                $team = ['requests' => $all->count(), 'open' => $open->count(), 'value' => $open->sum($value),
+                    'returned' => $all->where('status', 'returned')->count(),
+                    'billed' => $all->filter(fn ($c) => $c->bill_no && ! in_array($c->status, ['paid', 'closed'], true))->sum(fn ($c) => (float) ($c->net_payable ?: $c->bill_amount)),
+                    'people' => $all->pluck('employee_id')->unique()->count()];
+            }
+            if (! $mine->count() && ! $approve && ! ($team['requests'] ?? 0)) {
+                return null;
+            }
+            $next = $myOpen->sortByDesc('id')->first();
+
+            return ['my_open' => $myOpen->count(), 'my_value' => $myOpen->sum($value), 'my_total' => $mine->count(),
+                'returned' => $mine->where('status', 'returned')->count(),
+                'adv_balance' => $mine->whereNotIn('status', ['cancelled', 'rejected'])->sum(fn ($c) => max(0, $c->advanceFigures()['balance'])),
+                'approve' => $approve, 'team' => $team,
+                'latest' => $next ? ['no' => $next->case_no, 'id' => $next->id, 'stage' => $next->statusLabel(), 'with' => $next->pendingWith()] : null];
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
     public function team(Request $request)
     {
         if (! $this->ready()) {
