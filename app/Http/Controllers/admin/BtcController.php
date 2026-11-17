@@ -249,6 +249,7 @@ class BtcController extends Controller
             'journal' => $c->finance_at ? \App\Services\Btc\BtcLedger::journal($c) : [],
             'dims' => array_intersect(['finance_verify'], BtcWorkflow::allowed($c, $user)) ? \App\Services\Btc\BtcLedger::dimensions($c) : null,
             'pending_payment' => BtcWorkflow::pendingPayment($c),
+            'vendor_bank' => $this->canAny($user, 'btc.treasury|btc.treasury_checker|btc.finance|btc.audit') ? (\App\Services\Btc\BtcBank::masked(\App\Services\Btc\BtcBank::forCase($c)) ?? 'not verified') : null,
             'maker' => $c->assigned_maker_id ? \App\Models\User::whereKey($c->assigned_maker_id)->value('name') : null,
             'finance_users' => in_array('assign_maker', BtcWorkflow::allowed($c, $user), true)
                 ? \App\Models\User::permission('btc.finance')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values() : [],
@@ -412,6 +413,22 @@ class BtcController extends Controller
             ->get(['id', 'case_no', 'emp_name', 'emp_code', 'pnr', 'travel_sector', 'travel_date', 'boarding_pass_received_on']);
 
         return view('admin.btc.boarding-passes', compact('cases', 'desk', 'show', 'counts', 'uploadCases'));
+    }
+
+    /** BOARDING-04 (17 Nov 2026): many boarding passes / a folder at once, matched by PNR or BTC number in the file name. */
+    public function boardingPassBulk(Request $request)
+    {
+        $user = auth()->user();
+        $request->validate(['files' => 'required|array|max:200', 'files.*' => 'file|max:5120'], ['files.required' => 'Choose the files or the folder.']);
+        $desk = collect(['btc.dms', 'btc.finance', 'btc.admin'])->contains(fn ($p) => $user->can($p));
+        $q = BtcCase::where('company_id', (int) session('company_id', 1))->where('boarding_pass_required', 1)->whereNull('boarding_pass_received_on')
+            ->whereNotIn('status', ['cancelled', 'rejected', 'draft']);
+        if (! $desk) {
+            $q->where('employee_id', (int) ($user->employee_id ?? 0));
+        }
+        $res = \App\Services\Btc\BtcBoardingBulk::upload($q->get(), $request->file('files', []), (string) $user->name, $user->id, 'Xeasy');
+
+        return back()->with('bulk_result', $res)->with('success', collect($res)->where('ok', true)->count().' of '.count($res).' file(s) saved.');
     }
 
     /** BOARDING-02: upload a boarding pass for one booking (the traveller, or the DMS / Finance desk); marks it received. */

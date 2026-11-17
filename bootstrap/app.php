@@ -152,7 +152,10 @@ return Application::configure(basePath: dirname(__DIR__))
         foreach ([1, 11] as $co) {
             $schedule->command("claims:score --company={$co}")->dailyAt('04:40')->withoutOverlapping()
                 ->appendOutputTo(storage_path('logs/claim-score.log'));
+
         }
+        // BTC-NOTIFY-01 (17 Nov 2026): overdue BTC stages, daily (does nothing while BTC mails are off)
+        $schedule->command('btc:escalate')->dailyAt('09:35')->withoutOverlapping();
         // D-07: activity_log rows older than 180 days go to monthly compressed files (kept 8 years)
         $schedule->command('logs:archive-activity --apply')->monthlyOn(2, '03:00')->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/archive-activity.log'));

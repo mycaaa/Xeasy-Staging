@@ -93,7 +93,87 @@ class VendorBoardingPassController extends Controller
     {
         $link = $this->link($token);
 
-        return view('vendor-portal.boarding-pass', ['link' => $link, 'cases' => $this->cases($link), 'token' => $token]);
+        // BTC-VENDOR-01 (17 Nov 2026): the vendor also sends invoices and follows payment here
+        $mine = $this->vendorCases($link)->whereNotIn('status', ['draft', 'cancelled', 'rejected'])->orderByDesc('id')->limit(300)->get();
+        $billable = $mine->filter(fn ($c) => in_array($c->status, ['booked', 'advance_paid', 'returned'], true) && (! $c->bill_no || $c->status === 'returned'))->values();
+        $billed = $mine->filter(fn ($c) => $c->bill_no)->values();
+        $pays = \Illuminate\Support\Facades\Schema::hasTable('btc_payments')
+            ? DB::table('btc_payments')->whereIn('btc_case_id', $billed->pluck('id'))->where('status', 'success')->orderByDesc('id')->get()->groupBy('btc_case_id') : collect();
+
+        return view('vendor-portal.boarding-pass', ['link' => $link, 'cases' => $this->cases($link), 'token' => $token,
+            'billable' => $billable, 'billed' => $billed, 'pays' => $pays, 'bulk' => session('bulk_result')]);
+    }
+
+    /** BOARDING-04: many boarding passes at once, matched by PNR / BTC number in the file name. */
+    public function bulk(Request $request, string $token)
+    {
+        $link = $this->link($token);
+        $request->validate(['files' => 'required|array|max:100', 'files.*' => 'file|max:5120'], ['files.required' => 'Choose the boarding pass files or folder.']);
+        $res = \App\Services\Btc\BtcBoardingBulk::upload($this->cases($link), $request->file('files', []), 'Vendor: '.$link->vendor_name, null, 'vendor portal link #'.$link->id.', IP '.$request->ip());
+        DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now()]);
+
+        return back()->with('bulk_result', $res)->with('success', collect($res)->where('ok', true)->count().' of '.count($res).' file(s) saved.');
+    }
+
+    /** BTC-VENDOR-01: the vendor sends the invoice for a booking; it goes to DMS as the bill. */
+    public function invoice(Request $request, string $token, int $caseId)
+    {
+        $link = $this->link($token);
+        $v = $request->validate([
+            'invoice_no' => 'required|string|max:60', 'invoice_date' => 'required|date|before_or_equal:today',
+            'taxable_amount' => 'required|numeric|min:0|max:9999999.99', 'gst_amount' => 'nullable|numeric|min:0|max:9999999.99',
+            'bill_amount' => 'required|numeric|min:1|max:9999999.99', 'gstin' => 'nullable|string|max:20',
+            'file' => 'required|file|max:10240|mimes:pdf,jpg,jpeg,png',
+        ], ['file.required' => 'Attach the invoice (PDF or photo).']);
+        $case = $this->vendorCases($link)->whereKey($caseId)->whereIn('status', ['booked', 'advance_paid', 'returned'])->first();
+        if (! $case || ($case->bill_no && $case->status !== 'returned')) {
+            return back()->withErrors(['invoice' => 'This booking is not waiting for an invoice.']);
+        }
+        if (abs((float) $v['taxable_amount'] + (float) ($v['gst_amount'] ?? 0) - (float) $v['bill_amount']) > 1) {
+            return back()->withErrors(['invoice' => 'Taxable value plus GST should equal the invoice total.']);
+        }
+        $no = trim($v['invoice_no']);
+        $dup = BtcCase::where('id', '!=', $case->id)->where('bill_no', $no)->whereNotIn('status', ['cancelled', 'rejected'])
+            ->where(fn ($q) => $link->vendor_id ? $q->where('vendor_id', $link->vendor_id) : $q->where('vendor_name', $link->vendor_name))->value('case_no');
+        if ($dup) {
+            return back()->withErrors(['invoice' => "Invoice {$no} is already on booking {$dup}."]);
+        }
+        $f = $request->file('file');
+        $path = $f->storeAs("btc/{$case->company_id}/{$case->id}", 'bill_vendor_'.now()->format('YmdHis').'.'.strtolower($f->getClientOriginalExtension()), 'local');
+        DB::transaction(function () use ($case, $v, $no, $f, $path, $link, $request) {
+            $old = $case->status;
+            BtcCaseFile::create(['btc_case_id' => $case->id, 'kind' => 'bill', 'file_path' => $path, 'file_name' => mb_substr($f->getClientOriginalName(), 0, 255),
+                'mime' => $f->getMimeType(), 'uploaded_by' => null]);
+            $case->fill(['bill_no' => $no, 'bill_date' => $v['invoice_date'], 'taxable_amount' => $v['taxable_amount'], 'gst_amount' => $v['gst_amount'] ?? 0,
+                'bill_amount' => $v['bill_amount'], 'bill_submitted_at' => now(), 'bill_submitted_by' => null, 'submitted_via' => 'vendor_portal', 'status' => 'bill_submitted']);
+            if (! $case->vendor_gstin && ! empty($v['gstin'])) {
+                $case->vendor_gstin = strtoupper(trim($v['gstin']));
+            }
+            $case->save();
+            if (Schema::hasTable('btc_invoices')) {
+                DB::table('btc_invoices')->insert(['company_id' => $case->company_id, 'source' => 'vendor', 'invoice_no' => $no, 'invoice_date' => $v['invoice_date'],
+                    'vendor_name' => $case->vendor_name, 'vendor_gstin' => $case->vendor_gstin, 'taxable_amount' => $v['taxable_amount'], 'tax_amount' => $v['gst_amount'] ?? 0,
+                    'gross_amount' => $v['bill_amount'], 'received_on' => now()->toDateString(), 'nova_status' => 'received', 'import_status' => 'imported',
+                    'btc_case_id' => $case->id, 'match_status' => 'matched', 'match_confidence' => 100, 'matched_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+            }
+            BtcCaseLog::create(['btc_case_id' => $case->id, 'action' => 'vendor_invoice', 'from_status' => $old, 'to_status' => 'bill_submitted',
+                'remark' => "Invoice {$no} Rs ".number_format((float) $v['bill_amount'], 2).' sent by the vendor through the portal (link #'.$link->id.', IP '.$request->ip().')',
+                'user_id' => null, 'user_name' => mb_substr('Vendor: '.$link->vendor_name, 0, 150)]);
+            DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now()]);
+        });
+        try {
+            \App\Services\Btc\BtcNotifier::handoff($case->fresh(), 'booked', 'vendor_invoice');
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return back()->with('success', "Invoice {$no} received for {$case->case_no}. Thank you.");
+    }
+
+    private function vendorCases(object $link)
+    {
+        return BtcCase::where('company_id', $link->company_id)
+            ->where(fn ($q) => $link->vendor_id ? $q->where('vendor_id', $link->vendor_id) : $q->where('vendor_name', $link->vendor_name));
     }
 
     public function upload(Request $request, string $token, int $caseId)

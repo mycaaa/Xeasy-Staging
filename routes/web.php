@@ -23,6 +23,9 @@ Route::view('privacy', 'legal.privacy-notice')->name('privacy.notice');
 Route::middleware('throttle:30,1')->group(function () {
     Route::get('vendor/boarding-pass/{token}', [\App\Http\Controllers\VendorBoardingPassController::class, 'show'])->name('vendor.boarding.show');
     Route::post('vendor/boarding-pass/{token}/{caseId}', [\App\Http\Controllers\VendorBoardingPassController::class, 'upload'])->whereNumber('caseId')->name('vendor.boarding.upload');
+    // BOARDING-04 / BTC-VENDOR-01 (17 Nov 2026): many boarding passes at once; invoices and payment status
+    Route::post('vendor/boarding-pass/{token}/bulk', [\App\Http\Controllers\VendorBoardingPassController::class, 'bulk'])->name('vendor.boarding.bulk');
+    Route::post('vendor/boarding-pass/{token}/invoice/{caseId}', [\App\Http\Controllers\VendorBoardingPassController::class, 'invoice'])->whereNumber('caseId')->name('vendor.invoice.upload');
 });
 
 

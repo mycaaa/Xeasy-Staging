@@ -30,6 +30,12 @@ class BtcSettings
             'nova.suggest_from' => ['Suggest a match from (score %)', 'int', 'Nova', ''],
             'nova.auto_link' => ['Link automatically from (score %)', 'int', 'Nova', ''],
         ];
+        $f['notify.enabled'] = ['Send hand-off and overdue mails', 'bool', 'Mails', 'To whoever acts next, and daily for stages past their time limit'];
+        $f['notify.redirect_to'] = ['Test mode: send every mail to this address instead', 'text', 'Mails', 'Leave empty to mail the real people'];
+        $f['bank.debit_account'] = ['Company debit account no. (bank bulk-payment file)', 'text', 'Payments', ''];
+        foreach (\App\Services\Btc\BtcNotifier::STAGES as $k => [$who, $days]) {
+            $f["sla.{$k}"] = ['Days allowed: '.$who, 'int', 'Time limits (escalation)', 'Default '.$days];
+        }
         foreach (config('btc.categories', []) as $k => $c) {
             $f["focus.expense_ledgers.{$k}"] = ['Expense ledger: '.$c['label'], 'text', 'Focus ledgers', ''];
             $f["tds_nature_by_category.{$k}"] = ['Default TDS nature: '.$c['label'], 'nature', 'TDS', ''];
@@ -77,7 +83,7 @@ class BtcSettings
             $new = (string) (is_bool($c = self::cast($raw, $type)) ? (int) $c : $c);
             $old = config('btc.'.$k);
             $oldS = is_bool($old) ? (string) (int) $old : (string) $old;
-            if ($new === $oldS || ($type === 'text' && $new === '')) {
+            if ($new === $oldS || ($type === 'text' && $new === '' && $k !== 'notify.redirect_to')) {
                 continue;
             }
             DB::table(self::TABLE)->updateOrInsert(['key' => $k], ['value' => $new, 'updated_by' => $user->id ?? null, 'updated_at' => now()]);

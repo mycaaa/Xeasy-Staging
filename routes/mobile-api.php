@@ -172,6 +172,9 @@ Route::match(['get', 'post'], '{comId}/appversion.php', [AppVersionController::c
 // CLAIM-SCORE-06 (17 Nov 2026): My Claim Score / My Team for the app
 Route::match(['get', 'post'], 'claim_score.php', [App\Http\Controllers\Api\Mobile\ClaimScoreApiController::class, 'handle']);
 Route::match(['get', 'post'], '{comId}/claim_score.php', [App\Http\Controllers\Api\Mobile\ClaimScoreApiController::class, 'handle'])->where('comId', '[0-9]+');
+// BTC-APP-01 (17 Nov 2026): Bill To Company in the app
+Route::match(['get', 'post'], 'btc.php', [App\Http\Controllers\Api\Mobile\BtcApiController::class, 'handle']);
+Route::match(['get', 'post'], '{comId}/btc.php', [App\Http\Controllers\Api\Mobile\BtcApiController::class, 'handle'])->where('comId', '[0-9]+');
 // APP-VVNR-01 (12 Nov 2026): the app's VVNR approver screens call {base}/api/11/api/common_rep.php and claim_rep.php
 // (the old VVNR API path). Same handlers; the company comes from ComId in the request.
 Route::match(['get', 'post'], '{comId}/api/common_rep.php', [LegacyProxyController::class, 'common'])->where('comId', '[0-9]+');

@@ -432,6 +432,9 @@ class BtcWorkflow
                     $to = $old;
                     break;
                 }
+                if (! $p->utr_number) {
+                    throw new RuntimeException('No UTR yet for this payment: import the bank\'s response file first (Payment batches).');
+                }
                 if ((float) $p->amount > round((float) $c->net_payable - (float) $c->paid_amount, 2) + 0.009) {
                     throw new RuntimeException('The entry is more than the amount still due; reject it and enter again.');
                 }
@@ -563,6 +566,13 @@ class BtcWorkflow
                 'remark' => $remark ?: null, 'user_id' => $user->id ?? null, 'user_name' => $user->name ?? null,
             ]);
         });
+
+        // BTC-NOTIFY-01: mail whoever acts next (off unless switched on in BTC Settings)
+        try {
+            BtcNotifier::handoff($c->fresh(), $old, $action);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $c->fresh();
     }

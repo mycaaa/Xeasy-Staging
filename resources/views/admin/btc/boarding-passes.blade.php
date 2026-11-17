@@ -25,6 +25,20 @@
                 </p>
                 @if (session('success'))<div class="alert alert-success py-2">{{ session('success') }}</div>@endif
                 @if (isset($errors) && $errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
+                {{-- BOARDING-04 (17 Nov 2026): many files or a whole folder at once --}}
+                <div class="border rounded p-2 mb-3 bg-light">
+                    <div class="fw-semibold small mb-1"><i class="ri-folder-upload-line me-1"></i>Upload many at once</div>
+                    <p class="small text-muted mb-2">Name each file with the PNR (e.g. <code>ABC123.pdf</code>) or the BTC number (e.g. <code>BTC-26-00013.pdf</code>). Each file is matched to one pending booking; files that match none or several are listed and not saved.</p>
+                    <form method="post" action="{{ route('btc.boarding.bulk') }}" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">@csrf
+                        <input type="file" name="files[]" multiple accept=".pdf,.jpg,.jpeg,.png" class="form-control form-control-sm" style="max-width:300px" aria-label="Boarding pass files">
+                        <span class="small text-muted">or a folder:</span>
+                        <input type="file" name="files[]" multiple webkitdirectory directory class="form-control form-control-sm" style="max-width:300px" aria-label="Boarding pass folder">
+                        <button class="btn btn-sm btn-primary">Upload all</button>
+                    </form>
+                    @if (session('bulk_result'))
+                        <table class="table table-sm small mt-2 mb-0"><tbody>@foreach (session('bulk_result') as $r)<tr class="{{ $r['ok'] ? 'table-success' : 'table-warning' }}"><td>{{ $r['file'] }}</td><td>{{ $r['note'] }}</td></tr>@endforeach</tbody></table>
+                    @endif
+                </div>
 
                 <form method="get" class="d-flex flex-wrap gap-2 align-items-center mb-3">
                     <div class="btn-group btn-group-sm" role="group" aria-label="Show">

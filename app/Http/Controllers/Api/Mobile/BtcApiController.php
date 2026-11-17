@@ -1,0 +1,104 @@
+<?php
+
+namespace App\Http\Controllers\Api\Mobile;
+
+use App\Http\Controllers\admin\BtcController;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * BTC-APP-01 (17 Nov 2026): Bill To Company in the mobile app - the employee's own requests, raising a new one,
+ * and the approvals waiting for him (reporting manager, department head). The app's legacy token is checked,
+ * then the same web BTC screens' code runs as that user, so every rule and permission is the same as on the web.
+ *
+ *   {base}/api/{ComId}/btc.php?value=list|detail|act|create|meta|vendors&empid=..&tokenid=..&ComId=..
+ */
+class BtcApiController extends BaseMobileController
+{
+    /** Steps the app offers; everything else stays on the web (desks). */
+    public const APP_ACTIONS = ['submit', 'cancel', 'manager_approve', 'manager_reject', 'dept_approve', 'dept_return', 'dept_reject', 'complete_activity'];
+
+    public function handle(Request $request): JsonResponse
+    {
+        $emp = $this->validateToken($request);
+        if (! $emp) {
+            return $this->error('Invalid Employee!');
+        }
+        $user = User::where('employee_id', (int) $emp->EmployeeID)->first();
+        if (! $user) {
+            return $this->error('No Xeasy web user for this employee.');
+        }
+        Auth::setUser($user);
+        try {
+            $request->setLaravelSession(app('session')->driver());
+            session(['company_id' => (int) ($request->input('ComId') ?: $request->route('comId') ?: 1)]);
+        } catch (\Throwable $e) {
+        }
+        if (! \Illuminate\Support\Facades\Schema::hasTable('btc_cases')) {
+            return $this->error('BTC is not available.');
+        }
+        $web = app(BtcController::class);
+        try {
+            switch ((string) $request->input('value')) {
+                case 'list':
+                    $tab = $request->input('tab') === 'approvals' ? 'approvals' : 'mine';
+                    $rows = json_decode($web->data(new Request(['tab' => $tab, 'search' => (string) $request->input('q')]))->getContent(), true)['data'] ?? [];
+
+                    return $this->ok(['rows' => array_values($rows), 'tab' => $tab]);
+                case 'detail':
+                    $d = json_decode($web->show((int) $request->input('id'))->getContent(), true);
+                    $d['actions'] = array_values(array_intersect($d['actions'] ?? [], self::APP_ACTIONS));
+                    $d['files'] = collect($d['files'] ?? [])->map(fn ($f) => ['kind' => $f['kind'], 'name' => $f['name']])->all();   // files open on the web
+
+                    return $this->ok(['data' => array_intersect_key($d, array_flip(['case', 'status_label', 'category_label', 'route_label', 'manager', 'dept_approver',
+                        'pending', 'actions', 'files', 'logs', 'advance', 'pending_with', 'stages', 'payments', 'exceptions']))]);
+                case 'act':
+                    $action = (string) $request->input('action');
+                    if (! in_array($action, self::APP_ACTIONS, true)) {
+                        return $this->error('This step is done on the Xeasy website.');
+                    }
+                    $r = $web->act($request, (int) $request->input('id'));
+                    $j = json_decode($r->getContent(), true);
+
+                    return ($j['success'] ?? false) ? $this->ok(['message' => $j['message']]) : $this->error($j['message'] ?? 'Not done');
+                case 'create':
+                    $request->merge(['submit' => $request->boolean('submit')]);
+                    $r = $web->store($request);
+                    $j = json_decode($r->getContent(), true);
+
+                    return ($j['success'] ?? false) ? $this->ok(['message' => $j['message'], 'id' => $j['id'] ?? null]) : $this->error($j['message'] ?? 'Not saved');
+                case 'meta':
+                    $routes = $user->can('btc.admin') ? array_keys(config('btc.routes')) : (array) config('btc.employee_routes');
+
+                    return $this->ok(['routes' => collect($routes)->map(fn ($k) => ['key' => $k, 'title' => config("btc.route_choices.{$k}.0", $k), 'help' => config("btc.route_choices.{$k}.1", '')])->values(),
+                        'categories' => collect(config('btc.categories'))->map(fn ($c, $k) => ['key' => $k, 'label' => $c['label']])->values(),
+                        'vendor_types' => config('btc.vendor_types_by_category')]);
+                case 'vendors':
+                    $q = trim((string) $request->input('q'));
+                    $types = config('btc.vendor_types_by_category.'.$request->input('category'), []);
+
+                    return $this->ok(['rows' => DB::table('vendor_list')->where('status', '1')->when($types, fn ($w) => $w->whereIn('vendor_type', $types))
+                        ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where('vendor_name', 'like', "%{$q}%")->orWhere('gst_no', 'like', "%{$q}%")))
+                        ->orderBy('vendor_name')->limit(30)->get(['id', 'vendor_name as name', 'gst_no as gst'])]);
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->error(collect($e->errors())->flatten()->first() ?? 'Check the entries.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return $this->error($e->getStatusCode() === 403 ? 'You cannot open this request.' : 'Not found.');
+        } catch (\Throwable $e) {
+            report($e);
+
+            return $this->error('BTC could not be loaded. Please try again.');
+        }
+
+        return $this->error('Unknown request.');
+    }
+
+    private function ok(array $data): JsonResponse
+    {
+        return response()->json(['Code' => '300', 'msg' => 'OK'] + $data);
+    }
+}

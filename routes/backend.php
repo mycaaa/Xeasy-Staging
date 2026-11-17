@@ -1183,6 +1183,16 @@ Route::prefix('btc')->name('btc.')->group(function () {
     // BTC-TEAM-01 (17 Nov 2026): a reporting manager's view of the team's BTC requests (checked in the controller)
     Route::get('/team', [\App\Http\Controllers\admin\BtcPagesController::class, 'team'])->name('team');
     // BTC-EXC-01 / CONF-01 / FIN-02 (17 Nov 2026)
+    // BOARDING-04 / BTC-BANK-01 / BTC-BATCH-01 (17 Nov 2026)
+    Route::post('/boarding-passes/bulk', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassBulk'])->name('boarding.bulk');
+    Route::get('/vendor-banks', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBanks'])->name('vendor-banks');
+    Route::post('/vendor-banks', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBankSave'])->name('vendor-banks.save');
+    Route::post('/vendor-banks/{id}/decide', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBankDecide'])->whereNumber('id')->name('vendor-banks.decide');
+    Route::get('/payment-batches', [\App\Http\Controllers\admin\BtcPagesController::class, 'batches'])->name('batches');
+    Route::post('/payment-batches', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchMake'])->name('batches.make');
+    Route::get('/payment-batches/{id}/file', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchFile'])->whereNumber('id')->name('batches.file');
+    Route::post('/payment-batches/response', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchResponse'])->name('batches.response');
+    Route::post('/payment-batches/{id}/authorise', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchAuthorise'])->whereNumber('id')->name('batches.authorise');
     Route::get('/exceptions', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptions'])->name('exceptions');
     Route::get('/exceptions/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionsExport'])->name('exceptions.export');
     Route::post('/exceptions/review', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionReview'])->name('exceptions.review');

@@ -10,6 +10,8 @@
         ['btc.exceptions', 'Exception Queue', 'ri-error-warning-line', 'btc.exceptions|btc.audit|btc.finance|btc.checker'],   // BTC-EXC-01
         ['btc.booking', 'Admin Booking Queue', 'ri-hotel-line', 'btc.booking'],
         ['btc.advances', 'Advances', 'ri-hand-coin-line', 'btc.advance|btc.finance'],
+        ['btc.batches', 'Payment Batches', 'ri-bank-line', 'btc.treasury|btc.treasury_checker|btc.audit'],          // BTC-BATCH-01
+        ['btc.vendor-banks', 'Vendor Bank Accounts', 'ri-bank-card-line', 'btc.treasury|btc.treasury_checker|btc.finance|btc.audit'],   // BTC-BANK-01
         ['btc.invoices', 'Nova Invoice Inbox', 'ri-inbox-archive-line', 'btc.invoices'],
         ['btc.matching', 'Request / Invoice Matching', 'ri-git-merge-line', 'btc.invoices|btc.verifier'],
         ['btc.integration', 'Integration Monitoring', 'ri-pulse-line', 'btc.integration'],

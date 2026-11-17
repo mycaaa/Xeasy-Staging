@@ -154,6 +154,148 @@ class BtcPagesController extends Controller
         }, $prefix.now()->format('Ymd_His').'.xlsx');
     }
 
+    // ---- BTC-BANK-01 (17 Nov 2026): vendor bank accounts (enter / verify by another person) ---------------------------
+    public function vendorBanks(Request $request)
+    {
+        $this->need('btc.treasury|btc.treasury_checker|btc.finance|btc.audit');
+        $rows = \App\Services\Btc\BtcBank::ready() ? DB::table('btc_vendor_banks')->where('company_id', (int) session('company_id', 1))
+            ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when(trim((string) $request->input('q')), fn ($q, $t) => $q->where(fn ($w) => $w->where('vendor_name', 'like', "%{$t}%")->orWhere('vendor_gstin', 'like', "%{$t}%")))
+            ->orderByRaw("status = 'pending' DESC")->orderByDesc('id')->paginate(50)->withQueryString() : collect();
+        $u = auth()->user();
+        $vendors = DB::table('vendor_list')->where('status', '1')->whereNotNull('vendor_name')->orderBy('vendor_name')->limit(5000)->get(['id', 'vendor_name', 'gst_no']);
+
+        return view('admin.btc.pages.vendor-banks', ['rows' => $rows, 'vendors' => $vendors, 'ready' => \App\Services\Btc\BtcBank::ready(),
+            'canEnter' => $u->can('btc.admin') || $u->can('btc.treasury') || $u->can('btc.finance'),
+            'canVerify' => $u->can('btc.admin') || $u->can('btc.treasury_checker')]);
+    }
+
+    public function vendorBankSave(Request $request)
+    {
+        $this->need('btc.treasury|btc.finance');
+        $v = $request->validate(['vendor_id' => 'nullable|integer', 'vendor_name' => 'required|string|max:200', 'vendor_gstin' => 'nullable|string|max:20',
+            'account_name' => 'required|string|max:150', 'account_no' => 'required|string|max:30', 'account_no_confirm' => 'required|string|max:30',
+            'ifsc' => 'required|string|size:11', 'bank_name' => 'nullable|string|max:120', 'remark' => 'nullable|string|max:300']);
+        if (! empty($v['vendor_id']) && ($vl = DB::table('vendor_list')->find($v['vendor_id']))) {
+            $v['vendor_name'] = trim($vl->vendor_name);
+            $v['vendor_gstin'] = $v['vendor_gstin'] ?: $vl->gst_no;
+        }
+        try {
+            \App\Services\Btc\BtcBank::enter($v, auth()->user());
+        } catch (\RuntimeException $e) {
+            return back()->withInput($request->except(['account_no', 'account_no_confirm']))->withErrors(['bank' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Bank details saved for '.$v['vendor_name'].'. Another person (Treasury checker) must verify them before payment.');
+    }
+
+    public function vendorBankDecide(Request $request, int $id)
+    {
+        $this->need('btc.treasury_checker');
+        try {
+            $b = \App\Services\Btc\BtcBank::decide($id, $request->input('decision') === 'verify', (string) $request->input('remark'), auth()->user());
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['bank' => $e->getMessage()]);
+        }
+
+        return back()->with('success', $b->vendor_name.': bank details '.$b->status.'.');
+    }
+
+    // ---- BTC-BATCH-01 (17 Nov 2026): bank bulk-payment file and the bank's response -------------------------------------
+    public function batches()
+    {
+        $this->need('btc.treasury|btc.treasury_checker|btc.audit');
+        $co = (int) session('company_id', 1);
+        $ready = \Illuminate\Support\Facades\Schema::hasTable('btc_payment_batches');
+        $batches = $ready ? DB::table('btc_payment_batches')->where('company_id', $co)->orderByDesc('id')->limit(50)->get() : collect();
+        $pending = $ready ? DB::table('btc_payments')->whereIn('batch_id', $batches->pluck('id'))->where('status', 'pending')
+            ->selectRaw('batch_id, COUNT(*) n, SUM(utr_number IS NOT NULL) with_utr')->groupBy('batch_id')->get()->keyBy('batch_id') : collect();
+        $u = auth()->user();
+
+        return view('admin.btc.pages.batches', ['ready' => $ready, 'batches' => $batches, 'pending' => $pending,
+            'candidates' => $ready ? \App\Services\Btc\BtcPaymentBatch::candidates($co) : collect(),
+            'canMake' => $u->can('btc.admin') || $u->can('btc.treasury'), 'canAuthorise' => $u->can('btc.admin') || $u->can('btc.treasury_checker'),
+            'debit' => config('btc.bank.debit_account')]);
+    }
+
+    public function batchMake(Request $request)
+    {
+        $this->need('btc.treasury');
+        $v = $request->validate(['ids' => 'required|array', 'ids.*' => 'integer', 'value_date' => 'required|date|after_or_equal:today']);
+        try {
+            $r = \App\Services\Btc\BtcPaymentBatch::make(array_map('intval', $v['ids']), $v['value_date'], auth()->user());
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['batch' => $e->getMessage()]);
+        }
+
+        return redirect()->route('btc.batches')->with('success', 'Batch '.$r['batch']->batch_no.' made: '.$r['batch']->cases.' payment(s), Rs '.number_format((float) $r['batch']->total, 2).'. Download the file and upload it to the bank.');
+    }
+
+    public function batchFile(int $id)
+    {
+        $this->need('btc.treasury');
+        $b = DB::table('btc_payment_batches')->where('company_id', (int) session('company_id', 1))->where('id', $id)->first();
+        abort_unless($b, 404);
+        $rows = \App\Services\Btc\BtcPaymentBatch::rows($id);
+        foreach (BtcCase::whereIn('id', DB::table('btc_payments')->where('batch_id', $id)->pluck('btc_case_id'))->get(['id', 'status']) as $bc) {
+            \App\Models\BtcCaseLog::create(['btc_case_id' => $bc->id, 'action' => 'batch_file', 'from_status' => $bc->status, 'to_status' => $bc->status,
+                'remark' => 'Bank file of batch '.$b->batch_no.' downloaded', 'user_id' => auth()->id(), 'user_name' => auth()->user()->name]);
+        }
+        $export = new class($rows) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithColumnFormatting
+        {
+            public function __construct(private array $rows) {}
+
+            public function array(): array
+            {
+                return $this->rows;
+            }
+
+            public function headings(): array
+            {
+                return \App\Services\Btc\BtcPaymentBatch::COLUMNS;
+            }
+
+            public function columnFormats(): array
+            {
+                return ['C' => '@', 'E' => '@'];   // account numbers as text
+            }
+        };
+
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $b->batch_no.'.xlsx');
+    }
+
+    public function batchResponse(Request $request)
+    {
+        $this->need('btc.treasury');
+        $request->validate(['file' => 'required|file|max:10240|mimes:xlsx,xls,csv,txt']);
+        try {
+            $r = \App\Services\Btc\BtcPaymentBatch::importResponse($request->file('file')->getRealPath(), auth()->user());
+        } catch (\Throwable $e) {
+            return back()->withErrors(['batch' => $e->getMessage()]);
+        }
+
+        return back()->with('success', "Bank response: {$r['paid']} paid (waiting for the Treasury checker), {$r['failed']} failed (back to payment-ready), {$r['skipped']} skipped.")
+            ->with('notes', $r['notes']);
+    }
+
+    public function batchAuthorise(int $id)
+    {
+        $this->need('btc.treasury_checker');
+        $user = auth()->user();
+        $done = 0;
+        $notes = [];
+        foreach (DB::table('btc_payments')->where('batch_id', $id)->where('status', 'pending')->whereNotNull('utr_number')->get() as $p) {
+            try {
+                app(\App\Services\Btc\BtcWorkflow::class)->act(BtcCase::findOrFail($p->btc_case_id), 'authorise_payment', ['remark' => 'Batch authorisation'], $user);
+                $done++;
+            } catch (\RuntimeException $e) {
+                $notes[] = BtcCase::whereKey($p->btc_case_id)->value('case_no').': '.$e->getMessage();
+            }
+        }
+
+        return back()->with('success', "{$done} payment(s) authorised.")->with('notes', $notes);
+    }
+
     // ---- BTC-EXC-01 (17 Nov 2026): Validation & Exception Queue (requirement item 12) ---------------------------------
     private function exceptionRows(Request $request)
     {

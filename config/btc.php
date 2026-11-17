@@ -27,6 +27,14 @@ return [
     // BTC-EXC-01: a bill above the booked / quoted / estimated amount by more than this % is a request mismatch
     'mismatch_pct' => (int) env('BTC_MISMATCH_PCT', 10),
 
+    // BTC-NOTIFY-01 (17 Nov 2026): hand-off and escalation mails; off until switched on in BTC Settings.
+    // redirect_to: send every mail to this address instead (testing)
+    'notify' => ['enabled' => (bool) env('BTC_NOTIFY', false), 'redirect_to' => env('BTC_NOTIFY_REDIRECT', '')],
+    // days allowed per stage before escalation (BtcNotifier::STAGES has the defaults)
+    'sla' => [],
+    // BTC-BATCH-01: the company account the bank debits for BTC payments
+    'bank' => ['debit_account' => env('BTC_BANK_DEBIT_ACCOUNT', '')],
+
     // BTC-PAY-01 (17 Nov 2026): payment modes on Payment Confirmation
     'payment_modes' => ['neft' => 'NEFT', 'rtgs' => 'RTGS', 'imps' => 'IMPS', 'upi' => 'UPI', 'cheque' => 'Cheque', 'other' => 'Other'],
 
