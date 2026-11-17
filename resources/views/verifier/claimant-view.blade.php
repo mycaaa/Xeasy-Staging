@@ -972,7 +972,7 @@
                     <textarea id="runRemark" class="form-control form-control-sm" rows="2" maxlength="250" placeholder="Type your remark…" style="border-radius:8px;font-size:.82rem;"></textarea>
                     <div class="d-flex gap-2 mt-2 justify-content-end">
                         <button type="button" class="btn btn-sm btn-outline-danger rounded-3 px-3" id="runNotAgreeBtn"><i class="ri-close-line me-1"></i>Not Agree</button>
-                        <button type="button" class="btn btn-sm btn-success rounded-3 px-3" id="runAgreeBtn"><i class="ri-check-line me-1"></i>Agree &amp; Verify</button>
+                        <button type="button" class="btn btn-sm btn-success rounded-3 px-3" id="runAgreeBtn"><i class="ri-check-line me-1"></i>Agree &amp; Confirm</button>
                     </div>
                 </div>
                 <div style="font-size:.72rem;font-weight:700;color:#64748b;margin-bottom:8px;">ACTIVITY LOG</div>
@@ -1056,8 +1056,8 @@ const rp = n => '₹' + Number(n||0).toLocaleString('en-IN');
 function sbadge(filledOkay, claimStatus) {
     const s = String(filledOkay);
     if (s==='2') return '<span class="sbg sbg-denied">Denied</span>';
-    if (s==='1') return '<span class="sbg sbg-verified">Verified</span>';
     const cs = String(claimStatus||'').trim();
+    if (s==='1' && !['Verified','Approved','Financed','Payment','Close'].includes(cs)) return '<span class="sbg sbg-pending" style="background:#eef2ff;color:#4338ca">Confirmed</span>';
     if (cs==='Financed') return '<span class="sbg sbg-financed">Financed</span>';
     if (cs==='Approved') return '<span class="sbg sbg-approved">Approved</span>';
     if (cs==='Verified') return '<span class="sbg sbg-verified">Verified</span>';
@@ -1091,6 +1091,7 @@ function renderOpenMonth(it, expanded) {
     const nD  = tot.TotDeniedClaims||0;
     const id  = `oM${it.Month}`;
     const status = it.MonthStatus||'Open';
+    (window.MCV_MSTATUS = window.MCV_MSTATUS || {})[it.Month] = status;   // DASH-NUM-03
     const chip = status==='Submitted'
         ? '<span class="mcv-chip mcv-chip-sub">Submitted</span>'
         : '<span class="mcv-chip mcv-chip-open">Open</span>';
@@ -1110,8 +1111,8 @@ function renderOpenMonth(it, expanded) {
                         <span class="mcv-mi amt">Amt: <strong>${rp(tot.TotFilledAmt||0)}</strong></span>
                     </div>
                     <div class="mcv-month-row2">
-                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#d7f3e6; color: #065f46;"></span>Verified: <strong>${rp(vfy.TotVerifyAmt||0)}</strong></span>
-                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#dde6ff; color: #1e3a8a;"></span>Count: <strong>${nV}</strong></span>
+                        <span class="mcv-sub mcv-sub-vr"><span class="mcv-sub-dot" style="background:#d7f3e6; color: #065f46;"></span>Confirmed: <strong>${rp(vfy.TotVerifyAmt||0)}</strong></span>
+                        <span class="mcv-sub mcv-sub-vc"><span class="mcv-sub-dot" style="background:#dde6ff; color: #1e3a8a;"></span>Bills confirmed: <strong>${nV}</strong></span>
                         <span class="mcv-sub mcv-sub-dc"><span class="mcv-sub-dot" style="background:#ef4444;"></span>Denied: <strong>${nD}</strong></span>
                     </div>
                 </div>
@@ -1329,22 +1330,28 @@ function getMediaPreviewHtml(it) {
 /* ═══════════════ DAY-WISE CLAIM CARDS ═══════════════ */
 /* CLAIM-GROUPS-01 (13 Nov 2026): an open month's claims in separate groups by where they stand */
 const CLAIM_GROUPS = [
-    ['pending',   'Pending — check & verify', 'Punched by the team. Open each one and press OK & Verify, or Deny with a remark.', '#b45309', '#fffbeb'],
+    ['pending',   'Pending — check & confirm', 'Punched by the team. Open each one and press OK & Confirm, or Deny with a remark.', '#b45309', '#fffbeb'],
     ['submitted', 'Submitted — with the punching team', 'Uploaded; the punching team has not punched them yet.', '#1d4ed8', '#eff6ff'],
-    ['verified',  'Verified', 'Confirmed by you.', '#047857', '#ecfdf5'],
+    // DASH-NUM-03: your confirmation and the verifier's check are different steps; the verifier checks only after submission
+    ['confirmed', 'Confirmed by you', '', '#4338ca', '#eef2ff'],
+    ['verified',  'Verified', 'Checked by the verifier.', '#047857', '#ecfdf5'],
     ['denied',    'Denied — back with the punching team', 'You did not agree; the punching team will correct them.', '#b91c1c', '#fef2f2'],
 ];
 function claimGroup(it) {
     const cs = String(it.ClaimStatus || '').trim();
     const fo = String(it.FilledOkay ?? '0');
     if (fo === '2') return 'denied';
-    if (fo === '1' || ['Verified', 'Approved', 'Financed'].includes(cs)) return 'verified';
+    if (['Verified', 'Approved', 'Financed', 'Payment', 'Close'].includes(cs)) return 'verified';
+    if (fo === '1') return 'confirmed';
     if (cs === 'Filled') return 'pending';
     return 'submitted';
 }
-function renderClaimGroups(groups) {
+function renderClaimGroups(groups, month) {
     if (groups.all) return '<div class="claim-cards-row">' + groups.all.join('') + '</div>';
-    return CLAIM_GROUPS.filter(g => (groups[g[0]] || []).length).map(([k, title, hint, fg, bg]) => `
+    const open = ((window.MCV_MSTATUS || {})[month] || 'Open') === 'Open';
+    return CLAIM_GROUPS.map(g => g[0] !== 'confirmed' ? g : ['confirmed', open ? 'Confirmed by you — ready to submit the month' : 'Confirmed by you — with the verifier',
+        open ? 'You agreed with the punched figures. Submit the month to send them to the verifier.' : 'The verifier checks them after receiving your hard copy.', g[3], g[4]])
+        .filter(g => (groups[g[0]] || []).length).map(([k, title, hint, fg, bg]) => `
         <div class="mb-2">
             <div class="d-flex align-items-center gap-2 px-2 py-1 rounded-2" style="background:${bg};border-left:3px solid ${fg};">
                 <strong style="color:${fg};font-size:.8rem;">${title}</strong>
@@ -1442,7 +1449,7 @@ function loadDayWise(month, containerId, type) {
                 </div>`;
                 groups[gk] = (groups[gk] || []).concat(html);
             });
-            el.html(renderClaimGroups(groups));
+            el.html(renderClaimGroups(groups, month));
         },
         error() {
             $(`#${containerId}`).html('<p class="text-danger text-center py-2 mb-0" style="font-size:.8rem;">Failed to load.</p>');
@@ -1913,7 +1920,7 @@ function openExpenseDetailModal(expId, month, type) {
                     <button class="dab dab-view" id="sc-add-remark-btn" data-exp-id="${expId}"><i class="ri-send-plane-line"></i> Submit Remark</button>
                     ${(String(MCV.ei) === String(MCV.self) && String((res.expenseData||data).ClaimStatus||'') === 'Filled' && String((res.expenseData||data).FilledOkay||'0') === '0' && !isOdo) ? `
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-success rounded-3 px-3 py-1 btn-verify-claim" data-exp-id="${expId}"><i class="ri-check-line me-1"></i>OK &amp; Verify</button>
+                        <button class="btn btn-sm btn-success rounded-3 px-3 py-1 btn-verify-claim" data-exp-id="${expId}"><i class="ri-check-line me-1"></i>OK &amp; Confirm</button>
                         <button class="btn btn-sm btn-outline-danger rounded-3 px-3 py-1 btn-deny-claim" data-exp-id="${expId}"><i class="ri-close-line me-1"></i>Deny</button>
                     </div>` : (isOdo && String(MCV.ei) === String(MCV.self) ? `<span class="small text-muted">Odometer readings are agreed month-wise from <strong>Running KM</strong> on the month card.</span>` : '')}
                 </div>
@@ -2189,11 +2196,11 @@ $(document).on('click', '.submit-month-btn', function(e) {
                     <strong class="text-primary">${rp(totFilledAmt)}</strong>
                 </div>
                 <div class="d-flex justify-content-between py-1 border-bottom">
-                    <span class="text-muted">Verified Claims:</span>
+                    <span class="text-muted">Confirmed Claims:</span>
                     <strong class="text-success">${totVerifiedClaims}</strong>
                 </div>
                 <div class="d-flex justify-content-between py-1 border-bottom">
-                    <span class="text-muted">Verified Amount:</span>
+                    <span class="text-muted">Confirmed Amount:</span>
                     <strong class="text-success">${rp(totVerifiedAmt)}</strong>
                 </div>
                 <div class="d-flex justify-content-between py-1">
