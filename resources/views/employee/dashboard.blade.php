@@ -2091,7 +2091,7 @@ $(document).ready(function() {
                         ${renderMonthStepper(monthData)}
                     </div>` : ''}
                     <div class="month-claims-scroll">
-                        ${renderClaimCards(monthData.DayWiseDetails)}
+                        ${renderClaimCards(monthData.DayWiseDetails, monthStatus)}
                     </div>
                 </div>
             </div>`;
@@ -2136,7 +2136,7 @@ $(document).ready(function() {
                miniStep('Finance', 'ri-bank-line', financeDone, financeAmt, financeDate, true);
     }
 
-    function renderClaimCards(claims) {
+    function renderClaimCards(claims, monthStatus) {
         if (!claims || claims.length === 0) {
             return '<div class="text-center text-muted py-3 fs-12">No claims in this month</div>';
         }
@@ -2144,7 +2144,8 @@ $(document).ready(function() {
         // CLAIM-GROUPS-01: pending / submitted / verified / denied shown separately
         // DASH-NUM-02: "Confirmed" (you confirmed the punched figures) is separate from "Verified" (the verifier checked it)
         const order = [['pending','Pending — check & confirm','#b45309','#fffbeb'], ['submitted','Submitted — with the punching team','#1d4ed8','#eff6ff'],
-                       ['confirmed','Confirmed by you — waiting for the verifier','#4338ca','#eef2ff'],
+                       // the verifier checks only after the month is submitted and the hard copy is received
+                       ['confirmed', monthStatus === 'Open' ? 'Confirmed by you — ready to submit the month' : 'Confirmed by you — with the verifier','#4338ca','#eef2ff'],
                        ['verified','Verified','#047857','#ecfdf5'], ['denied','Denied — back with the punching team','#b91c1c','#fef2f2']];
         const grpOf = c => { const cs = String(c.ClaimStatus||'').trim(); const fo = String(c.FilledOkay ?? '0');
             if (fo === '2') return 'denied';
