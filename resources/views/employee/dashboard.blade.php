@@ -2006,7 +2006,9 @@ $(document).ready(function() {
         if (filledOkay == '2') return '<span class="badge bg-danger-subtle text-danger fs-10">Denied</span>';
         if (rawStatus.toLowerCase() === 'draft') return '<span class="badge bg-secondary-subtle text-secondary fs-10">Draft</span>';
         if (rawStatus.toLowerCase() === 'submitted') return '<span class="badge bg-secondary-subtle text-secondary fs-10">Submitted</span>';
-        if (filledOkay == '1') return '<span class="badge bg-success-subtle text-success fs-10">Verified</span>';
+        // DASH-NUM-02: "Verified" only once the verifier has checked it; your own confirmation is "Confirmed"
+        if (filledOkay == '1' && !claim.IsVerified) return '<span class="badge bg-primary-subtle text-primary fs-10">Confirmed</span>';
+        if (filledOkay == '1' && rawStatus.toLowerCase() === 'filled') return '<span class="badge bg-success-subtle text-success fs-10">Verified</span>';
         if (rawStatus.toLowerCase() === 'filled') return '<span class="badge bg-warning-subtle text-warning fs-10">Pending</span>';
         if (rawStatus.toLowerCase() === 'verified') return '<span class="badge bg-info-subtle text-info fs-10">Verified</span>';
         if (rawStatus.toLowerCase() === 'approved') return '<span class="badge bg-success-subtle text-success fs-10">Approved</span>';
@@ -2140,10 +2142,15 @@ $(document).ready(function() {
         }
 
         // CLAIM-GROUPS-01: pending / submitted / verified / denied shown separately
-        const order = [['pending','Pending — check & verify','#b45309','#fffbeb'], ['submitted','Submitted — with the punching team','#1d4ed8','#eff6ff'],
+        // DASH-NUM-02: "Confirmed" (you confirmed the punched figures) is separate from "Verified" (the verifier checked it)
+        const order = [['pending','Pending — check & confirm','#b45309','#fffbeb'], ['submitted','Submitted — with the punching team','#1d4ed8','#eff6ff'],
+                       ['confirmed','Confirmed by you — waiting for the verifier','#4338ca','#eef2ff'],
                        ['verified','Verified','#047857','#ecfdf5'], ['denied','Denied — back with the punching team','#b91c1c','#fef2f2']];
         const grpOf = c => { const cs = String(c.ClaimStatus||'').trim(); const fo = String(c.FilledOkay ?? '0');
-            return fo === '2' ? 'denied' : ((fo === '1' || ['Verified','Approved','Financed'].includes(cs)) ? 'verified' : (cs === 'Filled' ? 'pending' : 'submitted')); };
+            if (fo === '2') return 'denied';
+            if (c.IsVerified || ['Verified','Approved','Financed','Payment','Close'].includes(cs)) return 'verified';
+            if (fo === '1') return 'confirmed';
+            return cs === 'Filled' ? 'pending' : 'submitted'; };
         const byGroup = {};
         claims.forEach(c => { (byGroup[grpOf(c)] = byGroup[grpOf(c)] || []).push(c); });
         return order.filter(g => byGroup[g[0]]).map(([k, title, fg, bg]) => `

@@ -819,6 +819,9 @@ class DashboardController extends Controller
                         'Img_3' => $claim->Img_3 ?? '',
                         'DateEntryRemark' => $claim->DateEntryRemark ?? '',
                         'VerifyTAmt' => $claim->VerifyTAmt ?? 0,
+                        // DASH-NUM-02: same rule as the month's "Verified" count, so cards and totals agree
+                        'IsVerified' => in_array($claim->ClaimStatus, ['Verified', 'Approved', 'Financed', 'Payment', 'Close'], true)
+                            || ((int) ($claim->VerifyBy ?? 0) > 0 && \App\Support\ZeroDate::has($claim->VerifyDate ?? null)),
                     ];
                 })->values()->toArray();
 
