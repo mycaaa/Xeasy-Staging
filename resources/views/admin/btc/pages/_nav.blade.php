@@ -3,16 +3,18 @@
     $u = auth()->user();
     $can = fn ($p) => $u && ($u->can('btc.admin') || collect(explode('|', $p))->contains(fn ($x) => $u->can($x)));
     $pages = [
-        ['btc.dashboard', 'BTC Dashboard', 'ri-dashboard-3-line', 'btc.dashboard'],
+        ['btc.dashboard', 'BTC Dashboard', 'ri-dashboard-3-line', 'btc.dashboard|btc.audit'],
         ['btc.index', 'My BTC Requests', 'ri-file-list-3-line', null],
         ['btc.team', 'My Team BTC', 'ri-team-line', 'team'],   // BTC-TEAM-01: shown to reporting managers
-        ['btc.register', 'Request Register', 'ri-list-check-2', 'btc.register'],
+        ['btc.register', 'Request Register', 'ri-list-check-2', 'btc.register|btc.audit'],
+        ['btc.exceptions', 'Exception Queue', 'ri-error-warning-line', 'btc.exceptions|btc.audit|btc.finance|btc.checker'],   // BTC-EXC-01
         ['btc.booking', 'Admin Booking Queue', 'ri-hotel-line', 'btc.booking'],
         ['btc.advances', 'Advances', 'ri-hand-coin-line', 'btc.advance|btc.finance'],
         ['btc.invoices', 'Nova Invoice Inbox', 'ri-inbox-archive-line', 'btc.invoices'],
         ['btc.matching', 'Request / Invoice Matching', 'ri-git-merge-line', 'btc.invoices|btc.verifier'],
         ['btc.integration', 'Integration Monitoring', 'ri-pulse-line', 'btc.integration'],
         ['btc.access', 'Roles & Access', 'ri-shield-user-line', 'btc.access'],
+        ['btc.settings', 'BTC Settings', 'ri-settings-3-line', 'btc.configure'],   // BTC-CONF-01
     ];
 @endphp
 <div class="xe-topbar">

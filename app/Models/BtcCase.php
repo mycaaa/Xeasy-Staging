@@ -79,7 +79,7 @@ class BtcCase extends Model
         if (! $this->dept_approved_at) {
             $g[] = 'department head approval not done';
         }
-        if ((float) $this->net_payable > 0 && ! $this->focus_voucher_no && ! $this->focus_exported_at) {
+        if ((float) $this->net_payable > 0 && ! $this->focus_voucher_no && ! ($this->jv_no ?? null) && ! $this->focus_exported_at) {
             $g[] = 'Focus posting not confirmed (no Focus voucher no. / JV export)';
         }
         if (abs(round((float) $this->paid_amount - (float) $this->net_payable, 2)) > 0.009) {
@@ -152,11 +152,11 @@ class BtcCase extends Model
             'advance_paid', 'booked' => $this->route === 'admin_booking' && ! $this->activity_completed_on ? 'Requester (activity / bill)' : 'Requester (final bill)',
             'returned' => 'Requester (correction)',
             'bill_submitted' => 'BTC Verifier / DMS',
-            'dms_processed' => 'Finance Verifier',
+            'dms_processed' => 'Finance Verifier'.($this->assigned_maker_id ? ' ('.(\App\Models\User::whereKey($this->assigned_maker_id)->value('name') ?? 'assigned').')' : ''),
             'finance_verified' => 'Finance Head (checker)',
             'checked' => 'Payment User (send for approval)',
             'with_treasury' => 'Authorised Approver',
-            'dept_approved' => 'Payment User (payment)',
+            'dept_approved' => \App\Services\Btc\BtcWorkflow::pendingPayment($this) ? 'Treasury Checker (authorise payment)' : 'Payment User (payment)',
             'paid' => $this->pendingDocuments() ? 'Documents: '.implode(', ', $this->pendingDocuments()) : 'Finance (closure)',
             default => '-',
         };
@@ -187,6 +187,7 @@ class BtcCase extends Model
             ($this->on_hold ?? false) => 'On hold',
             (float) $this->paid_amount > 0 && $this->payment_status === 'partial' => 'Part paid '.number_format((float) $this->paid_amount).' of '.number_format((float) $this->net_payable),
             (float) $this->paid_amount > 0 => 'Paid '.number_format((float) $this->paid_amount).' · '.$this->utr_number,
+            $this->status === 'dept_approved' && \App\Services\Btc\BtcWorkflow::pendingPayment($this) => 'Entered, to authorise',   // BTC-TRY-01
             in_array($this->status, ['checked', 'with_treasury', 'dept_approved'], true) => 'In payment',
             default => '-',
         };

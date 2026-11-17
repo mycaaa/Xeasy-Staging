@@ -22,6 +22,11 @@ return [
     // BTC-ADV-02 (17 Nov 2026): an advance not settled by a bill within this many days blocks a new advance
     'advance_settle_days' => (int) env('BTC_ADVANCE_SETTLE_DAYS', 30),
 
+    // BTC-TRY-01 (17 Nov 2026): a Treasury checker (another person) authorises each payment entered by the maker
+    'treasury_checker' => (bool) env('BTC_TREASURY_CHECKER', true),
+    // BTC-EXC-01: a bill above the booked / quoted / estimated amount by more than this % is a request mismatch
+    'mismatch_pct' => (int) env('BTC_MISMATCH_PCT', 10),
+
     // BTC-PAY-01 (17 Nov 2026): payment modes on Payment Confirmation
     'payment_modes' => ['neft' => 'NEFT', 'rtgs' => 'RTGS', 'imps' => 'IMPS', 'upi' => 'UPI', 'cheque' => 'Cheque', 'other' => 'Other'],
 
@@ -127,20 +132,25 @@ return [
             'btc.invoices' => 'Nova Invoice Inbox and request / invoice matching',
             'btc.integration' => 'Integration Monitoring (Nova sync, retry)',
             'btc.access' => 'BTC roles, users and access history',
+            'btc.exceptions' => 'Validation & Exception Queue',                                   // BTC-EXC-01
+            'btc.audit' => 'Internal Audit: read every BTC record and report (no changes)',      // BTC-PERM-02
+            'btc.export' => 'Download BTC reports (Excel)',
+            'btc.configure' => 'BTC settings and masters',
         ],
         'Actions' => [
             'btc.verifier' => 'Verify invoice and supporting documents (DMS step)',
             'btc.dms' => 'DMS processing',
             'btc.finance' => 'Finance verification: GST, TDS, ledger and JV',
             'btc.checker' => 'Finance checker / financial approval',
-            'btc.treasury' => 'Treasury: department approval, payment and UTR',
+            'btc.treasury' => 'Treasury maker: send for department approval, enter payment and UTR',
+            'btc.treasury_checker' => 'Treasury checker: authorise payments entered by another person',
             'btc.admin' => 'All BTC cases and every step (full control)',
         ],
     ],
     // The recommended roles (sheet item 2). Employee, Reporting Manager and Authorised Approver also act through the
     // case itself (the requester, the manager on the case, the department approver chosen by Treasury).
     'roles' => [
-        'BTC Super Admin' => ['Complete BTC module control', ['btc.admin', 'btc.access', 'btc.dashboard', 'btc.register', 'btc.booking', 'btc.advance', 'btc.invoices', 'btc.integration', 'btc.verifier', 'btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury']],
+        'BTC Super Admin' => ['Complete BTC module control', ['btc.admin', 'btc.access', 'btc.dashboard', 'btc.register', 'btc.booking', 'btc.advance', 'btc.invoices', 'btc.integration', 'btc.verifier', 'btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.exceptions', 'btc.audit', 'btc.export', 'btc.configure']],
         'BTC DMS Admin' => ['Nova integration, invoice inbox and document management', ['btc.invoices', 'btc.integration', 'btc.dms', 'btc.register', 'btc.dashboard']],
         'BTC Admin' => ['Request management, booking and operational coordination', ['btc.booking', 'btc.register', 'btc.dashboard']],
         'BTC Employee' => ['Create request, upload documents and track own BTC cases', []],
@@ -149,7 +159,9 @@ return [
         'BTC Finance Advance' => ['Advance processing and payment', ['btc.advance', 'btc.register']],
         'BTC Verifier' => ['Invoice and supporting document verification', ['btc.verifier', 'btc.invoices', 'btc.register']],
         'BTC Finance Verifier' => ['Financial, GST, TDS and accounting verification', ['btc.finance', 'btc.register', 'btc.dashboard']],
-        'BTC Payment User' => ['Payment processing and UTR update', ['btc.treasury', 'btc.register']],
+        'BTC Payment User' => ['Treasury maker: payment entry, UTR (a Treasury Checker authorises)', ['btc.treasury', 'btc.register']],
+        'BTC Treasury Checker' => ['Payment authorisation (not own entries)', ['btc.treasury_checker', 'btc.register']],
+        'BTC Internal Audit' => ['Read-only BTC records and reports', ['btc.audit', 'btc.register', 'btc.dashboard', 'btc.export', 'btc.exceptions']],
         'BTC Finance Head' => ['Financial approval and oversight', ['btc.checker', 'btc.dashboard', 'btc.register', 'btc.advance']],
     ],
 

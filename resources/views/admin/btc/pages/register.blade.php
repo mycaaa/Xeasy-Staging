@@ -9,7 +9,7 @@
         <div class="col-md-2"><select name="status" class="form-select form-select-sm" aria-label="Status"><option value="">All stages</option>@foreach (config('btc.statuses') as $k => $l)<option value="{{ $k }}" @selected(request('status') === $k)>{{ $l }}</option>@endforeach</select></div>
         <div class="col-md-2"><select name="route" class="form-select form-select-sm" aria-label="Route"><option value="">All routes</option>@foreach (config('btc.route_choices') as $k => $l)<option value="{{ $k }}" @selected(request('route') === $k)>{{ $l[0] }}</option>@endforeach</select></div>
         <div class="col-md-2"><select name="department_id" class="form-select form-select-sm" aria-label="Department"><option value="">All departments</option>@foreach ($depts as $id => $n)<option value="{{ $id }}" @selected((string) request('department_id') === (string) $id)>{{ $n }}</option>@endforeach</select></div>
-        <div class="col-md-3 d-flex gap-2"><button class="xe-btn xe-btn-blue">Filter</button><a class="xe-btn xe-btn-green" href="{{ route('btc.register.export', request()->query()) }}"><i class="ri-file-excel-2-line"></i>Excel</a></div>
+        <div class="col-md-3 d-flex gap-2"><button class="xe-btn xe-btn-blue">Filter</button>@if (auth()->user()->can('btc.export') || auth()->user()->can('btc.admin'))<a class="xe-btn xe-btn-green" href="{{ route('btc.register.export', request()->query()) }}"><i class="ri-file-excel-2-line"></i>Excel</a>@endif</div>
     </form>
     <section class="xe-section"><div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">

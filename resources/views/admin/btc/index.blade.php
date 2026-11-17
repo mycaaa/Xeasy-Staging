@@ -250,8 +250,11 @@ $(function () {
     // case detail
     const FLOW = ['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'closed'];
     const kv = (l, v) => v ? `<div class="col-md-3"><p class="btc-label">${l}</p><div class="btc-val">${v}</div></div>` : '';
+    // BTC-FIN-02: Dr/Cr lines as a table
+    const journalTable = (lines) => `<table class="table table-sm table-bordered small mb-0"><tr class="table-light"><th>Ledger</th><th>Sub-ledger</th><th class="text-end">Debit ₹</th><th class="text-end">Credit ₹</th><th>TDS</th></tr>${lines.map(l => `<tr><td>${esc(l.ledger)}</td><td>${esc(l.sub)}</td><td class="text-end">${l.dr ? fmt(l.dr) : ''}</td><td class="text-end">${l.cr ? fmt(l.cr) : ''}</td><td>${esc(l.tds)}</td></tr>`).join('')}<tr class="fw-semibold"><td colspan="2">Total</td><td class="text-end">${fmt(lines.reduce((s, l) => s + Number(l.dr || 0), 0))}</td><td class="text-end">${fmt(lines.reduce((s, l) => s + Number(l.cr || 0), 0))}</td><td></td></tr></table>`;
     function actionForm(a, d) {
         const c = d.case, f = [];
+        const dl = (k, l, v, opts) => `<div class="col-md-3"><label class="btc-label">${l}</label><input class="form-control form-control-sm" name="dim_${k}" value="${esc(v || '')}" list="btcDl_${k}"><datalist id="btcDl_${k}">${(opts || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`;
         const inp = (n, l, t = 'text', v = '') => `<div class="col-md-3"><label class="btc-label">${l}</label><input class="form-control form-control-sm" type="${t}" name="${n}" value="${esc(v)}"></div>`;
         const rmk = (req) => `<div class="col-md-6"><label class="btc-label">Remark${req ? ' (required)' : ''}</label><input class="form-control form-control-sm" name="remark"></div>`;
         const file = (k, l) => `<div class="col-md-4"><label class="btc-label">${l}</label><input type="hidden" name="file_kinds[]" value="${k}"><input type="file" class="form-control form-control-sm" name="files[]" accept=".pdf,.jpg,.jpeg,.png"></div>`;
@@ -285,6 +288,12 @@ $(function () {
                     // BTC-DUP-02 / TDS-02 / GST-01 (17 Nov 2026)
                     (d.claim_overlaps || []).length ? `<div class="col-12 text-danger small">Also in the employee's own expense claim: ${d.claim_overlaps.map(o => esc(o.type + ' ' + o.date + ' ₹' + fmt(o.amount) + ' (' + o.status + ', ExpId ' + o.exp_id + ')')).join('; ')} <label class="ms-2"><input type="checkbox" name="claim_overlap_override" value="1"> not the same expense</label></div>` : '',
                     d.vendor_year ? `<div class="col-12 small text-muted">This vendor in FY ${esc(d.vendor_year.fy)} (other bills): ₹${fmt(d.vendor_year.total)} in ${d.vendor_year.count} bill(s). <label class="ms-2"><input type="checkbox" name="tds_threshold_override" value="1"> TDS not applicable (give remark)</label></div>` : '',
+                    // BTC-FIN-02 (17 Nov 2026): accounting dimensions, narration, JV numbers and a Dr/Cr preview
+                    ...(d.dims ? [dl('function', 'Function', c.dim_function || d.dims.defaults.function, d.dims.options.function), dl('vertical', 'Vertical', c.dim_vertical || d.dims.defaults.vertical, d.dims.options.vertical),
+                        dl('region', 'Region', c.dim_region || d.dims.defaults.region, d.dims.options.region), dl('crop', 'Crop', c.dim_crop, d.dims.options.crop),
+                        inp('dim_activity', 'Activity', 'text', c.dim_activity), inp('jv_no', 'JV no.', 'text', c.jv_no), inp('tds_jv_no', 'TDS JV no.', 'text', c.tds_jv_no),
+                        `<div class="col-md-9"><label class="btc-label">Narration</label><input class="form-control form-control-sm" name="narration" maxlength="500" value="${esc(c.narration || '')}" placeholder="${esc(c.case_no + ' ' + (c.vendor_name || '') + ' bill ' + (c.bill_no || '') + ' for ' + c.emp_code + ' ' + c.emp_name)}"></div>`,
+                        `<div class="col-12"><button type="button" class="btn btn-sm btn-outline-secondary" id="btcPreview"><i class="ri-eye-line"></i> Preview accounting (Dr / Cr)</button><div id="btcPreviewOut" class="mt-2"></div></div>`] : []),
                     d.gstin_ok === false ? `<div class="col-12 text-danger small">Vendor GSTIN ${esc(c.vendor_gstin)} is not a valid GSTIN (format / check digit) - check before claiming GST input.</div>` : '',
                     rmk(false));
                 break;
@@ -302,7 +311,9 @@ $(function () {
             }
             case 'payment_failed': f.push(`<div class="col-md-6"><label class="btc-label">Payment that failed / came back</label><select class="form-select form-select-sm" name="payment_id">${(d.payments || []).filter(p => p.status === 'success').map(p => `<option value="${p.id}">₹${fmt(p.amount)} · ${esc(p.on || '')} · ${esc(p.mode || '')} · UTR ${esc(p.utr || '')}</option>`).join('')}</select></div>`, rmk(true)); break;
             case 'waive_document': f.push(`<div class="col-md-6"><label class="btc-label">Waive (cannot be obtained)</label><div>${d.pending.map(p => { const k = p.startsWith('original') ? 'original' : 'boarding_pass'; return `<label class="me-3"><input type="checkbox" name="waive[]" value="${k}"> ${esc(p)}</label>`; }).join('')}</div></div>`, rmk(true)); break;
-            case 'hold': case 'release_hold': case 'dept_reject': f.push(rmk(true)); break;
+            case 'hold': case 'release_hold': case 'dept_reject': case 'reject_payment_entry': f.push(rmk(true)); break;
+            case 'authorise_payment': { const p = d.pending_payment || {}; f.push(`<div class="col-12 small">Authorise ₹${fmt(p.amount)} · ${esc((p.mode || '').toUpperCase())} · UTR ${esc(p.utr_number || '')} · paid on ${esc((p.paid_on || '').substring(0, 10))}${p.bank_ref ? ' · bank ref ' + esc(p.bank_ref) : ''}</div>`, rmk(false)); break; }
+            case 'assign_maker': f.push(`<div class="col-md-5"><label class="btc-label">Finance maker</label><select class="form-select form-select-sm" name="assigned_maker_id"><option value="">Choose</option>${(d.finance_users || []).map(u => `<option value="${u.id}" ${String(u.id) === String(c.assigned_maker_id) ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></div>`, rmk(false)); break;
             case 'dept_return': f.push(`<div class="col-md-3"><label class="btc-label">Return to</label><select class="form-select form-select-sm" name="return_to"><option value="finance_verified">Finance (re-verify)</option><option value="dms_processed">DMS</option><option value="bill_submitted">Requester / Admin (bill)</option></select></div>`, rmk(true)); break;
             case 'close': f.push(rmk(false)); break;
             case 'return': f.push(`<div class="col-md-3"><label class="btc-label">Return to</label><select class="form-select form-select-sm" name="return_to"><option value="bill_submitted">Employee / Admin (bill)</option><option value="dms_processed">DMS</option><option value="finance_verified">Finance</option></select></div>`, rmk(true)); break;
@@ -310,7 +321,7 @@ $(function () {
         }
         return f.join('');
     }
-    const LABEL = {confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Submit bill', dms_process: 'DMS processed', finance_verify: 'Verify & prepare JV', check: 'Checked', send_dept_approval: 'Send for department approval', dept_approve: 'Approve payment', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', waive_document: 'Waive document', hold: 'Put on financial hold', release_hold: 'Release hold', dept_return: 'Return', dept_reject: 'Reject', return: 'Return for correction', receive_document: 'Document received', cancel: 'Cancel case'};
+    const LABEL = {confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Submit bill', dms_process: 'DMS processed', finance_verify: 'Verify & prepare JV', check: 'Checked', send_dept_approval: 'Send for department approval', dept_approve: 'Approve payment', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', authorise_payment: 'Authorise payment', reject_payment_entry: 'Reject payment entry', assign_maker: 'Assign Finance maker', waive_document: 'Waive document', hold: 'Put on financial hold', release_hold: 'Release hold', dept_return: 'Return', dept_reject: 'Reject', return: 'Return for correction', receive_document: 'Document received', cancel: 'Cancel case'};
 
     function openCase(id) {
         $.get('{{ url('btc/case') }}/' + id, function (d) {
@@ -319,7 +330,7 @@ $(function () {
             const flow = FLOW.map((s, i) => `<span class="btc-step ${i < at ? 'done' : (i === at ? 'now' : '')}">${STATUS[s]}</span>`).join(' › ');
             const files = d.files.map(f => `<a class="me-3" target="_blank" href="${f.url}"><i class="ri-file-line"></i> ${esc(f.kind.replace('_', ' '))}: ${esc(f.name)}</a>`).join('') || '<span class="text-muted">none</span>';
             const logs = d.logs.map(l => `<div class="btc-log"><b>${esc(l.at)}</b> ${esc(l.by)} · ${esc(l.action.replace(/_/g, ' '))} → ${esc(l.to)}${l.remark ? '<br>' + esc(l.remark) : ''}</div>`).join('');
-            const acts = d.actions.map(a => `<button class="btn btn-sm ${['return', 'manager_reject', 'cancel', 'dept_return', 'dept_reject', 'payment_failed', 'hold'].includes(a) ? 'btn-outline-danger' : 'btn-outline-primary'} me-1 mb-1" data-act="${a}">${LABEL[a] || a}</button>`).join('');
+            const acts = d.actions.map(a => `<button class="btn btn-sm ${['return', 'manager_reject', 'cancel', 'dept_return', 'dept_reject', 'payment_failed', 'hold', 'reject_payment_entry'].includes(a) ? 'btn-outline-danger' : 'btn-outline-primary'} me-1 mb-1" data-act="${a}">${LABEL[a] || a}</button>`).join('');
             $('#btcCaseBody').html(`<div class="mb-2">${flow}</div>
                 <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
                 ${kv('Purpose', esc(c.purpose))}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
@@ -330,6 +341,10 @@ $(function () {
                 ${Number(d.advance.requested) > 0 ? `<div class="mb-2"><p class="btc-label">Advance</p><table class="table table-sm table-bordered small mb-0"><tr class="table-light"><th>Requested</th><th>Approved</th><th>Actually paid</th><th>TDS on advance</th><th>Outstanding</th><th>Adjusted against invoice</th><th>Refund received</th><th>Balance outstanding</th></tr>
                     <tr><td>${fmt(d.advance.requested)}</td><td>${d.advance.approved === null ? '-' : fmt(d.advance.approved)}</td><td>${fmt(d.advance.paid)}${c.advance_payment_ref ? '<div class="text-muted">' + esc(c.advance_payment_ref) + '</div>' : ''}</td><td>${fmt(d.advance.tds)}</td><td>${fmt(d.advance.outstanding)}</td><td>${fmt(d.advance.adjusted)}</td><td>${fmt(d.advance.refund)}</td><td class="fw-semibold">${fmt(d.advance.balance)}</td></tr></table></div>` : ''}
                 ${(d.invoices || []).length ? '<div class="mb-2"><p class="btc-label">Nova invoices</p>' + d.invoices.map(i => `<span class="me-3">${esc(i.nova_document_id || '')} · ${esc(i.invoice_no || '')} · ₹${fmt(i.gross_amount)} ${i.document_url ? '<a target="_blank" rel="noopener" href="' + esc(i.document_url) + '">document</a>' : ''}</span>`).join('') + '</div>' : ''}
+                ${(d.exceptions || []).length ? `<div class="alert alert-warning py-1 px-2 small mb-2"><b>Exceptions:</b><ul class="mb-0">${d.exceptions.map(e => '<li><b>' + esc(e.label) + ':</b> ' + esc(e.detail) + '</li>').join('')}</ul><a href="{{ route('btc.exceptions') }}">Exception Queue</a></div>` : ''}
+                ${d.pending_payment ? `<div class="alert alert-info py-1 px-2 small mb-2"><b>Payment entered, waiting for the Treasury checker:</b> ₹${fmt(d.pending_payment.amount)} · ${esc((d.pending_payment.mode || '').toUpperCase())} · UTR ${esc(d.pending_payment.utr_number || '')}</div>` : ''}
+                ${d.maker ? `<div class="small text-muted mb-1">Finance maker: ${esc(d.maker)}</div>` : ''}
+                ${(d.journal || []).length ? `<div class="mb-2"><p class="btc-label">Accounting (Focus JV${c.jv_no ? ' ' + esc(c.jv_no) : ''})</p>${journalTable(d.journal)}${[c.dim_function, c.dim_vertical, c.dim_region, c.dim_activity, c.dim_crop].filter(Boolean).length ? '<div class="small text-muted">' + esc([c.dim_function, c.dim_vertical, c.dim_region, c.dim_activity, c.dim_crop].filter(Boolean).join(' · ')) + '</div>' : ''}</div>` : ''}
                 ${c.on_hold ? `<div class="alert alert-danger py-1 px-2 small mb-2"><b>Financial hold:</b> ${esc(c.hold_reason || '')} - payment, approval and closure are blocked until released.</div>` : ''}
                 ${(d.claim_overlaps || []).length ? `<div class="alert alert-warning py-1 px-2 small mb-2"><b>Also claimed by the employee:</b> ${d.claim_overlaps.map(o => esc(o.type + ' ' + o.date + ' ₹' + fmt(o.amount) + ' (' + o.status + ')')).join('; ')}</div>` : ''}
                 ${(d.overdue_advances || []).length ? `<div class="alert alert-warning py-1 px-2 small mb-2"><b>Unsettled earlier advance(s):</b> ${d.overdue_advances.map(esc).join(', ')}</div>` : ''}
@@ -343,6 +358,11 @@ $(function () {
             $('#btcCaseBody [data-act]').on('click', function () {
                 const a = $(this).data('act');
                 $('#btcActForm').html(actionForm(a, d) + `<div class="col-12"><input type="hidden" name="action" value="${a}"><button type="button" class="btn btn-sm btn-primary" id="btcDo">${LABEL[a]}</button></div>`).show();
+                $('#btcPreview').on('click', function () {   // BTC-FIN-02: nothing is saved
+                    $.ajax({url: '{{ url('btc/case') }}/' + c.id + '/preview', method: 'POST', data: new FormData($('#btcActForm')[0]), processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
+                        .done(r => $('#btcPreviewOut').html(journalTable(r.lines) + `<div class="small mt-1">TDS ₹${fmt(r.tds)} (${esc(r.section)}) · Net payable ₹${fmt(r.net)}</div>`))
+                        .fail(x => $('#btcPreviewOut').html('<div class="text-danger small">' + esc((x.responseJSON && x.responseJSON.message) || 'Preview failed') + '</div>'));
+                });
                 if (a === 'send_dept_approval') $('#btcApprover').select2({dropdownParent: $('#btcCaseModal'), ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: r => ({results: r})}});
                 $('#btcDo').on('click', function () {
                     if (!checkAmounts($('#btcActForm'))) return;   // BTC-AMT-01

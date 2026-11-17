@@ -1182,6 +1182,13 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/register/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'registerExport'])->name('register.export');
     // BTC-TEAM-01 (17 Nov 2026): a reporting manager's view of the team's BTC requests (checked in the controller)
     Route::get('/team', [\App\Http\Controllers\admin\BtcPagesController::class, 'team'])->name('team');
+    // BTC-EXC-01 / CONF-01 / FIN-02 (17 Nov 2026)
+    Route::get('/exceptions', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptions'])->name('exceptions');
+    Route::get('/exceptions/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionsExport'])->name('exceptions.export');
+    Route::post('/exceptions/review', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionReview'])->name('exceptions.review');
+    Route::get('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settings'])->name('settings');
+    Route::post('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settingsSave'])->name('settings.save');
+    Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
     Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
     Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');

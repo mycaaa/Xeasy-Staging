@@ -99,4 +99,65 @@ class BtcLedger
         return ['fy' => $fyStart->format('Y').'-'.$fyStart->copy()->addYear()->format('y'), 'count' => $rows->count(),
             'total' => round($rows->sum(fn ($r) => (float) ($r->taxable_amount ?: $r->bill_amount)), 2)];
     }
+
+    /**
+     * BTC-FIN-02 (17 Nov 2026, requirement item 11): the Dr/Cr lines of a case for Focus (same as the JV export), with
+     * the accounting dimensions. Used for the on-screen preview before posting and by the Focus export.
+     * Each line: [ledger, sub_ledger, debit, credit, tds_section, cost_centre].
+     */
+    public static function journal(\App\Models\BtcCase $c): array
+    {
+        $f = config('btc.focus');
+        $L = [];
+        $line = function ($ledger, $sub, $dr, $cr) use (&$L, $c) {
+            $L[] = ['ledger' => (string) $ledger, 'sub' => (string) $sub, 'dr' => round((float) $dr, 2), 'cr' => round((float) $cr, 2),
+                'tds' => $c->tds_section && $c->tds_section !== 'none' ? $c->tds_section : '', 'cost_centre' => (string) $c->cost_centre];
+        };
+        $emp = self::employeeLedger($c->emp_code, $c->emp_name);
+        $bill = (float) $c->bill_amount;
+        // 1. bill through Employee-BTC to the vendor (TDS kept back)
+        $line($emp, $c->emp_code.' '.$c->emp_name, $bill, 0);
+        $line($c->vendor_name ?: 'Vendor', $c->vendor_gstin, 0, $bill - (float) $c->tds_amount);
+        if ((float) $c->tds_amount > 0) {
+            $line($f['tds_ledger'], $c->tds_section, 0, (float) $c->tds_amount);
+        }
+        // 2. expense against Employee-BTC (GST input separately)
+        $line($c->expense_ledger ?: config("btc.focus.expense_ledgers.{$c->category}"), $c->department_name, $bill - (float) $c->gst_amount, 0);
+        if ((float) $c->gst_amount > 0) {
+            $line($f['gst_input_ledger'], $c->vendor_gstin, (float) $c->gst_amount, 0);
+        }
+        $line($emp, $c->emp_code.' '.$c->emp_name, 0, $bill);
+        // 3. advance already paid set off against the vendor
+        if ((float) $c->advance_adjusted > 0) {
+            $line($c->vendor_name ?: 'Vendor', $c->vendor_gstin, (float) $c->advance_adjusted, 0);
+            $line($f['vendor_advance_ledger'], $c->emp_code, 0, (float) $c->advance_adjusted);
+        }
+
+        return $L;
+    }
+
+    /** Dimension lists for the Finance form (HR masters) and the requester's own values as defaults. */
+    public static function dimensions(\App\Models\BtcCase $c): array
+    {
+        $h = \Illuminate\Support\Facades\DB::connection('hrims');
+        $opt = function ($table, $col) use ($h) {
+            try {
+                return $h->table($table)->when(\Illuminate\Support\Facades\Schema::connection('hrims')->hasColumn($table, 'is_active'), fn ($q) => $q->where('is_active', '1'))->orderBy($col)->pluck($col)->filter()->unique()->values()->all();
+            } catch (\Throwable $e) {
+                return [];
+            }
+        };
+        $g = null;
+        try {
+            $g = $h->table('hrm_employee_general as g')->leftJoin('core_functions as f', 'f.id', '=', 'g.EmpFunction')->leftJoin('core_verticals as v', 'v.id', '=', 'g.EmpVertical')
+                ->leftJoin('core_regions as r', 'r.id', '=', 'g.RegionId')->where('g.EmployeeID', $c->employee_id)->first(['f.function_name', 'v.vertical_name', 'r.region_name', 'g.CostCenter']);
+        } catch (\Throwable $e) {
+        }
+
+        return [
+            'options' => ['function' => $opt('core_functions', 'function_name'), 'vertical' => $opt('core_verticals', 'vertical_name'),
+                'region' => $opt('core_regions', 'region_name'), 'crop' => $opt('core_crops', 'crop_name')],
+            'defaults' => ['function' => $g->function_name ?? null, 'vertical' => $g->vertical_name ?? null, 'region' => $g->region_name ?? null],
+        ];
+    }
 }

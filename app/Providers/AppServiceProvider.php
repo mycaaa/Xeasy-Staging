@@ -27,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
     {
         // REM-SET-01: saved reminder settings over the config defaults
         \App\Support\ReminderSettings::load();
+        // BTC-CONF-01: saved BTC settings over the config defaults
+        \App\Support\BtcSettings::load();
 
         // G-08: company addresses only, when MAIL_ALLOWED_DOMAINS is set
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Mail\Events\MessageSending::class, function ($event) {

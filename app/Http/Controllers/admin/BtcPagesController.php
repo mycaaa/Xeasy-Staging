@@ -42,7 +42,7 @@ class BtcPagesController extends Controller
     // ---- 1. Dashboard ------------------------------------------------------------------------------------------
     public function dashboard()
     {
-        $this->need('btc.dashboard');
+        $this->need('btc.dashboard|btc.audit');
         if (! $this->ready()) {
             return $this->notReady();
         }
@@ -97,7 +97,7 @@ class BtcPagesController extends Controller
     // ---- 4. Request register -----------------------------------------------------------------------------------
     public function register(Request $request)
     {
-        $this->need('btc.register');
+        $this->need('btc.register|btc.audit');
         if (! $this->ready()) {
             return $this->notReady();
         }
@@ -119,7 +119,8 @@ class BtcPagesController extends Controller
 
     public function registerExport(Request $request)
     {
-        $this->need('btc.register');
+        $this->need('btc.register|btc.audit');
+        $this->need('btc.export');   // BTC-PERM-02 (17 Nov 2026): downloading is its own permission
 
         return $this->registerDownload($this->cases(), 'btc_request_register_');
     }
@@ -151,6 +152,97 @@ class BtcPagesController extends Controller
                 return $this->head;
             }
         }, $prefix.now()->format('Ymd_His').'.xlsx');
+    }
+
+    // ---- BTC-EXC-01 (17 Nov 2026): Validation & Exception Queue (requirement item 12) ---------------------------------
+    private function exceptionRows(Request $request)
+    {
+        $rows = \App\Services\Btc\BtcExceptions::queue($this->cases());
+        if ($t = $request->input('type')) {
+            $rows = $rows->where('type', $t);
+        }
+        if ($request->input('show', 'open') === 'open') {
+            $rows = $rows->filter(fn ($r) => ! $r['review']);
+        }
+
+        return $rows->values();
+    }
+
+    public function exceptions(Request $request)
+    {
+        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker');
+        if (! $this->ready()) {
+            return $this->notReady();
+        }
+        $all = \App\Services\Btc\BtcExceptions::queue($this->cases());
+        $counts = collect(\App\Services\Btc\BtcExceptions::TYPES)->map(fn ($l, $k) => ['label' => $l,
+            'open' => $all->where('type', $k)->filter(fn ($r) => ! $r['review'])->count(), 'reviewed' => $all->where('type', $k)->filter(fn ($r) => (bool) $r['review'])->count()]);
+        $u = auth()->user();
+
+        return view('admin.btc.pages.exceptions', ['rows' => $this->exceptionRows($request), 'counts' => $counts,
+            'canReview' => $u->can('btc.admin') || $u->can('btc.finance') || $u->can('btc.checker'), 'canExport' => $u->can('btc.admin') || $u->can('btc.export')]);
+    }
+
+    public function exceptionsExport(Request $request)
+    {
+        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker');
+        $this->need('btc.export');
+        $rows = $this->exceptionRows($request)->map(fn ($r) => [$r['case']->case_no, $r['case']->emp_code.' - '.$r['case']->emp_name, $r['case']->vendor_name,
+            $r['case']->statusLabel(), $r['label'], $r['detail'], $r['review'] ? 'Reviewed: '.$r['review']->remark.' ('.$r['review']->reviewer_name.', '.substr((string) $r['review']->created_at, 0, 10).')' : 'Open'])->all();
+        $export = new class($rows) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings
+        {
+            public function __construct(private array $rows) {}
+
+            public function array(): array
+            {
+                return $this->rows;
+            }
+
+            public function headings(): array
+            {
+                return ['Request ID', 'Employee', 'Vendor', 'Stage', 'Exception', 'Detail', 'Review'];
+            }
+        };
+
+        return \Maatwebsite\Excel\Facades\Excel::download($export, 'btc_exceptions_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    public function exceptionReview(Request $request)
+    {
+        $u = auth()->user();
+        abort_unless($u->can('btc.admin') || $u->can('btc.finance') || $u->can('btc.checker'), 403);
+        $v = $request->validate(['case_id' => 'required|integer', 'type' => 'required|in:'.implode(',', array_keys(\App\Services\Btc\BtcExceptions::TYPES)),
+            'remark' => 'required|string|min:5|max:500']);
+        $c = $this->cases()->findOrFail($v['case_id']);
+        DB::table('btc_exception_reviews')->updateOrInsert(['btc_case_id' => $c->id, 'type' => $v['type']],
+            ['remark' => $v['remark'], 'reviewed_by' => $u->id, 'reviewer_name' => $u->name, 'created_at' => now()]);
+        \App\Models\BtcCaseLog::create(['btc_case_id' => $c->id, 'action' => 'exception_reviewed', 'from_status' => $c->status, 'to_status' => $c->status,
+            'remark' => \App\Services\Btc\BtcExceptions::TYPES[$v['type']].': '.$v['remark'], 'user_id' => $u->id, 'user_name' => $u->name]);
+
+        return back()->with('success', $c->case_no.': exception marked reviewed.');
+    }
+
+    // ---- BTC-CONF-01 (17 Nov 2026): BTC Settings (requirement items 4/5 "Configure") -----------------------------------
+    public function settings()
+    {
+        $this->need('btc.configure');
+        $fields = \App\Support\BtcSettings::fields();
+        $values = collect($fields)->map(fn ($f, $k) => config('btc.'.$k));
+        $logs = \Illuminate\Support\Facades\Schema::hasTable('btc_setting_logs') ? DB::table('btc_setting_logs')->orderByDesc('id')->limit(50)->get() : collect();
+
+        return view('admin.btc.pages.settings', ['fields' => $fields, 'values' => $values, 'logs' => $logs,
+            'natures' => collect(config('btc.tds_natures'))->map(fn ($n) => $n['label'])]);
+    }
+
+    public function settingsSave(Request $request)
+    {
+        $this->need('btc.configure');
+        if (! \Illuminate\Support\Facades\Schema::hasTable('btc_settings')) {
+            return back()->with('error', 'Run the database change first (BTC controls).');
+        }
+        $changed = \App\Support\BtcSettings::save($request->all(), auth()->user());
+
+        return back()->with('success', $changed ? 'Saved: '.implode(', ', $changed) : 'Nothing changed.');
     }
 
     // ---- BTC-TEAM-01 (17 Nov 2026): My Team BTC -------------------------------------------------------------------

@@ -50,6 +50,11 @@ class BtcWorkflow
         'pay' => [['dept_approved'], 'btc.treasury', 'paid'],
         // BTC-PAY-01 (17 Nov 2026): a failed / returned payment is reversed with its reason (back to payment-ready)
         'payment_failed' => [['dept_approved', 'paid'], 'btc.treasury', 'dept_approved'],
+        // BTC-TRY-01 (17 Nov 2026): Treasury maker enters, Treasury checker (another person) authorises or rejects
+        'authorise_payment' => [['dept_approved'], 'btc.treasury_checker', null],
+        'reject_payment_entry' => [['dept_approved'], 'btc.treasury_checker', null],
+        // BTC-FIN-02: the Finance head assigns the case to a named Finance maker
+        'assign_maker' => [['bill_submitted', 'dms_processed', 'returned'], 'btc.checker', null],
         'close' => [['paid'], 'btc.finance', 'closed'],
         // BTC-CLOSE-01: documents formally waived by an authorised person; a financial hold blocks payment and closure
         'waive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.checker|btc.admin', null],
@@ -80,6 +85,9 @@ class BtcWorkflow
         $out = [];
         foreach (self::ACTIONS as $action => [$from, $perm]) {
             if (in_array($c->status, $from, true) && self::may($c, $user, $perm, $action) && self::fits($c, $action)) {
+                if ($action === 'authorise_payment' && (int) (self::pendingPayment($c)->created_by ?? 0) === (int) ($user->id ?? 0)) {
+                    continue;   // BTC-TRY-01: not your own entry
+                }
                 $out[] = $action;
             }
         }
@@ -95,11 +103,38 @@ class BtcWorkflow
         return match ($action) {
             'hold' => ! $held,
             'release_hold' => $held,
-            'pay', 'close', 'dept_approve', 'send_dept_approval', 'check' => ! $held,
+            'pay' => ! $held && self::pendingPayment($c) === null,
+            'close', 'dept_approve', 'send_dept_approval', 'check' => ! $held,
             'payment_failed' => (float) $c->paid_amount > 0,
+            'authorise_payment', 'reject_payment_entry' => ! $held && self::pendingPayment($c) !== null,
             'waive_document' => (bool) $c->pendingDocuments(),
             default => true,
         };
+    }
+
+    /** BTC-TRY-01: a payment entered by the Treasury maker and not yet authorised. */
+    public static function pendingPayment(BtcCase $c): ?object
+    {
+        try {
+            return DB::table('btc_payments')->where('btc_case_id', $c->id)->where('status', 'pending')->orderByDesc('id')->first();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /** BTC-TRY-01: apply a payment (amount / mode / UTR) to the case; returns the new status. */
+    private function applyPayment(BtcCase $c, object|array $p): string
+    {
+        $p = (object) $p;
+        $c->paid_amount = round((float) $c->paid_amount + (float) $p->amount, 2);
+        $c->paid_on = $p->paid_on;
+        $c->utr_number = $p->utr_number;
+        $c->payment_mode = $p->mode;
+        $c->payment_bank_ref = $p->bank_ref;
+        $full = $c->paid_amount >= round((float) $c->net_payable, 2) - 0.009;
+        $c->payment_status = $full ? 'full' : 'partial';
+
+        return $full ? 'paid' : 'dept_approved';
     }
 
     public static function may(BtcCase $c, $user, ?string $perm, string $action): bool
@@ -360,22 +395,59 @@ class BtcWorkflow
                 if (strlen($utr) < 6) {
                     throw new RuntimeException($mode === 'cheque' ? 'Enter the cheque number.' : 'Enter the UTR of the payment.');
                 }
-                if ($dupe = DB::table('btc_payments')->where('utr_number', $utr)->where('status', 'success')->where('btc_case_id', '!=', $c->id)->value('btc_case_id')) {
+                if ($dupe = DB::table('btc_payments')->where('utr_number', $utr)->whereIn('status', ['success', 'pending'])->where('btc_case_id', '!=', $c->id)->value('btc_case_id')) {
                     throw new RuntimeException('UTR '.$utr.' is already used on '.BtcCase::whereKey($dupe)->value('case_no').'.');
                 }
                 $paidOn = $d['paid_on'] ?? $now->toDateString();
                 $bankRef = trim((string) ($d['payment_bank_ref'] ?? '')) ?: null;
-                $c->paid_amount = round($already + $amt, 2);
-                $c->paid_on = $paidOn;
-                $c->utr_number = $utr;
-                $c->payment_mode = $mode;
-                $c->payment_bank_ref = $bankRef;
-                $full = $c->paid_amount >= round((float) $c->net_payable, 2) - 0.009;
-                $c->payment_status = $full ? 'full' : 'partial';
-                $to = $full ? 'paid' : 'dept_approved';
-                $remark = trim(($full ? 'Paid in full' : 'Part payment').' Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.($remark ? ' - '.$remark : ''));
                 $payRow = ['btc_case_id' => $c->id, 'amount' => $amt, 'paid_on' => $paidOn, 'mode' => $mode, 'utr_number' => $utr, 'bank_ref' => $bankRef,
                     'status' => 'success', 'created_by' => $user->id ?? null, 'created_at' => $now, 'updated_at' => $now];
+                if (config('btc.treasury_checker', true)) {
+                    // BTC-TRY-01: entered by the maker, applied when a Treasury checker (another person) authorises it
+                    $payRow['status'] = 'pending';
+                    $to = $old;
+                    $remark = trim('Payment entered Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.', waiting for Treasury checker'.($remark ? ' - '.$remark : ''));
+                } else {
+                    $to = $this->applyPayment($c, $payRow);
+                    $payRow['authorised_by'] = $user->id ?? null;
+                    $payRow['authorised_at'] = $now;
+                    $remark = trim(($to === 'paid' ? 'Paid in full' : 'Part payment').' Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.($remark ? ' - '.$remark : ''));
+                }
+                break;
+            case 'authorise_payment':
+            case 'reject_payment_entry':
+                $p = self::pendingPayment($c);
+                if (! $p) {
+                    throw new RuntimeException('No payment entry is waiting for authorisation.');
+                }
+                if ((int) $p->created_by === (int) ($user->id ?? 0)) {
+                    throw new RuntimeException('The payment was entered by you; another Treasury checker must authorise it.');
+                }
+                if ($action === 'reject_payment_entry') {
+                    if ($remark === '') {
+                        throw new RuntimeException('Give the reason for rejecting the payment entry.');
+                    }
+                    $failRow = [$p->id, ['status' => 'rejected', 'failed_reason' => mb_substr($remark, 0, 300), 'failed_by' => $user->id ?? null, 'failed_at' => $now, 'updated_at' => $now]];
+                    $remark = 'Payment entry rejected (Rs '.number_format((float) $p->amount, 2).' UTR '.$p->utr_number.'): '.$remark;
+                    $to = $old;
+                    break;
+                }
+                if ((float) $p->amount > round((float) $c->net_payable - (float) $c->paid_amount, 2) + 0.009) {
+                    throw new RuntimeException('The entry is more than the amount still due; reject it and enter again.');
+                }
+                $to = $this->applyPayment($c, $p);
+                $failRow = [$p->id, ['status' => 'success', 'authorised_by' => $user->id ?? null, 'authorised_at' => $now, 'updated_at' => $now]];
+                $remark = trim(($to === 'paid' ? 'Payment authorised, paid in full' : 'Part payment authorised').' Rs '.number_format((float) $p->amount, 2).' UTR '.$p->utr_number.($remark ? ' - '.$remark : ''));
+                break;
+            case 'assign_maker':
+                $m = (int) ($d['assigned_maker_id'] ?? 0);
+                $mu = $m ? \App\Models\User::find($m) : null;
+                if (! $mu || ! ($mu->can('btc.finance') || $mu->can('btc.admin'))) {
+                    throw new RuntimeException('Choose a Finance maker (a user with Finance verification access).');
+                }
+                $c->assigned_maker_id = $m;
+                $remark = 'Assigned to '.$mu->name.($remark ? ' - '.$remark : '');
+                $to = $old;
                 break;
             case 'payment_failed':
                 if ($remark === '') {
@@ -590,14 +662,30 @@ class BtcWorkflow
             ->get(['id', 'case_no', 'bill_no', 'bill_date', 'bill_amount', 'status']);
     }
 
+    /** BTC-FIN-02: the accounting the Finance form would produce, without saving (Dr/Cr preview). */
+    public function preview(BtcCase $c, array $d, $user): array
+    {
+        $copy = $c->replicate();
+        $copy->id = $c->id;
+        $copy->exists = false;
+        $this->financeVerify($copy, $d + ['duplicate_checked' => 1, 'duplicate_override' => 1, 'claim_overlap_override' => 1, 'tds_threshold_override' => 1, '__preview' => 1], $user);
+
+        return ['lines' => BtcLedger::journal($copy), 'tds' => (float) $copy->tds_amount, 'net' => (float) $copy->net_payable, 'section' => $copy->tds_section];
+    }
+
     private function financeVerify(BtcCase $c, array $d, $user): void
     {
+        $preview = ! empty($d['__preview']);
         $rules = config("btc.categories.{$c->category}", []);
-        if ($c->boarding_pass_required && ! $c->boarding_pass_received_on) {
+        if (! $preview && $c->boarding_pass_required && ! $c->boarding_pass_received_on) {
             throw new RuntimeException('Air travel: the expense is booked only after the boarding pass / proof of travel is received.');
         }
-        if (empty($rules['scan_ok']) && ! $c->original_received_on) {
+        if (! $preview && empty($rules['scan_ok']) && ! $c->original_received_on) {
             throw new RuntimeException('This category needs the original bill before verification.');
+        }
+        // BTC-FIN-02: a case assigned to a named maker is verified by that maker (or the BTC admin / Finance head)
+        if (! $preview && $c->assigned_maker_id && (int) $c->assigned_maker_id !== (int) ($user->id ?? 0) && ! $user->can('btc.admin') && ! $user->can('btc.checker')) {
+            throw new RuntimeException('This case is assigned to another Finance maker.');
         }
         if (empty($d['duplicate_checked'])) {
             throw new RuntimeException('Confirm the duplicate-bill check in Focus.');
@@ -648,6 +736,12 @@ class BtcWorkflow
         $c->tds_amount = $tds;
         $c->advance_adjusted = $adv;
         $c->net_payable = $net;
+        // BTC-FIN-02 (17 Nov 2026): accounting dimensions, narration, JV numbers
+        foreach (['dim_function', 'dim_vertical', 'dim_region', 'dim_activity', 'dim_crop', 'narration', 'jv_no', 'tds_jv_no'] as $k) {
+            if (array_key_exists($k, $d) && \Illuminate\Support\Facades\Schema::hasColumn($c->getTable(), $k)) {
+                $c->{$k} = trim((string) $d[$k]) ?: null;
+            }
+        }
         $c->duplicate_checked = true;
         $c->finance_by = $user->id;
         $c->finance_at = now();

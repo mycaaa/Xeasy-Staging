@@ -27,8 +27,9 @@ class BtcController extends Controller
             // payment-ready (HOD-approved, not on hold) cases
             'treasury' => ['Treasury: send for HOD approval', ['checked'], 'btc.treasury'],
             'payments' => ['Payment-ready', ['dept_approved'], 'btc.treasury'],
+            'authorise' => ['Payments to authorise', ['dept_approved'], 'btc.treasury_checker'],   // BTC-TRY-01
             'documents' => ['Pending originals / boarding passes', null, 'btc.finance'],
-            'all' => ['All cases', null, 'btc.admin|btc.register'],
+            'all' => ['All cases', null, 'btc.admin|btc.register|btc.audit'],
         ];
     }
 
@@ -108,7 +109,13 @@ class BtcController extends Controller
                 ->where(fn ($a) => $a->where('original_required', 1)->whereNull('original_received_on')->whereNotNull('bill_submitted_at'))
                 ->orWhere(fn ($a) => $a->where('boarding_pass_required', 1)->whereNull('boarding_pass_received_on')));
         } elseif ($tab === 'payments') {
-            $q->where('status', 'dept_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0));
+            $q->where('status', 'dept_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))
+                ->whereNotExists(fn ($p) => $p->from('btc_payments')->whereColumn('btc_payments.btc_case_id', 'btc_cases.id')->where('btc_payments.status', 'pending'));
+        } elseif ($tab === 'authorise') {
+            $q->where('status', 'dept_approved')->whereExists(fn ($p) => $p->from('btc_payments')->whereColumn('btc_payments.btc_case_id', 'btc_cases.id')->where('btc_payments.status', 'pending'));
+        } elseif ($tab === 'finance' && ! $this->canAny($user, 'btc.checker') && \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'assigned_maker_id')) {
+            // BTC-FIN-02: a Finance maker sees his assigned cases and the unassigned ones
+            $q->whereIn('status', $def[1])->where(fn ($w) => $w->whereNull('assigned_maker_id')->orWhere('assigned_maker_id', $user->id));
         } elseif ($def[1]) {
             $q->whereIn('status', $def[1]);
         }
@@ -237,6 +244,14 @@ class BtcController extends Controller
             'vendor_year' => $c->bill_no ? \App\Services\Btc\BtcLedger::vendorYearTotal($c) : null,
             'gstin_ok' => $c->vendor_gstin ? \App\Services\Btc\BtcLedger::gstinValid($c->vendor_gstin) : null,
             'overdue_advances' => BtcWorkflow::overdueAdvances((int) $c->employee_id, (int) $c->id)->pluck('case_no'),
+            // BTC-EXC-01 / FIN-02 / TRY-01 (17 Nov 2026)
+            'exceptions' => $this->canAny($user, 'btc.finance|btc.checker|btc.verifier|btc.exceptions|btc.audit|btc.treasury') ? \App\Services\Btc\BtcExceptions::forCase($c) : [],
+            'journal' => $c->finance_at ? \App\Services\Btc\BtcLedger::journal($c) : [],
+            'dims' => array_intersect(['finance_verify'], BtcWorkflow::allowed($c, $user)) ? \App\Services\Btc\BtcLedger::dimensions($c) : null,
+            'pending_payment' => BtcWorkflow::pendingPayment($c),
+            'maker' => $c->assigned_maker_id ? \App\Models\User::whereKey($c->assigned_maker_id)->value('name') : null,
+            'finance_users' => in_array('assign_maker', BtcWorkflow::allowed($c, $user), true)
+                ? \App\Models\User::permission('btc.finance')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values() : [],
             'files' => $c->files->map(fn ($f) => ['id' => $f->id, 'kind' => $f->kind, 'name' => $f->file_name, 'url' => route('btc.file', $f->id)]),
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,
                 'to' => config("btc.statuses.{$l->to_status}", $l->to_status), 'remark' => $l->remark]),
@@ -266,6 +281,20 @@ class BtcController extends Controller
         return response()->json(['success' => true, 'message' => "{$c->case_no}: ".$c->statusLabel(), 'status' => $c->status]);
     }
 
+    /** BTC-FIN-02 (17 Nov 2026): Dr/Cr preview of the Finance form, nothing saved. */
+    public function preview(Request $request, int $id)
+    {
+        $c = BtcCase::findOrFail($id);
+        $user = auth()->user();
+        $this->authorizeView($c, $user);
+        abort_unless($this->canAny($user, 'btc.finance|btc.checker'), 403);
+        try {
+            return response()->json(['success' => true] + app(BtcWorkflow::class)->preview($c, $request->except(['_token', 'files', 'file_kinds', 'action']), $user));
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
     public function file(int $fileId)
     {
         $f = BtcCaseFile::findOrFail($fileId);
@@ -288,26 +317,12 @@ class BtcController extends Controller
         $f = config('btc.focus');
         $rows = [];
         foreach ($cases as $c) {
-            $narr = "{$c->case_no} {$c->categoryLabel()} {$c->vendor_name} bill {$c->bill_no} dt ".optional($c->bill_date)->format('d-m-Y')." for {$c->emp_code} {$c->emp_name}";
+            // BTC-FIN-02 (17 Nov 2026): the same lines as the on-screen preview, with the accounting dimensions
+            $narr = $c->narration ?: "{$c->case_no} {$c->categoryLabel()} {$c->vendor_name} bill {$c->bill_no} dt ".optional($c->bill_date)->format('d-m-Y')." for {$c->emp_code} {$c->emp_name}";
             $date = optional($c->finance_at)->format('d/m/Y');
-            $line = fn ($ledger, $sub, $dr, $cr) => [$c->case_no, $date, $ledger, $sub, $c->cost_centre, $dr ? round($dr, 2) : '', $cr ? round($cr, 2) : '', $c->tds_section && $c->tds_section !== 'none' ? $c->tds_section : '', $narr];
-            // 1. bill through Employee-BTC to the vendor
-            $empLedger = \App\Services\Btc\BtcLedger::employeeLedger($c->emp_code, $c->emp_name); // BTC-LEDGER-01
-            $rows[] = $line($empLedger, $c->emp_code.' '.$c->emp_name, (float) $c->bill_amount, 0);
-            $rows[] = $line($c->vendor_name ?: 'Vendor', $c->vendor_gstin, 0, (float) $c->bill_amount - (float) $c->tds_amount);
-            if ((float) $c->tds_amount > 0) {
-                $rows[] = $line($f['tds_ledger'], $c->tds_section, 0, (float) $c->tds_amount);
-            }
-            // 2. expense recognised against Employee-BTC (GST input separately)
-            $rows[] = $line($c->expense_ledger, $c->department_name, (float) $c->bill_amount - (float) $c->gst_amount, 0);
-            if ((float) $c->gst_amount > 0) {
-                $rows[] = $line($f['gst_input_ledger'], $c->vendor_gstin, (float) $c->gst_amount, 0);
-            }
-            $rows[] = $line($empLedger, $c->emp_code.' '.$c->emp_name, 0, (float) $c->bill_amount);
-            // 3. advance already paid set off against the vendor
-            if ((float) $c->advance_adjusted > 0) {
-                $rows[] = $line($c->vendor_name ?: 'Vendor', $c->vendor_gstin, (float) $c->advance_adjusted, 0);
-                $rows[] = $line($f['vendor_advance_ledger'], $c->emp_code, 0, (float) $c->advance_adjusted);
+            foreach (\App\Services\Btc\BtcLedger::journal($c) as $l) {
+                $rows[] = [$c->jv_no ?: $c->case_no, $date, $l['ledger'], $l['sub'], $l['cost_centre'], $c->department_name, $c->dim_function, $c->dim_vertical, $c->dim_region,
+                    $c->dim_activity, $c->dim_crop, $l['dr'] ?: '', $l['cr'] ?: '', $l['tds'], $c->tds_jv_no, $narr];
             }
         }
         BtcCase::whereIn('id', $cases->pluck('id'))->whereNull('focus_exported_at')->update(['focus_exported_at' => now()]);
@@ -322,7 +337,7 @@ class BtcController extends Controller
 
             public function headings(): array
             {
-                return ['Voucher ref', 'Date', 'Ledger', 'Sub-ledger', 'Cost centre', 'Debit', 'Credit', 'TDS section', 'Narration'];
+                return ['Voucher ref / JV no.', 'Date', 'Ledger', 'Sub-ledger', 'Cost centre', 'Department', 'Function', 'Vertical', 'Region', 'Activity', 'Crop', 'Debit', 'Credit', 'TDS section', 'TDS JV no.', 'Narration'];
             }
         };
 
@@ -461,7 +476,7 @@ class BtcController extends Controller
     {
         $empId = (int) ($user->employee_id ?? 0);
         // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too
-        $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
+        $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.audit', 'btc.exceptions', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
         // BTC-TEAM-01: a manager anywhere above the requester may open the request (read; actions stay by role)
         abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id
             || \App\Support\ReportingTree::isAbove($empId, (int) $c->employee_id), 403);
