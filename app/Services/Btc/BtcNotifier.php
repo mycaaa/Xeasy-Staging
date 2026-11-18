@@ -21,7 +21,7 @@ class BtcNotifier
         'booking_requested' => ['BTC admin booking', 2],
         'advance_requested' => ['Finance advance payment', 2],
         'advance_paid' => ['Requester: booking / bill', 15],
-        'booked' => ['Requester: activity / bill', 15],
+        'booked' => ['Booking desk / requester: vendor bill', 15],
         'returned' => ['Requester: correction', 3],
         'bill_submitted' => ['DMS / verifier', 3],
         'dms_processed' => ['Finance verification', 3],
@@ -79,7 +79,8 @@ class BtcNotifier
             'pending_manager' => $emp((int) $c->manager_id),
             'booking_requested' => $perm('btc.booking'),
             'advance_requested' => $perm('btc.advance'),
-            'advance_paid', 'booked', 'returned', 'rejected', 'cancelled', 'closed' => $owner(),
+            'advance_paid', 'booked' => $c->route === 'admin_booking' ? $perm('btc.booking') : $owner(),   // BTC-FLOW-01
+            'returned', 'rejected', 'cancelled', 'closed' => $owner(),
             'bill_submitted' => array_merge($perm('btc.dms'), $perm('btc.verifier')),
             'dms_processed' => $c->assigned_maker_id && ($u = User::find($c->assigned_maker_id)) && $u->email ? [[$u->email, $u->name]] : $perm('btc.finance'),
             'finance_verified' => $perm('btc.checker'),

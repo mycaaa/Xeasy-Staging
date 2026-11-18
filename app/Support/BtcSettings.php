@@ -30,6 +30,10 @@ class BtcSettings
             'nova.suggest_from' => ['Suggest a match from (score %)', 'int', 'Nova', ''],
             'nova.auto_link' => ['Link automatically from (score %)', 'int', 'Nova', ''],
         ];
+        // BTC-FLOW-01 / BTC-READER-01 (18 Nov 2026)
+        $f['boarding_pass_before_verify'] = ['Air: boarding pass needed before Finance verification', 'bool', 'Controls', 'Off = Finance verifies and pays; the boarding pass is chased and still needed to close'];
+        $f['reader.enabled'] = ['Read invoices in Xeasy (Invoice Reader)', 'bool', 'Invoice reading', 'Uses the same bill-reading service as the claim screens'];
+        $f['reader.public_base'] = ['Internet address of Xeasy for the reader (if different)', 'text', 'Invoice reading', 'e.g. https://xeasy.vnrseeds.co.in - leave empty normally'];
         $f['notify.enabled'] = ['Send hand-off and overdue mails', 'bool', 'Mails', 'To whoever acts next, and daily for stages past their time limit'];
         $f['notify.redirect_to'] = ['Test mode: send every mail to this address instead', 'text', 'Mails', 'Leave empty to mail the real people'];
         $f['bank.debit_account'] = ['Company debit account no. (bank bulk-payment file)', 'text', 'Payments', ''];
@@ -38,6 +42,7 @@ class BtcSettings
         }
         foreach (config('btc.categories', []) as $k => $c) {
             $f["focus.expense_ledgers.{$k}"] = ['Expense ledger: '.$c['label'], 'text', 'Focus ledgers', ''];
+            $f["categories.{$k}.scan_ok"] = ['Verify on a scan: '.$c['label'], 'bool', 'Controls', 'Off = the original bill must be in before Finance verification (it is always needed to close)'];
             $f["tds_nature_by_category.{$k}"] = ['Default TDS nature: '.$c['label'], 'nature', 'TDS', ''];
         }
 
@@ -83,7 +88,7 @@ class BtcSettings
             $new = (string) (is_bool($c = self::cast($raw, $type)) ? (int) $c : $c);
             $old = config('btc.'.$k);
             $oldS = is_bool($old) ? (string) (int) $old : (string) $old;
-            if ($new === $oldS || ($type === 'text' && $new === '' && $k !== 'notify.redirect_to')) {
+            if ($new === $oldS || ($type === 'text' && $new === '' && ! in_array($k, ['notify.redirect_to', 'reader.public_base'], true))) {
                 continue;
             }
             DB::table(self::TABLE)->updateOrInsert(['key' => $k], ['value' => $new, 'updated_by' => $user->id ?? null, 'updated_at' => now()]);

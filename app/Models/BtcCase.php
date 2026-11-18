@@ -149,17 +149,35 @@ class BtcCase extends Model
             'pending_manager' => 'Reporting manager',
             'booking_requested' => 'BTC Admin (booking)',
             'advance_requested' => 'Finance Advance',
-            'advance_paid', 'booked' => $this->route === 'admin_booking' && ! $this->activity_completed_on ? 'Requester (activity / bill)' : 'Requester (final bill)',
+            // BTC-FLOW-01 (18 Nov 2026): in an admin booking the vendor bills the company, so the bill is with the BTC admin
+            'advance_paid', 'booked' => $this->route === 'admin_booking' ? 'BTC Admin (vendor bill to DMS)' : 'Requester / DMS (final bill)',
             'returned' => 'Requester (correction)',
             'bill_submitted' => 'BTC Verifier / DMS',
             'dms_processed' => 'Finance Verifier'.($this->assigned_maker_id ? ' ('.(\App\Models\User::whereKey($this->assigned_maker_id)->value('name') ?? 'assigned').')' : ''),
             'finance_verified' => 'Finance Head (checker)',
             'checked' => 'Payment User (send for approval)',
             'with_treasury' => 'Authorised Approver',
-            'dept_approved' => \App\Services\Btc\BtcWorkflow::pendingPayment($this) ? 'Treasury Checker (authorise payment)' : 'Payment User (payment)',
+            'dept_approved' => \App\Services\Btc\BtcWorkflow::pendingPayment($this)
+                ? 'Treasury Checker (authorise payment)'.(self::nobodyHas('btc.treasury_checker') ? ' - NONE ASSIGNED' : '')
+                : 'Payment User (payment)',
             'paid' => $this->pendingDocuments() ? 'Documents: '.implode(', ', $this->pendingDocuments()) : 'Finance (closure)',
             default => '-',
         };
+    }
+
+    /** BTC-FLOW-01: true when no active user holds the permission (the case would wait for nobody). */
+    public static function nobodyHas(string $perm): bool
+    {
+        static $memo = [];
+        if (! array_key_exists($perm, $memo)) {
+            try {
+                $memo[$perm] = ! \App\Models\User::permission($perm)->exists();
+            } catch (\Throwable $e) {
+                $memo[$perm] = false;
+            }
+        }
+
+        return $memo[$perm];
     }
 
     /** BTC-REQ-02 (My BTC Requests): booking / advance / invoice / payment status in one line each. */

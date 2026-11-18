@@ -24,6 +24,17 @@ return [
 
     // BTC-TRY-01 (17 Nov 2026): a Treasury checker (another person) authorises each payment entered by the maker
     'treasury_checker' => (bool) env('BTC_TREASURY_CHECKER', true),
+    // BTC-FLOW-01 (18 Nov 2026): Finance may verify an air case before the boarding pass is in (it is then chased and
+    // still needed for closure). Default true = the old rule (no verification without the boarding pass).
+    'boarding_pass_before_verify' => (bool) env('BTC_BOARDING_PASS_BEFORE_VERIFY', true),
+
+    // BTC-READER-01 (18 Nov 2026): invoices read inside Xeasy (same bill-reading service as the claim screens)
+    'reader' => [
+        'enabled' => (bool) env('BTC_READER_ENABLED', true),
+        'base_url' => env('BTC_READER_BASE_URL', 'https://api-gf4tdduqha-uc.a.run.app/api/v1'),
+        'public_base' => env('BTC_READER_PUBLIC_BASE', ''),   // internet address of this app if APP_URL is internal
+        'timeout' => (int) env('BTC_READER_TIMEOUT', 60),
+    ],
     // BTC-EXC-01: a bill above the booked / quoted / estimated amount by more than this % is a request mismatch
     'mismatch_pct' => (int) env('BTC_MISMATCH_PCT', 10),
 

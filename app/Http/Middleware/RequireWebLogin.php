@@ -20,6 +20,8 @@ class RequireWebLogin
     /** Paths that must work before login. */
     private const PUBLIC_PATHS = [
         '/', 'login', 'xeasy_login', 'logout', 'up', 'sanctum/csrf-cookie', 'privacy',
+        // BTC-READER-01: the invoice-reading service fetches a stored invoice here; the route itself requires a valid
+        // 15-minute signature (middleware 'signed') and an encrypted path under btc/
     ];
 
     /** Path prefixes that must work before login (framework / static). */
@@ -27,6 +29,9 @@ class RequireWebLogin
         'storage/', '_debugbar/',
         // BOARDING-01: vendor boarding-pass portal; the random link (stored hashed, expiring, revocable) is the credential
         'vendor/boarding-pass/',
+        // BTC-READER-01: the invoice-reading service fetches a stored invoice here; the route itself requires a valid
+        // 15-minute signature (middleware 'signed') and an encrypted path under btc/
+        'btc/reader-file/',
     ];
 
     public function handle(Request $request, Closure $next): Response

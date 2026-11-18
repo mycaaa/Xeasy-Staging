@@ -1200,6 +1200,12 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settingsSave'])->name('settings.save');
     Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
+    // BTC-READER-01 (18 Nov 2026): invoices read in Xeasy (instead of waiting for Nova)
+    Route::get('/invoice-reader', [\App\Http\Controllers\admin\BtcReaderController::class, 'index'])->name('reader');
+    Route::post('/invoice-reader', [\App\Http\Controllers\admin\BtcReaderController::class, 'upload'])->middleware('throttle:20,1')->name('reader.upload');
+    Route::post('/invoice-reader/read', [\App\Http\Controllers\admin\BtcReaderController::class, 'read'])->middleware('throttle:30,1')->name('reader.read');
+    Route::post('/invoice-reader/{id}', [\App\Http\Controllers\admin\BtcReaderController::class, 'save'])->whereNumber('id')->name('reader.save');
+    Route::get('/invoice-reader/{id}/file', [\App\Http\Controllers\admin\BtcReaderController::class, 'file'])->whereNumber('id')->name('reader.doc');
     Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
     Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');
     Route::get('/invoices', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoices'])->name('invoices');

@@ -29,6 +29,9 @@ Route::middleware('throttle:30,1')->group(function () {
 });
 
 
+// BTC-READER-01 (18 Nov 2026): 15-minute signed link the invoice-reading service fetches a stored BTC invoice from (no login)
+Route::get('btc/reader-file/{n}', [\App\Http\Controllers\admin\BtcReaderController::class, 'signedFile'])->where('n', 'invoice\.(pdf|jpg|png|webp|heic)')->middleware(['signed', 'throttle:60,1'])->name('btc.reader.file');
+
 // Test route to check financial years
 Route::get('test/financial-years', function () {
     try {

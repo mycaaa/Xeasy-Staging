@@ -146,6 +146,23 @@
 <script>
 $(function () {
     const CSRF = $('meta[name="csrf-token"]').attr('content');
+    const READER = @json((bool) config('btc.reader.enabled', true) && \Illuminate\Support\Facades\Route::has('btc.reader.read'));
+    // BTC-READER-01: fill the empty bill fields from the invoice (chosen file, else the bill attached to the case)
+    $(document).on('click', '.btc-read-inv', function () {
+        const $f = $(this).closest('form'), $b = $(this), $m = $f.find('.btc-read-msg');
+        const fd = new FormData(); fd.append('case_id', $f.data('case') || '');
+        $f.find('input[name="file_kinds[]"]').each(function () { if (this.value === 'bill') { const fi = $(this).next('input[type=file]')[0]; if (fi && fi.files[0]) fd.append('file', fi.files[0]); } });
+        $b.prop('disabled', true); $m.removeClass('text-danger text-success').addClass('text-muted').text('Reading the invoice…');
+        $.ajax({url: @json(\Illuminate\Support\Facades\Route::has('btc.reader.read') ? route('btc.reader.read') : ''), method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
+            .done(function (r) {
+                if (!r.success) { $m.removeClass('text-muted').addClass('text-danger').text(r.message || 'Could not read the invoice; enter the details.'); return; }
+                const filled = [], kept = [];
+                Object.entries(r.fields || {}).forEach(([k, v]) => { const $i = $f.find('[name="' + k + '"]'); if (!$i.length) return; if (String($i.val() || '').trim() === '' || $i.val() === '0') { $i.val(v); filled.push(k.replace(/_/g, ' ')); } else if (String($i.val()) !== String(v)) { kept.push(k.replace(/_/g, ' ') + ' (invoice: ' + v + ')'); } });
+                $m.removeClass('text-muted').addClass('text-success').text((filled.length ? 'Filled: ' + filled.join(', ') + '. ' : 'Nothing new to fill. ') + (kept.length ? 'Kept what you typed for ' + kept.join('; ') + '. ' : '') + 'Check before saving.');
+            })
+            .fail(function (x) { $m.removeClass('text-muted').addClass('text-danger').text((x.responseJSON && (x.responseJSON.message)) || 'Could not read the invoice; enter the details.'); })
+            .always(function () { $b.prop('disabled', false); });
+    });
     const STATUS = @json($statuses);
     const TDS = @json($tdsSections);
     const NATURES = @json($tdsNatures ?? []); // BTC-TDS-01
@@ -281,6 +298,8 @@ $(function () {
         const inp = (n, l, t = 'text', v = '') => `<div class="col-md-3"><label class="btc-label">${l}</label><input class="form-control form-control-sm" type="${t}" name="${n}" value="${esc(v)}"></div>`;
         const rmk = (req) => `<div class="col-md-6"><label class="btc-label">Remark${req ? ' (required)' : ''}</label><input class="form-control form-control-sm" name="remark"></div>`;
         const file = (k, l) => `<div class="col-md-4"><label class="btc-label">${l}</label><input type="hidden" name="file_kinds[]" value="${k}"><input type="file" class="form-control form-control-sm" name="files[]" accept=".pdf,.jpg,.jpeg,.png"></div>`;
+        // BTC-READER-01 (18 Nov 2026): read the chosen (or attached) invoice and fill the bill fields
+        const readInv = () => READER ? `<div class="col-12"><button type="button" class="btn btn-sm btn-outline-success btc-read-inv"><i class="ri-scan-2-line"></i> Read invoice and fill the fields</button> <span class="small text-muted btc-read-msg">Choose the bill file first, or it reads the bill already attached.</span></div>` : '';
         switch (a) {
             case 'submit':
                 // BTC-REQ-13 (17 Nov 2026): attach the quotation from the case itself
@@ -296,14 +315,14 @@ $(function () {
                 ...(c.category === 'air' ? [inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10))] : []),
                 file('supporting', 'Booking confirmation'), rmk(a === 'modify_booking')); break;
             case 'cancel_booking': f.push(rmk(true)); break;
-            case 'forward_to_dms': f.push(inp('bill_forwarded_dms_on', 'Bill forwarded to DMS on', 'date', new Date().toISOString().substring(0, 10)), inp('bill_no', 'Bill no. (if known)', 'text', c.bill_no), inp('bill_amount', 'Bill total ₹ (if known)', 'number', c.bill_amount), rmk(false)); break;   // BTC-REQ-21
+            case 'forward_to_dms': f.push(inp('bill_forwarded_dms_on', 'Bill forwarded to DMS on', 'date', new Date().toISOString().substring(0, 10)), file('bill', 'Vendor bill (if scanned)'), inp('bill_no', 'Bill no. (if known)', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('bill_amount', 'Bill total ₹ (if known)', 'number', c.bill_amount), readInv(), rmk(false)); break;   // BTC-REQ-21
             case 'complete_activity': f.push(inp('activity_completed_on', 'Activity completed on', 'date'), rmk(false)); break;
             case 'record_refund': f.push(inp('advance_refund', 'Refund received ₹ (balance ₹' + fmt(d.advance.balance) + ')', 'number'), inp('advance_refund_on', 'Received on', 'date'), rmk(false)); break;
             case 'manager_reject': case 'cancel': f.push(rmk(true)); break;
             case 'advance_paid': f.push(inp('advance_paid_amount', 'Actual advance paid ₹ (approved ₹' + fmt(c.advance_approved ?? c.advance_amount) + ')', 'number', c.advance_approved ?? c.advance_amount), inp('advance_payment_ref', 'Payment reference / UTR'), inp('advance_paid_on', 'Advance paid on', 'date'), inp('advance_activity_id', 'Xeasy Advance ID (if raised there)', 'number'), inp('tds_on_advance', 'TDS deducted on advance ₹', 'number', 0)); break;
             case 'booked': f.push(rmk(false)); break;
-            case 'submit_bill': f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount), file('bill', 'Final bill'), file('supporting', 'Supporting')); if (c.category === 'air') f.push(inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10)), file('boarding_pass', 'Boarding pass (if available)')); break;
-            case 'dms_process': if (!c.bill_no || !Number(c.bill_amount)) f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount));
+            case 'submit_bill': f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount), file('bill', 'Final bill'), file('supporting', 'Supporting'), readInv()); if (c.category === 'air') f.push(inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10)), file('boarding_pass', 'Boarding pass (if available)')); break;
+            case 'dms_process': if (!c.bill_no || !Number(c.bill_amount)) f.push(inp('bill_no', 'Bill no.', 'text', c.bill_no), inp('bill_date', 'Bill date', 'date', (c.bill_date || '').substring(0, 10)), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount), inp('gst_amount', 'GST ₹', 'number', c.gst_amount), inp('bill_amount', 'Bill total ₹', 'number', c.bill_amount), readInv());
                 f.push(inp('dms_doc_no', 'DMS / Nova doc no.', 'text', c.dms_doc_no), `<div class="col-md-3 pt-3"><label><input type="checkbox" name="original_received" value="1"> Original bill received</label></div>`); break;
             case 'finance_verify': {
                 const dup = (d.duplicates || []).length ? `<div class="col-12 text-danger small">Possible duplicate: ${d.duplicates.map(x => esc(x.case_no + ' (' + x.bill_no + ', ₹' + fmt(x.bill_amount) + ')')).join(', ')} <label class="ms-2"><input type="checkbox" name="duplicate_override" value="1"> not a duplicate</label></div>` : '';
@@ -384,7 +403,7 @@ $(function () {
                 <p class="btc-label">History</p>${logs}`);
             $('#btcCaseBody [data-act]').on('click', function () {
                 const a = $(this).data('act');
-                $('#btcActForm').html(actionForm(a, d) + `<div class="col-12"><input type="hidden" name="action" value="${a}"><button type="button" class="btn btn-sm btn-primary" id="btcDo">${LABEL[a]}</button></div>`).show();
+                $('#btcActForm').data('case', c.id).html(actionForm(a, d) + `<div class="col-12"><input type="hidden" name="action" value="${a}"><button type="button" class="btn btn-sm btn-primary" id="btcDo">${LABEL[a]}</button></div>`).show();
                 $('#btcPreview').on('click', function () {   // BTC-FIN-02: nothing is saved
                     $.ajax({url: '{{ url('btc/case') }}/' + c.id + '/preview', method: 'POST', data: new FormData($('#btcActForm')[0]), processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
                         .done(r => $('#btcPreviewOut').html(journalTable(r.lines) + `<div class="small mt-1">TDS ₹${fmt(r.tds)} (${esc(r.section)}) · Net payable ₹${fmt(r.net)}</div>`))

@@ -507,7 +507,7 @@ class BtcController extends Controller
         return $user->can('btc.admin') || collect(explode('|', $perms))->contains(fn ($p) => $user->can($p));
     }
 
-    private function authorizeView(BtcCase $c, $user): void
+    public function authorizeView(BtcCase $c, $user): void
     {
         $empId = (int) ($user->employee_id ?? 0);
         // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too

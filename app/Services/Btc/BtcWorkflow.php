@@ -151,6 +151,12 @@ class BtcWorkflow
         if ($can('btc.admin')) {
             return true;
         }
+        // BTC-FLOW-01 (18 Nov 2026): the vendor's bill usually reaches the BTC admin / DMS, not the employee. Cases waited at
+        // "Requester (final bill)" for a bill the requester never had; the booking desk and DMS may now submit it too.
+        if ($action === 'submit_bill' && ($can('btc.booking') || $can('btc.dms'))
+            && ($c->status !== 'returned' || in_array($c->return_to, [null, 'bill_submitted', 'booked'], true))) {
+            return true;
+        }
         if ($perm === null) {
             $own = $empId > 0 && ($empId === (int) $c->employee_id || (int) $user->id === (int) $c->created_by);
             // a returned case can be corrected by the owner only if it was returned to the bill stage
@@ -736,7 +742,7 @@ class BtcWorkflow
     {
         $preview = ! empty($d['__preview']);
         $rules = config("btc.categories.{$c->category}", []);
-        if (! $preview && $c->boarding_pass_required && ! $c->boarding_pass_received_on) {
+        if (! $preview && $c->boarding_pass_required && ! $c->boarding_pass_received_on && config('btc.boarding_pass_before_verify', true)) {   // BTC-FLOW-01: switchable
             throw new RuntimeException('Air travel: the expense is booked only after the boarding pass / proof of travel is received.');
         }
         if (! $preview && empty($rules['scan_ok']) && ! $c->original_received_on) {
