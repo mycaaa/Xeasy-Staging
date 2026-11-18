@@ -90,9 +90,12 @@ class DbSetupController extends Controller
         return array_values(array_unique($missing));
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $this->guard();
+        if ($request->query('diag') === 'company') {
+            return response()->json(self::diagnose((string) $request->query('conn', 'expense_vvnr')), 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
         $rows = self::status();
 
         return view('admin.db-setup', [
@@ -100,6 +103,47 @@ class DbSetupController extends Controller
             'pending' => count(array_filter($rows, fn ($r) => $r['file'] && (! $r['ran'] || $r['missing']))),
             'results' => session('db_setup_results', []),
         ]);
+    }
+
+    /**
+     * DIAG-01 (18 Nov 2026): read-only check for a company database (VVNR / Nursery) - which year tables exist, their
+     * columns, and the latest dashboard / claim errors in the log - so a screen that shows blanks for one company can
+     * be traced without shell access. Super Admin only (route), no writes.
+     */
+    private static function diagnose(string $conn): array
+    {
+        abort_unless(in_array($conn, ['expense', 'expense_vvnr', 'expense_nursery'], true), 404);
+        $out = ['connection' => $conn, 'session' => ['company_id' => session('company_id'), 'year_id' => session('year_id'), 'expense_connection' => session('expense_connection')]];
+        try {
+            $db = DB::connection($conn);
+            $out['database'] = $db->getDatabaseName();
+            $out['years'] = $db->table('financialyear')->orderByDesc('YearId')->limit(4)->get(['YearId', 'FromDate', 'Todate']);
+            $tables = collect($db->select('SHOW TABLES'))->map(fn ($r) => array_values((array) $r)[0]);
+            foreach ($out['years'] as $y) {
+                foreach (['expenseclaims', 'monthexpensefinal'] as $t) {
+                    $name = "y{$y->YearId}_{$t}";
+                    $out['tables'][$name] = $tables->contains($name) ? Schema::connection($conn)->getColumnListing($name) : 'MISSING';
+                }
+            }
+            $out['tables']['claimtype'] = $tables->contains('claimtype') ? 'ok' : 'MISSING';
+        } catch (\Throwable $e) {
+            $out['error'] = mb_substr($e->getMessage(), 0, 400);
+        }
+        $log = storage_path('logs/laravel.log');
+        $lines = [];
+        if (is_file($log)) {
+            $fh = fopen($log, 'r');
+            fseek($fh, max(0, filesize($log) - 3000000));
+            while (($l = fgets($fh)) !== false) {
+                if (preg_match('/Dashboard data error|Team (all )?expenses|running km|teamExp|runKm|SQLSTATE/i', $l)) {
+                    $lines[] = mb_substr(trim($l), 0, 500);
+                }
+            }
+            fclose($fh);
+        }
+        $out['log'] = array_slice($lines, -25);
+
+        return $out;
     }
 
     public function run(Request $request)

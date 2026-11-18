@@ -187,8 +187,9 @@ class ApproverController extends Controller
             $expense = $this->expenseDb();
             if ($comId !== $sessionCo) {
                 $expense = DB::connection(DatabaseSwitcher::getExpenseConnection($comId));
-                $label = (string) DB::connection(DatabaseSwitcher::getExpenseConnection($sessionCo))->table('financialyear')->where('YearId', $yearId)->value('Year');
-                $yearId = (int) ($label !== '' ? $expense->table('financialyear')->where('Year', $label)->value('YearId') : 0) ?: $yearId;
+                // VVNR-18NOV-06 (18 Nov 2026): same financial year by dates (the 'Year' label is not written alike in every
+                // company database, so the VNR year number was used on VVNR and the list came back empty)
+                $yearId = \App\Support\CompanyYear::same(DatabaseSwitcher::getExpenseConnection($sessionCo), $yearId, DatabaseSwitcher::getExpenseConnection($comId));
             }
 
             $teamMembers = $this->getTeamMembers($userId);
@@ -205,6 +206,24 @@ class ApproverController extends Controller
             // HIER-LOOP-01 (16 Nov 2026): the team's running km in one query (was one per member)
             $kmRows = $expense->table('runningkm')->whereIn('empid', $employees->pluck('EmployeeID')->all())
                 ->where('yearid', $yearId)->get()->groupBy(fn ($r) => (int) $r->empid)->map->first();
+            // VVNR-18NOV-06 (18 Nov 2026): VVNR's runningkm table is not filled for 2026-27 (Team Running KM was blank).
+            // For members with no row there, the approved odometer bills of the year (App_Odometer = 'Y') are summed by
+            // month and two / four wheeler - the same figure the table holds.
+            $missing = $employees->pluck('EmployeeID')->map(fn ($x) => (int) $x)->reject(fn ($x) => $kmRows->has($x))->values()->all();
+            if ($missing && \Illuminate\Support\Facades\Schema::connection($expense->getName())->hasTable("y{$yearId}_expenseclaims")) {
+                $mn = [1 => 'jan', 2 => 'feb', 3 => 'mar', 4 => 'apr', 5 => 'may', 6 => 'jun', 7 => 'jul', 8 => 'aug', 9 => 'sep', 10 => 'oct', 11 => 'nov', 12 => 'dec'];
+                foreach ($expense->table("y{$yearId}_expenseclaims")->whereIn('CrBy', $missing)->where('ClaimId', 7)->where('App_Odometer', 'Y')
+                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Deactivat', 'Draft'])
+                    ->selectRaw('CrBy, ClaimMonth, WType, SUM(TotKm) km')->groupBy('CrBy', 'ClaimMonth', 'WType')->get() as $r) {
+                    $o = $kmRows->get((int) $r->CrBy) ?? (object) ['empid' => (int) $r->CrBy];
+                    $col = ($mn[(int) $r->ClaimMonth] ?? null);
+                    if ($col) {
+                        $k = $col.((int) $r->WType === 4 ? '_4w_km' : '_2w_km');
+                        $o->{$k} = (float) ($o->{$k} ?? 0) + (float) $r->km;
+                    }
+                    $kmRows->put((int) $r->CrBy, $o);
+                }
+            }
 
             foreach ($employees as $emp) {
                 $runningKm = $kmRows->get((int) $emp->EmployeeID);

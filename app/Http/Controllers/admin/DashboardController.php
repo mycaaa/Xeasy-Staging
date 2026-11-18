@@ -1416,6 +1416,23 @@ class DashboardController extends Controller
                 return $this->emptyRmDashData();
             }
 
+            // VVNR-18NOV-05 (18 Nov 2026): a manager whose whole team is in another company (a VNR manager with a VVNR
+            // team) saw 0 everywhere - the figures were read from the login company's database. When no team member is
+            // in the login company, read the team's company: its database, its year number and its claim table.
+            $sessionCo = (int) session('company_id', 1);
+            $teamCos = $hrimsDb->table('hrm_employee')->whereIn('EmployeeID', $teamMembers)->where('EmpStatus', 'A')
+                ->selectRaw('CompanyId, COUNT(*) n')->groupBy('CompanyId')->orderByDesc('n')->pluck('n', 'CompanyId')->all();
+            $teamCo = (int) (array_key_first($teamCos) ?? $sessionCo);
+            if (! isset($teamCos[$sessionCo]) && in_array($teamCo, [1, 3, 11], true) && $teamCo !== $sessionCo) {
+                $fromConn = session('expense_connection', DatabaseSwitcher::getExpenseConnection());
+                $toConn = DatabaseSwitcher::getExpenseConnection($teamCo);
+                $yearId = \App\Support\CompanyYear::same($fromConn, (int) $yearId, $toConn);
+                $db = DB::connection($toConn);
+                $table = 'y'.$yearId.'_expenseclaims';
+                $mefTable = 'y'.$yearId.'_monthexpensefinal';
+                $teamMembers = $hrimsDb->table('hrm_employee')->whereIn('EmployeeID', $teamMembers)->where('CompanyId', $teamCo)->pluck('EmployeeID')->all();
+            }
+
             // Determine team closed months if not explicitly passed
             $teamClosedMonths = $db->table($mefTable)
                 ->whereIn('EmployeeID', $teamMembers)
