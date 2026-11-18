@@ -205,6 +205,7 @@
 <script>
 $(function(){
     const APPR_COMID = {{ $prefix === 'vvnr' ? 11 : ($prefix === 'nursery' ? 3 : 1) }}; // TEAM-KM-CO-01: company of this Approvals tab
+    const APPR_IS_VVNR = APPR_COMID === 11; // VVNR-18NOV-03: process is claim - approve - payment - verify
     const R=@json($approverRoutes);const csrf=@json(csrf_token());const status=@json($status);const comId=@json((string)$companyId);const prefix=@json($prefix);
     const M=['','January','February','March','April','May','June','July','August','September','October','November','December'];
     if(status==='pending')loadPending();
@@ -254,7 +255,12 @@ $(function(){
                 let statusRightHtml = '';
                 let submitBtnHtml = '';
 
-                if (!cv) {
+                if (APPR_IS_VVNR) {
+                    // VVNR-18NOV-03: the approver acts first in VVNR (claim - approve - payment - verify): no post / verifier wait
+                    vStatusBadge = '<span class="badge bg-info-subtle text-info ms-1" style="font-size:10px;"><i class="ri-time-line me-1"></i>Approval Pending</span>';
+                    statusRightHtml = '';
+                    submitBtnHtml = `<a class="pill-btn submit submit-btn ms-auto" data-empid="${e(id)}" data-month="${e(mo)}" data-yearid="${e(yr)}" data-verified="1"><i class="ri-check-double-line"></i> Submit</a>`;
+                } else if (!cv) {
                     // Stage 1: Post / Courier is pending
                     vStatusBadge = '<span class="badge bg-warning text-dark ms-1" style="font-size:10px;"><i class="ri-truck-line me-1"></i>Post Pending</span>';
                     statusRightHtml = '<div style="font-size:11px;color:#d97706;font-weight:600"><i class="ri-truck-line"></i> Post Pending</div>';
@@ -287,12 +293,17 @@ $(function(){
                     <a class="pill-btn view view-btn" data-empid="${e(id)}" data-month="${e(mo)}" data-yearid="${e(yr)}" data-name="${e(nm)}" data-mode="pending"><i class="ri-eye-line"></i> View</a>
                     ${submitBtnHtml}
                 </div>
-                <div class="mini-stepper">
+                ${APPR_IS_VVNR ? `<div class="mini-stepper">
+                    <div class="mini-step done"><div class="step-dot done"><i class="ri-user-3-line"></i></div><div class="lbl">Claimant</div><div class="val">₹${fa(amt)}</div><div class="val-date">${fd(fld(item,'DateOfSubmit','dateofsubmit','SubmitDate','Crdate'))}</div></div>
+                    <div class="mini-step"><div class="step-dot wait"><i class="ri-shield-check-line"></i></div><div class="lbl">Approver</div><div class="val">${aAmt>0?'₹'+fa(aAmt):'Pending'}</div></div>
+                    <div class="mini-step"><div class="step-dot wait"><i class="ri-bank-card-line"></i></div><div class="lbl">Payment</div><div class="val">-</div></div>
+                    <div class="mini-step"><div class="step-dot wait"><i class="ri-file-search-line"></i></div><div class="lbl">Verifier</div><div class="val">-</div></div>
+                </div></div></div>` : `<div class="mini-stepper">
                     <div class="mini-step done"><div class="step-dot done"><i class="ri-user-3-line"></i></div><div class="lbl">Claimant</div><div class="val">₹${fa(amt)}</div><div class="val-date">${fd(fld(item,'DateOfSubmit','dateofsubmit','SubmitDate','Crdate'))}</div></div>
                     <div class="mini-step ${cv?'done':''}"><div class="step-dot ${cv?'done':'wait'}"><i class="ri-truck-line"></i></div><div class="lbl">Post</div><div class="val">${cv?fd(cour):'-'}</div></div>
                     <div class="mini-step ${hasVerifier?'done':''}"><div class="step-dot ${hasVerifier?'done':'wait'}"><i class="ri-file-search-line"></i></div><div class="lbl">Verifier</div><div class="val">${hasVerifier?'₹'+fa(vAmt):'Pending'}</div><div class="val-date">${hasVerifier?fd(fld(item,'Verified_Date','verified_date','VerifiedDate','VerifDate','Verify_Date')):'-'}</div></div>
                     <div class="mini-step"><div class="step-dot wait"><i class="ri-shield-check-line"></i></div><div class="lbl">Approver</div><div class="val">${aAmt>0?'₹'+fa(aAmt):'Pending'}</div><div class="val-date">${aAmt>0?fd(fld(item,'Approved_Date','approved_date','ApprovedDate','ApprDate','Appr_Date')):'-'}</div></div>
-                </div></div></div>`;
+                </div></div></div>`}`;
             });$('#pendingCards').html(waitNote+h);
         }).fail(()=>$('#pendingCards').html('<div class="empty-state text-muted py-5 text-center"><i class="ri-error-warning-line fs-24 d-block mb-2"></i><p>Failed to load</p></div>'));
     }
@@ -325,7 +336,7 @@ $(function(){
             const ca=n(d.FilledTAmt||d.Claim_Amount||0),va=n(d.VerifyTAmt||d.Verified_Amount||0);
             const rawAppr=n(d.ApprTAmt||d.Approved_Amount||0);
             // APPR-ZERO-02: a line already approved at ₹0 keeps ₹0 (not the verified amount)
-            const aa=ed?((rawAppr>0||vd(d.ApprDate||''))?rawAppr:va):rawAppr;
+            const aa=ed?((rawAppr>0||vd(d.ApprDate||''))?rawAppr:(APPR_IS_VVNR?ca:va)):rawAppr; // VVNR-18NOV-03: VVNR approves before verification
             
             // Amount difference logic: If verifier deducted amount, show -amount in red
             let diffText = '-';
@@ -551,6 +562,12 @@ $(function(){
             </tr></tfoot>
         </table></div>`);
 
+        // VVNR-18NOV-03: VVNR verifies after payment, so the approver sees no Verified / Diff / Verifier Remark columns
+        if(APPR_IS_VVNR){
+            $('#dayModalBody .day-tbl').find('thead tr, tbody tr').each(function(){$(this).children().filter(function(){return [6,7,8].includes($(this).index());}).hide();});
+            $('#dayModalBody .day-tbl tfoot tr').children().filter(function(){return [2,3,4].includes($(this).index());}).hide();
+            $('#dayModalBody .day-tbl tfoot tr').children().first().attr('colspan',5);
+        }
         // APPR-FILTER-01: column filters (full-screen view)
         if(window.xeasyApproverFilters){window.xeasyApproverFilters.attach('#dayModalBody');}
         // Mark this employee+month as reviewed for submit validation
@@ -574,8 +591,9 @@ $(function(){
         if(aprCapCheck($r.find('.aa'))||(basis>0&&amt>basis+0.009)){return fail('Not allowed','The approved amount (₹'+amt.toFixed(2)+') cannot be more than the '+(cAmt>0?'claimed':'verified')+' amount (₹'+basis.toFixed(2)+').','.aa');}
         // a ₹0 disallowance, or any amount different from the verified amount, needs a reason
         const noReason=!rmk.trim()||['ok','okay','approved','done','na','n/a','-','.','yes'].includes(rmk.trim().toLowerCase());
-        if((amt===0||Math.abs(amt-vAmt)>0.009)&&noReason){
-            return fail('Remark Required',amt===0?'Enter the reason for disallowing this claim (₹0).':'The approved amount (₹'+amt.toFixed(2)+') is different from the verified amount (₹'+vAmt.toFixed(2)+'). Please enter a remark.','.ar');
+        const refAmt=APPR_IS_VVNR?cAmt:vAmt;
+        if((amt===0||Math.abs(amt-refAmt)>0.009)&&noReason){
+            return fail('Remark Required',amt===0?'Enter the reason for disallowing this claim (₹0).':'The approved amount (₹'+amt.toFixed(2)+') is different from the '+(APPR_IS_VVNR?'claimed':'verified')+' amount (₹'+refAmt.toFixed(2)+'). Please enter a remark.','.ar');
         }
         $r.removeClass('table-danger');
         $b.prop('disabled',true).html('<i class="ri-loader-4-line rotating"></i>');
@@ -692,7 +710,7 @@ $(function(){
                     <tr><td class="fw-bold">Employee:</td><td>${e(info.name||'')}</td></tr>
                     <tr><td class="fw-bold">Month:</td><td>${M[+mo]||mo}</td></tr>
                     <tr><td class="fw-bold">Claimant Amt:</td><td>₹${fa(info.claimTotal||0)}</td></tr>
-                    <tr><td class="fw-bold">Verified Amt:</td><td>₹${fa(info.verifyTotal||0)}</td></tr>
+                    ${APPR_IS_VVNR?'':`<tr><td class="fw-bold">Verified Amt:</td><td>₹${fa(info.verifyTotal||0)}</td></tr>`}
                     <tr><td class="fw-bold">Approved Amt:</td><td class="text-success fw-bold">₹${fa(info.approveTotal||0)}</td></tr>
                 </table>
             </div>`,

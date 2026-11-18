@@ -81,6 +81,12 @@ class ClaimantController extends Controller
         return view('employee.'.$prefix.'.approver', compact('status', 'pendingCount', 'approvedCount', 'prefix') + ['companyId' => $resolvedCompanyId]);
     }
 
+    /** VVNR-18NOV-02: the company's own expense database (VVNR / Nursery), not always VNR's. */
+    private static function exDb()
+    {
+        return DB::connection(session('expense_connection') ?: config('database.default'));
+    }
+
     public function claimList(Request $request)
     {
         $year_id = session('year_id');
@@ -88,7 +94,7 @@ class ClaimantController extends Controller
         $month = $request->month;
         $userId = session('employee_id');
 
-        $query = DB::table($table.' as ec')
+        $query = self::exDb()->table($table.' as ec')
             ->leftJoin('claimtype as ct', 'ct.ClaimId', '=', 'ec.ClaimId')
             ->select(
                 'ec.ExpId',
@@ -730,14 +736,14 @@ class ClaimantController extends Controller
         }
         try {
             $today = date('Y-m-d');
-            $activeYear = DB::table('financialyear')
+            $activeYear = self::exDb()->table('financialyear')
                 ->where('FromDate', '<=', $today)
                 ->where('Todate', '>=', $today)
                 ->value('YearId');
             if ($activeYear) {
                 return (int) $activeYear;
             }
-            $activeYearByStatus = DB::table('financialyear')->where('Status', 'Active')->value('YearId');
+            $activeYearByStatus = self::exDb()->table('financialyear')->where('Status', 'Active')->value('YearId');
             if ($activeYearByStatus) {
                 return (int) $activeYearByStatus;
             }
@@ -894,7 +900,7 @@ class ClaimantController extends Controller
             $month = $request->month;
             $yearId = session('year_id');
             $table = "y{$yearId}_monthexpensefinal";
-            $courierData = DB::table($table)->where('EmployeeID', $employeeId)->where('Month', $month)->where('YearId', $yearId)->select('PostDate', 'DocateNo', 'Agency', 'RecevingDate', 'DocRmk')->first();
+            $courierData = self::exDb()->table($table)->where('EmployeeID', $employeeId)->where('Month', $month)->where('YearId', $yearId)->select('PostDate', 'DocateNo', 'Agency', 'RecevingDate', 'DocRmk')->first();
             if (! $courierData) {
                 return response()->json(['success' => false, 'message' => 'No courier data found']);
             }
@@ -921,11 +927,11 @@ class ClaimantController extends Controller
                 return response()->json(['success' => false, 'message' => $dateError], 422);
             }
             $table = "y{$yearId}_monthexpensefinal";
-            $record = DB::table($table)->where('EmployeeID', $employeeId)->where('Month', $request->month)->where('YearId', $yearId)->first();
+            $record = self::exDb()->table($table)->where('EmployeeID', $employeeId)->where('Month', $request->month)->where('YearId', $yearId)->first();
             if (! $record) {
                 return response()->json(['success' => false, 'message' => 'Record not found']);
             }
-            $updated = DB::table($table)->where('EmployeeID', $employeeId)->where('Month', $request->month)->where('YearId', $yearId)->update(['PostDate' => (ClaimSubmissionValidator::parseDate($request->post_date) ?? $request->post_date), 'DocateNo' => $request->docket_no, 'Agency' => $request->agency]);
+            $updated = self::exDb()->table($table)->where('EmployeeID', $employeeId)->where('Month', $request->month)->where('YearId', $yearId)->update(['PostDate' => (ClaimSubmissionValidator::parseDate($request->post_date) ?? $request->post_date), 'DocateNo' => $request->docket_no, 'Agency' => $request->agency]);
             if ($updated) {
                 return response()->json(['success' => true, 'message' => 'Courier details updated successfully']);
             }
@@ -942,7 +948,7 @@ class ClaimantController extends Controller
         $eligibility = DB::connection('hrims')->table('hrm_employee_eligibility')->where('Status', 'A')->where('EmployeeID', $employeeId)->select('DA_Inside_Hq', 'DA_Outside_Hq')->first();
         $DAInside = $eligibility ? preg_replace('/[^0-9]/', '', $eligibility->DA_Inside_Hq) : '';
         $DAOutside = $eligibility ? preg_replace('/[^0-9]/', '', $eligibility->DA_Outside_Hq) : '';
-        $claimTypes = DB::table('claimtype as ct')->join('claimgroup as cg', 'ct.cgId', '=', 'cg.cgId')->where('ct.ClaimStatus', 'B')->select('ct.ClaimId', 'ct.ClaimName', 'cg.cgCode', 'cg.cgName')->get()->filter(function ($claim) use ($eligibility) {
+        $claimTypes = self::exDb()->table('claimtype as ct')->join('claimgroup as cg', 'ct.cgId', '=', 'cg.cgId')->where('ct.ClaimStatus', 'B')->select('ct.ClaimId', 'ct.ClaimName', 'cg.cgCode', 'cg.cgName')->get()->filter(function ($claim) use ($eligibility) {
             return ($claim->ClaimId == 19 && ! empty($eligibility->DA_Inside_Hq)) || ($claim->ClaimId == 20 && ! empty($eligibility->DA_Outside_Hq));
         });
 
@@ -1016,7 +1022,7 @@ class ClaimantController extends Controller
     {
         $employeeId = session('employee_id');
         $yearId = session('year_id');
-        $claimTypes = DB::table('claimtype')->where('ClaimStatus', 'A')->where('cgId', '!=', 7)->where('cgId', 1)->whereNotIn('ClaimId', [7, 19, 20])->whereRaw("NOT (ClaimName = 'Phone Fax' AND DATE(NOW()) >= '2025-04-01')")->orderBy('cgId')->orderBy('ClaimId')->select('ClaimId', 'ClaimName')->get();
+        $claimTypes = self::exDb()->table('claimtype')->where('ClaimStatus', 'A')->where('cgId', '!=', 7)->where('cgId', 1)->whereNotIn('ClaimId', [7, 19, 20])->whereRaw("NOT (ClaimName = 'Phone Fax' AND DATE(NOW()) >= '2025-04-01')")->orderBy('cgId')->orderBy('ClaimId')->select('ClaimId', 'ClaimName')->get();
         $financialYears = [6 => ['from' => '2024-04-01', 'to' => '2025-03-31'], 7 => ['from' => '2025-04-01', 'to' => '2026-03-31']];
 
         return response()->json(['success' => true, 'claimTypes' => $claimTypes, 'fyearId' => $yearId, 'financialYear' => $financialYears[$yearId] ?? null]);

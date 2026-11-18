@@ -209,7 +209,7 @@ class ClaimSubmissionValidator
     {
         $ids = $this->ids('claim_rules.participants.activity_extra_claim_ids', []);
         try {
-            $mapped = DB::connection($connection)->table('adv_expense_head_name_mapping as m')
+            $mapped = DB::connection(self::conn($connection))->table('adv_expense_head_name_mapping as m')
                 ->join('adv_expense_head_category as c', 'c.id', '=', 'm.expense_head_id')
                 ->join('adv_activity_names as n', 'n.id', '=', 'm.activity_id')
                 ->where('m.checked', 1)
@@ -233,7 +233,7 @@ class ClaimSubmissionValidator
             return true;
         }
         try {
-            return DB::connection($connection)->table('adv_expense_head_name_mapping as m')
+            return DB::connection(self::conn($connection))->table('adv_expense_head_name_mapping as m')
                 ->join('adv_expense_head_category as c', 'c.id', '=', 'm.expense_head_id')
                 ->join('adv_activity_names as n', 'n.id', '=', 'm.activity_id')
                 ->where('n.activity_name', $claimId)
@@ -387,7 +387,7 @@ class ClaimSubmissionValidator
         $submittedOn = null;
         if (config('claim_rules.courier.min_basis', 'month_start') === 'submission' && $employeeId > 0) {
             try {
-                $submittedOn = DB::connection($connection)->table("y{$yearId}_monthexpensefinal")
+                $submittedOn = DB::connection(self::conn($connection))->table("y{$yearId}_monthexpensefinal")
                     ->where('EmployeeID', $employeeId)->where('Month', $month)->where('YearId', $yearId)
                     ->value('DateOfSubmit');
             } catch (\Throwable $e) {
@@ -572,7 +572,7 @@ class ClaimSubmissionValidator
             || ($start === $curStart - 1 && $today->toDateString() <= $today->copy()->setDate($curStart, 4, 1)->addDays($grace)->toDateString());
         if ($open && ! $isVvnr) {
             try {
-                $status = DB::connection($connection)->table('financialyear')->where('YearId', $yearId)->value('Status');
+                $status = DB::connection(self::conn($connection))->table('financialyear')->where('YearId', $yearId)->value('Status');
                 // an inactive previous year is still open during the grace period
                 if ($status !== null && strcasecmp((string) $status, 'Active') !== 0 && $start === $curStart) {
                     $open = false;
@@ -656,10 +656,19 @@ class ClaimSubmissionValidator
     }
 
     /** First calendar year of a financial year id (financialyear.FromDate; YearId 8 = 2026-27). */
+    /**
+     * VVNR-18NOV-01: with no connection given, use the company the user is working in (VVNR YearIds differ:
+     * VVNR 6 = 2026-27, VNR 6 = 2024-25). Before, the VNR database answered and VVNR bills of 2026-27 were refused.
+     */
+    public static function conn(?string $connection): ?string
+    {
+        return $connection ?: (session('expense_connection') ?: null);
+    }
+
     public function fyStartYear(int $yearId, ?string $connection = null): int
     {
         try {
-            $from = DB::connection($connection)->table('financialyear')->where('YearId', $yearId)->value('FromDate');
+            $from = DB::connection(self::conn($connection))->table('financialyear')->where('YearId', $yearId)->value('FromDate');
             if ($from) {
                 return (int) substr((string) $from, 0, 4);
             }

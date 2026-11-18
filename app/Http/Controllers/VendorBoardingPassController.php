@@ -74,10 +74,15 @@ class VendorBoardingPassController extends Controller
             ->with('success', 'Link created for '.$v['vendor_name'].'. Copy it now: it is shown only once.');
     }
 
+    // BTC-REQ-22 (18 Nov 2026): on servers with explicit_defaults_for_timestamp=OFF the TIMESTAMP column expires_at got
+    // "ON UPDATE CURRENT_TIMESTAMP", so the first upload (last_used_at) reset the expiry to that moment: the link showed
+    // Expired with today's date and the next upload answered 404. Column is now DATETIME (migration 0023) and every
+    // update keeps expires_at as it is.
+
     public function revoke(int $id)
     {
         $this->financeOnly();
-        DB::table(self::TABLE)->where('id', $id)->where('company_id', (int) session('company_id', 1))->update(['revoked_at' => now()]);
+        DB::table(self::TABLE)->where('id', $id)->where('company_id', (int) session('company_id', 1))->update(['revoked_at' => now(), 'expires_at' => DB::raw('`expires_at`')]);
 
         return redirect()->route('btc.vendor.links')->with('success', 'Link revoked.');
     }
@@ -110,7 +115,7 @@ class VendorBoardingPassController extends Controller
         $link = $this->link($token);
         $request->validate(['files' => 'required|array|max:100', 'files.*' => 'file|max:5120'], ['files.required' => 'Choose the boarding pass files or folder.']);
         $res = \App\Services\Btc\BtcBoardingBulk::upload($this->cases($link), $request->file('files', []), 'Vendor: '.$link->vendor_name, null, 'vendor portal link #'.$link->id.', IP '.$request->ip());
-        DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now()]);
+        DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now(), 'expires_at' => DB::raw('`expires_at`')]);
 
         return back()->with('bulk_result', $res)->with('success', collect($res)->where('ok', true)->count().' of '.count($res).' file(s) saved.');
     }
@@ -159,7 +164,7 @@ class VendorBoardingPassController extends Controller
             BtcCaseLog::create(['btc_case_id' => $case->id, 'action' => 'vendor_invoice', 'from_status' => $old, 'to_status' => 'bill_submitted',
                 'remark' => "Invoice {$no} Rs ".number_format((float) $v['bill_amount'], 2).' sent by the vendor through the portal (link #'.$link->id.', IP '.$request->ip().')',
                 'user_id' => null, 'user_name' => mb_substr('Vendor: '.$link->vendor_name, 0, 150)]);
-            DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now()]);
+            DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now(), 'expires_at' => DB::raw('`expires_at`')]);
         });
         try {
             \App\Services\Btc\BtcNotifier::handoff($case->fresh(), 'booked', 'vendor_invoice');
@@ -194,7 +199,7 @@ class VendorBoardingPassController extends Controller
             BtcCaseLog::create(['btc_case_id' => $case->id, 'action' => 'vendor_boarding_pass', 'from_status' => $case->status, 'to_status' => $case->status,
                 'remark' => 'Boarding pass uploaded through the vendor portal (link #'.$link->id.', IP '.$request->ip().')', 'user_id' => null,
                 'user_name' => mb_substr('Vendor: '.$link->vendor_name, 0, 150)]);
-            DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now()]);
+            DB::table(self::TABLE)->where('id', $link->id)->update(['last_used_at' => now(), 'expires_at' => DB::raw('`expires_at`')]);
         });
 
         return back()->with('success', 'Boarding pass received for case '.$case->case_no.'. Thank you.');
@@ -242,7 +247,7 @@ class VendorBoardingPassController extends Controller
             $t->unsignedBigInteger('vendor_id')->nullable();
             $t->string('vendor_name', 200);
             $t->char('token_hash', 64)->unique();
-            $t->timestamp('expires_at');
+            $t->dateTime('expires_at');   // BTC-REQ-22: not TIMESTAMP (MySQL gave it ON UPDATE CURRENT_TIMESTAMP)
             $t->timestamp('revoked_at')->nullable();
             $t->timestamp('last_used_at')->nullable();
             $t->unsignedBigInteger('created_by')->nullable();

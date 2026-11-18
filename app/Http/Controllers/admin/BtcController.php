@@ -43,7 +43,7 @@ class BtcController extends Controller
             'tabs' => $tabs,
             // BTC-FORM-01 (15 Nov 2026): an employee raises only "B - employee-arranged with advance"; admin-arranged
             // bookings (A) and final-bill-after-activity (C) are raised by the BTC admin
-            'routes' => $user->can('btc.admin') ? config('btc.routes') : array_intersect_key(config('btc.routes'), array_flip((array) config('btc.employee_routes', ['employee_advance']))),
+            'routes' => array_intersect_key(config('btc.routes'), array_flip((array) config('btc.employee_routes', ['employee_advance']))),   // BTC-REQ-23: no 'final bill after the activity' option, for anyone
             'routeChoices' => config('btc.route_choices', []),   // BTC-REQ-03
             'categories' => collect(config('btc.categories'))->map(fn ($c) => $c['label'])->all(),
             'statuses' => config('btc.statuses'),
@@ -181,8 +181,8 @@ class BtcController extends Controller
             return response()->json(['success' => false, 'message' => 'Advance needed cannot be more than the quotation amount.'], 422);   // BTC-AMT-01
         }
         $user = auth()->user();
-        if (! $user->can('btc.admin') && ! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {
-            return response()->json(['success' => false, 'message' => 'Choose "Admin Booking Required" or "Advance Required". A bill after the activity is raised by the BTC admin.'], 422);   // BTC-FORM-01 / BTC-REQ-03
+        if (! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {   // BTC-REQ-23 (18 Nov 2026): also for the BTC admin
+            return response()->json(['success' => false, 'message' => 'Choose "Admin Booking Required" or "Advance Required".'], 422);   // BTC-FORM-01 / BTC-REQ-03
         }
         // Admin may raise for any employee; others for themselves
         $empId = ($user->can('btc.admin') && ! empty($v['employee_id'])) ? (int) $v['employee_id'] : (int) $user->employee_id;

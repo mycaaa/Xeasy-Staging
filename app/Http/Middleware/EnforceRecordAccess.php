@@ -62,6 +62,14 @@ class EnforceRecordAccess
                     break;
                 }
             }
+            // VVNR-18NOV-04: the VVNR / Nursery approver screens are also opened from a VNR session; their claim ids
+            // belong to that company's database, not the session's (VNR) - before, every VVNR approval was refused here
+            if ($company === null && preg_match('#^(vvnr|nursery)/#', $path, $m)) {
+                $company = $m[1] === 'vvnr' ? 11 : 3;
+                if ($year === null && $company === 11) {
+                    $year = \App\Http\Controllers\admin\VVNRApproverController::vvYear();
+                }
+            }
             $claimIds = [];
             foreach ((array) ($rule['claim'] ?? []) as $field) {
                 $claimIds[] = $request->input($field);

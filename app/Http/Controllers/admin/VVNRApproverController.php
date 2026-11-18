@@ -34,12 +34,37 @@ class VVNRApproverController extends Controller
 
     // ── Shared session helpers ──────────────────────────────────────────────
 
+    /**
+     * VVNR-18NOV-04: the VVNR tab of Approvals is also opened from a VNR session (VNR | VVNR tabs). It then used the
+     * VNR database, VNR's year id and company 1, so approving refused correct amounts ("more than the claimed amount")
+     * and the record check answered "only your own records or your team's". VVNR screens always use the VVNR database
+     * and its year id (the session's when the session is VVNR, else the VVNR year that contains today).
+     */
+    public const CONN = 'expense_vvnr';
+
+    public static function vvYear(): int
+    {
+        if ((int) session('company_id') === 11 && (int) session('year_id') > 0) {
+            return (int) session('year_id');
+        }
+        try {
+            $today = now('Asia/Kolkata')->toDateString();
+            $id = DB::connection(self::CONN)->table('financialyear')->where('FromDate', '<=', $today)->where('Todate', '>=', $today)->orderByDesc('YearId')->value('YearId');
+            if ($id) {
+                return (int) $id;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return 6;
+    }
+
     private function sessionData(): array
     {
         return [
             'employeeId' => session('employee_id'),
-            'yearId'     => session('year_id') ?: 12,
-            'companyId'  => session('company_id') ?: 11,
+            'yearId'     => self::vvYear(),
+            'companyId'  => 11,
             'tokenId'    => session('token_id') ?: config('app.api_token_id'),
         ];
     }
@@ -105,9 +130,9 @@ class VVNRApproverController extends Controller
         if (empty($data['Pending_list']) || !is_array($data['Pending_list'])) {
             try {
                 $employeeId = session('employee_id');
-                $yearId = session('year_id') ?: 12;
+                $yearId = self::vvYear();
                 $mefTable = "y{$yearId}_monthexpensefinal";
-                $conn = session('expense_connection') ?: \App\Helpers\DatabaseSwitcher::getExpenseConnection();
+                $conn = self::CONN;
                 $hrimsDb = \App\Helpers\DatabaseSwitcher::getHrimsDatabaseName();
 
                 $teamMembers = DB::table($hrimsDb . '.hrm_employee_general as eg')
@@ -232,14 +257,14 @@ class VVNRApproverController extends Controller
 
             $s = $this->sessionData();
             // APPR-CAP-02: never above the claimed amount, checked here before the claim API is called
-            if ($capMsg = \App\Services\Claims\StageCap::webApproveGuard(session('expense_connection'), (int) $s['yearId'], (int) $request->input('exp_id'), $request->input('amount'), (string) $request->input('remark', ''), 'web_approve')) {
+            if ($capMsg = \App\Services\Claims\StageCap::webApproveGuard(self::CONN, (int) $s['yearId'], (int) $request->input('exp_id'), $request->input('amount'), (string) $request->input('remark', ''), 'web_approve')) {
                 return response()->json(['Code' => '100', 'msg' => $capMsg, 'message' => $capMsg], 422);
             }
 
             // VVNR-APPR-REM-01 (decision 5 Nov 2026): approving less than the claimed / verified amount
             // needs a remark, so the employee and Finance see why the amount was cut.
             $remark = trim((string) $request->input('remark', ''));
-            $claim = \Illuminate\Support\Facades\DB::connection(session('expense_connection', 'expense_vvnr'))
+            $claim = \Illuminate\Support\Facades\DB::connection(self::CONN)
                 ->table('y' . (int) $s['yearId'] . '_expenseclaims')->where('ExpId', (int) $request->input('exp_id'))
                 ->first(['FilledTAmt', 'VerifyTAmt']);
             if ($claim) {
@@ -273,7 +298,7 @@ class VVNRApproverController extends Controller
                 $empId = $request->input('employee_id');
                 $month = $request->input('month');
                 $mfTable = 'y' . $s['yearId'] . '_monthexpensefinal';
-                $mfRecord = \Illuminate\Support\Facades\DB::connection(session('expense_connection'))->table($mfTable)
+                $mfRecord = \Illuminate\Support\Facades\DB::connection(self::CONN)->table($mfTable)
                     ->where('EmployeeID', $empId)->where('Month', $month)->where('YearId', $s['yearId'])->first(['id']);
                 $refId = $mfRecord ? (string) $mfRecord->id : "{$empId}{$month}";
                 $this->centralNotification->approveAction(
@@ -311,26 +336,12 @@ class VVNRApproverController extends Controller
             $empId = (int) $request->input('emp_id');
             $month = (int) $request->input('month');
 
-            // Server-side check: month must be verified by verifier before approver can submit
-            $mfTable = 'y' . $yearId . '_monthexpensefinal';
-            $mfRecord = \Illuminate\Support\Facades\DB::connection(session('expense_connection', 'expense'))->table($mfTable)
-                ->where('EmployeeID', $empId)->where('Month', $month)->where('YearId', $yearId)->first();
-
-            if ($mfRecord) {
-                $isVerified = ((float)($mfRecord->Verified_Amount ?? 0) > 0) ||
-                              (!empty($mfRecord->Verified_Date) && \App\Support\ZeroDate::has($mfRecord->Verified_Date) && $mfRecord->Verified_Date !== '1970-01-01');
-                if (!$isVerified) {
-                    return response()->json([
-                        'Code' => '100',
-                        'msg' => 'Cannot submit: Claims for this month are not yet verified by the verifier.',
-                        'message' => 'Cannot submit: Claims for this month are not yet verified by the verifier.'
-                    ]);
-                }
-            }
+            // VVNR-18NOV-03: VVNR approves first (claim - approve - payment - verify); the month is not verified yet, so
+            // the earlier 'not yet verified' block is gone (it stopped every VVNR approval).
 
             // APPR-CAP-02: no final submit while an approved (or verified) amount is above the claimed amount
             try {
-                $over = \App\Services\Claims\StageCap::monthOverClaimed(session('expense_connection', 'expense'), $yearId, $empId, $month);
+                $over = \App\Services\Claims\StageCap::monthOverClaimed(self::CONN, $yearId, $empId, $month);
             } catch (\Throwable $e) {
                 $over = [];
             }
@@ -357,7 +368,7 @@ class VVNRApproverController extends Controller
                     $empId = $request->input('emp_id');
                     $month = $request->input('month');
                     $mfTable = 'y' . $yearId . '_monthexpensefinal';
-                    $mfRecord = \Illuminate\Support\Facades\DB::connection(session('expense_connection'))->table($mfTable)
+                    $mfRecord = \Illuminate\Support\Facades\DB::connection(self::CONN)->table($mfTable)
                         ->where('EmployeeID', $empId)->where('Month', $month)->where('YearId', $yearId)->first(['id']);
                     $refId = $mfRecord ? (string) $mfRecord->id : "{$empId}{$month}";
                     $this->centralNotification->raiseExpenseClaim(

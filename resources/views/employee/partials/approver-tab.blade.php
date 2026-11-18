@@ -924,7 +924,11 @@
                     let statusRightHtml = '';
                     let submitBtnHtml = '';
 
-                    if (!cv) {
+                    const isVv = compKey === 'vvnr';   // VVNR-18NOV-03: claim - approve - payment - verify
+                    if (isVv) {
+                        vStatusBadge = '<span class="badge bg-info-subtle text-info ms-1" style="font-size:10px;"><i class="ri-time-line me-1"></i>Approval Pending</span>';
+                        submitBtnHtml = `<a class="pill-btn submit rm-submit-btn ms-auto" data-empid="${rme(id)}" data-month="${rme(mo)}" data-yearid="${rme(yr)}" data-verified="1"><i class="ri-check-double-line"></i> Submit</a>`;
+                    } else if (!cv) {
                         vStatusBadge = '<span class="badge bg-warning text-dark ms-1" style="font-size:10px;"><i class="ri-truck-line me-1"></i>Post Pending</span>';
                         statusRightHtml = '<div style="font-size:11px;color:#d97706;font-weight:600"><i class="ri-truck-line"></i> Post Pending</div>';
                         submitBtnHtml = `<button type="button" class="pill-btn disabled-submit-btn ms-auto" data-reason="Post / Courier is pending" title="Post Pending - Cannot submit"><i class="ri-lock-line me-1"></i> Submit</button>`;
@@ -957,12 +961,17 @@
                         <a class="pill-btn view rm-view-btn" data-empid="${rme(id)}" data-month="${rme(mo)}" data-yearid="${rme(yr)}" data-name="${rme(nm)}"><i class="ri-eye-line"></i> View</a>
                         ${submitBtnHtml}
                     </div>
-                    <div class="mini-stepper">
+                    ${isVv ? `<div class="mini-stepper">
+                        <div class="mini-step done"><div class="step-dot done"><i class="ri-user-3-line"></i></div><div class="lbl">Claimant</div><div class="val">₹${rmfa(amt)}</div><div class="val-date">${rmfd(rmfld(item,'DateOfSubmit','dateofsubmit','SubmitDate','Crdate'))}</div></div>
+                        <div class="mini-step"><div class="step-dot wait"><i class="ri-shield-check-line"></i></div><div class="lbl">Approver</div><div class="val">${aAmt>0?'₹'+rmfa(aAmt):'Pending'}</div></div>
+                        <div class="mini-step"><div class="step-dot wait"><i class="ri-bank-card-line"></i></div><div class="lbl">Payment</div><div class="val">-</div></div>
+                        <div class="mini-step"><div class="step-dot wait"><i class="ri-file-search-line"></i></div><div class="lbl">Verifier</div><div class="val">-</div></div>
+                    </div></div></div>` : `<div class="mini-stepper">
                         <div class="mini-step done"><div class="step-dot done"><i class="ri-user-3-line"></i></div><div class="lbl">Claimant</div><div class="val">₹${rmfa(amt)}</div><div class="val-date">${rmfd(rmfld(item,'DateOfSubmit','dateofsubmit','SubmitDate','Crdate'))}</div></div>
                         <div class="mini-step ${cv?'done':''}"><div class="step-dot ${cv?'done':'wait'}"><i class="ri-truck-line"></i></div><div class="lbl">Post</div><div class="val">${cv?rmfd(cour):'-'}</div></div>
                         <div class="mini-step ${hasVerifier?'done':''}"><div class="step-dot ${hasVerifier?'done':'wait'}"><i class="ri-file-search-line"></i></div><div class="lbl">Verifier</div><div class="val">${hasVerifier?'₹'+rmfa(vAmt):'Pending'}</div><div class="val-date">${hasVerifier?rmfd(rmfld(item,'Verified_Date','verified_date','VerifiedDate','VerifDate','Verify_Date')):'-'}</div></div>
                         <div class="mini-step"><div class="step-dot wait"><i class="ri-shield-check-line"></i></div><div class="lbl">Approver</div><div class="val">${aAmt>0?'₹'+rmfa(aAmt):'Pending'}</div><div class="val-date">${aAmt>0?rmfd(rmfld(item,'Approved_Date','approved_date','ApprovedDate','ApprDate','Appr_Date')):'-'}</div></div>
-                    </div></div></div>`;
+                    </div></div></div>`}`;
                 });
                 $('#rmPendingCards').html(h);
             } catch(renderErr) {
@@ -1149,7 +1158,8 @@
             const cap = ca > 0 ? ca : va;
             // APPR-ZERO-02: a line already approved at ₹0 keeps ₹0 (not the verified amount)
             const aprDone = !!(d.ApprDate && !/^0000|^$/.test(String(d.ApprDate)) && rmn(d.ApprBy) > 0);
-            const aa = ((rawAppr > 0 || aprDone) ? rawAppr : (cap > 0 ? Math.min(va, cap) : va));
+            // VVNR-18NOV-03: VVNR approves before verification, so the claimed amount is offered
+            const aa = ((rawAppr > 0 || aprDone) ? rawAppr : (activeCompany === 'vvnr' ? ca : (cap > 0 ? Math.min(va, cap) : va)));
             const overCap = cap > 0 && aa > cap + 0.009;
             if(overCap){ overClaimed.push('#' + eid); }
             
@@ -1360,6 +1370,11 @@
             </tr></tfoot>
         </table></div>`);
 
+        // VVNR-18NOV-03: VVNR verifies after payment - no Verified / Diff / Verifier Remark columns for its approver
+        if(activeCompany === 'vvnr'){
+            $('#rmDayModalBody .day-tbl').find('thead tr, tbody tr').each(function(){ $(this).children().filter(function(){ return [6,7,8].includes($(this).index()); }).hide(); });
+            $('#rmDayModalBody .day-tbl tfoot tr').children().filter(function(){ return [2,3,4].includes($(this).index()); }).hide();
+        }
         // APPR-FILTER-01: column filters (full-screen view)
         if(window.xeasyApproverFilters){ window.xeasyApproverFilters.attach('#rmDayModalBody'); }
 
@@ -1382,7 +1397,8 @@
         // APPR-CAP-02: the ceiling is the claimed amount (the approver may raise a cut verified amount up to it, never above)
         const basis = cAmt > 0 ? cAmt : vAmt;
         if(basis > 0 && amt > basis + 0.009){ return fail('Not allowed', 'The approved amount (' + amt.toFixed(2) + ') cannot be more than the ' + (cAmt > 0 ? 'claimed' : 'verified') + ' amount (' + basis.toFixed(2) + ').', '.aa'); }
-        if(amt !== vAmt && !rmk.trim()){ return fail('Remark Required', 'Since approved amount differs from verified, please enter a remark.', '.ar'); }
+        const refAmt = activeCompany === 'vvnr' ? cAmt : vAmt;   // VVNR-18NOV-03
+        if(Math.abs(amt - refAmt) > 0.009 && !rmk.trim()){ return fail('Remark Required', 'Since approved amount differs from ' + (activeCompany === 'vvnr' ? 'claimed' : 'verified') + ', please enter a remark.', '.ar'); }
         const approveClaimUrl = (activeRoutes && activeRoutes.approveClaim) ? activeRoutes.approveClaim : (rmApproverRoutes ? rmApproverRoutes.approveClaim : null);
         if(!approveClaimUrl){ return fail('Error', 'Approve claim route not configured.'); }
         $r.removeClass('table-danger');
@@ -1527,7 +1543,7 @@
                     <tr><td class="fw-bold">Employee:</td><td>${rme(info.name||'')}</td></tr>
                     <tr><td class="fw-bold">Month:</td><td>${rmM[+mo]||mo}</td></tr>
                     <tr><td class="fw-bold">Claimant Amt:</td><td>₹${rmfa(info.claimTotal||0)}</td></tr>
-                    <tr><td class="fw-bold">Verified Amt:</td><td>₹${rmfa(info.verifyTotal||0)}</td></tr>
+                    ${activeCompany === 'vvnr' ? '' : `<tr><td class="fw-bold">Verified Amt:</td><td>₹${rmfa(info.verifyTotal||0)}</td></tr>`}
                     <tr><td class="fw-bold">Approved Amt:</td><td class="text-success fw-bold">₹${rmfa(info.approveTotal||0)}</td></tr>
                 </table>
             </div>`,

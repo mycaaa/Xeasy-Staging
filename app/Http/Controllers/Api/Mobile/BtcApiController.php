@@ -71,7 +71,7 @@ class BtcApiController extends BaseMobileController
 
                     return ($j['success'] ?? false) ? $this->ok(['message' => $j['message'], 'id' => $j['id'] ?? null]) : $this->error($j['message'] ?? 'Not saved');
                 case 'meta':
-                    $routes = $user->can('btc.admin') ? array_keys(config('btc.routes')) : (array) config('btc.employee_routes');
+                    $routes = (array) config('btc.employee_routes');   // BTC-REQ-23
 
                     return $this->ok(['routes' => collect($routes)->map(fn ($k) => ['key' => $k, 'title' => config("btc.route_choices.{$k}.0", $k), 'help' => config("btc.route_choices.{$k}.1", '')])->values(),
                         'categories' => collect(config('btc.categories'))->map(fn ($c, $k) => ['key' => $k, 'label' => $c['label']])->values(),

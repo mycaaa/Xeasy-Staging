@@ -48,7 +48,7 @@ return [
     'route_choices' => [
         'admin_booking' => ['Admin Booking Required', 'The BTC admin books the hotel / vehicle / ticket with the vendor; you only state the need.'],
         'employee_advance' => ['Advance Required', 'You arrange the vendor and attach its quotation; Finance pays an advance after your manager approves.'],
-        'direct_bill' => ['Final bill after the activity', 'The service is over and the vendor bill is in hand (BTC admin only).'],
+        // BTC-REQ-23 (18 Nov 2026): 'Final bill after the activity' removed from the request form (old route C cases still open and work)
     ],
 
     // BTC-FORM-02: vendor types (vendor_list.vendor_type) offered for each category; [] = all vendors
