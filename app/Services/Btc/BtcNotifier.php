@@ -19,14 +19,15 @@ class BtcNotifier
     public const STAGES = [
         'pending_manager' => ['Reporting manager approval', 2],
         'booking_requested' => ['BTC admin booking', 2],
-        'advance_requested' => ['Finance advance payment', 2],
+        'advance_requested' => ['Finance Advance Approval and payment', 2],
+        'scanned' => ['Classification of the scanned bill', 1],   // BTC-SCAN-01
         'advance_paid' => ['Requester: upload the bill', 15],
         'booked' => ['Admin: bill to DMS / requester: upload the bill', 15],
         'returned' => ['Requester: correction', 3],
         // BTC-V2 (19 Nov 2026): revised workflow
         'bill_with_dms' => ['DMS: receive the physical bill, hand to Finance', 2],
         'bill_with_finance' => ['Finance: scan and upload the bill', 2],
-        'bill_submitted' => ['Finance: data extraction', 2],
+        'bill_submitted' => ['Punch Screen', 2],
         'extracted' => ['Finance Verifier 1', 2],
         'finance_verified' => ['Finance Verifier 1: Focus entry', 2],
         'focus_done' => ['Finance Approval', 2],
@@ -80,7 +81,8 @@ class BtcNotifier
         return match ($c->status) {
             'pending_manager' => $emp((int) $c->manager_id),
             'booking_requested' => $perm('btc.booking'),
-            'advance_requested' => $perm('btc.advance'),
+            'advance_requested' => in_array($c->adv_stage ?? null, ['instructed'], true) || ! Schema::hasColumn('btc_cases', 'adv_stage') ? $perm('btc.advance') : $perm('btc.fin_approver'),
+            'scanned' => array_merge($perm('btc.dms'), $perm('btc.bill_upload')),
             'booked' => $c->route === 'admin_booking' ? $perm('btc.booking') : $owner(),
             'advance_paid', 'returned', 'rejected', 'cancelled', 'closed' => $owner(),
             'bill_with_dms' => $perm('btc.dms'),

@@ -5,6 +5,7 @@ namespace App\Services\Btc;
 use App\Models\BtcCase;
 use App\Models\BtcCaseLog;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -46,11 +47,18 @@ class BtcWorkflow
         'complete_activity' => [['booked'], 'owner|btc.booking', null],
         // BTC-REQ-06: Finance Advance pays the advance; a refund from the vendor is recorded separately
         'advance_paid' => [['advance_requested'], 'btc.finance|btc.advance', 'advance_paid'],
+        // BTC-SCAN-01 (19 Nov 2026): Finance Advance Approval - pending -> approved -> instructed (to Treasury / bank),
+        // only then the advance is paid
+        'adv_fin_approve' => [['advance_requested'], 'btc.fin_approver', null],
+        'adv_fin_reject' => [['advance_requested'], 'btc.fin_approver', 'rejected'],
+        'adv_instruct' => [['advance_requested'], 'btc.fin_approver|btc.advance', null],
         'record_refund' => [['advance_paid', 'booked', 'bill_submitted', 'extracted', 'finance_verified', 'focus_done', 'fin_approved', 'paid', 'cancelled'], 'btc.finance|btc.advance', null],
         'booked' => [['advance_paid'], null, 'booked'],
         // BTC-V2: the employee uploads the soft copy against his own request; Finance uploads through Bill Upload by Finance
         'submit_bill' => [['booked', 'advance_paid', 'returned'], null, 'bill_submitted'],
-        'finance_upload' => [['booked', 'advance_paid', 'bill_with_dms', 'bill_with_finance', 'returned'], 'btc.bill_upload|btc.finance', 'bill_submitted'],
+        'finance_upload' => [['booked', 'advance_paid', 'bill_with_dms', 'bill_with_finance', 'returned', 'scanned'], 'btc.bill_upload|btc.finance|btc.dms', 'bill_submitted'],
+        // BTC-SCAN-01: a scanned bill not to be processed (scanned twice, not a BTC bill)
+        'discard_scan' => [['scanned'], 'btc.bill_upload|btc.finance|btc.dms', 'cancelled'],
         // BTC-V2 Step 2: the read fields corrected and sent to Finance Verifier 1
         'save_extraction' => [['bill_submitted'], 'btc.bill_upload|btc.finance', null],
         'confirm_extraction' => [['bill_submitted'], 'btc.bill_upload|btc.finance', 'extracted'],
@@ -114,6 +122,11 @@ class BtcWorkflow
             // a bill uploaded by Finance has no owner to return it to
             'return' => (bool) $c->employee_id && $c->route !== 'direct_bill',
             'waive_document' => (bool) $c->pendingDocuments(),
+            // BTC-SCAN-01: Finance Advance Approval stages; a scanned bill is classified on the Classification screen
+            'adv_fin_approve', 'adv_fin_reject' => in_array($c->adv_stage ?? null, [null, '', 'pending'], true),
+            'adv_instruct' => ($c->adv_stage ?? null) === 'approved',
+            'advance_paid' => ! Schema::hasColumn('btc_cases', 'adv_stage') || ! config('btc.advance_approval', true) || ($c->adv_stage ?? null) === 'instructed',
+            'finance_upload' => $c->status !== 'scanned',
             default => true,
         };
     }
@@ -254,8 +267,19 @@ class BtcWorkflow
             case 'modify_booking':
                 $ref = trim((string) ($d['booking_ref'] ?? ''));
                 $amt = round((float) ($d['booking_amount'] ?? 0), 2);
-                if ($ref === '' || $amt <= 0) {
-                    throw new RuntimeException('Enter the booking reference and the booking amount.');
+                // BTC-REQ-28 (19 Nov 2026): the booking amount may be zero (complimentary / paid elsewhere); reference still needed
+                if ($ref === '' || $amt < 0 || ! isset($d['booking_amount']) || $d['booking_amount'] === '') {
+                    throw new RuntimeException('Enter the booking reference and the booking amount (0 is allowed).');
+                }
+                // BTC-REQ-27 (19 Nov 2026): the admin can set / update the advance to the vendor while confirming the booking
+                $adv = isset($d['advance_amount']) && $d['advance_amount'] !== '' ? round((float) $d['advance_amount'], 2) : null;
+                if ($adv !== null) {
+                    if ($adv < 0 || ($amt > 0 && $adv > $amt + 0.009)) {
+                        throw new RuntimeException('Advance must be between 0 and the booking amount '.number_format($amt, 2).'.');
+                    }
+                    if ($adv > 0 && (float) $c->advance_paid_amount > 0 && abs($adv - (float) $c->advance_paid_amount) > 0.009) {
+                        throw new RuntimeException('An advance of Rs '.number_format((float) $c->advance_paid_amount, 2).' is already paid; it cannot be changed here.');
+                    }
                 }
                 if (! empty($d['vendor_id'])) {
                     $v = DB::table('vendor_list')->where('id', (int) $d['vendor_id'])->first(['id', 'vendor_name', 'gst_no']);
@@ -267,8 +291,8 @@ class BtcWorkflow
                 } elseif (! empty($d['vendor_name'])) {
                     $c->vendor_name = mb_substr(trim((string) $d['vendor_name']), 0, 200);
                 }
-                if (! $c->vendor_name) {
-                    throw new RuntimeException('Choose the vendor / hotel booked.');
+                if (! trim((string) $c->vendor_name)) {   // BTC-REQ-27: vendor name is mandatory
+                    throw new RuntimeException('Choose the vendor / hotel booked, or type its name.');
                 }
                 if ($action === 'modify_booking' && $remark === '') {
                     throw new RuntimeException('Give the reason for the change.');
@@ -284,8 +308,16 @@ class BtcWorkflow
                         $c->$k = $d[$k];
                     }
                 }
-                $remark = trim(($action === 'confirm_booking' ? 'Booked' : 'Booking changed').": {$c->vendor_name}, ref {$c->booking_ref}, Rs ".number_format($amt, 2).($remark ? " - {$remark}" : ''));
                 $to = $action === 'confirm_booking' ? 'booked' : $old;
+                if ($adv !== null && ! ((float) $c->advance_paid_amount > 0)) {
+                    $c->advance_amount = $adv;
+                    $c->advance_approved = $adv > 0 ? $adv : null;
+                    if ($adv > 0) {
+                        $to = 'advance_requested';   // Finance Advance pays the vendor; the case returns to "booked" when paid
+                    }
+                }
+                $remark = trim(($action === 'confirm_booking' ? 'Booked' : 'Booking changed').": {$c->vendor_name}, ref {$c->booking_ref}, Rs ".number_format($amt, 2)
+                    .($adv > 0 ? ', advance Rs '.number_format($adv, 2) : '').($remark ? " - {$remark}" : ''));
                 break;
             case 'cancel_booking':
                 if ($remark === '') {
@@ -306,12 +338,12 @@ class BtcWorkflow
                     $c->vendor_gstin = null;
                     $c->new_vendor = true;
                 } else {
-                    throw new RuntimeException('Choose the new vendor or type its name.');
+                    throw new RuntimeException('Choose the vendor or type its name (vendor name is mandatory).');
                 }
                 if ($remark === '') {
-                    throw new RuntimeException('Give the reason for changing the vendor.');
+                    throw new RuntimeException('Give the reason for updating the vendor.');
                 }
-                $remark = 'Vendor changed from '.($oldV ?: '-').' to '.$c->vendor_name.' - '.$remark;
+                $remark = 'Vendor updated from '.($oldV ?: '-').' to '.$c->vendor_name.' - '.$remark;
                 $to = $old;
                 break;
             case 'forward_to_dms':
@@ -373,7 +405,52 @@ class BtcWorkflow
                 $c->manager_action_at = $now;
                 $c->manager_remark = $remark;
                 break;
+            case 'adv_fin_approve':
+            case 'adv_instruct':
+            case 'adv_fin_reject':
+                if (! Schema::hasColumn('btc_cases', 'adv_stage')) {
+                    throw new RuntimeException('Run the BTC database update first.');
+                }
+                $stage = $c->adv_stage ?: 'pending';
+                if ($action === 'adv_fin_approve') {
+                    if ($stage !== 'pending') {
+                        throw new RuntimeException('The advance is already '.$stage.'.');
+                    }
+                    $this->withinLimit($user, (float) ($c->advance_approved ?? $c->advance_amount), 'approve this advance');
+                    $c->adv_stage = 'approved';
+                    $c->adv_fin_by = $user->id;
+                    $c->adv_fin_at = $now;
+                    $c->adv_fin_remark = $remark ?: null;
+                    $remark = 'Advance Rs '.number_format((float) ($c->advance_approved ?? $c->advance_amount), 2).' approved by Finance'.($remark ? ' - '.$remark : '');
+                } elseif ($action === 'adv_instruct') {
+                    if ($stage !== 'approved') {
+                        throw new RuntimeException('Finance must approve the advance before the payment instruction.');
+                    }
+                    $c->adv_stage = 'instructed';
+                    $c->adv_instructed_by = $user->id;
+                    $c->adv_instructed_at = $now;
+                    $c->adv_instruction_ref = isset($d['adv_instruction_ref']) ? mb_substr(trim((string) $d['adv_instruction_ref']), 0, 60) : null;
+                    $remark = 'Payment instruction given'.($c->adv_instruction_ref ? ' (ref '.$c->adv_instruction_ref.')' : '').($remark ? ' - '.$remark : '');
+                } else {
+                    if ($remark === '') {
+                        throw new RuntimeException('Give the reason for rejecting the advance.');
+                    }
+                    $c->adv_stage = 'rejected';
+                    $c->adv_fin_by = $user->id;
+                    $c->adv_fin_at = $now;
+                    $c->adv_fin_remark = $remark;
+                }
+                break;
+            case 'discard_scan':
+                if ($remark === '') {
+                    throw new RuntimeException('Say why the scanned bill is not processed.');
+                }
+                break;
             case 'advance_paid':
+                // BTC-SCAN-01: only an advance approved by Finance and instructed for payment is paid
+                if (Schema::hasColumn('btc_cases', 'adv_stage') && config('btc.advance_approval', true) && $c->adv_stage !== 'instructed') {
+                    throw new RuntimeException('The advance is '.($c->adv_stage ?: 'pending').' at Finance Advance Approval; it can be paid after approval and payment instruction.');
+                }
                 // BTC-REQ-06: the amount actually paid, not the amount requested
                 $limit = $c->advance_approved !== null ? (float) $c->advance_approved : (float) $c->advance_amount;
                 $paid = isset($d['advance_paid_amount']) && $d['advance_paid_amount'] !== '' ? round((float) $d['advance_paid_amount'], 2) : $limit;
@@ -385,6 +462,9 @@ class BtcWorkflow
                 $c->advance_paid_on = $d['advance_paid_on'] ?? $now->toDateString();
                 $c->advance_activity_id = $d['advance_activity_id'] ?? $c->advance_activity_id;
                 $c->tds_on_advance = (float) ($d['tds_on_advance'] ?? 0);
+                if (in_array($c->booking_status, ['confirmed', 'modified'], true)) {
+                    $to = 'booked';   // BTC-REQ-27: booking already confirmed by the admin - the service goes ahead
+                }
                 break;
             case 'submit_bill':
             case 'finance_upload':
@@ -411,7 +491,11 @@ class BtcWorkflow
                 break;
             case 'save_extraction':
             case 'confirm_extraction':
+                $punch = $this->takePunch($c, $d);   // BTC-SCAN-01: the punch form (fields as on the bill)
                 $this->takeExtraction($c, $d);
+                if ($punch) {   // the Finance data fields left empty are filled from the punch form
+                    BtcExtraction::apply($c, \App\Services\Btc\InvoiceReader::normalise(array_filter($punch, fn ($v) => $v !== '')), $punch, false);
+                }
                 if ($action === 'confirm_extraction') {
                     if ($missing = BtcExtraction::missing($c)) {
                         throw new RuntimeException('Fill in: '.implode(', ', $missing).'.');
@@ -439,6 +523,21 @@ class BtcWorkflow
                 if (($dups->isNotEmpty() || $ov) && $remark === '') {
                     throw new RuntimeException('Give a remark for passing the duplicate / own-claim check.');
                 }
+                // BTC-SCAN-01: Finance level verification - every field checked against the hard copy
+                if (Schema::hasColumn('btc_cases', 'verify1_checks') && (! empty($d['checks_form']) || isset($d['checks']))) {
+                    $fields = array_keys((array) config('btc.extraction.fields'));
+                    $checks = array_intersect_key(is_array($d['checks'] ?? null) ? $d['checks'] : [], array_flip($fields));
+                    if (count($checks) < count($fields) || in_array('', $checks, true)) {
+                        throw new RuntimeException('Mark every field as matching the hard copy or not.');
+                    }
+                    if ($bad = array_keys(array_filter($checks, fn ($v) => $v !== 'ok'))) {
+                        throw new RuntimeException('Not matching the hard copy: '.collect($bad)->map(fn ($k) => rtrim(config("btc.extraction.fields.{$k}", $k), '.'))->implode(', ').' - return it for correction.');
+                    }
+                    if (empty($d['hard_copy_seen'])) {
+                        throw new RuntimeException('Confirm that the hard copy of the bill was checked.');
+                    }
+                    $c->verify1_checks = json_encode(['fields' => $checks, 'hard_copy' => true, 'at' => $now->toDateTimeString()]);
+                }
                 $c->duplicate_checked = true;
                 $c->verify1_by = $user->id;
                 $c->verify1_at = $now;
@@ -448,6 +547,10 @@ class BtcWorkflow
             case 'verify1_return':
             case 'verify1_reject':
             case 'fin_reject':
+                if ($action === 'verify1_return' && $remark === '' && isset($d['checks']) && is_array($d['checks'])) {   // BTC-SCAN-01: the fields not matching
+                    $bad = array_keys(array_filter($d['checks'], fn ($v) => $v === 'diff'));
+                    $remark = $bad ? 'Not matching the hard copy: '.collect($bad)->map(fn ($k) => config("btc.extraction.fields.{$k}", $k))->implode(', ') : '';
+                }
                 if ($remark === '') {
                     throw new RuntimeException($action === 'verify1_return' ? 'Say what is to be corrected.' : 'Give the reason for rejecting.');
                 }
@@ -629,17 +732,38 @@ class BtcWorkflow
         if ($dups->isNotEmpty()) {
             $note .= '. Possible duplicate of '.$dups->pluck('case_no')->implode(', ');
         }
-        $next = $complete && $dups->isEmpty() ? 'extracted' : 'bill_submitted';
+        $next = $complete && $dups->isEmpty() && config('btc.extraction.auto_forward', false) ? 'extracted' : 'bill_submitted';   // BTC-SCAN-01: punched by a person
         DB::transaction(function () use ($c, $next, $note, $user) {
             $from = $c->status;
             $c->status = $next;
             $c->save();
             BtcCaseLog::create(['btc_case_id' => $c->id, 'action' => 'extraction', 'from_status' => $from, 'to_status' => $next,
-                'remark' => mb_substr($note.($next === 'extracted' ? ' - sent to Finance Verifier 1' : ' - to be completed on Automatic Data Extraction'), 0, 1000),
+                'remark' => mb_substr($note.($next === 'extracted' ? ' - sent to Finance Verifier 1' : ' - to be checked on the Punch Screen'), 0, 1000),
                 'user_id' => null, 'user_name' => 'System']);
         });
 
         return $c->fresh();
+    }
+
+    /** BTC-SCAN-01: the punch form of the bill type (fields as printed on the bill), kept on the case. */
+    private function takePunch(BtcCase $c, array $d): array
+    {
+        if (! isset($d['punch']) || ! is_array($d['punch']) || ! Schema::hasColumn('btc_cases', 'punch_json')) {
+            return [];
+        }
+        $form = config('btc.punch_forms.'.config('btc.punch_form_of.'.$c->category, 'meeting'), []);
+        $nums = (array) config('btc.punch_numbers');
+        $out = [];
+        foreach (array_keys($form['fields'] ?? []) as $k) {
+            $v = trim((string) ($d['punch'][$k] ?? ''));
+            if ($v !== '' && in_array($k, $nums, true) && ! is_numeric(str_replace(',', '', $v))) {
+                throw new RuntimeException(($form['fields'][$k] ?? $k).' must be a number.');
+            }
+            $out[$k] = mb_substr($v, 0, 200);
+        }
+        $c->punch_json = json_encode($out, JSON_UNESCAPED_UNICODE);
+
+        return $out;
     }
 
     /** BTC-V2: the extraction fields as corrected by the Finance user (only the Finance data format fields). */
@@ -698,7 +822,7 @@ class BtcWorkflow
      */
     public static function claimOverlaps(BtcCase $c): array
     {
-        $types = ['hotel' => [1], 'air' => [2, 18], 'train' => [14], 'vehicle' => [4], 'meeting' => [13, 24, 25, 32, 33, 42, 45, 46]][$c->category] ?? [];
+        $types = ['hotel' => [1], 'air' => [2, 18], 'train' => [14], 'bus' => [15], 'meals' => [17], 'vehicle' => [4], 'meeting' => [13, 24, 25, 32, 33, 42, 45, 46]][$c->category] ?? [];
         $from = $c->service_from ?: $c->travel_date ?: $c->bill_date;
         $to = $c->service_to ?: $from;
         if (! $types || ! $from || ! $c->employee_id) {

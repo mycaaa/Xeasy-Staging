@@ -20,6 +20,7 @@ class BtcCase extends Model
         'booking_date' => 'date', 'activity_completed_on' => 'date', 'advance_refund_on' => 'date',
         'doc_waived_at' => 'datetime', 'hold_at' => 'datetime', 'on_hold' => 'boolean',
         'dms_received_on' => 'date', 'dms_to_finance_on' => 'date', 'bill_uploaded_at' => 'datetime', 'verify1_at' => 'datetime', 'fin_approved_at' => 'datetime',   // BTC-V2
+        'adv_fin_at' => 'datetime', 'adv_instructed_at' => 'datetime',   // BTC-SCAN-01
         'new_vendor' => 'boolean', 'original_required' => 'boolean', 'boarding_pass_required' => 'boolean', 'duplicate_checked' => 'boolean',
     ];
 
@@ -150,7 +151,11 @@ class BtcCase extends Model
             'draft' => 'Requester (draft)',
             'pending_manager' => 'Reporting manager',
             'booking_requested' => 'BTC Admin (booking)',
-            'advance_requested' => 'Finance Advance',
+            // BTC-SCAN-01: Finance Advance Approval (pending -> approved -> instructed), then Finance Advance pays
+            'advance_requested' => match ($this->adv_stage ?? null) {
+                'instructed' => 'Finance Advance (pay - instructed)', 'approved' => 'Finance (payment instruction)', default => 'Finance Advance Approval',
+            },
+            'scanned' => 'Classification (bill type)',
             // BTC-V2 (19 Nov 2026): admin bookings - Admin hands the physical bill to DMS, DMS to Finance; advance cases -
             // the employee uploads the bill against his request
             'booked' => $this->route === 'admin_booking' ? 'BTC Admin (physical bill to DMS)' : 'Requester (upload the bill)',
@@ -158,8 +163,8 @@ class BtcCase extends Model
             'bill_with_dms' => 'DMS (receive the bill, hand to Finance)',
             'bill_with_finance' => 'Finance (scan and upload the bill)',
             'returned' => 'Requester (correction)',
-            'bill_submitted' => 'Finance (data extraction)',
-            'extracted' => 'Finance Verifier 1',
+            'bill_submitted' => 'Punch Screen (check the bill data)',
+            'extracted' => 'Finance level verification',
             'finance_verified' => 'Finance Verifier 1 (Focus entry)',
             'focus_done' => 'Finance Approver',
             'fin_approved' => 'Treasury (payment)',
@@ -196,7 +201,7 @@ class BtcCase extends Model
         };
         $advance = $a['requested'] <= 0 ? '-' : match (true) {
             $a['paid'] > 0 => 'Paid '.number_format($a['paid']).($a['balance'] > 0.5 && $this->status !== 'draft' ? ' · due '.number_format($a['balance']) : ''),
-            $this->status === 'advance_requested' => 'Approved, not paid',
+            $this->status === 'advance_requested' => match ($this->adv_stage ?? null) { 'instructed' => 'Instructed, not paid', 'approved' => 'Finance approved', default => 'Pending Finance approval' },
             $this->status === 'pending_manager' => 'Waiting approval',
             default => 'Requested '.number_format($a['requested']),
         };

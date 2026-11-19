@@ -74,7 +74,8 @@ class BtcApiController extends BaseMobileController
                     $routes = (array) config('btc.employee_routes');   // BTC-REQ-23
 
                     return $this->ok(['routes' => collect($routes)->map(fn ($k) => ['key' => $k, 'title' => config("btc.route_choices.{$k}.0", $k), 'help' => config("btc.route_choices.{$k}.1", '')])->values(),
-                        'categories' => collect(config('btc.categories'))->map(fn ($c, $k) => ['key' => $k, 'label' => $c['label']])->values(),
+                        'categories' => collect(config('btc.categories'))->filter(fn ($c) => $c['new_case'] ?? true)->map(fn ($c, $k) => ['key' => $k, 'label' => $c['label']])->values(),   // BTC-REQ-25
+                        'purposes' => (array) config('btc.purposes', []),
                         'vendor_types' => config('btc.vendor_types_by_category')]);
                 case 'vendors':
                     $q = trim((string) $request->input('q'));

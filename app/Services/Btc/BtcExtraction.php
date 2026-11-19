@@ -25,56 +25,86 @@ class BtcExtraction
             return ['ok' => false, 'error' => 'no bill attached', 'fields' => []];
         }
         $r = (new InvoiceReader)->read($file->file_path, $c->category ?: 'other');
-        $f = $r['fields'];
-        if ($r['ok']) {
-            $gst = (float) ($f['gst_amount'] ?? 0);
-            if ($gst > 0) {
-                $state = substr((string) ($f['vendor_gstin'] ?? $c->vendor_gstin ?? ''), 0, 2);
-                if ($state !== '' && $state !== (string) config('btc.extraction.company_state', '22')) {
-                    $f['igst_amount'] = round($gst, 2);
-                    $f['cgst_amount'] = $f['sgst_amount'] = 0;
-                } else {
-                    $f['cgst_amount'] = round($gst / 2, 2);
-                    $f['sgst_amount'] = round($gst - $f['cgst_amount'], 2);
-                    $f['igst_amount'] = 0;
-                }
-            }
-            if (! empty($f['bill_amount']) && ! empty($f['taxable_amount'])) {
-                $other = round((float) $f['bill_amount'] - (float) $f['taxable_amount'] - $gst, 2);
-                $f['other_charges'] = $other > 0.5 ? $other : 0;
-            }
-            $particulars = trim((string) collect($r['raw'] ?? [])->only(['Particulars', 'Description', 'Remark', 'Service Description'])->filter(fn ($v) => is_scalar($v))->implode(' '));
-            if ($particulars === '' && is_array($r['raw']['Expenses'] ?? null)) {
-                $particulars = collect($r['raw']['Expenses'])->pluck('Particulars')->filter()->implode(', ');
-            }
-            if ($particulars !== '') {
-                $f['bill_particulars'] = mb_substr($particulars, 0, 500);
-            }
-            if (! empty($f['travel_date']) || $c->service_from) {
-                $f['bill_period'] = $c->service_from ? $c->service_from->format('d-m-Y').($c->service_to && ! $c->service_to->eq($c->service_from) ? ' to '.$c->service_to->format('d-m-Y') : '') : $f['travel_date'];
-            }
-            foreach (array_keys(config('btc.extraction.fields')) as $k) {
-                if (! array_key_exists($k, $f)) {
-                    continue;
-                }
-                $empty = $c->{$k} === null || $c->{$k} === '' || (in_array($k, self::AMOUNTS, true) && (float) $c->{$k} == 0.0);
-                if ($overwrite || $empty) {
-                    $c->{$k} = $f[$k];
-                }
-            }
-            foreach (['pnr', 'travel_sector', 'travel_date'] as $k) {
-                if (! empty($f[$k]) && ! $c->{$k}) {
-                    $c->{$k} = $f[$k];
-                }
-            }
-            $c->gst_amount = round((float) $c->cgst_amount + (float) $c->sgst_amount + (float) $c->igst_amount, 2);
-        }
+        $f = $r['ok'] ? self::apply($c, $r['fields'], (array) ($r['raw'] ?? []), $overwrite) : $r['fields'];
         $c->extract_status = $r['ok'] ? (self::missing($c) ? 'partial' : 'read') : 'failed';
         $c->extract_note = $r['ok'] ? (self::missing($c) ? 'Not found: '.implode(', ', self::missing($c)) : null) : mb_substr((string) $r['error'], 0, 300);
         $c->extract_json = json_encode(['at' => now()->toDateTimeString(), 'fields' => $f, 'raw' => $r['raw'] ?? []], JSON_UNESCAPED_UNICODE);
         $c->save();
 
         return ['ok' => $r['ok'], 'error' => $r['error'], 'fields' => $f];
+    }
+
+    /**
+     * Put the bill fields (InvoiceReader::normalise of the reader's or the punch form's fields) on the case in the
+     * Finance data format: GST split by GSTIN state, other charges, particulars, period. Only empty fields unless
+     * $overwrite. Not saved here. BTC-SCAN-01: also used for the punch form.
+     */
+    public static function apply(BtcCase $c, array $f, array $raw, bool $overwrite = false): array
+    {
+        $gst = (float) ($f['gst_amount'] ?? 0);
+        if ($gst > 0) {
+            $state = substr((string) ($f['vendor_gstin'] ?? $c->vendor_gstin ?? ''), 0, 2);
+            if ($state !== '' && $state !== (string) config('btc.extraction.company_state', '22')) {
+                $f['igst_amount'] = round($gst, 2);
+                $f['cgst_amount'] = $f['sgst_amount'] = 0;
+            } else {
+                $f['cgst_amount'] = round($gst / 2, 2);
+                $f['sgst_amount'] = round($gst - $f['cgst_amount'], 2);
+                $f['igst_amount'] = 0;
+            }
+        }
+        if (! empty($f['bill_amount']) && ! empty($f['taxable_amount'])) {
+            $other = round((float) $f['bill_amount'] - (float) $f['taxable_amount'] - $gst, 2);
+            $f['other_charges'] = $other > 0.5 ? $other : 0;
+        }
+        $particulars = trim((string) collect($raw)->only(['Particulars', 'Particular', 'Detail', 'Description', 'Service Description'])->filter(fn ($v) => is_scalar($v) && trim((string) $v) !== '')->implode(' '));
+        // BTC-SCAN-01: hired vehicle - vehicle, km and rate; air / rail / bus - sector and ticket; lodging - stay
+        $bits = array_filter([
+            ! empty($raw['Vehicle No']) ? 'Vehicle '.$raw['Vehicle No'] : null,
+            ! empty($raw['Total KM']) ? $raw['Total KM'].' km'.(! empty($raw['Per KM Rate']) ? ' @ Rs '.$raw['Per KM Rate'].'/km' : '') : null,
+            ! empty($raw['Airline']) ? $raw['Airline'] : null,
+            ! empty($raw['Train Number']) ? 'Train '.$raw['Train Number'] : null,
+            ! empty($f['travel_sector']) ? $f['travel_sector'] : null,
+            ! empty($raw['Travel Class']) ? $raw['Travel Class'] : null,
+            ! empty($raw['Room Type']) || ! empty($raw['Number of Rooms']) ? trim(($raw['Number of Rooms'] ?? '').' room(s) '.($raw['Room Type'] ?? '')) : null,
+            ! empty($raw['Duration of Stay']) ? $raw['Duration of Stay'] : null,
+        ], fn ($v) => is_scalar($v) && trim((string) $v) !== '');
+        if ($bits) {
+            $particulars = trim(implode(', ', $bits).($particulars !== '' ? ' - '.$particulars : ''));
+        }
+        if ($particulars === '' && is_scalar($raw['Remark / Comment'] ?? null)) {
+            $particulars = (string) $raw['Remark / Comment'];
+        }
+        if ($particulars === '' && is_array($raw['Expenses'] ?? null)) {
+            $particulars = collect($raw['Expenses'])->pluck('Particulars')->filter()->implode(', ');
+        }
+        if ($particulars !== '') {
+            $f['bill_particulars'] = mb_substr($particulars, 0, 500);
+        }
+        if (! empty($raw['Chk. In Date']) && ! $c->service_from) {   // lodging: the stay period from the bill
+            $in = $raw['Chk. In Date'];
+            $out = $raw['Chk. Out Date'] ?? '';
+            $f['bill_period'] = $in.($out && $out !== $in ? ' to '.$out : '');
+        } elseif (! empty($f['travel_date']) || $c->service_from) {
+            $f['bill_period'] = $c->service_from ? $c->service_from->format('d-m-Y').($c->service_to && ! $c->service_to->eq($c->service_from) ? ' to '.$c->service_to->format('d-m-Y') : '') : $f['travel_date'];
+        }
+        foreach (array_keys(config('btc.extraction.fields')) as $k) {
+            if (! array_key_exists($k, $f)) {
+                continue;
+            }
+            $empty = $c->{$k} === null || $c->{$k} === '' || (in_array($k, self::AMOUNTS, true) && (float) $c->{$k} == 0.0);
+            if ($overwrite || $empty) {
+                $c->{$k} = $f[$k];
+            }
+        }
+        foreach (['pnr', 'travel_sector', 'travel_date'] as $k) {
+            if (! empty($f[$k]) && ! $c->{$k}) {
+                $c->{$k} = $f[$k];
+            }
+        }
+        $c->gst_amount = round((float) $c->cgst_amount + (float) $c->sgst_amount + (float) $c->igst_amount, 2);
+
+        return $f;
     }
 
     /** Labels of the required fields still empty. */

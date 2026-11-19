@@ -12,10 +12,13 @@
         ['btc.advances', 'Advances', 'ri-hand-coin-line', 'btc.advance|btc.finance'],
         // BTC-V2 (19 Nov 2026, sheet item 24): the revised Finance screens; Nova inbox, matching, integration, vendor bank
         // accounts and vendor boarding-pass links are removed
-        ['btc.bill-upload', 'Bill Upload by Finance', 'ri-upload-cloud-2-line', 'btc.bill_upload|btc.finance'],
-        ['btc.extraction', 'Automatic Data Extraction', 'ri-scan-2-line', 'btc.bill_upload|btc.finance'],
-        ['btc.verifier', 'Finance Verifier 1', 'ri-checkbox-multiple-line', 'btc.verifier|btc.audit'],
+        // BTC-SCAN-01 (19 Nov 2026): Scanner -> Classification -> Punch Screen -> Finance level verification
+        ['btc.scanner', 'Scanner', 'ri-scan-line', 'btc.dms|btc.bill_upload|btc.finance'],
+        ['btc.classification', 'Classification', 'ri-price-tag-3-line', 'btc.dms|btc.bill_upload|btc.finance'],
+        ['btc.punch', 'Punch Screen', 'ri-keyboard-box-line', 'btc.bill_upload|btc.finance'],
+        ['btc.verifier', 'Finance Level Verification', 'ri-checkbox-multiple-line', 'btc.verifier|btc.audit'],
         ['btc.approval', 'Finance Approval', 'ri-shield-check-line', 'btc.fin_approver|btc.audit'],
+        ['btc.advance-approval', 'Finance Advance Approval', 'ri-hand-coin-line', 'btc.fin_approver|btc.advance|btc.audit'],
         ['btc.treasury', 'Treasury Payment', 'ri-bank-line', 'btc.treasury|btc.audit'],
         ['btc.access', 'Roles & Access', 'ri-shield-user-line', 'btc.access'],
         ['btc.settings', 'BTC Settings', 'ri-settings-3-line', 'btc.configure'],   // BTC-CONF-01

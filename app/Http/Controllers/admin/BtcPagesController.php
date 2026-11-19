@@ -66,8 +66,10 @@ class BtcPagesController extends Controller
             ['Booking requested over 3 days ago', $live->where('status', 'booking_requested')->filter(fn ($c) => $age($c->created_at) > 3)->count(), route('btc.booking')],
             ['Advance paid over 30 days, no bill', $live->whereIn('status', ['advance_paid', 'booked'])->filter(fn ($c) => $c->advance_paid_on && $age($c->advance_paid_on) > 30 && ! $c->bill_no)->count(), route('btc.advances', ['show' => 'outstanding'])],
             ['Physical bill with DMS over 2 days', $live->where('status', 'bill_with_dms')->filter(fn ($c) => $since($c) > 2)->count(), route('btc.register', ['status' => 'bill_with_dms'])],
-            ['Bill with Finance, not uploaded over 2 days', $live->where('status', 'bill_with_finance')->filter(fn ($c) => $since($c) > 2)->count(), route('btc.bill-upload')],
-            ['Invoice not read (data extraction failed)', $live->where('status', 'bill_submitted')->where('extract_status', 'failed')->count(), route('btc.extraction')],
+            ['Bill with Finance, not scanned over 2 days', $live->where('status', 'bill_with_finance')->filter(fn ($c) => $since($c) > 2)->count(), route('btc.scanner', ['tab' => 'waiting'])],
+            ['Scanned, not classified over 1 day', $live->where('status', 'scanned')->filter(fn ($c) => $since($c) > 1)->count(), route('btc.classification')],   // BTC-SCAN-01
+            ['Invoice not read (to punch by hand)', $live->where('status', 'bill_submitted')->where('extract_status', 'failed')->count(), route('btc.punch')],
+            ['Advance waiting for Finance approval / instruction over 2 days', $live->where('status', 'advance_requested')->filter(fn ($c) => $since($c) > 2 && ($c->adv_stage ?? null) !== 'instructed')->count(), route('btc.advance-approval')],
             ['Paid, documents still pending', $live->where('status', 'paid')->filter(fn ($c) => $c->pendingDocuments())->count(), route('btc.register', ['status' => 'paid'])],
         ];
         $group = function ($key) use ($live, $value) {

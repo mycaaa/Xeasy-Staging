@@ -68,18 +68,30 @@ return [
         'vehicle' => ['agency', 'agent'],
         'air' => ['agency', 'agent'],
         'train' => ['agency', 'agent'],
+        'bus' => ['agency', 'agent'],
+        'meals' => [],
         'meeting' => [],
         'other' => [],
     ],
 
     // Category rules (section 4 of the note). key => [label, gate document, original bill needed before closure]
     'categories' => [
+        // BTC-REQ-25 (19 Nov 2026): Hotel / Accommodation, HRV, Air, Train, Bus, Meals, Meeting Expense on the new-case form
         'hotel' => ['label' => 'Hotel / Accommodation', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],
-        'vehicle' => ['label' => 'Hired Vehicle Vendor', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => false],
-        'air' => ['label' => 'Travel Desk – Air', 'boarding_pass' => true, 'original_required' => false, 'scan_ok' => true],
-        'train' => ['label' => 'Travel Desk – Train', 'boarding_pass' => false, 'original_required' => false, 'scan_ok' => true],
-        'meeting' => ['label' => 'Meeting / Event Service', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],
-        'other' => ['label' => 'Other service', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],
+        'vehicle' => ['label' => 'HRV (Hired Vehicle)', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => false],
+        'air' => ['label' => 'Air', 'boarding_pass' => true, 'original_required' => false, 'scan_ok' => true],
+        'train' => ['label' => 'Train', 'boarding_pass' => false, 'original_required' => false, 'scan_ok' => true],
+        'bus' => ['label' => 'Bus', 'boarding_pass' => false, 'original_required' => false, 'scan_ok' => true],
+        'meals' => ['label' => 'Meals', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],
+        'meeting' => ['label' => 'Meeting Expense', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true],
+        'other' => ['label' => 'Other service (old cases)', 'boarding_pass' => false, 'original_required' => true, 'scan_ok' => true, 'new_case' => false],
+    ],
+
+    // BTC-REQ-25: purpose of the requirement (new-case form); "Other" needs the remarks
+    'purposes' => [
+        'Farmer Meeting Expenses', 'Dealer Meeting Expenses', 'Distributor Meeting Expenses', 'Retailer Meeting Expenses',
+        'Market Development Expenses', 'Internal Training Expenses', 'External Training Expenses', 'Meeting & Seminar Expenses',
+        'Self', 'Other (specify in remarks)',
     ],
 
     // Stages in order. key => label
@@ -95,8 +107,9 @@ return [
         'booked' => 'Booked / service in progress',
         'bill_with_dms' => 'Physical bill with DMS',
         'bill_with_finance' => 'Bill with Finance (to scan and upload)',
-        'bill_submitted' => 'Bill uploaded - data extraction',
-        'extracted' => 'Finance Verifier 1',
+        'scanned' => 'Scanned - to classify',
+        'bill_submitted' => 'Classified - to punch',
+        'extracted' => 'Finance level verification',
         'finance_verified' => 'Verified - Focus entry',
         'focus_done' => 'Finance Approval',
         'fin_approved' => 'Treasury payment',
@@ -124,7 +137,46 @@ return [
         ],
         'required' => ['vendor_name', 'bill_no', 'bill_date', 'taxable_amount', 'bill_amount'],
         'company_state' => env('BTC_COMPANY_GST_STATE', '22'),   // GSTIN state code of the buyer: same state = CGST + SGST, else IGST
+        // BTC-SCAN-01 (19 Nov 2026): every bill is punched (checked) by a person on the Punch Screen; true = a bill read
+        // completely goes straight to Finance Verifier 1
+        'auto_forward' => (bool) env('BTC_EXTRACT_AUTO_FORWARD', false),
     ],
+
+    // ---- BTC-SCAN-01 (19 Nov 2026, "Data Punching Form & Finance approval screens" tab) ------------------------------
+    // Scanner -> Classification -> Punch Screen -> Finance level verification. The punch form of each bill type shows
+    // the fields as printed on the bill (the reading service's fields, scan_ocr/<type>); the Finance data format
+    // (extraction.fields) is filled from them. key => [label, number field?]
+    'classification' => ['hotel', 'vehicle', 'air', 'train', 'bus', 'meals', 'meeting'],
+    'punch_forms' => [
+        'vehicle' => ['title' => 'Hired vehicle', 'fields' => [
+            'Agency Name' => 'Agency name', 'Invoice No' => 'Invoice no.', 'Invoice Date' => 'Invoice date', 'Vehicle No' => 'Vehicle no.',
+            'Per KM Rate' => 'Per km rate', 'Start Reading' => 'Start reading', 'Closing Reading' => 'Closing reading', 'Total KM' => 'Total km',
+            'Other Charges' => 'Other charges', 'Total Amount' => 'Total amount', 'Employee Name' => 'Employee name', 'Emp Code' => 'Emp code',
+        ]],
+        'air' => ['title' => 'Air / Rail / Bus', 'fields' => [
+            'Mode' => 'Mode', 'Agent Name' => 'Agent name', 'PNR Number' => 'PNR', 'Ticket Number' => 'Ticket no.', 'Date of Booking' => 'Booking date',
+            'Journey Date' => 'Journey date', 'Airline' => 'Airline / operator', 'Train Number' => 'Train / bus no.', 'Journey From' => 'From', 'Journey Upto' => 'To',
+            'Travel Class' => 'Class', 'Base Fare' => 'Base fare', 'GST' => 'GST', 'Fees & Surcharge' => 'Fees & surcharge', 'CUTE Charge' => 'CUTE charge',
+            'Extra Luggage' => 'Extra luggage', 'Other' => 'Other', 'Total Fare' => 'Total fare',
+        ]],
+        'hotel' => ['title' => 'Hotel / Lodging', 'fields' => [
+            'Hotel Name' => 'Hotel name', 'Bill No' => 'Bill no.', 'Bill Date' => 'Bill date', 'Booking ID' => 'Booking ID', 'Chk. In Date' => 'Check-in date',
+            'Chk. Out Date' => 'Check-out date', 'Number of Rooms' => 'Rooms', 'Room Type' => 'Room type', 'Rate' => 'Rate', 'Amount' => 'Amount',
+            'Other Charges (+)' => 'Other charges (+)', 'Discount (-)' => 'Discount (-)', 'GST (%)' => 'GST %', 'Grand Total' => 'Grand total',
+        ]],
+        'meals' => ['title' => 'Meals', 'fields' => [
+            'Hotel Name' => 'Hotel / restaurant', 'Bill No.' => 'Bill no.', 'Bill Date' => 'Bill date', 'Detail' => 'Detail', 'Amount' => 'Amount',
+        ]],
+        'meeting' => ['title' => 'Team meeting expense', 'fields' => [
+            'Vendor' => 'Vendor / venue', 'Voucher No' => 'Bill / voucher no.', 'Voucher Date' => 'Bill date', 'Meeting Type' => 'Meeting type',
+            'Meeting Date' => 'Meeting date', 'Location' => 'Place', 'Participants' => 'No. of participants', 'Particular' => 'Particulars (hall, food, ...)',
+            'Amount' => 'Amount',
+        ]],
+    ],
+    'punch_form_of' => ['hotel' => 'hotel', 'vehicle' => 'vehicle', 'air' => 'air', 'train' => 'air', 'bus' => 'air', 'meals' => 'meals', 'meeting' => 'meeting', 'other' => 'meeting'],
+    // amount-like punch fields (number inputs)
+    'punch_numbers' => ['Per KM Rate', 'Start Reading', 'Closing Reading', 'Total KM', 'Other Charges', 'Total Amount', 'Base Fare', 'GST', 'Fees & Surcharge',
+        'CUTE Charge', 'Extra Luggage', 'Other', 'Total Fare', 'Number of Rooms', 'Rate', 'Amount', 'Other Charges (+)', 'Discount (-)', 'GST (%)', 'Grand Total', 'Participants'],
 
     // Focus JV ledgers (names/codes as in Focus; Finance to confirm)
     'focus' => [
@@ -139,6 +191,8 @@ return [
             'vehicle' => 'Vehicle Hire Charges',
             'air' => 'Travelling - Air',
             'train' => 'Travelling - Train',
+            'bus' => 'Travelling - Bus',
+            'meals' => 'Boarding & Meals (BTC)',
             'meeting' => 'Meeting & Conference Expenses',
             'other' => 'Miscellaneous Expenses',
         ],
@@ -158,7 +212,7 @@ return [
         'none' => ['label' => 'No TDS (tickets, occasional hotel stay, below threshold, goods)', 'section' => 'none', 'rate' => [0, 0], 'threshold' => [0, 0]],
     ],
     // default nature per BTC category (Finance can change it on each case)
-    'tds_nature_by_category' => ['hotel' => 'none', 'vehicle' => 'contract', 'air' => 'none', 'train' => 'none', 'meeting' => 'contract', 'other' => 'contract'],
+    'tds_nature_by_category' => ['hotel' => 'none', 'vehicle' => 'contract', 'air' => 'none', 'train' => 'none', 'bus' => 'none', 'meals' => 'none', 'meeting' => 'contract', 'other' => 'contract'],
 
     // remind DMS / Finance about missing originals and boarding passes after this many days
     'follow_up_days' => (int) env('BTC_FOLLOW_UP_DAYS', 7),
@@ -178,10 +232,10 @@ return [
             'btc.configure' => 'BTC settings and masters',
         ],
         'Actions' => [
-            'btc.dms' => 'DMS: record the physical bill received and handed to Finance',
-            'btc.bill_upload' => 'Bill Upload by Finance and data extraction (correct the read fields)',   // BTC-V2
+            'btc.dms' => 'DMS: physical bill received / handed to Finance; Scanner and Classification',
+            'btc.bill_upload' => 'Scanner, Classification and Punch Screen (check / correct the read fields)',   // BTC-V2 / BTC-SCAN-01
             'btc.verifier' => 'Finance Verifier 1: verify the extracted data, prepare and export the Focus entry',
-            'btc.fin_approver' => 'Finance Approval: final approval before Treasury',                     // BTC-V2
+            'btc.fin_approver' => 'Finance Approval (bills) and Finance Advance Approval',               // BTC-V2 / BTC-SCAN-01
             'btc.finance' => 'Finance: bill upload, data extraction, closure',
             'btc.checker' => 'Finance Head: oversight, document waivers, hold',
             'btc.treasury' => 'Treasury payment: record payment, UTR',

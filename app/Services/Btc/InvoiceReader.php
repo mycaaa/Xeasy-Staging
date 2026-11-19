@@ -18,16 +18,19 @@ use Illuminate\Support\Facades\URL;
 class InvoiceReader
 {
     /** BTC category => reader endpoint (same service the claim screens use) */
+    // BTC-SCAN-01 (19 Nov 2026, "Data Punching Form & Finance approval screens" tab): the scan_ocr endpoints of the
+    // reading service - hired vehicle, air (also used for bus), rail, lodging, meals, miscellaneous
     public const ENDPOINTS = [
-        'hotel' => 'lodging', 'vehicle' => 'hiredVehicle', 'air' => 'airfare', 'train' => 'railFare',
-        'meeting' => 'miscellaneous', 'other' => 'miscellaneous', 'boarding_pass' => 'boardingPass',
+        'hotel' => 'scan_ocr/lodging', 'vehicle' => 'scan_ocr/hiredVehicle', 'air' => 'scan_ocr/air', 'train' => 'scan_ocr/rail',
+        'bus' => 'scan_ocr/air', 'meals' => 'scan_ocr/meals', 'meeting' => 'scan_ocr/miscellaneous', 'other' => 'scan_ocr/miscellaneous',
+        'boarding_pass' => 'boardingPass',
     ];
 
     public static function endpoint(string $category): string
     {
         $base = rtrim((string) config('btc.reader.base_url', 'https://api-gf4tdduqha-uc.a.run.app/api/v1'), '/');
 
-        return $base.'/'.(self::ENDPOINTS[$category] ?? 'miscellaneous').'/extractFields';
+        return $base.'/'.(self::ENDPOINTS[$category] ?? 'scan_ocr/miscellaneous').'/extractFields';
     }
 
     /** A 15-minute signed link the reading service can fetch the stored file from (local disk path under btc/). */
@@ -114,9 +117,9 @@ class InvoiceReader
             return $t ? date('Y-m-d', $t) : null;
         };
 
-        $gross = $num($pick(['Total Amount', 'Total Fare', 'Grand Total', 'Invoice Total', 'Net Amount', 'Total', 'Amount']));
+        $gross = $num($pick(['Grand Total', 'Total Amount', 'Total Fare', 'Invoice Total', 'Net Amount', 'Total', 'Amount']));
         $tax = $num($pick(['GST Amount', 'Tax Amount', 'Total Tax', 'Total GST', 'IGST', 'GST']));
-        $rateRaw = $pick(['GST/Tax Rate', 'GST Rate', 'Tax Rate']);
+        $rateRaw = $pick(['GST/Tax Rate', 'GST Rate', 'Tax Rate', 'GST (%)']);
         $rate = $rateRaw !== null && preg_match('/(\d+(?:\.\d+)?)/', $rateRaw, $m) ? (float) $m[1] : null;
         $taxable = $num($pick(['Taxable Amount', 'Taxable Value', 'Sub Total', 'Subtotal', 'Base Fare', 'Basic Amount']));
         if ($gross !== null) {
@@ -133,22 +136,23 @@ class InvoiceReader
         if (! preg_match('/^\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/', $gstin)) {
             $gstin = null;
         }
-        $from = $pick(['From', 'Origin', 'Journey_Start', 'Source']);
-        $to = $pick(['To', 'Destination', 'Journey_End']);
+        $from = $pick(['From', 'Journey From', 'Origin', 'Journey_Start', 'Source']);
+        $to = $pick(['To', 'Journey Upto', 'Journey To', 'Destination', 'Journey_End']);
+        $emps = is_array($low['employees'] ?? null) ? count(array_filter($low['employees'])) : 0;
         $sector = $pick(['Sector', 'Route']) ?: ($from && $to ? $from.' - '.$to : null);
 
         return array_filter([
-            'bill_no' => ($n = $pick(['Bill No.', 'Bill No', 'Invoice No.', 'Invoice No', 'Invoice Number', 'Bill Number', 'Ticket No.', 'Ticket Number', 'PNR', 'PNR No.'])) ? mb_substr($n, 0, 60) : null,
-            'bill_date' => $date($pick(['Bill date', 'Invoice Date', 'Bill Date', 'Booking Date', 'Date of Issue', 'Date of Travel', 'Date of Journey', 'Travel Date', 'Date'])),
-            'vendor_name' => ($v = $pick(['Hotel Name', 'Agency Name', 'Vendor Name', 'Supplier Name', 'Seller Name', 'Airline', 'Airline Name', 'Operator', 'Service Provider', 'Company Name'])) ? mb_substr($v, 0, 200) : null,
+            'bill_no' => ($n = $pick(['Bill No.', 'Bill No', 'Invoice No.', 'Invoice No', 'Invoice Number', 'Bill Number', 'Voucher No', 'Ticket No.', 'Ticket Number', 'PNR', 'PNR No.', 'PNR Number', 'Booking ID'])) ? mb_substr($n, 0, 60) : null,
+            'bill_date' => $date($pick(['Bill date', 'Invoice Date', 'Bill Date', 'Voucher Date', 'Booking Date', 'Date of Booking', 'Date of Issue', 'Date of Travel', 'Date of Journey', 'Journey Date', 'Travel Date', 'Date'])),
+            'vendor_name' => ($v = $pick(['Hotel Name', 'Agency Name', 'Agent Name', 'Vendor Name', 'Vendor', 'Supplier Name', 'Seller Name', 'Airline', 'Airline Name', 'Operator', 'Service Provider', 'Company Name', 'Company'])) ? mb_substr($v, 0, 200) : null,
             'vendor_gstin' => $gstin,
             'taxable_amount' => $taxable,
             'gst_amount' => $tax,
             'bill_amount' => $gross,
             'pnr' => ($p = $pick(['PNR', 'PNR No.', 'PNR Number', 'Booking Reference'])) ? mb_substr($p, 0, 20) : null,
             'travel_sector' => $sector ? mb_substr($sector, 0, 100) : null,
-            'travel_date' => $date($pick(['Date of Travel', 'Date of Journey', 'Travel Date', 'Departure Date', 'Arr. date/time'])),
-            'pax_count' => ($x = (int) $num($pick(['No. of pax', 'No. of Pax', 'Pax', 'No. of Passengers']))) > 0 ? $x : null,
+            'travel_date' => $date($pick(['Date of Travel', 'Date of Journey', 'Journey Date', 'Travel Date', 'Departure Date', 'Chk. In Date', 'Arr. date/time'])),
+            'pax_count' => ($x = (int) $num($pick(['No. of pax', 'No. of Pax', 'Pax', 'No. of Passengers']))) > 0 ? $x : ($emps ?: null),
         ], fn ($v) => $v !== null && $v !== '');
     }
 }

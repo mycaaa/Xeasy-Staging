@@ -1193,7 +1193,15 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/bill-upload', [\App\Http\Controllers\admin\BtcV2Controller::class, 'upload'])->name('bill-upload');
     Route::post('/bill-upload', [\App\Http\Controllers\admin\BtcV2Controller::class, 'uploadStore'])->middleware('throttle:30,1')->name('bill-upload.store');
     Route::get('/bill-upload/cases', [\App\Http\Controllers\admin\BtcV2Controller::class, 'uploadCases'])->name('bill-upload.cases');
-    Route::get('/extraction', [\App\Http\Controllers\admin\BtcV2Controller::class, 'extraction'])->name('extraction');
+    Route::get('/extraction', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/btc/punch')->name('extraction');   // BTC-SCAN-01: now the Punch Screen
+    // BTC-SCAN-01 (19 Nov 2026): Scanner, Classification, Punch Screen, Finance Advance Approval
+    Route::get('/scanner', [\App\Http\Controllers\admin\BtcV2Controller::class, 'scanner'])->name('scanner');
+    Route::post('/scanner', [\App\Http\Controllers\admin\BtcV2Controller::class, 'scannerStore'])->middleware('throttle:30,1')->name('scanner.store');
+    Route::get('/classification', [\App\Http\Controllers\admin\BtcV2Controller::class, 'classification'])->name('classification');
+    Route::post('/classification/{id}', [\App\Http\Controllers\admin\BtcV2Controller::class, 'classify'])->whereNumber('id')->middleware('throttle:60,1')->name('classify');
+    Route::get('/punch', [\App\Http\Controllers\admin\BtcV2Controller::class, 'punch'])->name('punch');
+    Route::get('/advance-approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'advanceApproval'])->name('advance-approval');
+    Route::post('/advance-approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'advanceBulk'])->middleware('throttle:30,1')->name('advance-approval.bulk');
     Route::post('/case/{id}/reread', [\App\Http\Controllers\admin\BtcV2Controller::class, 'reread'])->whereNumber('id')->middleware('throttle:30,1')->name('reread');
     Route::get('/verifier', [\App\Http\Controllers\admin\BtcV2Controller::class, 'verifier'])->name('verifier');
     Route::get('/approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'approval'])->name('approval');

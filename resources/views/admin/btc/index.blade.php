@@ -28,7 +28,7 @@
                 @if ($u->can('btc.register') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.register') }}"><i class="ri-list-check-2"></i> Register</a>@endif
                 @if ($u->can('btc.booking') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.booking') }}"><i class="ri-hotel-line"></i> Booking queue</a>@endif
                 @if ($u->can('btc.advance') || $u->can('btc.finance') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.advances') }}"><i class="ri-hand-coin-line"></i> Advances</a>@endif
-                @if ($u->can('btc.bill_upload') || $u->can('btc.finance') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.bill-upload') }}"><i class="ri-upload-cloud-2-line"></i> Bill upload</a>@endif
+                @if ($u->can('btc.bill_upload') || $u->can('btc.finance') || $u->can('btc.dms') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.scanner') }}"><i class="ri-scan-line"></i> Scanner</a>@endif
                 @can('btc.finance')
                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.export.boarding') }}"><i class="ri-plane-line"></i> Boarding passes pending</a>
                 @endcan
@@ -85,12 +85,10 @@
                     <div class="col-12 small text-muted">Raised for: <strong id="btcFor">{{ auth()->user()->name }}</strong> · {{ session('company_name', 'VNR Seeds') }} · department from HR</div>
                     <div class="col-md-6"><label class="btc-label">Category</label>
                         <select class="form-select form-select-sm" name="category" id="btcCategory">@foreach ($categories as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></div>
-                    @if ($canAdmin)
-                        <div class="col-md-6"><label class="btc-label">Employee (Admin raising for someone)</label>
-                            <select class="form-select form-select-sm" name="employee_id" id="btcEmployee"></select></div>
-                    @endif
+                    {{-- BTC-REQ-25 (19 Nov 2026): no "Employee (Admin raising for someone)" field; purpose from a list --}}
                     <div class="col-md-6"><label class="btc-label">Location</label><input class="form-control form-control-sm" name="location"></div>
-                    <div class="col-12"><label class="btc-label">Purpose / business requirement</label><input class="form-control form-control-sm" name="purpose" required maxlength="500"></div>
+                    <div class="col-md-6"><label class="btc-label" for="btcPurpose">Purpose / business requirement</label>
+                        <select class="form-select form-select-sm" name="purpose" id="btcPurpose" required><option value="">— choose —</option>@foreach ($purposes as $p)<option value="{{ $p }}">{{ $p }}</option>@endforeach</select></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
                     <div class="col-md-3"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
@@ -117,6 +115,8 @@
                     <div class="col-12"><label class="btc-label">Attachments</label>
                         <div id="btcFiles"></div>
                         <button type="button" class="btn btn-sm btn-link px-0" id="btcAddFile"><i class="ri-attachment-2"></i> Add file</button></div>
+                    <div class="col-12"><label class="btc-label" for="btcRemarks">Remarks <span class="text-muted" id="btcRemarksHint"></span></label>
+                        <textarea class="form-control form-control-sm" name="request_remarks" id="btcRemarks" rows="2" maxlength="1000"></textarea></div>
                 </div>
             </div>
             <div class="modal-footer py-2">
@@ -174,7 +174,6 @@ $(function () {
     }
     // BTC-FORM-02: one entry per vendor, only vendors of the chosen category
     const BTC_VENDORS = @json($vendors);
-    const AIR_LABEL = $('#btcCategory option[value=air]').text();
     const BTC_VENDOR_TYPES = @json($vendorTypesByCategory);
     function fillVendors() {
         const c = $('#btcCategory').val(), keep = $('#btcVendor').val();
@@ -197,16 +196,16 @@ $(function () {
         $('.btc-choice').removeClass('border-primary bg-primary-subtle'); $('.btc-route-radio:checked').closest('.btc-choice').addClass('border-primary bg-primary-subtle');
         $('.btc-b').toggle(r === 'employee_advance'); $('.btc-c').toggle(r === 'direct_bill');
         $('.btc-air').toggle(c === 'air'); $('.btc-newvendor').toggle(!$('#btcVendor').val());
-        // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books); advance request -
-        // "Air fare", no PNR (the ticket is not booked yet)
+        // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books)
         $('.btc-nota').toggle(r !== 'admin_booking');
         if (r === 'admin_booking') { $('#btcVendor').val('').trigger('change.select2'); $('[name=estimated_amount],[name=vendor_name],[name=vendor_gstin]').val(''); }
-        $('#btcCategory option[value=air]').text(r === 'employee_advance' ? 'Air fare' : AIR_LABEL);
-        $('.btc-pnr').toggle(r !== 'employee_advance'); if (r === 'employee_advance') $('[name=pnr]').val('');
+        // BTC-REQ-25: category shown as "Air" for both request types
+        // BTC-REQ-25: PNR only for Air with "Advance Required" (the employee has the ticket); hidden for Admin Booking
+        const pnr = c === 'air' && r === 'employee_advance'; $('.btc-pnr').toggle(pnr); if (!pnr) $('[name=pnr]').val('');
         $('#btcFiles').html(fileRow(r === 'employee_advance' ? 'quotation' : (r === 'direct_bill' ? 'bill' : 'supporting')));
     }
     $('#btcCategory, #btcVendor').on('change', shape); shape();
-    $('#btcEmployee').on('change', function () { $('#btcFor').text($(this).find(':selected').text() || '{{ auth()->user()->name }}'); });
+    $('#btcPurpose').on('change', function () { const o = String(this.value).startsWith('Other'); $('#btcRemarks').prop('required', o); $('#btcRemarksHint').text(o ? '(required - write the purpose)' : ''); });
     $('#btcAddFile').on('click', () => $('#btcFiles').append(fileRow('supporting')));
     // BTC-REQ-20: employees by code or name
     $('#btcTravellers').select2({dropdownParent: $('#btcNewModal'), width: '100%', placeholder: 'Type employee code or name', ajax: {url: '{{ route('btc.approvers') }}', delay: 250, data: p => ({q: p.term}), processResults: d => ({results: d})}, minimumInputLength: 2});
@@ -214,9 +213,6 @@ $(function () {
         const n = ($('#btcTravellers').val() || []).length + $('#btcGuests').val().split(',').filter(x => x.trim()).length;
         if (n > Number($('#btcPax').val() || 0)) $('#btcPax').val(n);
     });
-    if ($('#btcEmployee').length) {
-        $('#btcEmployee').select2({dropdownParent: $('#btcNewModal'), placeholder: 'Myself', allowClear: true, ajax: {url: '{{ route('btc.approvers') }}', data: p => ({q: p.term}), processResults: d => ({results: d})}});
-    }
     // BTC-AMT-01: amounts up to 99,99,999.99 with two decimals; advance not above the quotation
     const BTC_AMT_MAX = 9999999.99;
     function amtError(el) {
@@ -246,6 +242,8 @@ $(function () {
     });
     $('#btcNewForm [data-submit]').on('click', function () {
         if (!checkAmounts($('#btcNewForm'))) return;
+        if (!$('#btcPurpose').val()) { Swal.fire('Purpose needed', 'Choose the purpose of the requirement.', 'warning'); return; }
+        if (String($('#btcPurpose').val()).startsWith('Other') && !$('#btcRemarks').val().trim()) { Swal.fire('Remarks needed', 'Write the purpose in the remarks.', 'warning'); return; }
         const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit'));
         $.ajax({url: '{{ route('btc.store') }}', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
             .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); $('#btcNewForm')[0].reset(); shape(); load(); })

@@ -23,8 +23,8 @@ class BtcController extends Controller
             // BTC-V2 (19 Nov 2026): the revised queues (each also has its own screen in the BTC menu)
             'dms' => ['DMS: physical bills', ['bill_with_dms'], 'btc.dms'],
             'upload' => ['Finance: to upload', ['bill_with_finance'], 'btc.bill_upload|btc.finance'],
-            'extraction' => ['Data extraction', ['bill_submitted'], 'btc.bill_upload|btc.finance'],
-            'verifier' => ['Finance Verifier 1', ['extracted', 'finance_verified'], 'btc.verifier'],
+            'extraction' => ['Punch Screen', ['scanned', 'bill_submitted'], 'btc.bill_upload|btc.finance'],
+            'verifier' => ['Finance level verification', ['extracted', 'finance_verified'], 'btc.verifier'],
             'approval' => ['Finance Approval', ['focus_done'], 'btc.fin_approver'],
             'payments' => ['Treasury payment', ['fin_approved'], 'btc.treasury'],
             'finance' => ['Advance / closure', ['advance_requested', 'paid'], 'btc.finance|btc.advance'],
@@ -61,7 +61,8 @@ class BtcController extends Controller
             // bookings (A) and final-bill-after-activity (C) are raised by the BTC admin
             'routes' => array_intersect_key(config('btc.routes'), array_flip((array) config('btc.employee_routes', ['employee_advance']))),   // BTC-REQ-23: no 'final bill after the activity' option, for anyone
             'routeChoices' => config('btc.route_choices', []),   // BTC-REQ-03
-            'categories' => collect(config('btc.categories'))->map(fn ($c) => $c['label'])->all(),
+            'categories' => collect(config('btc.categories'))->filter(fn ($c) => $c['new_case'] ?? true)->map(fn ($c) => $c['label'])->all(),   // BTC-REQ-25
+            'purposes' => (array) config('btc.purposes', []),
             'statuses' => config('btc.statuses'),
             'tdsSections' => config('btc.tds_sections'),
             'tdsNatures' => collect(config('btc.tds_natures'))->map(fn ($n) => ['label' => $n['label'], 'rate' => $n['rate']])->all(),
@@ -187,9 +188,21 @@ class BtcController extends Controller
             'pax_count' => 'nullable|integer|min:1|max:500',          // BTC-REQ-20
             'travellers' => 'nullable|array|max:100', 'travellers.*' => 'integer',
             'guests' => 'nullable|string|max:500',
+            'request_remarks' => 'nullable|string|max:1000',          // BTC-REQ-25
         ], ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         if (! empty($v['quotation_amount']) && (float) ($v['advance_amount'] ?? 0) > (float) $v['quotation_amount']) {
             return response()->json(['success' => false, 'message' => 'Advance needed cannot be more than the quotation amount.'], 422);   // BTC-AMT-01
+        }
+        // BTC-REQ-25 (19 Nov 2026): only the categories of the form for a new case; "Other" purpose needs the remarks;
+        // PNR only for Air with Advance Required
+        if (! (config("btc.categories.{$v['category']}.new_case") ?? true)) {
+            return response()->json(['success' => false, 'message' => 'Choose a category from the list.'], 422);
+        }
+        if (str_starts_with((string) $v['purpose'], 'Other') && trim((string) ($v['request_remarks'] ?? '')) === '') {
+            return response()->json(['success' => false, 'message' => 'Purpose "Other": write the purpose in the remarks.'], 422);
+        }
+        if (! ($v['category'] === 'air' && $v['route'] === 'employee_advance')) {
+            $v['pnr'] = null;
         }
         $user = auth()->user();
         if (! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {   // BTC-REQ-23 (18 Nov 2026): also for the BTC admin
@@ -233,7 +246,7 @@ class BtcController extends Controller
                 'pax_count' => $v['pax_count'] ?? null, 'guests' => trim((string) ($v['guests'] ?? '')) ?: null,
                 'travellers' => ! empty($v['travellers']) ? json_encode(DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', $v['travellers'])
                     ->get(['EmployeeID as id', 'EmpCode as code', DB::raw("TRIM(CONCAT_WS(' ', Fname, Sname, Lname)) as name")])) : null,
-            ] : []));
+            ] : []) + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'request_remarks') ? ['request_remarks' => trim((string) ($v['request_remarks'] ?? '')) ?: null] : []));
             $c->case_no = sprintf('BTC/%s/%05d', now('Asia/Kolkata')->format('y'), $c->id);
             $c->save();
 
@@ -277,6 +290,11 @@ class BtcController extends Controller
                 'verify1' => $this->stamp($c->verify1_by, $c->verify1_at), 'focus' => $this->stamp($c->finance_by, $c->finance_at), 'approved' => $this->stamp($c->fin_approved_by, $c->fin_approved_at),
                 'dms' => $c->dms_received_on ? 'received '.$c->dms_received_on->format('d-m-Y').($c->dms_to_finance_on ? ', to Finance '.$c->dms_to_finance_on->format('d-m-Y') : '') : null],
             'extract_fields' => config('btc.extraction.fields'), 'bill_sources' => config('btc.bill_sources'),
+            // BTC-SCAN-01: the punch form of the bill type (as on the bill), the field checks of Finance level verification,
+            // the Finance Advance Approval stage
+            'punch' => $this->punchData($c),
+            'verify_checks' => json_decode((string) ($c->verify1_checks ?? ''), true),
+            'adv' => ['stage' => $c->adv_stage ?? null, 'approved' => $this->stamp($c->adv_fin_by ?? null, $c->adv_fin_at ?? null), 'instructed' => $this->stamp($c->adv_instructed_by ?? null, $c->adv_instructed_at ?? null), 'ref' => $c->adv_instruction_ref ?? null],
             'claim_overlaps' => $user->can('btc.finance') || $user->can('btc.checker') || $user->can('btc.admin') || $user->can('btc.verifier') ? BtcWorkflow::claimOverlaps($c) : [],
             'vendor_year' => $c->bill_no ? \App\Services\Btc\BtcLedger::vendorYearTotal($c) : null,
             'gstin_ok' => $c->vendor_gstin ? \App\Services\Btc\BtcLedger::gstinValid($c->vendor_gstin) : null,
@@ -532,13 +550,35 @@ class BtcController extends Controller
         return $user->can('btc.admin') || collect(explode('|', $perms))->contains(fn ($p) => $user->can($p));
     }
 
+    /** BTC-SCAN-01: punch form of the case's bill type with the values punched, else as read from the bill. */
+    private function punchData(BtcCase $c): ?array
+    {
+        $form = config('btc.punch_forms.'.config('btc.punch_form_of.'.$c->category, 'meeting'));
+        if (! $form) {
+            return null;
+        }
+        $saved = json_decode((string) ($c->punch_json ?? ''), true);
+        $raw = (array) (json_decode((string) $c->extract_json, true)['raw'] ?? []);
+        $vals = [];
+        foreach (array_keys($form['fields']) as $k) {
+            $v = is_array($saved) && array_key_exists($k, $saved) ? $saved[$k] : ($raw[$k] ?? null);
+            if ($v === null && $k === 'Train Number') {
+                $v = $raw['Bus Number'] ?? null;
+            }
+            $vals[$k] = is_scalar($v) ? (string) $v : '';
+        }
+
+        return ['title' => $form['title'], 'fields' => $form['fields'], 'values' => $vals, 'numbers' => config('btc.punch_numbers'), 'saved' => is_array($saved)];
+    }
+
     public function authorizeView(BtcCase $c, $user): void
     {
         $empId = (int) ($user->employee_id ?? 0);
         // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too
         $desk = collect(['btc.dms', 'btc.finance', 'btc.bill_upload', 'btc.verifier', 'btc.fin_approver', 'btc.checker', 'btc.treasury', 'btc.audit', 'btc.exceptions', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
         // BTC-TEAM-01: a manager anywhere above the requester may open the request (read; actions stay by role)
-        abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id
+        // a case with no employee (scanned bill, department bill) is employee_id 0: a login with no employee is not its owner
+        abort_unless($desk || ($empId > 0 && in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true)) || (int) $c->created_by === (int) $user->id
             || \App\Support\ReportingTree::isAbove($empId, (int) $c->employee_id), 403);
     }
 }
