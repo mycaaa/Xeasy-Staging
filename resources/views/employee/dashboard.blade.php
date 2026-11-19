@@ -153,6 +153,18 @@
                                 .dash-tile span { font-size: .7rem; opacity: .85; line-height: 1.25; }
                                 .dash-tile.hot { background: #fde68a; border-color: #fde68a; color: #713f12; }
                                 .dash-tile.hot span { opacity: 1; }
+                                /* DASH-CARD-04 (19 Nov 2026): BTC card in pastel - soft mint with dark teal text */
+                                .dash-flash-btc { background: linear-gradient(120deg, #dff3ef 0%, #e6f4ea 60%, #f0f7e4 120%); color: #134e4a; border: 1px solid #c7e6de; }
+                                .dash-flash-btc .dash-flash-sub, .dash-flash-btc .dash-flash-group { opacity: 1; color: #3f6f68; }
+                                .dash-flash-btc .dash-flash-btn { color: #0f5e56; background: #fff; border-color: #9fd3c7; }
+                                .dash-flash-btc a.dash-flash-btn:hover { background: #ccebe4; color: #0b4a44; }
+                                .dash-flash-btc .dash-tile { background: rgba(255,255,255,.75); border-color: #cde8e1; color: #134e4a; }
+                                .dash-flash-btc a.dash-tile:hover { background: #fff; color: #0b4a44; }
+                                .dash-flash-btc .dash-tile.team { background: #e4f1fb; border-color: #cfe3f3; color: #1e3a5f; }
+                                .dash-flash-btc .dash-tile span { opacity: 1; color: #4b6b66; }
+                                .dash-flash-btc .dash-tile.team span { color: #4a6380; }
+                                .dash-flash-btc .dash-tile.hot { background: #fdecc8; border-color: #f5d58a; color: #7a4a0c; }
+                                .dash-flash-btc .dash-tile.hot span { color: #7a4a0c; }
                                 .dash-flash-score.compact { padding: 10px 14px; }
                                 .dash-flash-score.compact .dash-flash-head { margin-bottom: 6px; }
                                 .dash-flash-score.compact .dash-flash-ring { width: 60px; height: 60px; border-width: 5px; font-size: 1.1rem; }
