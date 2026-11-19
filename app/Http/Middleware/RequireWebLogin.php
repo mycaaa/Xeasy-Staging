@@ -28,7 +28,6 @@ class RequireWebLogin
     private const PUBLIC_PREFIXES = [
         'storage/', '_debugbar/',
         // BOARDING-01: vendor boarding-pass portal; the random link (stored hashed, expiring, revocable) is the credential
-        'vendor/boarding-pass/',
         // BTC-READER-01: the invoice-reading service fetches a stored invoice here; the route itself requires a valid
         // 15-minute signature (middleware 'signed') and an encrypted path under btc/
         'btc/reader-file/',

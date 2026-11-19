@@ -23,7 +23,7 @@ return [
     'advance_settle_days' => (int) env('BTC_ADVANCE_SETTLE_DAYS', 30),
 
     // BTC-TRY-01 (17 Nov 2026): a Treasury checker (another person) authorises each payment entered by the maker
-    'treasury_checker' => (bool) env('BTC_TREASURY_CHECKER', true),
+    'treasury_checker_unused' => (bool) env('BTC_TREASURY_CHECKER', true),
     // BTC-FLOW-01 (18 Nov 2026): Finance may verify an air case before the boarding pass is in (it is then chased and
     // still needed for closure). Default true = the old rule (no verification without the boarding pass).
     'boarding_pass_before_verify' => (bool) env('BTC_BOARDING_PASS_BEFORE_VERIFY', true),
@@ -83,6 +83,9 @@ return [
     ],
 
     // Stages in order. key => label
+    // BTC-V2 (19 Nov 2026, BTC requirement sheet item 24): revised workflow - no DMS processing step, no Nova, no
+    // department head / Treasury checker. Bill uploaded in Xeasy -> data extraction -> Finance Verifier 1 (+ Focus
+    // entry) -> Finance Approval -> Treasury payment. The old codes stay only to label history.
     'statuses' => [
         'draft' => 'Draft',
         'pending_manager' => 'Waiting for manager approval',
@@ -90,17 +93,37 @@ return [
         'advance_requested' => 'Advance requested',
         'advance_paid' => 'Advance paid',
         'booked' => 'Booked / service in progress',
-        'bill_submitted' => 'Bill submitted to DMS',
-        'dms_processed' => 'DMS processed',
-        'finance_verified' => 'Finance verified, JV prepared',
-        'checked' => 'Checked by Finance authority',
-        'with_treasury' => 'With Treasury',
-        'dept_approved' => 'Department approved',
+        'bill_with_dms' => 'Physical bill with DMS',
+        'bill_with_finance' => 'Bill with Finance (to scan and upload)',
+        'bill_submitted' => 'Bill uploaded - data extraction',
+        'extracted' => 'Finance Verifier 1',
+        'finance_verified' => 'Verified - Focus entry',
+        'focus_done' => 'Finance Approval',
+        'fin_approved' => 'Treasury payment',
         'paid' => 'Paid',
         'closed' => 'Closed',
         'returned' => 'Returned for correction',
         'rejected' => 'Rejected',
         'cancelled' => 'Cancelled',
+        // old workflow (history only)
+        'dms_processed' => 'DMS processed (old)',
+        'checked' => 'Checked by Finance (old)',
+        'with_treasury' => 'With Treasury (old)',
+        'dept_approved' => 'Department approved (old)',
+    ],
+
+    // BTC-V2: where the bill came from (Bill Upload by Finance)
+    'bill_sources' => ['dms' => 'DMS (physical bill)', 'vendor' => 'Vendor', 'email' => 'E-mail', 'admin' => 'Admin', 'department' => 'Other department', 'employee' => 'Employee'],
+
+    // BTC-V2: the Finance data format - fields read from the invoice, and which must be filled before Verifier 1
+    'extraction' => [
+        'fields' => [
+            'vendor_name' => 'Vendor name', 'vendor_gstin' => 'Vendor GSTIN', 'bill_no' => 'Invoice no.', 'bill_date' => 'Invoice date',
+            'bill_particulars' => 'Description / particulars', 'taxable_amount' => 'Taxable amount', 'cgst_amount' => 'CGST', 'sgst_amount' => 'SGST',
+            'igst_amount' => 'IGST', 'other_charges' => 'Other charges', 'bill_amount' => 'Total invoice amount', 'bill_period' => 'Invoice / service period',
+        ],
+        'required' => ['vendor_name', 'bill_no', 'bill_date', 'taxable_amount', 'bill_amount'],
+        'company_state' => env('BTC_COMPANY_GST_STATE', '22'),   // GSTIN state code of the buyer: same state = CGST + SGST, else IGST
     ],
 
     // Focus JV ledgers (names/codes as in Focus; Finance to confirm)
@@ -148,40 +171,39 @@ return [
             'btc.register' => 'BTC Request Register (all requests)',
             'btc.booking' => 'Admin Booking Queue',
             'btc.advance' => 'Advance Request & Processing',
-            'btc.invoices' => 'Nova Invoice Inbox and request / invoice matching',
-            'btc.integration' => 'Integration Monitoring (Nova sync, retry)',
-            'btc.access' => 'BTC roles, users and access history',
+                        'btc.access' => 'BTC roles, users and access history',
             'btc.exceptions' => 'Validation & Exception Queue',                                   // BTC-EXC-01
             'btc.audit' => 'Internal Audit: read every BTC record and report (no changes)',      // BTC-PERM-02
             'btc.export' => 'Download BTC reports (Excel)',
             'btc.configure' => 'BTC settings and masters',
         ],
         'Actions' => [
-            'btc.verifier' => 'Verify invoice and supporting documents (DMS step)',
-            'btc.dms' => 'DMS processing',
-            'btc.finance' => 'Finance verification: GST, TDS, ledger and JV',
-            'btc.checker' => 'Finance checker / financial approval',
-            'btc.treasury' => 'Treasury maker: send for department approval, enter payment and UTR',
-            'btc.treasury_checker' => 'Treasury checker: authorise payments entered by another person',
+            'btc.dms' => 'DMS: record the physical bill received and handed to Finance',
+            'btc.bill_upload' => 'Bill Upload by Finance and data extraction (correct the read fields)',   // BTC-V2
+            'btc.verifier' => 'Finance Verifier 1: verify the extracted data, prepare and export the Focus entry',
+            'btc.fin_approver' => 'Finance Approval: final approval before Treasury',                     // BTC-V2
+            'btc.finance' => 'Finance: bill upload, data extraction, closure',
+            'btc.checker' => 'Finance Head: oversight, document waivers, hold',
+            'btc.treasury' => 'Treasury payment: record payment, UTR',
             'btc.admin' => 'All BTC cases and every step (full control)',
         ],
     ],
     // The recommended roles (sheet item 2). Employee, Reporting Manager and Authorised Approver also act through the
     // case itself (the requester, the manager on the case, the department approver chosen by Treasury).
     'roles' => [
-        'BTC Super Admin' => ['Complete BTC module control', ['btc.admin', 'btc.access', 'btc.dashboard', 'btc.register', 'btc.booking', 'btc.advance', 'btc.invoices', 'btc.integration', 'btc.verifier', 'btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.exceptions', 'btc.audit', 'btc.export', 'btc.configure']],
-        'BTC DMS Admin' => ['Nova integration, invoice inbox and document management', ['btc.invoices', 'btc.integration', 'btc.dms', 'btc.register', 'btc.dashboard']],
+        'BTC Super Admin' => ['Complete BTC module control', ['btc.admin', 'btc.access', 'btc.dashboard', 'btc.register', 'btc.booking', 'btc.advance', 'btc.bill_upload', 'btc.verifier', 'btc.dms', 'btc.finance', 'btc.checker', 'btc.fin_approver', 'btc.treasury', 'btc.exceptions', 'btc.audit', 'btc.export', 'btc.configure']],
+        'BTC DMS Admin' => ['Physical bill receiving and handover to Finance', ['btc.dms', 'btc.register', 'btc.dashboard']],
         'BTC Admin' => ['Request management, booking and operational coordination', ['btc.booking', 'btc.register', 'btc.dashboard']],
         'BTC Employee' => ['Create request, upload documents and track own BTC cases', []],
         'BTC Reporting Manager' => ['Request approval and business justification', []],
-        'BTC Authorised Approver' => ['Final approval as per approval matrix', []],
         'BTC Finance Advance' => ['Advance processing and payment', ['btc.advance', 'btc.register']],
-        'BTC Verifier' => ['Invoice and supporting document verification', ['btc.verifier', 'btc.invoices', 'btc.register']],
-        'BTC Finance Verifier' => ['Financial, GST, TDS and accounting verification', ['btc.finance', 'btc.register', 'btc.dashboard']],
-        'BTC Payment User' => ['Treasury maker: payment entry, UTR (a Treasury Checker authorises)', ['btc.treasury', 'btc.register']],
-        'BTC Treasury Checker' => ['Payment authorisation (not own entries)', ['btc.treasury_checker', 'btc.register']],
+        'BTC Bill Upload (Finance)' => ['Bill Upload by Finance and data extraction', ['btc.bill_upload', 'btc.register', 'btc.dashboard', 'btc.exceptions']],
+        'BTC Verifier' => ['Finance Verifier 1: extracted data and Focus entry', ['btc.verifier', 'btc.register', 'btc.exceptions']],
+        'BTC Finance Approver' => ['Final Finance Approval before Treasury', ['btc.fin_approver', 'btc.register', 'btc.dashboard', 'btc.exceptions']],
+        'BTC Finance Verifier' => ['Finance: bill upload, data extraction, closure', ['btc.finance', 'btc.bill_upload', 'btc.register', 'btc.dashboard']],
+        'BTC Payment User' => ['Treasury payment: payment entry and UTR', ['btc.treasury', 'btc.register']],
         'BTC Internal Audit' => ['Read-only BTC records and reports', ['btc.audit', 'btc.register', 'btc.dashboard', 'btc.export', 'btc.exceptions']],
-        'BTC Finance Head' => ['Financial approval and oversight', ['btc.checker', 'btc.dashboard', 'btc.register', 'btc.advance']],
+        'BTC Finance Head' => ['Financial approval and oversight', ['btc.checker', 'btc.fin_approver', 'btc.dashboard', 'btc.register', 'btc.advance']],
     ],
 
     // ---- BTC-REQ-07..09: Nova (DMS) invoice feed ----------------------------------------------------------------------

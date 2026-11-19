@@ -1172,10 +1172,6 @@ Route::prefix('btc')->name('btc.')->group(function () {
     // BOARDING-02: boarding passes of company-booked air tickets
     Route::get('/boarding-passes', [\App\Http\Controllers\admin\BtcController::class, 'boardingPasses'])->name('boarding.index');
     Route::post('/boarding-passes/{id}', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassUpload'])->whereNumber('id')->name('boarding.upload');
-    // BOARDING-01: vendor boarding-pass portal links (Finance)
-    Route::get('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'links'])->name('vendor.links');
-    Route::post('/vendor-links', [\App\Http\Controllers\VendorBoardingPassController::class, 'create'])->name('vendor.create');
-    Route::post('/vendor-links/{id}/revoke', [\App\Http\Controllers\VendorBoardingPassController::class, 'revoke'])->whereNumber('id')->name('vendor.revoke');
     // BTC-REQ-01..09 (16 Nov 2026): the BTC menu pages (each checks its btc.* permission)
     Route::get('/dashboard', [\App\Http\Controllers\admin\BtcPagesController::class, 'dashboard'])->name('dashboard');
     Route::get('/register', [\App\Http\Controllers\admin\BtcPagesController::class, 'register'])->name('register');
@@ -1185,14 +1181,6 @@ Route::prefix('btc')->name('btc.')->group(function () {
     // BTC-EXC-01 / CONF-01 / FIN-02 (17 Nov 2026)
     // BOARDING-04 / BTC-BANK-01 / BTC-BATCH-01 (17 Nov 2026)
     Route::post('/boarding-passes/bulk', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassBulk'])->name('boarding.bulk');
-    Route::get('/vendor-banks', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBanks'])->name('vendor-banks');
-    Route::post('/vendor-banks', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBankSave'])->name('vendor-banks.save');
-    Route::post('/vendor-banks/{id}/decide', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorBankDecide'])->whereNumber('id')->name('vendor-banks.decide');
-    Route::get('/payment-batches', [\App\Http\Controllers\admin\BtcPagesController::class, 'batches'])->name('batches');
-    Route::post('/payment-batches', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchMake'])->name('batches.make');
-    Route::get('/payment-batches/{id}/file', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchFile'])->whereNumber('id')->name('batches.file');
-    Route::post('/payment-batches/response', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchResponse'])->name('batches.response');
-    Route::post('/payment-batches/{id}/authorise', [\App\Http\Controllers\admin\BtcPagesController::class, 'batchAuthorise'])->whereNumber('id')->name('batches.authorise');
     Route::get('/exceptions', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptions'])->name('exceptions');
     Route::get('/exceptions/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionsExport'])->name('exceptions.export');
     Route::post('/exceptions/review', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionReview'])->name('exceptions.review');
@@ -1200,21 +1188,21 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settingsSave'])->name('settings.save');
     Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
-    // BTC-READER-01 (18 Nov 2026): invoices read in Xeasy (instead of waiting for Nova)
-    Route::get('/invoice-reader', [\App\Http\Controllers\admin\BtcReaderController::class, 'index'])->name('reader');
-    Route::post('/invoice-reader', [\App\Http\Controllers\admin\BtcReaderController::class, 'upload'])->middleware('throttle:20,1')->name('reader.upload');
+    // BTC-V2 (19 Nov 2026, sheet item 24): Bill Upload by Finance, Automatic Data Extraction, Finance Verifier 1 (+ Focus
+    // entry), Finance Approval, Treasury Payment (each checks its permission in the controller)
+    Route::get('/bill-upload', [\App\Http\Controllers\admin\BtcV2Controller::class, 'upload'])->name('bill-upload');
+    Route::post('/bill-upload', [\App\Http\Controllers\admin\BtcV2Controller::class, 'uploadStore'])->middleware('throttle:30,1')->name('bill-upload.store');
+    Route::get('/bill-upload/cases', [\App\Http\Controllers\admin\BtcV2Controller::class, 'uploadCases'])->name('bill-upload.cases');
+    Route::get('/extraction', [\App\Http\Controllers\admin\BtcV2Controller::class, 'extraction'])->name('extraction');
+    Route::post('/case/{id}/reread', [\App\Http\Controllers\admin\BtcV2Controller::class, 'reread'])->whereNumber('id')->middleware('throttle:30,1')->name('reread');
+    Route::get('/verifier', [\App\Http\Controllers\admin\BtcV2Controller::class, 'verifier'])->name('verifier');
+    Route::get('/approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'approval'])->name('approval');
+    Route::get('/treasury', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasury'])->name('treasury');
+    Route::post('/treasury/pay', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasuryPay'])->name('treasury.pay');
+    Route::get('/treasury/export', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasuryExport'])->name('treasury.export');
     Route::post('/invoice-reader/read', [\App\Http\Controllers\admin\BtcReaderController::class, 'read'])->middleware('throttle:30,1')->name('reader.read');
-    Route::post('/invoice-reader/{id}', [\App\Http\Controllers\admin\BtcReaderController::class, 'save'])->whereNumber('id')->name('reader.save');
-    Route::get('/invoice-reader/{id}/file', [\App\Http\Controllers\admin\BtcReaderController::class, 'file'])->whereNumber('id')->name('reader.doc');
     Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
     Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');
-    Route::get('/invoices', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoices'])->name('invoices');
-    Route::post('/invoices/import', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceImport'])->name('invoices.import');
-    Route::post('/invoices/{id}/link', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceLink'])->whereNumber('id')->name('invoices.link');
-    Route::post('/invoices/{id}/unlink', [\App\Http\Controllers\admin\BtcPagesController::class, 'invoiceUnlink'])->whereNumber('id')->name('invoices.unlink');
-    Route::get('/matching', [\App\Http\Controllers\admin\BtcPagesController::class, 'matching'])->name('matching');
-    Route::get('/integration', [\App\Http\Controllers\admin\BtcPagesController::class, 'integration'])->name('integration');
-    Route::post('/integration/retry', [\App\Http\Controllers\admin\BtcPagesController::class, 'integrationRetry'])->name('integration.retry');
     Route::get('/access', [\App\Http\Controllers\admin\BtcPagesController::class, 'access'])->name('access');
     Route::post('/access/role', [\App\Http\Controllers\admin\BtcPagesController::class, 'accessSaveRole'])->name('access.role');
     Route::post('/access/role/{roleId}/toggle', [\App\Http\Controllers\admin\BtcPagesController::class, 'accessToggleRole'])->whereNumber('roleId')->name('access.toggle');

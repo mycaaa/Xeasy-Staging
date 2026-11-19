@@ -19,15 +19,7 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 // PRIV-01: employee privacy notice (public, linked from the login page and the app)
 Route::view('privacy', 'legal.privacy-notice')->name('privacy.notice');
 
-// BOARDING-01: vendor boarding-pass portal (no Xeasy login; the random link is the credential)
-Route::middleware('throttle:30,1')->group(function () {
-    Route::get('vendor/boarding-pass/{token}', [\App\Http\Controllers\VendorBoardingPassController::class, 'show'])->name('vendor.boarding.show');
-    Route::post('vendor/boarding-pass/{token}/{caseId}', [\App\Http\Controllers\VendorBoardingPassController::class, 'upload'])->whereNumber('caseId')->name('vendor.boarding.upload');
-    // BOARDING-04 / BTC-VENDOR-01 (17 Nov 2026): many boarding passes at once; invoices and payment status
-    Route::post('vendor/boarding-pass/{token}/bulk', [\App\Http\Controllers\VendorBoardingPassController::class, 'bulk'])->name('vendor.boarding.bulk');
-    Route::post('vendor/boarding-pass/{token}/invoice/{caseId}', [\App\Http\Controllers\VendorBoardingPassController::class, 'invoice'])->whereNumber('caseId')->name('vendor.invoice.upload');
-});
-
+// BTC-V2 (19 Nov 2026): the vendor boarding-pass portal links are removed (sheet item 24)
 
 // BTC-READER-01 (18 Nov 2026): 15-minute signed link the invoice-reading service fetches a stored BTC invoice from (no login)
 Route::get('btc/reader-file/{n}', [\App\Http\Controllers\admin\BtcReaderController::class, 'signedFile'])->where('n', 'invoice\.(pdf|jpg|png|webp|heic)')->middleware(['signed', 'throttle:60,1'])->name('btc.reader.file');

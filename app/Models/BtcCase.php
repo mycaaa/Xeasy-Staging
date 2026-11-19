@@ -19,6 +19,7 @@ class BtcCase extends Model
         'focus_exported_at' => 'datetime',
         'booking_date' => 'date', 'activity_completed_on' => 'date', 'advance_refund_on' => 'date',
         'doc_waived_at' => 'datetime', 'hold_at' => 'datetime', 'on_hold' => 'boolean',
+        'dms_received_on' => 'date', 'dms_to_finance_on' => 'date', 'bill_uploaded_at' => 'datetime', 'verify1_at' => 'datetime', 'fin_approved_at' => 'datetime',   // BTC-V2
         'new_vendor' => 'boolean', 'original_required' => 'boolean', 'boarding_pass_required' => 'boolean', 'duplicate_checked' => 'boolean',
     ];
 
@@ -70,14 +71,15 @@ class BtcCase extends Model
     public function closureGaps(): array
     {
         $g = [];
+        // BTC-V2 (19 Nov 2026): Verifier 1, Focus entry and Finance Approval (no checker / department head step any more)
+        if (! $this->verify1_at && ! $this->checker_at) {
+            $g[] = 'Finance Verifier 1 not done';
+        }
         if (! $this->finance_at) {
-            $g[] = 'Finance verification not done';
+            $g[] = 'Focus entry not prepared';
         }
-        if (! $this->checker_at) {
-            $g[] = 'Finance checker step not done';
-        }
-        if (! $this->dept_approved_at) {
-            $g[] = 'department head approval not done';
+        if (! $this->fin_approved_at && ! $this->dept_approved_at) {
+            $g[] = 'Finance Approval not done';
         }
         if ((float) $this->net_payable > 0 && ! $this->focus_voucher_no && ! ($this->jv_no ?? null) && ! $this->focus_exported_at) {
             $g[] = 'Focus posting not confirmed (no Focus voucher no. / JV export)';
@@ -149,17 +151,18 @@ class BtcCase extends Model
             'pending_manager' => 'Reporting manager',
             'booking_requested' => 'BTC Admin (booking)',
             'advance_requested' => 'Finance Advance',
-            // BTC-FLOW-01 (18 Nov 2026): in an admin booking the vendor bills the company, so the bill is with the BTC admin
-            'advance_paid', 'booked' => $this->route === 'admin_booking' ? 'BTC Admin (vendor bill to DMS)' : 'Requester / DMS (final bill)',
+            // BTC-V2 (19 Nov 2026): admin bookings - Admin hands the physical bill to DMS, DMS to Finance; advance cases -
+            // the employee uploads the bill against his request
+            'booked' => $this->route === 'admin_booking' ? 'BTC Admin (physical bill to DMS)' : 'Requester (upload the bill)',
+            'advance_paid' => 'Requester (upload the bill)',
+            'bill_with_dms' => 'DMS (receive the bill, hand to Finance)',
+            'bill_with_finance' => 'Finance (scan and upload the bill)',
             'returned' => 'Requester (correction)',
-            'bill_submitted' => 'BTC Verifier / DMS',
-            'dms_processed' => 'Finance Verifier'.($this->assigned_maker_id ? ' ('.(\App\Models\User::whereKey($this->assigned_maker_id)->value('name') ?? 'assigned').')' : ''),
-            'finance_verified' => 'Finance Head (checker)',
-            'checked' => 'Payment User (send for approval)',
-            'with_treasury' => 'Authorised Approver',
-            'dept_approved' => \App\Services\Btc\BtcWorkflow::pendingPayment($this)
-                ? 'Treasury Checker (authorise payment)'.(self::nobodyHas('btc.treasury_checker') ? ' - NONE ASSIGNED' : '')
-                : 'Payment User (payment)',
+            'bill_submitted' => 'Finance (data extraction)',
+            'extracted' => 'Finance Verifier 1',
+            'finance_verified' => 'Finance Verifier 1 (Focus entry)',
+            'focus_done' => 'Finance Approver',
+            'fin_approved' => 'Treasury (payment)',
             'paid' => $this->pendingDocuments() ? 'Documents: '.implode(', ', $this->pendingDocuments()) : 'Finance (closure)',
             default => '-',
         };
@@ -198,15 +201,18 @@ class BtcCase extends Model
             default => 'Requested '.number_format($a['requested']),
         };
         $invoice = match (true) {
-            (bool) $this->bill_no => 'Bill '.$this->bill_no.($this->nova_document_id ? ' (Nova)' : ''),
+            (bool) $this->bill_no => 'Bill '.$this->bill_no,
+            $this->status === 'bill_with_dms' => 'Physical bill with DMS',
+            $this->status === 'bill_with_finance' => 'With Finance to upload',
+            $this->files()->where('kind', 'bill')->exists() => 'Uploaded, being read',
             default => 'Not received',
         };
         $payment = match (true) {
             ($this->on_hold ?? false) => 'On hold',
             (float) $this->paid_amount > 0 && $this->payment_status === 'partial' => 'Part paid '.number_format((float) $this->paid_amount).' of '.number_format((float) $this->net_payable),
             (float) $this->paid_amount > 0 => 'Paid '.number_format((float) $this->paid_amount).' · '.$this->utr_number,
-            $this->status === 'dept_approved' && \App\Services\Btc\BtcWorkflow::pendingPayment($this) => 'Entered, to authorise',   // BTC-TRY-01
-            in_array($this->status, ['checked', 'with_treasury', 'dept_approved'], true) => 'In payment',
+            $this->status === 'fin_approved' => 'With Treasury',
+            $this->status === 'focus_done' => 'Finance Approval',
             default => '-',
         };
 

@@ -8,25 +8,27 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * BTC-01: stage rules of the Bill To Company process (config/btc.php).
+ * BTC-01 / BTC-V2: stage rules of the Bill To Company process (config/btc.php).
  *
- *  A admin_booking:    draft → booked → bill_submitted → dms_processed → finance_verified → checked
- *                      → with_treasury → dept_approved → paid → closed
- *  B employee_advance: draft → pending_manager → (advance_requested → advance_paid →) booked → bill_submitted → …
- *  C direct_bill:      draft → bill_submitted → …
- *  Any working stage can be returned for correction to an earlier stage; a returned case goes back there.
+ * BTC-V2 (19 Nov 2026, requirement sheet item 24) - revised workflow, all in Xeasy (no Nova, DMS only for the paper):
+ *  A admin_booking:    draft -> (pending_manager ->) booking_requested -> booked -> bill_with_dms (Admin hands the
+ *                      physical bill to DMS) -> bill_with_finance (DMS hands it to Finance) -> bill_submitted
+ *  B employee_advance: draft -> pending_manager -> (advance_requested -> advance_paid ->) booked -> bill_submitted
+ *                      (the employee uploads the bill against the same request)
+ *  C direct_bill:      created by Bill Upload by Finance (vendor / e-mail / other department bill) -> bill_submitted
+ *  then: bill_submitted (data extraction, the read fields corrected) -> extracted (Finance Verifier 1: verify / return /
+ *  reject) -> finance_verified (Focus entry by the verifier, exported) -> focus_done (Finance Approval: approve /
+ *  return / reject / hold) -> fin_approved (Treasury payment) -> paid -> closed.
  *
- * Controls built in (from the note):
- *  - air travel: the expense is not verified until the boarding pass / proof of travel is in;
- *  - hired vehicle: needs the original bill before verification; hotel may go on a scan, original followed up;
- *  - Finance checks for a duplicate bill (same vendor + bill no, or same vendor + amount + date) and records it;
- *  - TDS: net of TDS already deducted on the advance; the advance already paid is set off in the net payable;
- *  - maker-checker: the checker cannot be the person who verified;
- *  - Treasury gets the department head's approval before paying; payment needs a UTR and cannot exceed the net payable;
- *  - closure only when paid and every pending original / boarding pass is in.
+ * Controls: duplicate invoice and own-claim overlap checked at Verifier 1; air boarding pass / original bill rules at
+ * the Focus entry (switchable); Finance Approver is not the Verifier 1 of the case; approval limit applies; payment
+ * needs a UTR and cannot exceed the net payable; closure only when every condition is met (closureGaps).
  */
 class BtcWorkflow
 {
+    /** stages in which Finance works on the bill */
+    public const WORK = ['bill_submitted', 'extracted', 'finance_verified', 'focus_done', 'fin_approved', 'paid'];
+
     /** action => [allowed from statuses, permission (null = case owner / named approver), to status] */
     public const ACTIONS = [
         'submit' => [['draft'], null, null],
@@ -38,37 +40,40 @@ class BtcWorkflow
         'cancel_booking' => [['booking_requested', 'booked'], 'btc.booking', 'cancelled'],
         // BTC-REQ-19 (17 Nov 2026): the BTC admin changes the vendor before / after booking (reason logged)
         'change_vendor' => [['booking_requested', 'booked'], 'btc.booking', null],
-        // BTC-REQ-21: the BTC admin forwards the vendor's bill to DMS (date); DMS records the bill details
-        'forward_to_dms' => [['booked'], 'btc.booking', 'bill_submitted'],
+        // BTC-V2: Admin records that the physical bill was handed over to DMS; DMS records receiving it and handing it to Finance
+        'forward_to_dms' => [['booked'], 'btc.booking', 'bill_with_dms'],
+        'dms_receive' => [['bill_with_dms'], 'btc.dms', 'bill_with_finance'],
         'complete_activity' => [['booked'], 'owner|btc.booking', null],
         // BTC-REQ-06: Finance Advance pays the advance; a refund from the vendor is recorded separately
         'advance_paid' => [['advance_requested'], 'btc.finance|btc.advance', 'advance_paid'],
-        'record_refund' => [['advance_paid', 'booked', 'bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'cancelled'], 'btc.finance|btc.advance', null],
+        'record_refund' => [['advance_paid', 'booked', 'bill_submitted', 'extracted', 'finance_verified', 'focus_done', 'fin_approved', 'paid', 'cancelled'], 'btc.finance|btc.advance', null],
         'booked' => [['advance_paid'], null, 'booked'],
+        // BTC-V2: the employee uploads the soft copy against his own request; Finance uploads through Bill Upload by Finance
         'submit_bill' => [['booked', 'advance_paid', 'returned'], null, 'bill_submitted'],
-        'dms_process' => [['bill_submitted'], 'btc.dms|btc.verifier', 'dms_processed'],
-        'finance_verify' => [['dms_processed'], 'btc.finance', 'finance_verified'],
-        'check' => [['finance_verified'], 'btc.checker', 'checked'],
-        'send_dept_approval' => [['checked'], 'btc.treasury', 'with_treasury'],
-        'dept_approve' => [['with_treasury'], 'dept_approver', 'dept_approved'],
-        'pay' => [['dept_approved'], 'btc.treasury', 'paid'],
-        // BTC-PAY-01 (17 Nov 2026): a failed / returned payment is reversed with its reason (back to payment-ready)
-        'payment_failed' => [['dept_approved', 'paid'], 'btc.treasury', 'dept_approved'],
-        // BTC-TRY-01 (17 Nov 2026): Treasury maker enters, Treasury checker (another person) authorises or rejects
-        'authorise_payment' => [['dept_approved'], 'btc.treasury_checker', null],
-        'reject_payment_entry' => [['dept_approved'], 'btc.treasury_checker', null],
-        // BTC-FIN-02: the Finance head assigns the case to a named Finance maker
-        'assign_maker' => [['bill_submitted', 'dms_processed', 'returned'], 'btc.checker', null],
-        'close' => [['paid'], 'btc.finance', 'closed'],
-        // BTC-CLOSE-01: documents formally waived by an authorised person; a financial hold blocks payment and closure
-        'waive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.checker|btc.admin', null],
-        'hold' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.finance|btc.checker|btc.admin', null],
-        'release_hold' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.checker|btc.admin', null],
-        // BTC-HOD-01: the department head may return (to Finance / DMS / requester) or reject, not only approve
-        'dept_return' => [['with_treasury'], 'dept_approver', 'returned'],
-        'dept_reject' => [['with_treasury'], 'dept_approver', 'rejected'],
-        'return' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury'], 'any_desk', 'returned'],
-        'receive_document' => [['bill_submitted', 'dms_processed', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid'], 'btc.dms|btc.finance|btc.verifier', null],
+        'finance_upload' => [['booked', 'advance_paid', 'bill_with_dms', 'bill_with_finance', 'returned'], 'btc.bill_upload|btc.finance', 'bill_submitted'],
+        // BTC-V2 Step 2: the read fields corrected and sent to Finance Verifier 1
+        'save_extraction' => [['bill_submitted'], 'btc.bill_upload|btc.finance', null],
+        'confirm_extraction' => [['bill_submitted'], 'btc.bill_upload|btc.finance', 'extracted'],
+        // BTC-V2: Finance Verifier 1, then the Focus entry on the same screen
+        'verify1' => [['extracted'], 'btc.verifier', 'finance_verified'],
+        'verify1_return' => [['extracted'], 'btc.verifier', 'bill_submitted'],
+        'verify1_reject' => [['extracted'], 'btc.verifier', 'rejected'],
+        'focus_entry' => [['finance_verified'], 'btc.verifier', 'focus_done'],
+        // BTC-V2: Finance Approval (final), then Treasury
+        'fin_approve' => [['focus_done'], 'btc.fin_approver', 'fin_approved'],
+        'fin_return' => [['focus_done'], 'btc.fin_approver', null],
+        'fin_reject' => [['focus_done'], 'btc.fin_approver', 'rejected'],
+        'pay' => [['fin_approved'], 'btc.treasury', 'paid'],
+        // BTC-PAY-01 (17 Nov 2026): a failed / returned payment is reversed with its reason (back to Treasury)
+        'payment_failed' => [['fin_approved', 'paid'], 'btc.treasury', 'fin_approved'],
+        'close' => [['paid'], 'btc.finance|btc.fin_approver|btc.treasury', 'closed'],
+        // BTC-CLOSE-01: documents formally waived by an authorised person; a financial hold blocks approval, payment, closure
+        'waive_document' => [self::WORK, 'btc.checker|btc.fin_approver|btc.admin', null],
+        'hold' => [self::WORK, 'btc.verifier|btc.fin_approver|btc.checker|btc.admin', null],
+        'release_hold' => [self::WORK, 'btc.fin_approver|btc.checker|btc.admin', null],
+        // back to the requester for a better bill (a bill he uploaded is unreadable / wrong)
+        'return' => [['bill_submitted', 'extracted'], 'btc.bill_upload|btc.finance|btc.verifier', 'returned'],
+        'receive_document' => [['booked', 'bill_with_dms', 'bill_with_finance', 'bill_submitted', 'extracted', 'finance_verified', 'focus_done', 'fin_approved', 'paid'], 'btc.dms|btc.bill_upload|btc.finance|btc.verifier', null],
         'cancel' => [['draft', 'pending_manager', 'booking_requested', 'advance_requested', 'booked', 'returned'], null, 'cancelled'],
     ];
 
@@ -89,9 +94,6 @@ class BtcWorkflow
         $out = [];
         foreach (self::ACTIONS as $action => [$from, $perm]) {
             if (in_array($c->status, $from, true) && self::may($c, $user, $perm, $action) && self::fits($c, $action)) {
-                if ($action === 'authorise_payment' && (int) (self::pendingPayment($c)->created_by ?? 0) === (int) ($user->id ?? 0)) {
-                    continue;   // BTC-TRY-01: not your own entry
-                }
                 $out[] = $action;
             }
         }
@@ -107,10 +109,10 @@ class BtcWorkflow
         return match ($action) {
             'hold' => ! $held,
             'release_hold' => $held,
-            'pay' => ! $held && self::pendingPayment($c) === null,
-            'close', 'dept_approve', 'send_dept_approval', 'check' => ! $held,
+            'pay', 'close', 'fin_approve' => ! $held,
             'payment_failed' => (float) $c->paid_amount > 0,
-            'authorise_payment', 'reject_payment_entry' => ! $held && self::pendingPayment($c) !== null,
+            // a bill uploaded by Finance has no owner to return it to
+            'return' => (bool) $c->employee_id && $c->route !== 'direct_bill',
             'waive_document' => (bool) $c->pendingDocuments(),
             default => true,
         };
@@ -138,7 +140,7 @@ class BtcWorkflow
         $full = $c->paid_amount >= round((float) $c->net_payable, 2) - 0.009;
         $c->payment_status = $full ? 'full' : 'partial';
 
-        return $full ? 'paid' : 'dept_approved';
+        return $full ? 'paid' : 'fin_approved';
     }
 
     public static function may(BtcCase $c, $user, ?string $perm, string $action): bool
@@ -149,12 +151,6 @@ class BtcWorkflow
         $empId = (int) ($user->employee_id ?? 0);
         $can = fn ($p) => method_exists($user, 'can') && $user->can($p);
         if ($can('btc.admin')) {
-            return true;
-        }
-        // BTC-FLOW-01 (18 Nov 2026): the vendor's bill usually reaches the BTC admin / DMS, not the employee. Cases waited at
-        // "Requester (final bill)" for a bill the requester never had; the booking desk and DMS may now submit it too.
-        if ($action === 'submit_bill' && ($can('btc.booking') || $can('btc.dms'))
-            && ($c->status !== 'returned' || in_array($c->return_to, [null, 'bill_submitted', 'booked'], true))) {
             return true;
         }
         if ($perm === null) {
@@ -168,12 +164,6 @@ class BtcWorkflow
         }
         if ($perm === 'manager') {
             return $empId > 0 && $empId === (int) $c->manager_id;
-        }
-        if ($perm === 'dept_approver') {
-            return $empId > 0 && $empId === (int) $c->dept_approver_id;
-        }
-        if ($perm === 'any_desk') {
-            return $can('btc.dms') || $can('btc.verifier') || $can('btc.finance') || $can('btc.checker') || $can('btc.treasury');
         }
         foreach (explode('|', $perm) as $p) {
             if ($p === 'owner' ? ($empId > 0 && ($empId === (int) $c->employee_id || (int) $user->id === (int) $c->created_by)) : $can($p)) {
@@ -196,7 +186,7 @@ class BtcWorkflow
         if (! self::may($c, $user, $perm, $action)) {
             throw new RuntimeException('You are not allowed to do this step on this case.');
         }
-        if (in_array($action, ['pay', 'close', 'dept_approve', 'send_dept_approval', 'check'], true) && ($c->on_hold ?? false)) {
+        if (in_array($action, ['pay', 'close', 'fin_approve'], true) && ($c->on_hold ?? false)) {
             throw new RuntimeException('The case is on financial hold ('.$c->hold_reason.'). Release the hold first.');
         }
         $old = $c->status;
@@ -325,20 +315,38 @@ class BtcWorkflow
                 $to = $old;
                 break;
             case 'forward_to_dms':
+                // BTC-V2: the physical bill handed over to DMS (date); the bill is scanned and uploaded later by Finance
                 $on = $d['bill_forwarded_dms_on'] ?? null;
                 if (! $on || ! strtotime($on) || $on > $now->toDateString()) {
-                    throw new RuntimeException('Enter the date the bill was forwarded to DMS (not a future date).');
+                    throw new RuntimeException('Enter the date the physical bill was handed over to DMS (not a future date).');
                 }
                 $c->bill_forwarded_dms_on = $on;
-                foreach (['bill_no', 'bill_date', 'bill_amount'] as $k) {
+                foreach (['bill_no', 'bill_amount'] as $k) {
                     if (! empty($d[$k])) {
                         $c->{$k} = $d[$k];
                     }
                 }
-                $c->bill_submitted_at = $now;
-                $c->bill_submitted_by = $user->id;
-                $c->submitted_via = 'admin_forwarded';
-                $remark = trim('Bill forwarded to DMS on '.\Carbon\Carbon::parse($on)->format('d-m-Y').($c->bill_no ? ' (bill '.$c->bill_no.')' : '').($remark ? ' - '.$remark : ''));
+                $remark = trim('Physical bill handed over to DMS on '.\Carbon\Carbon::parse($on)->format('d-m-Y').($c->bill_no ? ' (bill '.$c->bill_no.')' : '').($remark ? ' - '.$remark : ''));
+                break;
+            case 'dms_receive':
+                // BTC-V2: DMS records the physical bill received and handed over to Finance
+                $rec = $d['dms_received_on'] ?? $now->toDateString();
+                $hand = $d['dms_to_finance_on'] ?? $now->toDateString();
+                foreach ([$rec, $hand] as $x) {
+                    if (! strtotime($x) || $x > $now->toDateString()) {
+                        throw new RuntimeException('Enter the received and handed-over dates (not future dates).');
+                    }
+                }
+                if ($hand < $rec) {
+                    throw new RuntimeException('The bill cannot be handed to Finance before DMS received it.');
+                }
+                $c->dms_received_on = $rec;
+                $c->dms_to_finance_on = $hand;
+                $c->dms_by = $user->id;
+                $c->dms_at = $now;
+                $c->dms_doc_no = trim((string) ($d['dms_doc_no'] ?? '')) ?: $c->dms_doc_no;
+                $c->original_received_on = $c->original_received_on ?: $rec;   // the physical bill is the original
+                $remark = trim('Physical bill received by DMS '.\Carbon\Carbon::parse($rec)->format('d-m-Y').', handed to Finance '.\Carbon\Carbon::parse($hand)->format('d-m-Y').($c->dms_doc_no ? ' (DMS no. '.$c->dms_doc_no.')' : '').($remark ? ' - '.$remark : ''));
                 break;
             case 'complete_activity':
                 $c->activity_completed_on = $d['activity_completed_on'] ?? $now->toDateString();
@@ -379,57 +387,91 @@ class BtcWorkflow
                 $c->tds_on_advance = (float) ($d['tds_on_advance'] ?? 0);
                 break;
             case 'submit_bill':
-                foreach (['bill_no', 'bill_date', 'taxable_amount', 'gst_amount', 'bill_amount', 'pnr', 'travel_sector', 'travel_date'] as $k) {
+            case 'finance_upload':
+                // BTC-V2: the soft copy is uploaded (by the employee against his request, or by Finance); the invoice is
+                // then read automatically (after this step) - only the bill file is needed here
+                foreach (['pnr', 'travel_sector', 'travel_date'] as $k) {
                     if (array_key_exists($k, $d) && $d[$k] !== null && $d[$k] !== '') {
                         $c->$k = $d[$k];
                     }
                 }
-                $this->requireBill($c);
-                $c->bill_submitted_at = $now;
-                $c->bill_submitted_by = $user->id;
-                $c->submitted_via = $d['submitted_via'] ?? ($user->can('btc.admin') ? 'admin' : 'employee');
+                if (! $c->files()->where('kind', 'bill')->exists()) {
+                    throw new RuntimeException('Attach the bill / invoice.');
+                }
+                $src = (string) ($d['bill_source'] ?? '');
+                $c->bill_source = array_key_exists($src, config('btc.bill_sources')) ? $src : ($action === 'submit_bill' ? 'employee' : 'dms');
+                $c->bill_uploaded_by = $user->id;
+                $c->bill_uploaded_at = $now;
+                $c->bill_submitted_at = $c->bill_submitted_at ?: $now;
+                $c->bill_submitted_by = $c->bill_submitted_by ?: $user->id;
+                $c->submitted_via = $action === 'submit_bill' ? 'employee' : 'finance_upload';
+                $c->extract_status = 'pending';
                 $c->return_to = null;
+                $remark = trim('Bill uploaded ('.config('btc.bill_sources.'.$c->bill_source, $c->bill_source).')'.($remark ? ' - '.$remark : ''));
                 break;
-            case 'dms_process':
-                foreach (['bill_no', 'bill_date', 'taxable_amount', 'gst_amount', 'bill_amount'] as $k) {   // BTC-REQ-21
-                    if (array_key_exists($k, $d) && $d[$k] !== null && $d[$k] !== '') {
-                        $c->{$k} = $d[$k];
+            case 'save_extraction':
+            case 'confirm_extraction':
+                $this->takeExtraction($c, $d);
+                if ($action === 'confirm_extraction') {
+                    if ($missing = BtcExtraction::missing($c)) {
+                        throw new RuntimeException('Fill in: '.implode(', ', $missing).'.');
                     }
-                }
-                if (! $c->bill_no || (float) $c->bill_amount <= 0) {
-                    throw new RuntimeException('Enter the bill no., date and amount (the bill was forwarded without them).');
-                }
-                $c->dms_by = $user->id;
-                $c->dms_at = $now;
-                $c->dms_doc_no = $d['dms_doc_no'] ?? $c->dms_doc_no;
-                if (! empty($d['original_received'])) {
-                    $c->original_received_on = $now->toDateString();
+                    if ($err = BtcExtraction::breakupError($c)) {
+                        throw new RuntimeException($err);
+                    }
+                    $c->extract_status = $c->extract_status === 'read' ? 'read' : 'corrected';
+                    $remark = trim('Data checked, sent to Finance Verifier 1'.($remark ? ' - '.$remark : ''));
+                } else {
+                    $remark = 'Extracted data corrected'.($remark ? ' - '.$remark : '');
                 }
                 break;
-            case 'finance_verify':
-                $this->financeVerify($c, $d, $user);
-                break;
-            case 'check':
-                if ((int) $c->finance_by === (int) $user->id) {
-                    throw new RuntimeException('The checker must be a different person from the one who verified.');
+            case 'verify1':
+                if ($missing = BtcExtraction::missing($c)) {
+                    throw new RuntimeException('Data incomplete ('.implode(', ', $missing).'): return it for correction.');
                 }
-                $c->checker_by = $user->id;
-                $c->checker_at = $now;
-                $c->focus_voucher_no = $d['focus_voucher_no'] ?? $c->focus_voucher_no;
-                break;
-            case 'send_dept_approval':
-                $approver = (int) ($d['dept_approver_id'] ?? 0);
-                if ($approver <= 0) {
-                    throw new RuntimeException('Choose the department head who approves this payment.');
+                $dups = self::duplicates($c);
+                if ($dups->isNotEmpty() && empty($d['duplicate_override'])) {
+                    throw new RuntimeException('Possible duplicate of '.$dups->pluck('case_no')->implode(', ').'. Tick "not a duplicate" with a remark, or reject.');
                 }
-                $c->dept_approver_id = $approver;
-                $c->treasury_by = $user->id;
-                $c->treasury_at = $now;
+                if (($ov = self::claimOverlaps($c)) && empty($d['claim_overlap_override'])) {
+                    throw new RuntimeException('The employee has also claimed '.collect($ov)->map(fn ($o) => $o['type'].' '.$o['date'].' Rs '.number_format($o['amount']))->implode(', ').' in his own expense claim for these dates. Tick "not the same expense" with a remark, or reject.');
+                }
+                if (($dups->isNotEmpty() || $ov) && $remark === '') {
+                    throw new RuntimeException('Give a remark for passing the duplicate / own-claim check.');
+                }
+                $c->duplicate_checked = true;
+                $c->verify1_by = $user->id;
+                $c->verify1_at = $now;
+                $c->verify1_remark = $remark ?: null;
+                $remark = trim('Extracted data verified'.($remark ? ' - '.$remark : ''));
                 break;
-            case 'dept_approve':
+            case 'verify1_return':
+            case 'verify1_reject':
+            case 'fin_reject':
+                if ($remark === '') {
+                    throw new RuntimeException($action === 'verify1_return' ? 'Say what is to be corrected.' : 'Give the reason for rejecting.');
+                }
+                break;
+            case 'focus_entry':
+                // the Focus entry (ledger, TDS, advance set-off, dimensions, narration, JV no.) on the verifier's screen
+                $this->financeVerify($c, $d + ['duplicate_checked' => 1, 'duplicate_override' => 1, 'claim_overlap_override' => 1], $user);
+                $remark = trim('Focus entry prepared'.($c->jv_no ? ' (JV '.$c->jv_no.')' : '').', net payable Rs '.number_format((float) $c->net_payable, 2).($remark ? ' - '.$remark : ''));
+                break;
+            case 'fin_approve':
+                if ((int) $c->verify1_by === (int) ($user->id ?? 0) && ! $user->can('btc.admin')) {
+                    throw new RuntimeException('You verified this case at Verifier 1; another Finance Approver must approve it.');
+                }
                 $this->withinLimit($user, (float) $c->net_payable, 'approve this payment');
-                $c->dept_approved_at = $now;
-                $c->dept_remark = $remark ?: 'Approved';
+                $c->fin_approved_by = $user->id;
+                $c->fin_approved_at = $now;
+                $c->fin_approve_remark = $remark ?: 'Approved';
+                break;
+            case 'fin_return':
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for returning.');
+                }
+                $to = ($d['return_to'] ?? '') === 'bill_submitted' ? 'bill_submitted' : 'finance_verified';
+                $remark = 'Returned to '.($to === 'bill_submitted' ? 'data extraction' : 'Focus entry').' - '.$remark;
                 break;
             case 'pay':
                 // BTC-PAY-01 (17 Nov 2026): mode, UTR and bank reference; part payments add up to the net payable
@@ -457,55 +499,10 @@ class BtcWorkflow
                 $bankRef = trim((string) ($d['payment_bank_ref'] ?? '')) ?: null;
                 $payRow = ['btc_case_id' => $c->id, 'amount' => $amt, 'paid_on' => $paidOn, 'mode' => $mode, 'utr_number' => $utr, 'bank_ref' => $bankRef,
                     'status' => 'success', 'created_by' => $user->id ?? null, 'created_at' => $now, 'updated_at' => $now];
-                if (config('btc.treasury_checker', true)) {
-                    // BTC-TRY-01: entered by the maker, applied when a Treasury checker (another person) authorises it
-                    $payRow['status'] = 'pending';
-                    $to = $old;
-                    $remark = trim('Payment entered Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.', waiting for Treasury checker'.($remark ? ' - '.$remark : ''));
-                } else {
-                    $to = $this->applyPayment($c, $payRow);
-                    $payRow['authorised_by'] = $user->id ?? null;
-                    $payRow['authorised_at'] = $now;
-                    $remark = trim(($to === 'paid' ? 'Paid in full' : 'Part payment').' Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.($remark ? ' - '.$remark : ''));
-                }
-                break;
-            case 'authorise_payment':
-            case 'reject_payment_entry':
-                $p = self::pendingPayment($c);
-                if (! $p) {
-                    throw new RuntimeException('No payment entry is waiting for authorisation.');
-                }
-                if ((int) $p->created_by === (int) ($user->id ?? 0)) {
-                    throw new RuntimeException('The payment was entered by you; another Treasury checker must authorise it.');
-                }
-                if ($action === 'reject_payment_entry') {
-                    if ($remark === '') {
-                        throw new RuntimeException('Give the reason for rejecting the payment entry.');
-                    }
-                    $failRow = [$p->id, ['status' => 'rejected', 'failed_reason' => mb_substr($remark, 0, 300), 'failed_by' => $user->id ?? null, 'failed_at' => $now, 'updated_at' => $now]];
-                    $remark = 'Payment entry rejected (Rs '.number_format((float) $p->amount, 2).' UTR '.$p->utr_number.'): '.$remark;
-                    $to = $old;
-                    break;
-                }
-                if (! $p->utr_number) {
-                    throw new RuntimeException('No UTR yet for this payment: import the bank\'s response file first (Payment batches).');
-                }
-                if ((float) $p->amount > round((float) $c->net_payable - (float) $c->paid_amount, 2) + 0.009) {
-                    throw new RuntimeException('The entry is more than the amount still due; reject it and enter again.');
-                }
-                $to = $this->applyPayment($c, $p);
-                $failRow = [$p->id, ['status' => 'success', 'authorised_by' => $user->id ?? null, 'authorised_at' => $now, 'updated_at' => $now]];
-                $remark = trim(($to === 'paid' ? 'Payment authorised, paid in full' : 'Part payment authorised').' Rs '.number_format((float) $p->amount, 2).' UTR '.$p->utr_number.($remark ? ' - '.$remark : ''));
-                break;
-            case 'assign_maker':
-                $m = (int) ($d['assigned_maker_id'] ?? 0);
-                $mu = $m ? \App\Models\User::find($m) : null;
-                if (! $mu || ! ($mu->can('btc.finance') || $mu->can('btc.admin'))) {
-                    throw new RuntimeException('Choose a Finance maker (a user with Finance verification access).');
-                }
-                $c->assigned_maker_id = $m;
-                $remark = 'Assigned to '.$mu->name.($remark ? ' - '.$remark : '');
-                $to = $old;
+                $to = $this->applyPayment($c, $payRow);
+                $payRow['authorised_by'] = $user->id ?? null;
+                $payRow['authorised_at'] = $now;
+                $remark = trim(($to === 'paid' ? 'Paid in full' : 'Part payment').' Rs '.number_format($amt, 2).' '.strtoupper($mode).' UTR '.$utr.($remark ? ' - '.$remark : ''));
                 break;
             case 'payment_failed':
                 if ($remark === '') {
@@ -560,12 +557,6 @@ class BtcWorkflow
                 $remark = 'Hold released ('.$c->hold_reason.'): '.$remark;
                 $to = $old;
                 break;
-            case 'dept_reject':
-                if ($remark === '') {
-                    throw new RuntimeException('Give the reason for rejecting.');
-                }
-                $c->dept_remark = $remark;
-                break;
             case 'close':
                 // BTC-CLOSE-01 (17 Nov 2026): closed only when every applicable condition is met, not just because it is paid
                 if ($open = $c->closureGaps()) {
@@ -573,21 +564,11 @@ class BtcWorkflow
                 }
                 $c->closed_at = $now;
                 break;
-            case 'dept_return':
-                $d['return_to'] = $d['return_to'] ?? 'finance_verified';
-                // no break: same as a desk return
             case 'return':
                 if ($remark === '') {
                     throw new RuntimeException('Give the reason for returning.');
                 }
-                $back = (string) ($d['return_to'] ?? 'bill_submitted');
-                $order = array_keys(config('btc.statuses'));
-                if (! in_array($back, ['bill_submitted', 'dms_processed', 'finance_verified'], true) || array_search($back, $order, true) >= array_search($old, $order, true)) {
-                    $back = 'bill_submitted';
-                }
-                $c->return_to = $back;
-                // returned to DMS / Finance: that desk picks it up again directly
-                $to = $back === 'bill_submitted' ? 'returned' : ($back === 'dms_processed' ? 'bill_submitted' : 'dms_processed');
+                $c->return_to = 'bill_submitted';
                 break;
             case 'receive_document':
                 $kind = (string) ($d['document'] ?? '');
@@ -629,7 +610,63 @@ class BtcWorkflow
             report($e);
         }
 
+        // BTC-V2 Step 2: an uploaded bill is read at once; complete data with no duplicate goes on to Verifier 1
+        if (in_array($action, ['submit_bill', 'finance_upload'], true)) {
+            return $this->autoExtract($c->fresh(), $user);
+        }
+
         return $c->fresh();
+    }
+
+    /** BTC-V2: read the uploaded invoice into the case; move it to Finance Verifier 1 when nothing is missing. */
+    public function autoExtract(BtcCase $c, $user): BtcCase
+    {
+        $r = BtcExtraction::run($c);
+        $c->refresh();
+        $complete = $r['ok'] && ! BtcExtraction::missing($c) && ! BtcExtraction::breakupError($c);
+        $dups = self::duplicates($c);
+        $note = $r['ok'] ? ($complete ? 'Invoice read: all required fields found' : 'Invoice read partly: '.implode(', ', BtcExtraction::missing($c) ?: [BtcExtraction::breakupError($c)])) : 'Invoice not read: '.$r['error'];
+        if ($dups->isNotEmpty()) {
+            $note .= '. Possible duplicate of '.$dups->pluck('case_no')->implode(', ');
+        }
+        $next = $complete && $dups->isEmpty() ? 'extracted' : 'bill_submitted';
+        DB::transaction(function () use ($c, $next, $note, $user) {
+            $from = $c->status;
+            $c->status = $next;
+            $c->save();
+            BtcCaseLog::create(['btc_case_id' => $c->id, 'action' => 'extraction', 'from_status' => $from, 'to_status' => $next,
+                'remark' => mb_substr($note.($next === 'extracted' ? ' - sent to Finance Verifier 1' : ' - to be completed on Automatic Data Extraction'), 0, 1000),
+                'user_id' => null, 'user_name' => 'System']);
+        });
+
+        return $c->fresh();
+    }
+
+    /** BTC-V2: the extraction fields as corrected by the Finance user (only the Finance data format fields). */
+    private function takeExtraction(BtcCase $c, array $d): void
+    {
+        foreach (array_keys(config('btc.extraction.fields')) as $k) {
+            if (! array_key_exists($k, $d)) {
+                continue;
+            }
+            $v = is_string($d[$k]) ? trim($d[$k]) : $d[$k];
+            if (in_array($k, ['taxable_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'other_charges', 'bill_amount'], true)) {
+                $v = $v === '' || $v === null ? null : round((float) $v, 2);
+            } elseif ($k === 'vendor_gstin') {
+                $v = $v ? strtoupper(preg_replace('/[^0-9A-Za-z]/', '', $v)) : null;
+                if ($v && ! preg_match('/^\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/', $v)) {
+                    throw new RuntimeException('The vendor GSTIN is not in the right format.');
+                }
+            } elseif ($k === 'bill_date') {
+                if ($v && (! strtotime($v) || $v > now()->toDateString())) {
+                    throw new RuntimeException('The invoice date cannot be in the future.');
+                }
+            } else {
+                $v = $v === '' ? null : mb_substr((string) $v, 0, $k === 'bill_particulars' ? 500 : 200);
+            }
+            $c->{$k} = $v;
+        }
+        $c->gst_amount = round((float) $c->cgst_amount + (float) $c->sgst_amount + (float) $c->igst_amount, 2);
     }
 
     /** BTC-REQ-01: the approver's approval limit (BTC > Roles & Access); no limit set = any amount. */

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\admin;
 use App\Http\Controllers\Controller;
 use App\Models\BtcCase;
 use App\Services\Btc\BtcAccess;
-use App\Services\Btc\NovaInbox;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -60,16 +59,16 @@ class BtcPagesController extends Controller
             $ageing[$b]['count']++;
             $ageing[$b]['value'] += $value($c);
         }
-        $companyId = (int) session('company_id', 1);
-        $counts = NovaInbox::counts($companyId);
+        // BTC-V2 (19 Nov 2026): exceptions of the revised workflow (no Nova)
+        $since = fn ($c) => $age($c->updated_at);
         $exceptions = [
             ['Returned for correction', $live->where('status', 'returned')->count(), route('btc.register', ['status' => 'returned'])],
             ['Booking requested over 3 days ago', $live->where('status', 'booking_requested')->filter(fn ($c) => $age($c->created_at) > 3)->count(), route('btc.booking')],
             ['Advance paid over 30 days, no bill', $live->whereIn('status', ['advance_paid', 'booked'])->filter(fn ($c) => $c->advance_paid_on && $age($c->advance_paid_on) > 30 && ! $c->bill_no)->count(), route('btc.advances', ['show' => 'outstanding'])],
+            ['Physical bill with DMS over 2 days', $live->where('status', 'bill_with_dms')->filter(fn ($c) => $since($c) > 2)->count(), route('btc.register', ['status' => 'bill_with_dms'])],
+            ['Bill with Finance, not uploaded over 2 days', $live->where('status', 'bill_with_finance')->filter(fn ($c) => $since($c) > 2)->count(), route('btc.bill-upload')],
+            ['Invoice not read (data extraction failed)', $live->where('status', 'bill_submitted')->where('extract_status', 'failed')->count(), route('btc.extraction')],
             ['Paid, documents still pending', $live->where('status', 'paid')->filter(fn ($c) => $c->pendingDocuments())->count(), route('btc.register', ['status' => 'paid'])],
-            ['Invoices not imported', $counts['import_failed'], route('btc.invoices', ['state' => 'import_failed'])],
-            ['Invoices not matched to a request', $counts['unmatched'], route('btc.matching')],
-            ['Invoice not received by Nova', $counts['not_at_nova'], route('btc.invoices', ['state' => 'not_at_nova'])],
         ];
         $group = function ($key) use ($live, $value) {
             return $live->groupBy($key)->map(fn ($g, $k) => [
@@ -90,7 +89,9 @@ class BtcPagesController extends Controller
             ],
             'ageing' => $ageing, 'exceptions' => $exceptions,
             'byDept' => $group('department_name')->take(15), 'byVendor' => $group('vendor_name')->take(15),
-            'byStatus' => $live->groupBy('status')->map->count()->sortDesc(),
+            // BTC-V2: every stage of the revised workflow, in order (with its count)
+            'byStatus' => collect(array_keys(config('btc.statuses')))->mapWithKeys(fn ($st) => [$st => $all->where('status', $st)->count()])
+                ->filter(fn ($n, $st) => $n > 0 || ! in_array($st, ['dms_processed', 'checked', 'with_treasury', 'dept_approved'], true)),
         ]);
     }
 
@@ -154,148 +155,6 @@ class BtcPagesController extends Controller
         }, $prefix.now()->format('Ymd_His').'.xlsx');
     }
 
-    // ---- BTC-BANK-01 (17 Nov 2026): vendor bank accounts (enter / verify by another person) ---------------------------
-    public function vendorBanks(Request $request)
-    {
-        $this->need('btc.treasury|btc.treasury_checker|btc.finance|btc.audit');
-        $rows = \App\Services\Btc\BtcBank::ready() ? DB::table('btc_vendor_banks')->where('company_id', (int) session('company_id', 1))
-            ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when(trim((string) $request->input('q')), fn ($q, $t) => $q->where(fn ($w) => $w->where('vendor_name', 'like', "%{$t}%")->orWhere('vendor_gstin', 'like', "%{$t}%")))
-            ->orderByRaw("status = 'pending' DESC")->orderByDesc('id')->paginate(50)->withQueryString() : collect();
-        $u = auth()->user();
-        $vendors = DB::table('vendor_list')->where('status', '1')->whereNotNull('vendor_name')->orderBy('vendor_name')->limit(5000)->get(['id', 'vendor_name', 'gst_no']);
-
-        return view('admin.btc.pages.vendor-banks', ['rows' => $rows, 'vendors' => $vendors, 'ready' => \App\Services\Btc\BtcBank::ready(),
-            'canEnter' => $u->can('btc.admin') || $u->can('btc.treasury') || $u->can('btc.finance'),
-            'canVerify' => $u->can('btc.admin') || $u->can('btc.treasury_checker')]);
-    }
-
-    public function vendorBankSave(Request $request)
-    {
-        $this->need('btc.treasury|btc.finance');
-        $v = $request->validate(['vendor_id' => 'nullable|integer', 'vendor_name' => 'required|string|max:200', 'vendor_gstin' => 'nullable|string|max:20',
-            'account_name' => 'required|string|max:150', 'account_no' => 'required|string|max:30', 'account_no_confirm' => 'required|string|max:30',
-            'ifsc' => 'required|string|size:11', 'bank_name' => 'nullable|string|max:120', 'remark' => 'nullable|string|max:300']);
-        if (! empty($v['vendor_id']) && ($vl = DB::table('vendor_list')->find($v['vendor_id']))) {
-            $v['vendor_name'] = trim($vl->vendor_name);
-            $v['vendor_gstin'] = $v['vendor_gstin'] ?: $vl->gst_no;
-        }
-        try {
-            \App\Services\Btc\BtcBank::enter($v, auth()->user());
-        } catch (\RuntimeException $e) {
-            return back()->withInput($request->except(['account_no', 'account_no_confirm']))->withErrors(['bank' => $e->getMessage()]);
-        }
-
-        return back()->with('success', 'Bank details saved for '.$v['vendor_name'].'. Another person (Treasury checker) must verify them before payment.');
-    }
-
-    public function vendorBankDecide(Request $request, int $id)
-    {
-        $this->need('btc.treasury_checker');
-        try {
-            $b = \App\Services\Btc\BtcBank::decide($id, $request->input('decision') === 'verify', (string) $request->input('remark'), auth()->user());
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['bank' => $e->getMessage()]);
-        }
-
-        return back()->with('success', $b->vendor_name.': bank details '.$b->status.'.');
-    }
-
-    // ---- BTC-BATCH-01 (17 Nov 2026): bank bulk-payment file and the bank's response -------------------------------------
-    public function batches()
-    {
-        $this->need('btc.treasury|btc.treasury_checker|btc.audit');
-        $co = (int) session('company_id', 1);
-        $ready = \Illuminate\Support\Facades\Schema::hasTable('btc_payment_batches');
-        $batches = $ready ? DB::table('btc_payment_batches')->where('company_id', $co)->orderByDesc('id')->limit(50)->get() : collect();
-        $pending = $ready ? DB::table('btc_payments')->whereIn('batch_id', $batches->pluck('id'))->where('status', 'pending')
-            ->selectRaw('batch_id, COUNT(*) n, SUM(utr_number IS NOT NULL) with_utr')->groupBy('batch_id')->get()->keyBy('batch_id') : collect();
-        $u = auth()->user();
-
-        return view('admin.btc.pages.batches', ['ready' => $ready, 'batches' => $batches, 'pending' => $pending,
-            'candidates' => $ready ? \App\Services\Btc\BtcPaymentBatch::candidates($co) : collect(),
-            'canMake' => $u->can('btc.admin') || $u->can('btc.treasury'), 'canAuthorise' => $u->can('btc.admin') || $u->can('btc.treasury_checker'),
-            'debit' => config('btc.bank.debit_account')]);
-    }
-
-    public function batchMake(Request $request)
-    {
-        $this->need('btc.treasury');
-        $v = $request->validate(['ids' => 'required|array', 'ids.*' => 'integer', 'value_date' => 'required|date|after_or_equal:today']);
-        try {
-            $r = \App\Services\Btc\BtcPaymentBatch::make(array_map('intval', $v['ids']), $v['value_date'], auth()->user());
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['batch' => $e->getMessage()]);
-        }
-
-        return redirect()->route('btc.batches')->with('success', 'Batch '.$r['batch']->batch_no.' made: '.$r['batch']->cases.' payment(s), Rs '.number_format((float) $r['batch']->total, 2).'. Download the file and upload it to the bank.');
-    }
-
-    public function batchFile(int $id)
-    {
-        $this->need('btc.treasury');
-        $b = DB::table('btc_payment_batches')->where('company_id', (int) session('company_id', 1))->where('id', $id)->first();
-        abort_unless($b, 404);
-        $rows = \App\Services\Btc\BtcPaymentBatch::rows($id);
-        foreach (BtcCase::whereIn('id', DB::table('btc_payments')->where('batch_id', $id)->pluck('btc_case_id'))->get(['id', 'status']) as $bc) {
-            \App\Models\BtcCaseLog::create(['btc_case_id' => $bc->id, 'action' => 'batch_file', 'from_status' => $bc->status, 'to_status' => $bc->status,
-                'remark' => 'Bank file of batch '.$b->batch_no.' downloaded', 'user_id' => auth()->id(), 'user_name' => auth()->user()->name]);
-        }
-        $export = new class($rows) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithColumnFormatting
-        {
-            public function __construct(private array $rows) {}
-
-            public function array(): array
-            {
-                return $this->rows;
-            }
-
-            public function headings(): array
-            {
-                return \App\Services\Btc\BtcPaymentBatch::COLUMNS;
-            }
-
-            public function columnFormats(): array
-            {
-                return ['C' => '@', 'E' => '@'];   // account numbers as text
-            }
-        };
-
-        return \Maatwebsite\Excel\Facades\Excel::download($export, $b->batch_no.'.xlsx');
-    }
-
-    public function batchResponse(Request $request)
-    {
-        $this->need('btc.treasury');
-        $request->validate(['file' => 'required|file|max:10240|mimes:xlsx,xls,csv,txt']);
-        try {
-            $r = \App\Services\Btc\BtcPaymentBatch::importResponse($request->file('file')->getRealPath(), auth()->user());
-        } catch (\Throwable $e) {
-            return back()->withErrors(['batch' => $e->getMessage()]);
-        }
-
-        return back()->with('success', "Bank response: {$r['paid']} paid (waiting for the Treasury checker), {$r['failed']} failed (back to payment-ready), {$r['skipped']} skipped.")
-            ->with('notes', $r['notes']);
-    }
-
-    public function batchAuthorise(int $id)
-    {
-        $this->need('btc.treasury_checker');
-        $user = auth()->user();
-        $done = 0;
-        $notes = [];
-        foreach (DB::table('btc_payments')->where('batch_id', $id)->where('status', 'pending')->whereNotNull('utr_number')->get() as $p) {
-            try {
-                app(\App\Services\Btc\BtcWorkflow::class)->act(BtcCase::findOrFail($p->btc_case_id), 'authorise_payment', ['remark' => 'Batch authorisation'], $user);
-                $done++;
-            } catch (\RuntimeException $e) {
-                $notes[] = BtcCase::whereKey($p->btc_case_id)->value('case_no').': '.$e->getMessage();
-            }
-        }
-
-        return back()->with('success', "{$done} payment(s) authorised.")->with('notes', $notes);
-    }
-
     // ---- BTC-EXC-01 (17 Nov 2026): Validation & Exception Queue (requirement item 12) ---------------------------------
     private function exceptionRows(Request $request)
     {
@@ -312,7 +171,7 @@ class BtcPagesController extends Controller
 
     public function exceptions(Request $request)
     {
-        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker');
+        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker|btc.bill_upload|btc.verifier|btc.fin_approver');
         if (! $this->ready()) {
             return $this->notReady();
         }
@@ -327,7 +186,7 @@ class BtcPagesController extends Controller
 
     public function exceptionsExport(Request $request)
     {
-        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker');
+        $this->need('btc.exceptions|btc.audit|btc.finance|btc.checker|btc.bill_upload|btc.verifier|btc.fin_approver');
         $this->need('btc.export');
         $rows = $this->exceptionRows($request)->map(fn ($r) => [$r['case']->case_no, $r['case']->emp_code.' - '.$r['case']->emp_name, $r['case']->vendor_name,
             $r['case']->statusLabel(), $r['label'], $r['detail'], $r['review'] ? 'Reviewed: '.$r['review']->remark.' ('.$r['review']->reviewer_name.', '.substr((string) $r['review']->created_at, 0, 10).')' : 'Open'])->all();
@@ -435,8 +294,7 @@ class BtcPagesController extends Controller
             $value = fn ($c) => (float) ($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount);
             $mine = BtcCase::where('company_id', $co)->where(fn ($w) => $w->where('employee_id', $emp)->orWhere('created_by', $u->id))->where('status', '!=', 'draft')->get();
             $myOpen = $mine->whereNotIn('status', $done);
-            $approve = BtcCase::where('company_id', $co)->where(fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $emp))
-                ->orWhere(fn ($a) => $a->where('status', 'with_treasury')->where('dept_approver_id', $emp)))->count();
+            $approve = BtcCase::where('company_id', $co)->where('status', 'pending_manager')->where('manager_id', $emp)->count();   // BTC-V2: no HOD step
             $team = null;
             if ($direct = \App\Support\ReportingTree::directReports($emp)) {
                 $all = BtcCase::where('company_id', $co)->whereIn('employee_id', \App\Support\ReportingTree::descendants($emp))->whereNotIn('status', ['draft', 'cancelled', 'rejected'])->get();
@@ -558,19 +416,22 @@ class BtcPagesController extends Controller
         if (! $this->ready()) {
             return $this->notReady();
         }
-        $show = in_array($request->input('show'), ['to_book', 'booked', 'completed', 'cancelled'], true) ? $request->input('show') : 'to_book';
+        // BTC-V2 (19 Nov 2026): also the bills the Admin handed over to DMS (physical bill handover status)
+        $show = in_array($request->input('show'), ['to_book', 'booked', 'completed', 'to_dms', 'cancelled'], true) ? $request->input('show') : 'to_book';
         $base = fn () => $this->cases()->where('route', 'admin_booking');
         $counts = [
             'to_book' => $base()->where('status', 'booking_requested')->count(),
             'booked' => $base()->where('status', 'booked')->whereNull('activity_completed_on')->count(),
-            'completed' => $base()->whereNotNull('activity_completed_on')->whereNotIn('status', ['cancelled'])->count(),
+            'completed' => $base()->where('status', 'booked')->whereNotNull('activity_completed_on')->count(),
+            'to_dms' => $base()->whereIn('status', ['bill_with_dms', 'bill_with_finance'])->count(),
             'cancelled' => $base()->where('booking_status', 'cancelled')->count(),
         ];
         $q = $base();
         match ($show) {
             'to_book' => $q->where('status', 'booking_requested'),
             'booked' => $q->where('status', 'booked')->whereNull('activity_completed_on'),
-            'completed' => $q->whereNotNull('activity_completed_on')->whereNotIn('status', ['cancelled']),
+            'completed' => $q->where('status', 'booked')->whereNotNull('activity_completed_on'),
+            'to_dms' => $q->whereIn('status', ['bill_with_dms', 'bill_with_finance']),
             'cancelled' => $q->where('booking_status', 'cancelled'),
         };
         $rows = $q->orderByDesc('id')->paginate(50)->withQueryString();
@@ -600,132 +461,6 @@ class BtcPagesController extends Controller
         $totals = array_combine($tot, array_map(fn ($k) => $rows->sum(fn ($x) => (float) $x[1][$k]), $tot));
 
         return view('admin.btc.pages.advances', compact('rows', 'show', 'counts', 'totals'));
-    }
-
-    // ---- 7 / 8. Nova invoice inbox and request / invoice matching ------------------------------------------------
-    public function invoices(Request $request, bool $matching = false)
-    {
-        $this->need($matching ? 'btc.invoices|btc.verifier' : 'btc.invoices');
-        if (! $this->ready()) {
-            return $this->notReady();
-        }
-        $co = (int) session('company_id', 1);
-        $counts = NovaInbox::counts($co);
-        $state = $matching ? 'unmatched' : (array_key_exists((string) $request->input('state'), NovaInbox::STATES) ? $request->input('state') : 'unmatched');
-        $cases = collect();
-        $rows = collect();
-        if ($state === 'not_at_nova') {
-            $cases = NovaInbox::notAtNova($co);
-        } else {
-            $q = DB::table('btc_invoices')->where('company_id', $co);
-            match ($state) {
-                'received' => $q->where('nova_status', 'received'),
-                'digitised' => $q->where('nova_status', 'digitised'),
-                'import_failed' => $q->where('nova_status', 'transferred')->where('import_status', 'failed'),
-                'unmatched' => $q->where('nova_status', 'transferred')->where('import_status', 'imported')->where('match_status', '!=', 'matched'),
-                'linked' => $q->where('match_status', 'matched'),
-            };
-            if ($s = trim((string) $request->input('q'))) {
-                $q->where(fn ($w) => $w->where('nova_document_id', 'like', "%{$s}%")->orWhere('invoice_no', 'like', "%{$s}%")
-                    ->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('vendor_gstin', 'like', "%{$s}%"));
-            }
-            $rows = $q->orderByDesc('received_on')->orderByDesc('id')->limit(500)->get();
-        }
-        $caseNos = BtcCase::whereIn('id', $rows->pluck('btc_case_id')->merge($rows->pluck('suggested_case_id'))->filter()->unique()->all() ?: [0])->pluck('case_no', 'id');
-        $suggestions = [];
-        if ($state === 'unmatched') {
-            $inbox = app(NovaInbox::class);
-            foreach ($rows->take(100) as $r) {
-                $suggestions[$r->id] = collect($inbox->suggest($r, 3))->map(fn ($x) => ['id' => $x['case']->id, 'case_no' => $x['case']->case_no,
-                    'label' => $x['case']->case_no.' · '.$x['case']->emp_name.' · '.$x['case']->vendor_name.' · Rs '.number_format((float) ($x['case']->bill_amount ?: $x['case']->booking_amount ?: $x['case']->quotation_amount ?: $x['case']->estimated_amount)),
-                    'score' => $x['score'], 'why' => $x['why']])->all();
-            }
-        }
-
-        return view('admin.btc.pages.invoices', compact('counts', 'state', 'rows', 'cases', 'caseNos', 'suggestions', 'matching'));
-    }
-
-    public function matching(Request $request)
-    {
-        return $this->invoices($request, true);
-    }
-
-    public function invoiceImport(Request $request)
-    {
-        $this->need('btc.invoices');
-        $request->validate(['file' => 'required|file|max:10240|mimes:csv,txt'], ['file.required' => 'Choose the CSV export from Nova.']);
-        $h = fopen($request->file('file')->getRealPath(), 'r');
-        $head = null;
-        $records = [];
-        while (($line = fgetcsv($h)) !== false) {
-            if ($head === null) {
-                $head = array_map(fn ($x) => trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $x)), $line);
-                continue;
-            }
-            if (count(array_filter($line, fn ($x) => trim((string) $x) !== '')) === 0) {
-                continue;
-            }
-            $records[] = array_combine($head, array_pad(array_slice($line, 0, count($head)), count($head), ''));
-        }
-        fclose($h);
-        if (! $records) {
-            return back()->with('error', 'The file has no rows under its header line.');
-        }
-        $r = app(NovaInbox::class)->ingest($records, 'csv_import', null, (int) session('company_id', 1));
-
-        return back()->with('success', "Imported {$r['imported']}, updated {$r['updated']}, duplicates {$r['duplicates']}, failed {$r['failed']} of {$r['received']}.");
-    }
-
-    public function invoiceLink(Request $request, int $id)
-    {
-        $this->need('btc.invoices|btc.verifier');
-        $v = $request->validate(['case_id' => 'nullable|integer', 'case_no' => 'nullable|string|max:40']);
-        $case = ! empty($v['case_id']) ? BtcCase::find($v['case_id']) : (! empty($v['case_no']) ? BtcCase::where('case_no', trim($v['case_no']))->first() : null);
-        if (! $case || (int) $case->company_id !== (int) session('company_id', 1)) {
-            return back()->with('error', 'Request not found in this company.');
-        }
-        $inv = DB::table('btc_invoices')->where('id', $id)->first();
-        abort_unless($inv, 404);
-        if (DB::table('btc_invoices')->where('btc_case_id', $case->id)->where('match_status', 'matched')->where('id', '!=', $id)->exists()) {
-            return back()->with('error', "{$case->case_no} already has a Nova invoice linked. Unlink it first if this one replaces it.");
-        }
-        $score = collect(app(NovaInbox::class)->suggest($inv, 10))->firstWhere('case.id', $case->id)['score'] ?? null;
-        app(NovaInbox::class)->link($id, $case->id, auth()->user(), $score, 'Matched by '.(auth()->user()->name ?? 'user'));
-
-        return back()->with('success', "Invoice {$inv->invoice_no} linked to {$case->case_no}.");
-    }
-
-    public function invoiceUnlink(Request $request, int $id)
-    {
-        $this->need('btc.invoices|btc.verifier');
-        $v = $request->validate(['note' => 'required|string|max:500'], ['note.required' => 'Write what does not match.']);
-        app(NovaInbox::class)->unlink($id, auth()->user(), $v['note']);
-
-        return back()->with('success', 'Marked as mismatch; the invoice is back in the matching list.');
-    }
-
-    // ---- 9. Integration monitoring -----------------------------------------------------------------------------
-    public function integration()
-    {
-        $this->need('btc.integration');
-        if (! $this->ready()) {
-            return $this->notReady();
-        }
-        $logs = DB::table('btc_integration_logs')->orderByDesc('id')->limit(200)->get(['id', 'channel', 'status', 'received', 'imported', 'updated', 'duplicates', 'failed', 'error', 'ip', 'created_at']);
-        $failedNow = DB::table('btc_invoices')->where('import_status', 'failed')->count();
-        $lastOk = DB::table('btc_integration_logs')->where('channel', 'nova_api')->where('status', 'success')->max('created_at');
-        $missingDocs = DB::table('btc_invoices')->where('nova_status', 'transferred')->whereNull('document_url')->orderByDesc('id')->limit(50)->get();
-
-        return view('admin.btc.pages.integration', ['logs' => $logs, 'failedNow' => $failedNow, 'lastOk' => $lastOk, 'missingDocs' => $missingDocs,
-            'apiOn' => (bool) config('btc.nova.api_key'), 'endpoint' => url('/api/btc/nova/invoices')]);
-    }
-
-    public function integrationRetry(Request $request)
-    {
-        $this->need('btc.integration');
-        $r = app(NovaInbox::class)->retry($request->filled('log_id') ? (int) $request->input('log_id') : null);
-
-        return back()->with('success', $r['received'] ? "Retried {$r['received']}: imported/updated ".($r['imported'] + $r['updated']).", still failing {$r['failed']}." : 'Nothing to retry.');
     }
 
     // ---- Roles & access ---------------------------------------------------------------------------------------

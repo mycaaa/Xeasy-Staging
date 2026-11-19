@@ -18,18 +18,34 @@ class BtcController extends Controller
     {
         return [
             'mine' => ['My requests', null, null],   // BTC-REQ-14: menu reads 'BTC Request'
-            'approvals' => ['My approvals', ['pending_manager', 'with_treasury'], null],
-            'booking' => ['Booking queue', ['booking_requested'], 'btc.booking'],
-            'dms' => ['DMS', ['bill_submitted'], 'btc.dms|btc.verifier'],
-            'finance' => ['Finance', ['dms_processed', 'advance_requested', 'paid'], 'btc.finance|btc.advance'],
-            'checker' => ['Checker', ['finance_verified'], 'btc.checker'],
-            // BTC-REQ-15 (17 Nov 2026): Treasury sends checked cases for HOD approval; the payment queue holds only
-            // payment-ready (HOD-approved, not on hold) cases
-            'treasury' => ['Treasury: send for HOD approval', ['checked'], 'btc.treasury'],
-            'payments' => ['Payment-ready', ['dept_approved'], 'btc.treasury'],
-            'authorise' => ['Payments to authorise', ['dept_approved'], 'btc.treasury_checker'],   // BTC-TRY-01
-            'documents' => ['Pending originals / boarding passes', null, 'btc.finance'],
+            'approvals' => ['My approvals', ['pending_manager'], null],
+            'booking' => ['Booking queue', ['booking_requested', 'booked'], 'btc.booking'],
+            // BTC-V2 (19 Nov 2026): the revised queues (each also has its own screen in the BTC menu)
+            'dms' => ['DMS: physical bills', ['bill_with_dms'], 'btc.dms'],
+            'upload' => ['Finance: to upload', ['bill_with_finance'], 'btc.bill_upload|btc.finance'],
+            'extraction' => ['Data extraction', ['bill_submitted'], 'btc.bill_upload|btc.finance'],
+            'verifier' => ['Finance Verifier 1', ['extracted', 'finance_verified'], 'btc.verifier'],
+            'approval' => ['Finance Approval', ['focus_done'], 'btc.fin_approver'],
+            'payments' => ['Treasury payment', ['fin_approved'], 'btc.treasury'],
+            'finance' => ['Advance / closure', ['advance_requested', 'paid'], 'btc.finance|btc.advance'],
+            'documents' => ['Pending originals / boarding passes', null, 'btc.finance|btc.bill_upload|btc.verifier'],
             'all' => ['All cases', null, 'btc.admin|btc.register|btc.audit'],
+        ];
+    }
+
+    /** BTC-V2: what the shared case window (admin.btc._casewin) needs, for the Finance screens. */
+    public function caseWindowData(): array
+    {
+        $user = auth()->user();
+
+        return [
+            'statuses' => config('btc.statuses'),
+            'tdsSections' => config('btc.tds_sections'),
+            'tdsNatures' => collect(config('btc.tds_natures'))->map(fn ($n) => ['label' => $n['label'], 'rate' => $n['rate']])->all(),
+            'tdsNatureByCategory' => config('btc.tds_nature_by_category'),
+            'vendors' => $this->formVendors(),
+            'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
+            'showFlow' => true,
         ];
     }
 
@@ -54,7 +70,9 @@ class BtcController extends Controller
             'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
             'canAdmin' => $user->can('btc.admin'),
             // BTC-REQ-08/16/19 (17 Nov 2026): the process flow (header line and the stage bar) only for the Finance side
-            'showFlow' => collect(['btc.admin', 'btc.audit', 'btc.dms', 'btc.verifier', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker'])->contains(fn ($p) => $user->can($p)),
+            'showFlow' => collect(['btc.admin', 'btc.audit', 'btc.dms', 'btc.bill_upload', 'btc.verifier', 'btc.fin_approver', 'btc.finance', 'btc.checker', 'btc.treasury'])->contains(fn ($p) => $user->can($p)),
+            'billSources' => config('btc.bill_sources'),
+            'extractFields' => config('btc.extraction.fields'),
         ]);
     }
 
@@ -105,14 +123,13 @@ class BtcController extends Controller
             $q->where(fn ($w) => $w->where('employee_id', $empId)->orWhere('created_by', $user->id));
         } elseif ($tab === 'approvals') {
             // BTC-REQ-15 (17 Nov 2026): pending with me, or what I approved / rejected / returned, or all of these
-            $pending = fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $empId))
-                ->orWhere(fn ($a) => $a->where('status', 'with_treasury')->where('dept_approver_id', $empId));
+            $pending = fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $empId));
             $did = fn (array $acts) => fn ($w) => $w->whereIn('id', DB::table('btc_case_logs')->where('user_id', $user->id)->whereIn('action', $acts)->pluck('btc_case_id'));
             $ap = (string) $request->input('ap', 'pending');
             match ($ap) {
                 'approved' => $q->where($did(['manager_approve', 'dept_approve'])),
                 'rejected' => $q->where($did(['manager_reject', 'dept_reject', 'dept_return'])),
-                'all' => $q->where(fn ($w) => $w->where($pending)->orWhere($did(['manager_approve', 'dept_approve', 'manager_reject', 'dept_reject', 'dept_return']))),
+                'all' => $q->where(fn ($w) => $w->where($pending)->orWhere($did(['manager_approve', 'dept_approve', 'manager_reject', 'dept_reject', 'dept_return']))),   // old HOD steps kept for history
                 default => $q->where($pending),
             };
         } elseif ($tab === 'documents') {
@@ -120,13 +137,7 @@ class BtcController extends Controller
                 ->where(fn ($a) => $a->where('original_required', 1)->whereNull('original_received_on')->whereNotNull('bill_submitted_at'))
                 ->orWhere(fn ($a) => $a->where('boarding_pass_required', 1)->whereNull('boarding_pass_received_on')));
         } elseif ($tab === 'payments') {
-            $q->where('status', 'dept_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))
-                ->whereNotExists(fn ($p) => $p->from('btc_payments')->whereColumn('btc_payments.btc_case_id', 'btc_cases.id')->where('btc_payments.status', 'pending'));
-        } elseif ($tab === 'authorise') {
-            $q->where('status', 'dept_approved')->whereExists(fn ($p) => $p->from('btc_payments')->whereColumn('btc_payments.btc_case_id', 'btc_cases.id')->where('btc_payments.status', 'pending'));
-        } elseif ($tab === 'finance' && ! $this->canAny($user, 'btc.checker') && \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'assigned_maker_id')) {
-            // BTC-FIN-02: a Finance maker sees his assigned cases and the unassigned ones
-            $q->whereIn('status', $def[1])->where(fn ($w) => $w->whereNull('assigned_maker_id')->orWhere('assigned_maker_id', $user->id));
+            $q->where('status', 'fin_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0));
         } elseif ($def[1]) {
             $q->whereIn('status', $def[1]);
         }
@@ -251,13 +262,21 @@ class BtcController extends Controller
             'case' => $c, 'status_label' => $c->statusLabel(), 'category_label' => $c->categoryLabel(),
             'route_label' => config("btc.routes.{$c->route}"), 'manager' => $name($c->manager_id), 'dept_approver' => $name($c->dept_approver_id),
             'pending' => $c->waitingFor(), 'actions' => BtcWorkflow::allowed($c, $user),
-            'duplicates' => in_array('finance_verify', BtcWorkflow::allowed($c, $user), true) ? BtcWorkflow::duplicates($c) : [],
+            'duplicates' => array_intersect(['verify1', 'confirm_extraction'], BtcWorkflow::allowed($c, $user)) ? BtcWorkflow::duplicates($c) : [],
             // BTC-PAY-01 / CLOSE-01 / DUP-02 / TDS-02 / GST-01 (17 Nov 2026)
             'payments' => \Illuminate\Support\Facades\Schema::hasTable('btc_payments') ? $c->payments()->get()->map(fn ($p) => ['id' => $p->id, 'amount' => (float) $p->amount,
                 'on' => optional($p->paid_on)->format('d/m/Y'), 'mode' => config("btc.payment_modes.{$p->mode}", $p->mode), 'utr' => $p->utr_number, 'bank_ref' => $p->bank_ref,
                 'status' => $p->status, 'failed_reason' => $p->failed_reason]) : [],
             'payment_modes' => config('btc.payment_modes'),
-            'closure_gaps' => in_array($c->status, ['paid', 'dept_approved'], true) ? $c->closureGaps() : [],
+            'closure_gaps' => in_array($c->status, ['paid', 'fin_approved'], true) ? $c->closureGaps() : [],
+            // BTC-V2: the read invoice data, the bill file for side-by-side comparison, who uploaded / verified / approved
+            'extraction' => ['status' => $c->extract_status, 'note' => $c->extract_note, 'read' => json_decode((string) $c->extract_json, true)['fields'] ?? null,
+                'missing' => \App\Services\Btc\BtcExtraction::missing($c), 'breakup' => \App\Services\Btc\BtcExtraction::breakupError($c)],
+            'bill_file' => ($bf = $c->files->where('kind', 'bill')->sortByDesc('id')->first()) ? ['url' => route('btc.file', $bf->id), 'name' => $bf->file_name, 'pdf' => str_ends_with(strtolower($bf->file_name), '.pdf')] : null,
+            'stamps' => ['uploaded' => $this->stamp($c->bill_uploaded_by, $c->bill_uploaded_at), 'source' => config('btc.bill_sources.'.$c->bill_source, $c->bill_source),
+                'verify1' => $this->stamp($c->verify1_by, $c->verify1_at), 'focus' => $this->stamp($c->finance_by, $c->finance_at), 'approved' => $this->stamp($c->fin_approved_by, $c->fin_approved_at),
+                'dms' => $c->dms_received_on ? 'received '.$c->dms_received_on->format('d-m-Y').($c->dms_to_finance_on ? ', to Finance '.$c->dms_to_finance_on->format('d-m-Y') : '') : null],
+            'extract_fields' => config('btc.extraction.fields'), 'bill_sources' => config('btc.bill_sources'),
             'claim_overlaps' => $user->can('btc.finance') || $user->can('btc.checker') || $user->can('btc.admin') || $user->can('btc.verifier') ? BtcWorkflow::claimOverlaps($c) : [],
             'vendor_year' => $c->bill_no ? \App\Services\Btc\BtcLedger::vendorYearTotal($c) : null,
             'gstin_ok' => $c->vendor_gstin ? \App\Services\Btc\BtcLedger::gstinValid($c->vendor_gstin) : null,
@@ -265,19 +284,24 @@ class BtcController extends Controller
             // BTC-EXC-01 / FIN-02 / TRY-01 (17 Nov 2026)
             'exceptions' => $this->canAny($user, 'btc.finance|btc.checker|btc.verifier|btc.exceptions|btc.audit|btc.treasury') ? \App\Services\Btc\BtcExceptions::forCase($c) : [],
             'journal' => $c->finance_at ? \App\Services\Btc\BtcLedger::journal($c) : [],
-            'dims' => array_intersect(['finance_verify'], BtcWorkflow::allowed($c, $user)) ? \App\Services\Btc\BtcLedger::dimensions($c) : null,
-            'pending_payment' => BtcWorkflow::pendingPayment($c),
-            'vendor_bank' => $this->canAny($user, 'btc.treasury|btc.treasury_checker|btc.finance|btc.audit') ? (\App\Services\Btc\BtcBank::masked(\App\Services\Btc\BtcBank::forCase($c)) ?? 'not verified') : null,
-            'maker' => $c->assigned_maker_id ? \App\Models\User::whereKey($c->assigned_maker_id)->value('name') : null,
-            'finance_users' => in_array('assign_maker', BtcWorkflow::allowed($c, $user), true)
-                ? \App\Models\User::permission('btc.finance')->orderBy('name')->get(['id', 'name'])->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values() : [],
+            'dims' => array_intersect(['focus_entry'], BtcWorkflow::allowed($c, $user)) ? \App\Services\Btc\BtcLedger::dimensions($c) : null,
             'files' => $c->files->map(fn ($f) => ['id' => $f->id, 'kind' => $f->kind, 'name' => $f->file_name, 'url' => route('btc.file', $f->id)]),
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,
                 'to' => config("btc.statuses.{$l->to_status}", $l->to_status), 'remark' => $l->remark]),
             'default_ledger' => config("btc.focus.expense_ledgers.{$c->category}"),
             'advance' => $c->advanceFigures(), 'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),
-            'invoices' => \Illuminate\Support\Facades\Schema::hasTable('btc_invoices') ? DB::table('btc_invoices')->where('btc_case_id', $c->id)->get(['id', 'nova_document_id', 'invoice_no', 'gross_amount', 'document_url']) : [],
+
         ]);
+    }
+
+    /** BTC-V2: "name, dd-mm-yyyy hh:mm" for who did a step. */
+    private function stamp($userId, $at): ?string
+    {
+        if (! $at) {
+            return null;
+        }
+
+        return trim(($userId ? (\App\Models\User::whereKey($userId)->value('name') ?? '') : '').', '.\Carbon\Carbon::parse($at)->format('d-m-Y H:i'), ', ');
     }
 
     public function act(Request $request, int $id)
@@ -288,6 +312,7 @@ class BtcController extends Controller
         // BTC-AMT-01 (15 Nov 2026): amounts must fit the amount columns (up to 99,99,999.99) with at most two
         // decimals - an over-long number gave "Server Error"
         $request->validate(array_fill_keys(['quotation_amount', 'advance_amount', 'taxable_amount', 'gst_amount', 'bill_amount', 'paid_amount', 'advance_adjusted', 'tds_on_advance',
+            'cgst_amount', 'sgst_amount', 'igst_amount', 'other_charges',
             'advance_approved', 'advance_paid_amount', 'advance_refund', 'booking_amount'],
             'nullable|numeric|min:0|max:9999999.99|decimal:0,2'), ['*.max' => 'The amount cannot be more than ₹99,99,999.99.', '*.decimal' => 'Use at most two decimals.']);
         $this->saveFiles($request, $c);
@@ -325,8 +350,8 @@ class BtcController extends Controller
     /** Focus JV import lines for verified / checked cases not yet exported (or a chosen set). */
     public function focusExport(Request $request)
     {
-        abort_unless(auth()->user()->can('btc.finance') || auth()->user()->can('btc.admin'), 403);
-        $q = BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'closed']);
+        abort_unless(auth()->user()->can('btc.finance') || auth()->user()->can('btc.verifier') || auth()->user()->can('btc.admin'), 403);   // BTC-V2: from the Verifier 1 screen
+        $q = BtcCase::where('company_id', (int) session('company_id', 1))->whereNotNull('finance_at')->whereIn('status', ['focus_done', 'fin_approved', 'finance_verified', 'checked', 'with_treasury', 'dept_approved', 'paid', 'closed']);
         if ($ids = array_filter(array_map('intval', (array) $request->input('ids', [])))) {
             $q->whereIn('id', $ids);
         } else {
@@ -483,7 +508,7 @@ class BtcController extends Controller
             ->limit(20)->get(['EmployeeID as id', DB::raw("CONCAT(EmpCode,' - ',Fname,' ',Lname) as text")]);
     }
 
-    private function saveFiles(Request $request, BtcCase $c): void
+    public function saveFiles(Request $request, BtcCase $c): void
     {
         $kinds = (array) $request->input('file_kinds', []);
         foreach ((array) $request->file('files', []) as $i => $file) {
@@ -511,7 +536,7 @@ class BtcController extends Controller
     {
         $empId = (int) ($user->employee_id ?? 0);
         // BTC-REQ-01: the new BTC desks (booking, advance, verifier, invoices, register) open cases too
-        $desk = collect(['btc.dms', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.audit', 'btc.exceptions', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
+        $desk = collect(['btc.dms', 'btc.finance', 'btc.bill_upload', 'btc.verifier', 'btc.fin_approver', 'btc.checker', 'btc.treasury', 'btc.audit', 'btc.exceptions', 'btc.admin', 'btc.booking', 'btc.advance', 'btc.verifier', 'btc.invoices', 'btc.register'])->contains(fn ($p) => $user->can($p));
         // BTC-TEAM-01: a manager anywhere above the requester may open the request (read; actions stay by role)
         abort_unless($desk || in_array($empId, [(int) $c->employee_id, (int) $c->manager_id, (int) $c->dept_approver_id], true) || (int) $c->created_by === (int) $user->id
             || \App\Support\ReportingTree::isAbove($empId, (int) $c->employee_id), 403);

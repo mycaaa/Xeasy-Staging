@@ -25,6 +25,7 @@ class BtcExceptions
         'advance' => 'Advance not settled',
         'tds' => 'Vendor\'s yearly total crosses the TDS threshold, no TDS',
         'hold' => 'On financial hold',
+        'extraction' => 'Invoice not read / data incomplete',   // BTC-V2: failed data extraction
     ];
 
     private const LEAVE = ['A', 'CL', 'EL', 'SL', 'PL', 'ML', 'LWP', 'FL'];
@@ -68,8 +69,9 @@ class BtcExceptions
         if ($basis > 0 && (float) $c->bill_amount > $basis * (1 + $pct / 100)) {
             $add('mismatch', 'Bill '.$inr($c->bill_amount).' against '.($c->booking_amount ? 'booked' : ($c->quotation_amount ? 'quoted' : 'estimated')).' '.$inr($basis).' (+'.round(((float) $c->bill_amount / $basis - 1) * 100).'%)');
         }
-        if (Schema::hasTable('btc_invoices') && ($n = DB::table('btc_invoices')->where('suggested_case_id', $c->id)->where('match_status', 'mismatch')->value('mismatch_note'))) {
-            $add('mismatch', 'Nova invoice marked as not matching: '.$n);
+        // BTC-V2 (19 Nov 2026): an uploaded bill the reader could not read, or read without the required fields
+        if ($c->status === 'bill_submitted' && in_array($c->extract_status, ['failed', 'partial'], true)) {
+            $add('extraction', ($c->extract_status === 'failed' ? 'Not read: ' : 'Partly read: ').($c->extract_note ?: implode(', ', BtcExtraction::missing($c))));
         }
         if ((float) $c->gst_amount > 0 && ! $c->vendor_gstin) {
             $add('gstin', 'GST '.$inr($c->gst_amount).' on the bill but no vendor GSTIN');

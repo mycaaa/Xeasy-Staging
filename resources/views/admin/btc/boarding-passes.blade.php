@@ -10,7 +10,6 @@
                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#bpUploadModal"><i class="ri-upload-2-line me-1"></i>Upload boarding pass</button>
                 <a href="{{ route('btc.index') }}" class="btn btn-sm btn-outline-secondary">BTC cases</a>
                 @if ($desk)
-                    <a href="{{ route('btc.vendor.links') }}" class="btn btn-sm btn-outline-primary">Vendor links</a>
                     <a href="{{ route('btc.export.boarding') }}" class="btn btn-sm btn-outline-success"><i class="ri-file-excel-2-line me-1"></i>Pending list (Excel)</a>
                 @endif
             </div>

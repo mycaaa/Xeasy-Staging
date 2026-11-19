@@ -7,15 +7,16 @@
         ['btc.index', 'BTC Request', 'ri-file-list-3-line', null],   // BTC-REQ-14
         ['btc.team', 'My Team BTC', 'ri-team-line', 'team'],   // BTC-TEAM-01: shown to reporting managers
         ['btc.register', 'Request Register', 'ri-list-check-2', 'btc.register|btc.audit'],
-        ['btc.exceptions', 'Exception Queue', 'ri-error-warning-line', 'btc.exceptions|btc.audit|btc.finance|btc.checker'],   // BTC-EXC-01
+        ['btc.exceptions', 'Exception Queue', 'ri-error-warning-line', 'btc.exceptions|btc.audit|btc.finance|btc.checker|btc.bill_upload|btc.verifier|btc.fin_approver'],   // BTC-EXC-01
         ['btc.booking', 'Admin Booking Queue', 'ri-hotel-line', 'btc.booking'],
         ['btc.advances', 'Advances', 'ri-hand-coin-line', 'btc.advance|btc.finance'],
-        ['btc.batches', 'Payment Batches', 'ri-bank-line', 'btc.treasury|btc.treasury_checker|btc.audit'],          // BTC-BATCH-01
-        ['btc.vendor-banks', 'Vendor Bank Accounts', 'ri-bank-card-line', 'btc.treasury|btc.treasury_checker|btc.finance|btc.audit'],   // BTC-BANK-01
-        ['btc.reader', 'Invoice Reader', 'ri-scan-2-line', 'btc.dms|btc.invoices|btc.booking|btc.verifier|btc.finance'],   // BTC-READER-01
-        ['btc.invoices', 'Invoice Inbox', 'ri-inbox-archive-line', 'btc.invoices'],
-        ['btc.matching', 'Request / Invoice Matching', 'ri-git-merge-line', 'btc.invoices|btc.verifier'],
-        ['btc.integration', 'Integration Monitoring', 'ri-pulse-line', 'btc.integration'],
+        // BTC-V2 (19 Nov 2026, sheet item 24): the revised Finance screens; Nova inbox, matching, integration, vendor bank
+        // accounts and vendor boarding-pass links are removed
+        ['btc.bill-upload', 'Bill Upload by Finance', 'ri-upload-cloud-2-line', 'btc.bill_upload|btc.finance'],
+        ['btc.extraction', 'Automatic Data Extraction', 'ri-scan-2-line', 'btc.bill_upload|btc.finance'],
+        ['btc.verifier', 'Finance Verifier 1', 'ri-checkbox-multiple-line', 'btc.verifier|btc.audit'],
+        ['btc.approval', 'Finance Approval', 'ri-shield-check-line', 'btc.fin_approver|btc.audit'],
+        ['btc.treasury', 'Treasury Payment', 'ri-bank-line', 'btc.treasury|btc.audit'],
         ['btc.access', 'Roles & Access', 'ri-shield-user-line', 'btc.access'],
         ['btc.settings', 'BTC Settings', 'ri-settings-3-line', 'btc.configure'],   // BTC-CONF-01
     ];

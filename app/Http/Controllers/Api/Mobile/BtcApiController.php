@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 class BtcApiController extends BaseMobileController
 {
     /** Steps the app offers; everything else stays on the web (desks). */
-    public const APP_ACTIONS = ['submit', 'cancel', 'manager_approve', 'manager_reject', 'dept_approve', 'dept_return', 'dept_reject', 'complete_activity'];
+    public const APP_ACTIONS = ['submit', 'cancel', 'manager_approve', 'manager_reject', 'complete_activity'];   // BTC-V2: no department head step
 
     public function handle(Request $request): JsonResponse
     {

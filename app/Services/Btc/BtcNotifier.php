@@ -20,15 +20,17 @@ class BtcNotifier
         'pending_manager' => ['Reporting manager approval', 2],
         'booking_requested' => ['BTC admin booking', 2],
         'advance_requested' => ['Finance advance payment', 2],
-        'advance_paid' => ['Requester: booking / bill', 15],
-        'booked' => ['Booking desk / requester: vendor bill', 15],
+        'advance_paid' => ['Requester: upload the bill', 15],
+        'booked' => ['Admin: bill to DMS / requester: upload the bill', 15],
         'returned' => ['Requester: correction', 3],
-        'bill_submitted' => ['DMS / verifier', 3],
-        'dms_processed' => ['Finance verification', 3],
-        'finance_verified' => ['Finance checker', 2],
-        'checked' => ['Treasury: send for HOD approval', 2],
-        'with_treasury' => ['Department head approval', 3],
-        'dept_approved' => ['Treasury payment', 3],
+        // BTC-V2 (19 Nov 2026): revised workflow
+        'bill_with_dms' => ['DMS: receive the physical bill, hand to Finance', 2],
+        'bill_with_finance' => ['Finance: scan and upload the bill', 2],
+        'bill_submitted' => ['Finance: data extraction', 2],
+        'extracted' => ['Finance Verifier 1', 2],
+        'finance_verified' => ['Finance Verifier 1: Focus entry', 2],
+        'focus_done' => ['Finance Approval', 2],
+        'fin_approved' => ['Treasury payment', 3],
         'paid' => ['Finance closure', 15],
     ];
 
@@ -79,14 +81,13 @@ class BtcNotifier
             'pending_manager' => $emp((int) $c->manager_id),
             'booking_requested' => $perm('btc.booking'),
             'advance_requested' => $perm('btc.advance'),
-            'advance_paid', 'booked' => $c->route === 'admin_booking' ? $perm('btc.booking') : $owner(),   // BTC-FLOW-01
-            'returned', 'rejected', 'cancelled', 'closed' => $owner(),
-            'bill_submitted' => array_merge($perm('btc.dms'), $perm('btc.verifier')),
-            'dms_processed' => $c->assigned_maker_id && ($u = User::find($c->assigned_maker_id)) && $u->email ? [[$u->email, $u->name]] : $perm('btc.finance'),
-            'finance_verified' => $perm('btc.checker'),
-            'checked' => $perm('btc.treasury'),
-            'with_treasury' => $emp((int) $c->dept_approver_id),
-            'dept_approved' => BtcWorkflow::pendingPayment($c) ? $perm('btc.treasury_checker') : $perm('btc.treasury'),
+            'booked' => $c->route === 'admin_booking' ? $perm('btc.booking') : $owner(),
+            'advance_paid', 'returned', 'rejected', 'cancelled', 'closed' => $owner(),
+            'bill_with_dms' => $perm('btc.dms'),
+            'bill_with_finance', 'bill_submitted' => $perm('btc.bill_upload'),
+            'extracted', 'finance_verified' => $perm('btc.verifier'),
+            'focus_done' => $perm('btc.fin_approver'),
+            'fin_approved' => $perm('btc.treasury'),
             'paid' => array_merge($owner(), $perm('btc.finance')),
             default => [],
         };
@@ -108,8 +109,8 @@ class BtcNotifier
         ];
         // hand-off mails go to named people (manager, department head, requester, assigned Finance maker); desk queues
         // (booking, DMS, Finance, checker, Treasury) see their lists on screen and get the daily overdue mail instead
-        $named = in_array($c->status, ['pending_manager', 'with_treasury', 'advance_paid', 'booked', 'returned', 'rejected', 'cancelled', 'closed'], true)
-            || ($c->status === 'dms_processed' && $c->assigned_maker_id);
+        $named = in_array($c->status, ['pending_manager', 'advance_paid', 'returned', 'rejected', 'cancelled', 'closed'], true)
+            || ($c->status === 'booked' && $c->route !== 'admin_booking');
         $to = $named ? self::actors($c) : [];
         if ($c->status === 'paid') {   // the requester hears that the vendor is paid
             $to = self::actors(tap(clone $c, fn ($x) => $x->status = 'closed'));
@@ -140,7 +141,7 @@ class BtcNotifier
                 'Waiting with: '.$c->pendingWith().'.', 'Open: '.route('btc.index', ['case' => $c->id])];
             $to = self::actors($c);
             // copy: the actor's reporting manager for people steps, the Finance head for desk steps
-            $cc = in_array($c->status, ['pending_manager', 'with_treasury', 'advance_paid', 'booked', 'returned'], true)
+            $cc = in_array($c->status, ['pending_manager', 'advance_paid', 'booked', 'returned'], true)
                 ? collect($to)->flatMap(function ($a) {
                     $u = User::where('email', $a[0])->first();
                     $m = $u && $u->employee_id ? \App\Support\ReportingTree::managerOf((int) $u->employee_id) : null;
@@ -148,7 +149,7 @@ class BtcNotifier
 
                     return $mu && $mu->email ? [[$mu->email, $mu->name]] : [];
                 })->all()
-                : User::permission('btc.checker')->whereNotNull('email')->get(['email', 'name'])->map(fn ($u) => [$u->email, $u->name])->all();
+                : User::permission('btc.fin_approver')->whereNotNull('email')->get(['email', 'name'])->map(fn ($u) => [$u->email, $u->name])->all();
             foreach (collect(array_merge($to, $cc))->unique(fn ($a) => strtolower($a[0])) as [$email, $name]) {
                 self::send($c, 'escalation', $email, $name, $subject, $lines);
             }

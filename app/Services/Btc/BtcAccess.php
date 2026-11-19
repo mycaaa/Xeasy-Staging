@@ -85,7 +85,7 @@ class BtcAccess
         if (! $user) {
             return null;
         }
-        foreach (['btc.admin', 'btc.audit', 'btc.access', 'btc.dms', 'btc.verifier', 'btc.finance', 'btc.checker', 'btc.treasury', 'btc.treasury_checker', 'btc.invoices', 'btc.integration'] as $p) {
+        foreach (['btc.admin', 'btc.audit', 'btc.access', 'btc.dms', 'btc.bill_upload', 'btc.verifier', 'btc.fin_approver', 'btc.finance', 'btc.checker', 'btc.treasury'] as $p) {
             if ($user->can($p)) {
                 return null;
             }

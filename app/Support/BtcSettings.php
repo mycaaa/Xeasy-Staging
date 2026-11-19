@@ -20,29 +20,29 @@ class BtcSettings
         $f = [
             'advance_settle_days' => ['Advance must be settled by a bill within (days)', 'int', 'Controls', 'After this a new advance for the same employee is refused'],
             'follow_up_days' => ['Chase missing original / boarding pass after (days)', 'int', 'Controls', ''],
-            'treasury_checker' => ['Treasury checker must authorise each payment', 'bool', 'Controls', 'Off = the payment entry is final (no second person)'],
             'mismatch_pct' => ['Bill above the approved / booked amount by more than (%)', 'int', 'Controls', 'Flagged as request mismatch in the Exception Queue'],
             'focus.employee_btc_ledger' => ['Employee BTC ledger name pattern', 'text', 'Focus ledgers', '{first_name} = employee first name'],
             'focus.tds_ledger' => ['TDS ledger', 'text', 'Focus ledgers', ''],
             'focus.gst_input_ledger' => ['GST input ledger', 'text', 'Focus ledgers', ''],
             'focus.vendor_advance_ledger' => ['Vendor advance ledger', 'text', 'Focus ledgers', ''],
-            'nova.expected_after_days' => ['Invoice expected from Nova within (days after the service)', 'int', 'Nova', ''],
-            'nova.suggest_from' => ['Suggest a match from (score %)', 'int', 'Nova', ''],
-            'nova.auto_link' => ['Link automatically from (score %)', 'int', 'Nova', ''],
         ];
         // BTC-FLOW-01 / BTC-READER-01 (18 Nov 2026)
-        $f['boarding_pass_before_verify'] = ['Air: boarding pass needed before Finance verification', 'bool', 'Controls', 'Off = Finance verifies and pays; the boarding pass is chased and still needed to close'];
-        $f['reader.enabled'] = ['Read invoices in Xeasy (Invoice Reader)', 'bool', 'Invoice reading', 'Uses the same bill-reading service as the claim screens'];
-        $f['reader.public_base'] = ['Internet address of Xeasy for the reader (if different)', 'text', 'Invoice reading', 'e.g. https://xeasy.vnrseeds.co.in - leave empty normally'];
+        $f['boarding_pass_before_verify'] = ['Air: boarding pass needed before the Focus entry', 'bool', 'Controls', 'Off = Finance goes on; the boarding pass is chased and still needed to close'];
+        $f['reader.enabled'] = ['Read uploaded invoices automatically', 'bool', 'Data extraction', 'Uses the same bill-reading service as the claim screens'];
+        $f['reader.public_base'] = ['Internet address of Xeasy for the reader (if different)', 'text', 'Data extraction', 'e.g. https://xeasy.vnrseeds.co.in - leave empty normally'];
+        // BTC-V2 (19 Nov 2026): the Finance data format - which read fields must be filled before Finance Verifier 1
+        $f['extraction.company_state'] = ['Company GSTIN state code (same state = CGST + SGST, else IGST)', 'text', 'Data extraction', 'e.g. 22 for Chhattisgarh'];
+        foreach (config('btc.extraction.fields', []) as $k => $label) {
+            $f["extraction.must.{$k}"] = ['Required before Verifier 1: '.$label, 'bool', 'Data extraction', ''];
+        }
         $f['notify.enabled'] = ['Send hand-off and overdue mails', 'bool', 'Mails', 'To whoever acts next, and daily for stages past their time limit'];
         $f['notify.redirect_to'] = ['Test mode: send every mail to this address instead', 'text', 'Mails', 'Leave empty to mail the real people'];
-        $f['bank.debit_account'] = ['Company debit account no. (bank bulk-payment file)', 'text', 'Payments', ''];
         foreach (\App\Services\Btc\BtcNotifier::STAGES as $k => [$who, $days]) {
             $f["sla.{$k}"] = ['Days allowed: '.$who, 'int', 'Time limits (escalation)', 'Default '.$days];
         }
         foreach (config('btc.categories', []) as $k => $c) {
             $f["focus.expense_ledgers.{$k}"] = ['Expense ledger: '.$c['label'], 'text', 'Focus ledgers', ''];
-            $f["categories.{$k}.scan_ok"] = ['Verify on a scan: '.$c['label'], 'bool', 'Controls', 'Off = the original bill must be in before Finance verification (it is always needed to close)'];
+            $f["categories.{$k}.scan_ok"] = ['Focus entry on a scan: '.$c['label'], 'bool', 'Controls', 'Off = the original bill must be in before the Focus entry (it is always needed to close)'];
             $f["tds_nature_by_category.{$k}"] = ['Default TDS nature: '.$c['label'], 'nature', 'TDS', ''];
         }
 
