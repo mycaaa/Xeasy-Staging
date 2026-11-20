@@ -21,18 +21,21 @@ use Illuminate\Support\Facades\Schema;
  */
 class BtcFocusExport
 {
+    // BTC-FOCUS-03 (20 Nov 2026): columns exactly as the samples Finance shared ("Jv import template Dt.09.10.26",
+    // "employee jv import Dt.09.10.26", Treasury "Advance Sheet 22-10-2026" > Payment Export)
     public const JV_COLS = ['DocNo', 'Date', 'Business Entity', 'Narration', 'TDS JVNo', 'Reverse Charge [Yn]', 'Bill No', 'Bill Date', 'Department',
         'Cost Center', 'Business Unit', 'Activity', 'Location', 'State', 'Category', 'Crop', 'Region', 'Function', 'FC-Vertical', 'Sub Department', 'Zone',
         'DrAccount', 'CrAccount', 'Amount', 'TDS', 'TDSPer'];
 
-    // Focus "13. EMPLOYEE JV IMPORT FORMAT": Account (EC), ..., Account (ledger)
-    public const EJV_COLS = ['DocNo', 'Date', 'Time', 'Account', 'Business Entity', 'sNarration', 'ActMonths', 'LB', 'Crop', 'Department', 'Location',
-        'Activity', 'Category', 'State', 'Region', 'Business Unit', 'Cost Center', 'Account', 'Amount', 'sRemarks'];
+    public const EJV_COLS = ['DocNo', 'Date', 'Account (EC)', 'Business Entity', 'Region', 'Business Unit', 'sNarration', 'ActMonths', 'LB', 'Crop',
+        'Department', 'Location', 'Activity', 'Category', 'Subledger', 'State', 'Function', 'FC-Vertical', 'Sub Department', 'Zone', 'LEDGER', 'Amount'];
 
-    // Focus "2. BANK PAYMENT - NON CHEQUE IMPORT FORMAT"
-    public const BANK_COLS = ['DocNo', 'Date', 'Time', 'CashBankAC', 'TDSJVNo', 'sNarration', 'sChequeNo', 'TransactiontypeCode', 'Activity', 'Category',
-        'Region', 'Crop', 'Farm', 'Business Entity', 'Cost Center', 'Department', 'PMT Category', 'Business Unit', 'Location', 'State', 'Account', 'Amount',
-        'Reference', 'sRemarks', 'TDSBillAmount', 'TDS', 'sBRSUser'];
+    public const BANK_COLS = ['DocNo', 'Date', 'Time', 'CashBankAC', 'TDS JVNo', 'Narration', 'Cheque No', 'Transactiontype Code', 'Activity', 'Category',
+        'Region', 'Crop', 'Farm', 'Business Entity', 'Cost Center', 'Department', 'PMT Category', 'Business Unit', 'Location', 'State', 'Function',
+        'FC-Vertical', 'Sub Department', 'Zone', 'Account', 'Amount', 'Reference', 'Remarks', 'TDS Bill Amount', 'TDS', 'BRSUser'];
+
+    /** Date formats per file, as in the samples. */
+    public const DATE_FORMATS = ['jv' => ['Date' => 'dd/mm/yy', 'Bill Date' => 'dd/mm/yyyy'], 'ejv' => ['Date' => 'dd/mm/yyyy'], 'bank' => ['Date' => 'dd-mm-yyyy']];
 
     private array $empCache = [];
 
@@ -191,11 +194,11 @@ class BtcFocusExport
             $err[] = 'bill date missing';
         }
         $verb = in_array($c->category, ['hotel'], true) ? 'stay in' : (in_array($c->category, ['air', 'train', 'bus', 'vehicle'], true) ? 'travel by' : 'at');
-        $rooms = self::punch($c, 'Number of Rooms');
-        $n = "Being {$type} exp. of {$who} {$verb} ".trim((string) $c->vendor_name).($stateName !== '' ? ", {$stateName}" : '')
-            .($rooms && $c->category === 'hotel' ? " ({$rooms} room(s))" : '')
+        $room = self::punch($c, 'Room No') ?: self::punch($c, 'Room No.') ?: self::punch($c, 'Room Number');
+        $n = 'Being '.mb_strtolower($type)." exp. of {$who} {$verb} ".trim((string) $c->vendor_name).($stateName !== '' ? ", {$stateName}" : '')
+            .($room && $c->category === 'hotel' ? " in room no. {$room}" : '')
             .($from ? " from Dt.- {$from} to Dt.- {$to}" : '')
-            .' vide bill no.- '.trim((string) $c->bill_no).($billDt ? " Dt.- {$billDt}" : '')
+            .' vide bill no.- '.trim((string) $c->bill_no).($billDt ? " Dt.-{$billDt}" : '')
             .(trim((string) $c->purpose) !== '' ? ' for the purpose of '.trim(preg_replace('/\s+/', ' ', (string) $c->purpose)) : '');
 
         return [mb_substr($n, 0, 500), $err];
@@ -209,6 +212,17 @@ class BtcFocusExport
         }
 
         return trim((string) DB::table('btc_core_vendors')->where('code', $c->vendor_code)->value('state_name'));
+    }
+
+    /** "JV/BTC/2026-27/0001" or "JV/BTC/2026-27/0001-0002" for several rows. */
+    public static function docRange(array $docs): string
+    {
+        $docs = array_values(array_filter($docs));
+        if (count($docs) <= 1) {
+            return (string) ($docs[0] ?? '');
+        }
+
+        return mb_substr($docs[0].'-'.substr((string) end($docs), -4), 0, 40);
     }
 
     public static function employeeCodeE(string $code): string
@@ -288,24 +302,27 @@ class BtcFocusExport
             if ($err) {
                 continue;
             }
-            $doc = $c->focus_jv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.vendor_series'), $date, (int) $c->company_id) : '(on export)');
             $activity = self::activity($c);
-            // one row per employee; the amount split, any paisa difference on the last row
+            // one row per employee, each with its own DocNo (as in the sample); the amount split, any paisa on the last row
             $n = count($pax);
             $total = round((float) $c->bill_amount, 2);
             $each = floor($total / $n * 100) / 100;
             $i = 0;
+            $docs = [];
             foreach ($pax as $code => $name) {
                 $i++;
                 $m = $this->employee((string) $code);
                 $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;
-                $rows[] = [$doc, self::xlDate($date), $be, $narr, '', 'N', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
-                    $m['business_unit'], $activity, $m['location'], $m['state'], 'N/A', 'N/A', $m['region'], $m['function'], $m['vertical'], $m['sub_department'],
+                $doc = $assign ? self::nextDoc(config('btc.focus_export.vendor_series'), $date, (int) $c->company_id) : '(on export)';
+                $docs[] = $doc;
+                $rows[] = [$doc, self::xlDate($date), $be, $narr, '', '', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
+                    $m['business_unit'], $activity, $m['location'], $m['state'], 'N/A', 'All Crop', $m['region'], $m['function'], $m['vertical'], $m['sub_department'],
                     $m['zone'], self::employeeAccount((string) $code), strtoupper((string) $c->vendor_code), $amt, '', ''];
             }
-            if ($assign && ! $c->focus_jv_doc) {
-                BtcCase::whereKey($c->id)->update(['focus_jv_doc' => $doc, 'focus_exported_at' => $c->focus_exported_at ?: now()]);
-                $this->log($c, 'Focus JV '.$doc.' exported');
+            if ($assign) {
+                $ref = self::docRange($docs);
+                BtcCase::whereKey($c->id)->update(['focus_jv_doc' => $ref, 'focus_exported_at' => $c->focus_exported_at ?: now()]);
+                $this->log($c, 'Focus JV '.implode(', ', $docs).' exported');
             }
         }
 
@@ -346,22 +363,25 @@ class BtcFocusExport
                 continue;
             }
             $date = $c->fin_approved_at ?: now();
-            $doc = $c->focus_ejv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)');
             $activity = self::activity($c);
+            $mon = strtoupper(Carbon::parse($date)->format('M'));
             $n = count($pax);
             $total = round((float) $c->bill_amount, 2);
             $each = floor($total / $n * 100) / 100;
             $i = 0;
+            $docs = [];
             foreach ($pax as $code => $name) {
                 $i++;
-                $m = $this->employee((string) $code);
                 $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;   // equals the JV debit of this employee
-                $rows[] = [$doc, self::xlDate($date), Carbon::parse($date)->format('H:i:s'), self::employeeAccount((string) $code), $be, $narr, '', '', 'N/A',
-                    $m['department'], $m['location'], $activity, 'N/A', $m['state'], $m['region'], $m['business_unit'], $sub, $ledger, $amt, $c->case_no.' / '.$c->focus_jv_doc];
+                $doc = $assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)';
+                $docs[] = $doc;
+                // as in the sample: the dimensions stay blank in the employee JV (they are on the vendor JV)
+                $rows[] = [$doc, self::xlDate($date), self::employeeAccount((string) $code), $be, '', '', $narr, $mon, '', 'All Crop',
+                    '', '', $activity, 'N/A', $sub, '', '', '', '', '', $ledger, $amt];
             }
-            if ($assign && ! $c->focus_ejv_doc) {
-                BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => $doc, 'focus_ejv_at' => now()]);
-                $this->log($c, 'Focus Employee JV '.$doc.' exported');
+            if ($assign) {
+                BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => self::docRange($docs), 'focus_ejv_at' => now()]);
+                $this->log($c, 'Focus Employee JV '.implode(', ', $docs).' exported');
             }
         }
 
@@ -404,12 +424,15 @@ class BtcFocusExport
                 continue;
             }
             $doc = $p->focus_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.bank_series'), $p->paid_on, (int) $c->company_id) : '(on export)');
-            $narr = 'Being payment to '.trim((string) $c->vendor_name).' against bill no.- '.$c->bill_no.' Dt.- '.self::dmy($c->bill_date).' ('.$c->case_no.', '.$c->focus_jv_doc.')'
-                .' for '.trim($c->emp_name.' '.self::employeeCodeE((string) $c->emp_code));
-            $rows[] = [$doc, self::xlDate($p->paid_on), Carbon::parse($p->created_at ?? now())->format('H:i:s'), config('btc.focus_export.cash_bank_ac'), '', mb_substr($narr, 0, 500),
-                (string) $p->utr_number, strtoupper((string) $p->mode), self::activity($c), 'N/A',
-                $m['region'] ?? 'N/A', 'N/A', 'N/A', $be, $sub, $m['department'] ?? 'N/A', config('btc.focus_export.pmt_category'), $m['business_unit'] ?? 'N/A',
-                $m['location'] ?? 'N/A', $m['state'] ?? 'N/A', strtoupper((string) $c->vendor_code), (float) $p->amount, $c->case_no, (string) $p->bank_ref, '', '', ''];
+            $narr = 'Being payment to '.trim((string) $c->vendor_name).' against bill no.- '.$c->bill_no.' Dt.-'.self::dmy($c->bill_date)
+                .' for '.trim($c->emp_name.' '.self::employeeCodeE((string) $c->emp_code)).' ('.$c->case_no.')';
+            $bd = (array) config('btc.focus_export.bank_dims', []);
+            // as in the Treasury sample: DocNo blank (Focus numbers it), the paying office's dimensions, TDS 0
+            $rows[] = ['', self::xlDate($p->paid_on), Carbon::parse($p->created_at ?? now())->format('H:i:s'), config('btc.focus_export.cash_bank_ac'), '', mb_substr($narr, 0, 500),
+                (string) $p->utr_number, strtoupper((string) $p->mode), self::activity($c), 'N/A', $bd['region'] ?? 'N/A', $bd['crop'] ?? 'All Crop', 'N/A', $be,
+                $bd['cost_center'] ?? 'N/A', $bd['department'] ?? 'FIN', config('btc.focus_export.pmt_category'), $bd['business_unit'] ?? 'N/A', $bd['location'] ?? 'RAIPUR',
+                $bd['state'] ?? '22', $bd['function'] ?? 'BSF', $bd['vertical'] ?? 'CM', $bd['sub_department'] ?? 'SUB_DEPT_FIN_124', $bd['zone'] ?? '',
+                strtoupper((string) $c->vendor_code), (float) $p->amount, '', '', 0, 0, ''];
             if ($assign && ! $p->focus_doc) {
                 DB::table('btc_payments')->where('id', $p->id)->update(['focus_doc' => $doc, 'focus_exported_at' => now()]);
                 $this->log($c, 'Focus bank payment '.$doc.' exported (UTR '.$p->utr_number.')');

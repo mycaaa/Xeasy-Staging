@@ -301,7 +301,10 @@ return [
         'bank_series' => 'BP/BTC/{fy}/',             // payment release (Focus Bank Payment - non cheque)
         'employee_account' => 'BTC-E{code4}',        // employee BTC account in Focus, e.g. BTC-E1301
         'cash_bank_ac' => env('BTC_FOCUS_BANK_AC', 'BANK-26'),
-        'pmt_category' => env('BTC_FOCUS_PMT_CATEGORY', 'BTC Vendor Payment'),
+        'pmt_category' => env('BTC_FOCUS_PMT_CATEGORY', 'Staff Expense reimbursement'),   // as in the Treasury sample - Finance to confirm for BTC
+        // payment voucher dimensions of the paying office (Treasury sample "Payment Export")
+        'bank_dims' => ['department' => 'FIN', 'location' => 'RAIPUR', 'state' => '22', 'function' => 'BSF', 'vertical' => 'CM', 'sub_department' => 'SUB_DEPT_FIN_124',
+            'region' => 'N/A', 'business_unit' => 'N/A', 'cost_center' => 'N/A', 'zone' => '', 'crop' => 'All Crop'],
         'activity_default' => 'All Activity',
         // Activity Head (OSA / PSA / PDA / PLA) is entered as its Focus code (ledger file col D); suggestions only
         'activity_heads' => ['PRE SALE ACTIVITY', 'Product Launch Activity'],

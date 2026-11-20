@@ -647,9 +647,10 @@ class BtcV2Controller extends Controller
         }
         $check = array_map(fn ($r) => [$r['type'], $r['case'], $r['result'], $r['problems'], $r['employee'], $r['entity'], $r['vendor'], $r['ledger'], $r['sub'], $r['dims'], $r['amount']], $out['check']);
         $dateCols = [];
+        $fmts = \App\Services\Btc\BtcFocusExport::DATE_FORMATS[$kind] ?? [];
         foreach ($cols as $i => $h) {
-            if (in_array($h, ['Date', 'Bill Date'], true)) {
-                $dateCols[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1)] = 'dd/mm/yyyy';
+            if (isset($fmts[$h])) {
+                $dateCols[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1)] = $fmts[$h];
             }
         }
         $sheet = fn (string $title, array $head, array $rows, array $fmt = []) => new class($title, $head, $rows, $fmt) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithTitle, \Maatwebsite\Excel\Concerns\WithColumnFormatting
@@ -678,7 +679,7 @@ class BtcV2Controller extends Controller
         };
         $sheets = [];
         if ($assign) {
-            $sheets[] = $sheet('Sheet1', $cols, $out['rows'], $dateCols);
+            $sheets[] = $sheet(['jv' => 'Sheet2', 'ejv' => 'Sheet1', 'bank' => 'Payment Export'][$kind], $cols, $out['rows'], $dateCols);
         }
         $sheets[] = $sheet('Check', ['File', 'BTC ID', 'Result', 'What is wrong / pending', 'Employee(s)', 'Entity', 'Vendor (code)', 'Ledger', 'Sub ledger / cost center',
             'Dept / sub dept / BU / region / zone / function / vertical / location / state', 'Amount'], $check);
