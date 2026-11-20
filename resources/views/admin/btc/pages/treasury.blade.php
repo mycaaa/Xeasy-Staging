@@ -16,6 +16,7 @@
                             <a class="xe-btn xe-btn-plain" href="{{ route('btc.treasury.focus', [$k, 'check' => 1]) }}" title="Checks only - no document numbers used">Check</a>
                         </span>
                     @endforeach
+                    <a class="xe-btn xe-btn-plain" href="{{ route('btc.settings.focus-ledgers') }}" title="Ledger and sub ledger codes used in the JV files">Focus ledgers</a>
                 </div>
             @endif
             @if (! empty($matrix))
@@ -27,7 +28,7 @@
                         @if (! empty($matrix['counts'][$k]))<span>· {{ $l }} {{ $matrix['counts'][$k] }}</span>@endif
                     @endforeach
                     @can('btc.treasury')
-                        <form method="post" action="{{ route('btc.treasury.matrix') }}">@csrf<button class="xe-btn xe-btn-plain">{{ $matrix['on'] ? 'Send now' : 'Check what would be sent' }}</button></form>
+                        <form method="post" action="{{ route('btc.treasury.matrix') }}">@csrf<button class="xe-btn xe-btn-plain">{{ $matrix['on'] ? 'Send all waiting (bulk)' : 'Check what would be sent' }}</button></form>
                     @endcan
                 </div>
             @endif

@@ -43,7 +43,7 @@ $(function () {
     const TDS = @json($tdsSections);
     const NATURES = @json($tdsNatures ?? []); // BTC-TDS-01
     const NATURE_BY_CAT = @json($tdsNatureByCategory ?? []);
-    @php($focusX = \Illuminate\Support\Arr::only(config('btc.focus_export', []), ['expense_types', 'expense_type_by_category', 'activity_types', 'activity_heads']))
+    @php($focusX = ['expense_types' => \App\Services\Btc\FocusLedgers::expenseTypes(), 'expense_type_by_category' => config('btc.focus_export.expense_type_by_category', []), 'activity_types' => \App\Services\Btc\FocusLedgers::activityTypes(), 'activity_heads' => \App\Services\Btc\FocusLedgers::heads()])
     const FOCUSX = @json($focusX); // BTC-FOCUS-01
     const fmt = v => (v === null || v === undefined || v === '') ? '' : Number(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     const esc = s => $('<div>').text(s ?? '').html();

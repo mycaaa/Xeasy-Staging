@@ -246,6 +246,28 @@ class BtcPagesController extends Controller
         return back()->with($r['ok'] ? 'success' : 'error', $r['message']);
     }
 
+    /** BTC-FOCUS-02: the Focus ledger codes as Excel (also the template to edit and upload). */
+    public function focusLedgersDownload()
+    {
+        $this->need('btc.configure|btc.treasury|btc.verifier|btc.fin_approver');
+        $book = \App\Services\Btc\FocusLedgers::workbook();
+        $name = 'BTC_Focus_Ledgers_'.now()->format('Ymd_His').'.xlsx';
+
+        return response()->streamDownload(function () use ($book) {
+            \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($book, 'Xlsx')->save('php://output');
+        }, $name, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    public function focusLedgersUpload(Request $request)
+    {
+        $this->need('btc.configure');
+        $request->validate(['file' => 'required|file|mimes:xlsx,xls|max:5120']);
+        $u = auth()->user();
+        $r = \App\Services\Btc\FocusLedgers::import($request->file('file'), $u->id ?? null, (string) ($u->name ?? ''));
+
+        return back()->with($r['ok'] ? 'success' : 'error', $r['message'])->with('focus_errors', $r['errors'] ?? []);
+    }
+
     public function settingsSave(Request $request)
     {
         $this->need('btc.configure');

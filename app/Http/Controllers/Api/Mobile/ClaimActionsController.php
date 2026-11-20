@@ -1209,6 +1209,8 @@ class ClaimActionsController extends BaseMobileController
 
                 // GPS-ODO-01: closing point, and the opening point when both photos come in one call
                 \App\Services\Claims\OdometerGps::save($conn, $claimsTable, (int) $lastInsertId, $request, $openingFilepath != '' ? ['closing', 'opening'] : ['closing']);
+                // ODO-PUNCH-01: readings changed by hand go to the punching team first
+                \App\Services\Claims\OdoManualPunch::check($conn, (int) $yearId, (int) $lastInsertId, (int) $empId, $billDate, (int) $tempPunchId, $odomtrOpening, $odomtrClosing);
 
                 // Insert into claimuploads with sequence 2 for closing
                 if ($lastInsertId > 0) {

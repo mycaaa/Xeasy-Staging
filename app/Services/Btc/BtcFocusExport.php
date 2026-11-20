@@ -141,31 +141,16 @@ class BtcFocusExport
         return (string) ($c->focus_expense_type ?: config('btc.focus_export.expense_type_by_category.'.$c->category, 'Misc.'));
     }
 
-    /** [ledger, sub-ledger] for the case and entity, or an error text. */
+    /** [ledger, sub-ledger, error] for the case and entity - from the Focus ledgers Finance keeps in BTC Settings. */
     public static function ledger(BtcCase $c, string $entity): array
     {
-        $type = self::expenseType($c);
-        $act = trim((string) ($c->focus_activity_type ?? ''));
-        if ($act !== '') {
-            $hit = config('btc.focus_export.activity_ledgers')[$act.'|'.$type] ?? null;
-            if (! $hit) {
-                return [null, null, "No ledger row for activity \"{$act}\" with expense \"{$type}\" - give the ledger to add."];
-            }
-            if (empty($hit[$entity])) {
-                return [null, null, "The ledger file has no {$entity} code for \"{$act} / {$type}\" - Finance to confirm."];
-            }
+        return FocusLedgers::lookup((string) ($c->focus_activity_type ?? ''), self::expenseType($c), $entity);
+    }
 
-            return [$hit[$entity][0], $hit[$entity][1] ?: 'N/A', null];
-        }
-        $row = config('btc.focus_export.ledgers')[$type] ?? null;
-        if (! $row) {
-            return [null, null, "No ledger mapping for expense type \"{$type}\" - choose the Type of Expense in the Focus entry, or give the ledger."];
-        }
-        if (empty($row[$entity])) {
-            return [null, null, "The ledger file has no {$entity} code for \"{$type}\" - Finance to confirm."];
-        }
-
-        return [$row[$entity][0], $row[$entity][1] ?: 'N/A', null];
+    /** Activity column: the Focus code of the Activity Head, else "All Activity". */
+    public static function activity(BtcCase $c): string
+    {
+        return FocusLedgers::headCode($c->focus_activity_head) ?: (string) config('btc.focus_export.activity_default', 'All Activity');
     }
 
     private static function punch(BtcCase $c, string $k): ?string
@@ -304,7 +289,7 @@ class BtcFocusExport
                 continue;
             }
             $doc = $c->focus_jv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.vendor_series'), $date, (int) $c->company_id) : '(on export)');
-            $activity = trim((string) $c->focus_activity_head) ?: config('btc.focus_export.activity_default', 'All Activity');
+            $activity = self::activity($c);
             // one row per employee; the amount split, any paisa difference on the last row
             $n = count($pax);
             $total = round((float) $c->bill_amount, 2);
@@ -362,7 +347,7 @@ class BtcFocusExport
             }
             $date = $c->fin_approved_at ?: now();
             $doc = $c->focus_ejv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)');
-            $activity = trim((string) $c->focus_activity_head) ?: config('btc.focus_export.activity_default', 'All Activity');
+            $activity = self::activity($c);
             $n = count($pax);
             $total = round((float) $c->bill_amount, 2);
             $each = floor($total / $n * 100) / 100;
@@ -422,7 +407,7 @@ class BtcFocusExport
             $narr = 'Being payment to '.trim((string) $c->vendor_name).' against bill no.- '.$c->bill_no.' Dt.- '.self::dmy($c->bill_date).' ('.$c->case_no.', '.$c->focus_jv_doc.')'
                 .' for '.trim($c->emp_name.' '.self::employeeCodeE((string) $c->emp_code));
             $rows[] = [$doc, self::xlDate($p->paid_on), Carbon::parse($p->created_at ?? now())->format('H:i:s'), config('btc.focus_export.cash_bank_ac'), '', mb_substr($narr, 0, 500),
-                (string) $p->utr_number, strtoupper((string) $p->mode), trim((string) $c->focus_activity_head) ?: config('btc.focus_export.activity_default'), 'N/A',
+                (string) $p->utr_number, strtoupper((string) $p->mode), self::activity($c), 'N/A',
                 $m['region'] ?? 'N/A', 'N/A', 'N/A', $be, $sub, $m['department'] ?? 'N/A', config('btc.focus_export.pmt_category'), $m['business_unit'] ?? 'N/A',
                 $m['location'] ?? 'N/A', $m['state'] ?? 'N/A', strtoupper((string) $c->vendor_code), (float) $p->amount, $c->case_no, (string) $p->bank_ref, '', '', ''];
             if ($assign && ! $p->focus_doc) {

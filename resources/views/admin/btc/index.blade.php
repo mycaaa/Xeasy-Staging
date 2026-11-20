@@ -62,7 +62,7 @@
 {{-- New case --}}
 <div class="modal fade" id="btcNewModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
-        <form id="btcNewForm" enctype="multipart/form-data">
+        <form id="btcNewForm" enctype="multipart/form-data" autocomplete="off">
             <div class="modal-header py-2"><h6 class="modal-title">New BTC case</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <div class="row g-2">
@@ -240,13 +240,27 @@ $(function () {
         const $f = $(this).closest('form'); const ok = checkAmounts($f);
         $f.find('[data-submit]').prop('disabled', !ok);
     });
+    // BTC-NEW-BLANK-01 (20 Nov 2026, tracker tab "20-11-2026" #1): every new case starts from a blank form - nothing is
+    // carried over from the case saved before, a draft, or a form closed without saving
+    function freshForm() {
+        const f = $('#btcNewForm')[0];
+        f.reset();
+        $('#btcVendor, #btcTravellers').val(null).trigger('change');
+        $('#btcNewForm').find('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea').val('');
+        $('#btcNewForm select:not(#btcVendor):not(#btcTravellers)').each(function () { this.selectedIndex = 0; $(this).trigger('change.select2'); });
+        const $r = $('.btc-route-radio'); $r.prop('checked', false); $r.first().prop('checked', true);
+        $('#btcRoute').val($r.first().val() || $('#btcRoute').attr('value'));
+        $('#btcNewForm [data-submit]').prop('disabled', false);
+        shape();
+    }
+    $('#btcNewModal').on('show.bs.modal', freshForm);
     $('#btcNewForm [data-submit]').on('click', function () {
         if (!checkAmounts($('#btcNewForm'))) return;
         if (!$('#btcPurpose').val()) { Swal.fire('Purpose needed', 'Choose the purpose of the requirement.', 'warning'); return; }
         if (String($('#btcPurpose').val()).startsWith('Other') && !$('#btcRemarks').val().trim()) { Swal.fire('Remarks needed', 'Write the purpose in the remarks.', 'warning'); return; }
         const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit'));
         $.ajax({url: '{{ route('btc.store') }}', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
-            .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); $('#btcNewForm')[0].reset(); shape(); load(); })
+            .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); freshForm(); load(); })
             .fail(x => Swal.fire('Not saved', (x.responseJSON && (x.responseJSON.message || Object.values(x.responseJSON.errors || {}).flat().join('\n'))) || 'Error', 'error'));
     });
 

@@ -1006,7 +1006,7 @@ class BtcWorkflow
                 }
             }
         }
-        if (! empty($c->focus_expense_type) && ! in_array($c->focus_expense_type, (array) config('btc.focus_export.expense_types', []), true)) {
+        if (! empty($c->focus_expense_type) && ! in_array($c->focus_expense_type, FocusLedgers::expenseTypes(), true)) {
             throw new RuntimeException('Choose the Type of expense from the list.');
         }
         $c->duplicate_checked = true;

@@ -49,6 +49,30 @@
         </div>
     </section>
 
+    {{-- BTC-FOCUS-02 (20 Nov 2026, "Decision for You" 7): Focus ledger / sub ledger codes, kept through Excel --}}
+    @php($fl = \App\Services\Btc\FocusLedgers::ready() ? \Illuminate\Support\Facades\DB::table('btc_focus_ledgers')->selectRaw('COUNT(*) n, MAX(updated_at) at')->first() : null)
+    <section class="xe-section mb-3">
+        <div class="xe-section-hdr"><span class="xe-section-title">Focus ledgers (for the JV export)</span></div>
+        <div class="xe-section-body">
+            <div class="small mb-2">
+                @if (! $fl)Run the BTC database update first.
+                @else{{ (int) $fl->n }} ledger rows, last changed {{ $fl->at ? \Illuminate\Support\Carbon::parse($fl->at)->format('d-m-Y H:i') : '-' }}.@endif
+                Download the file, change or add rows (VNR and VVNR codes side by side; meeting and training rows by Type of Activity), and upload it. The upload replaces all rows; the file before the change is kept.
+            </div>
+            @if (session('focus_errors'))<div class="alert alert-danger py-2 small mb-2"><ul class="mb-0">@foreach (session('focus_errors') as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <a class="xe-btn xe-btn-green" href="{{ route('btc.settings.focus-ledgers') }}"><i class="ri-file-excel-2-line"></i>Download current ledgers (Excel)</a>
+                @can('btc.configure')
+                    <form method="post" action="{{ route('btc.settings.focus-ledgers.upload') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">@csrf
+                        <label class="small mb-0" for="flFile">Upload changed file</label>
+                        <input id="flFile" type="file" name="file" accept=".xlsx,.xls" required class="form-control form-control-sm" style="max-width:260px">
+                        <button class="xe-btn xe-btn-blue"><i class="ri-upload-2-line"></i>Upload</button>
+                    </form>
+                @endcan
+            </div>
+        </div>
+    </section>
+
     <section class="xe-section">
         <div class="xe-section-hdr"><span class="xe-section-title">Change history</span></div>
         <div class="table-responsive"><table class="table table-sm mb-0">

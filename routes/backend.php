@@ -792,6 +792,9 @@ Route::middleware('auth')->group(function () {
     // Data Punch
     // Routes for data punch operations
     Route::middleware('permission:section_data_punching')->group(function () {
+        // ODO-PUNCH-01 (20 Nov 2026): odometer readings changed by the employee (before the {status} route)
+        Route::get('data-punch/odometer-changed', [\App\Http\Controllers\admin\OdoPunchController::class, 'index'])->name('data.punch.odo');
+        Route::post('data-punch/odometer-changed/{id}', [\App\Http\Controllers\admin\OdoPunchController::class, 'save'])->whereNumber('id')->middleware('throttle:60,1')->name('data.punch.odo.save');
         Route::get('data-punch/{status}', [MediatorController::class, 'dataPunch'])->name('data.punch');
         Route::post('data-punch/{status}/data', [MediatorController::class, 'dataPunchData'])->name('data.punch.data');
         Route::post('data-punch/{status}/filter-options', [MediatorController::class, 'getFilteredOptions'])->name('data.punch.filter.options');
@@ -1184,6 +1187,9 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/exceptions/review', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionReview'])->name('exceptions.review');
     Route::get('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settings'])->name('settings');
     Route::post('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settingsSave'])->name('settings.save');
+    // BTC-FOCUS-02 (20 Nov 2026): Focus ledger codes kept by Finance through Excel
+    Route::get('/settings/focus-ledgers', [\App\Http\Controllers\admin\BtcPagesController::class, 'focusLedgersDownload'])->name('settings.focus-ledgers');
+    Route::post('/settings/focus-ledgers', [\App\Http\Controllers\admin\BtcPagesController::class, 'focusLedgersUpload'])->middleware('throttle:10,1')->name('settings.focus-ledgers.upload');
     Route::post('/settings/vendors-sync', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorsSync'])->middleware('throttle:6,1')->name('settings.vendors-sync');   // BTC-VENDOR-CORE-01
     Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');

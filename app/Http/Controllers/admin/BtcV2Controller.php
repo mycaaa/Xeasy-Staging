@@ -478,8 +478,11 @@ class BtcV2Controller extends Controller
                 'hold' => ['Held', fn ($q) => $q->whereIn('status', ['focus_done', 'fin_approved'])->where('on_hold', 1)],
                 'instructed' => ['Instructed', fn ($q) => $ins ? $q->where('status', 'fin_approved')->whereNotNull('pay_instructed_at')->where($free) : $q->whereRaw('1 = 0')],
                 'confirmed' => ['Confirmed (paid)', fn ($q) => $q->whereIn('status', ['paid', 'closed'])->whereNotNull('paid_on')],
+                // "Decision for You" 9: a payment Matrix did not match is unsettled too
                 'unsettled' => ['Unsettled', fn ($q) => $q->whereIn('status', ['fin_approved', 'paid', 'closed'])
-                    ->where(fn ($w) => $w->where(fn ($p) => $p->where('status', 'fin_approved')->where('paid_amount', '>', 0))->orWhereRaw($advOpen))],
+                    ->where(fn ($w) => $w->where(fn ($p) => $p->where('status', 'fin_approved')->where('paid_amount', '>', 0))->orWhereRaw($advOpen)
+                        ->when(\App\Services\Btc\BtcMatrixVerify::ready(), fn ($m) => $m->orWhereExists(fn ($e) => $e->from('btc_payments')->whereColumn('btc_payments.btc_case_id', 'btc_cases.id')
+                            ->where('btc_payments.status', 'success')->where('btc_payments.matrix_status', 'mismatch'))))],
             ], (string) $request->input('tab', 'pending'), $request, ['advCols' => true, 'payCols' => true,
                 'pick' => $ins && $request->input('tab') === 'approved' && (auth()->user()->can('btc.fin_approver') || auth()->user()->can('btc.admin'))]);
     }
@@ -694,12 +697,22 @@ class BtcV2Controller extends Controller
         return \Maatwebsite\Excel\Facades\Excel::download($book, ($assign ? $name : $name.'_check').'_'.now()->format('Ymd_His').'.xlsx');
     }
 
-    /** BTC-MATRIX-01: send the recorded payments to Matrix now (or check what would be sent while it is off). */
+    /**
+     * BTC-MATRIX-01: send the recorded payments to Matrix now (or check what would be sent while it is off).
+     * "Decision for You" 9: one payment (verify) or all waiting (verify-bulk); a payment already sent can be sent again.
+     */
     public function matrixSend(Request $request)
     {
         $this->need('btc.treasury');
         $svc = app(\App\Services\Btc\BtcMatrixVerify::class);
-        $r = $svc->run(null, ! \App\Services\Btc\BtcMatrixVerify::enabled(), 500);
+        $one = (int) $request->input('payment_id', 0);
+        if ($one > 0) {
+            $ok = DB::table('btc_payments as p')->join('btc_cases as c', 'c.id', '=', 'p.btc_case_id')->where('p.id', $one)
+                ->where('c.company_id', (int) session('company_id', 1))->where('p.status', 'success')->exists();
+            abort_unless($ok, 404);
+            DB::table('btc_payments')->where('id', $one)->whereIn('matrix_status', ['sent', 'mismatch', 'failed', 'no_account'])->update(['matrix_status' => null, 'matrix_tries' => 0]);
+        }
+        $r = $svc->run($one > 0 ? [$one] : null, ! \App\Services\Btc\BtcMatrixVerify::enabled(), 500);
 
         return redirect()->route('btc.treasury', ['tab' => 'paid'])->with($r['ok'] ? 'success' : 'error', $r['message']);
     }

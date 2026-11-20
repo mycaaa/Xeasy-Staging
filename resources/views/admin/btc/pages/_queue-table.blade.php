@@ -40,6 +40,9 @@
                                 @case('no_account')<span class="badge bg-warning text-dark" title="{{ $lp->matrix_message }}">No bank a/c for Matrix</span>@break
                                 @default<span class="badge bg-light text-dark">Matrix: waiting</span>
                             @endswitch
+                            @if ($lp->matrix_status !== 'verified' && (auth()->user()->can('btc.treasury') || auth()->user()->can('btc.admin')))
+                                <form method="post" action="{{ route('btc.treasury.matrix') }}" class="d-inline" onclick="event.stopPropagation()">@csrf<input type="hidden" name="payment_id" value="{{ $lp->id }}"><button class="btn btn-link btn-sm p-0 ms-1" title="Send this payment to Matrix (verify)">{{ $lp->matrix_status ? 'Send again' : 'Send' }}</button></form>
+                            @endif
                         @endif
                         @if (! empty($c->focus_jv_doc))<div class="text-muted">{{ $c->focus_jv_doc }}@if (! empty($c->focus_ejv_doc)) · {{ $c->focus_ejv_doc }}@endif</div>@endif
                     </td>

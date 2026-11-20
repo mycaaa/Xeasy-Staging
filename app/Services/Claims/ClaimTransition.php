@@ -65,6 +65,10 @@ class ClaimTransition
         // KM-CAP-01: Breeding running km above the monthly limit waits for the HOD's approval
         $kmHolds = ($to === 'Approved') ? \App\Services\ClaimRules\KmCapApproval::blocking($db, $yearId, $rows) : [];
 
+        // ODO-PUNCH-01: odometer readings changed by hand wait for the punching team before verification
+        $odoPunch = ($to === 'Verified') ? array_flip(OdoManualPunch::pendingIds($db->getName(), $yearId,
+            $rows->filter(fn ($r) => (int) $r->ClaimId === 7)->pluck('ExpId')->all())) : [];
+
         $refused = [];
         $ok = [];
         foreach ($rows as $r) {
@@ -106,6 +110,9 @@ class ClaimTransition
             if ($why === null && in_array($to, ['Verified', 'Approved'], true) && $from !== $to && $actorEmp > 0 && (int) $r->CrBy === $actorEmp
                 && config('claim_rules.sod.block_own_claim', true)) {
                 $why = $to === 'Verified' ? 'this is your own claim; another verifier has to verify it' : 'this is your own claim; your approver has to approve it';
+            }
+            if ($why === null && $to === 'Verified' && $from !== $to && isset($odoPunch[(int) $r->ExpId])) {
+                $why = 'the employee changed the odometer reading by hand - the punching team has to check it first (Data Punch > Odometer readings changed)';
             }
             if ($why === null && $to === 'Approved' && $from !== $to && isset($kmHolds[(int) $r->ExpId])) {
                 $why = $kmHolds[(int) $r->ExpId] === 'rejected'
