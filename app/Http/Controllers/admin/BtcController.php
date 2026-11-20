@@ -44,7 +44,7 @@ class BtcController extends Controller
             'tdsNatures' => collect(config('btc.tds_natures'))->map(fn ($n) => ['label' => $n['label'], 'rate' => $n['rate']])->all(),
             'tdsNatureByCategory' => config('btc.tds_nature_by_category'),
             'vendors' => $this->formVendors(),
-            'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
+            'vendorTypesByCategory' => $this->vendorTypes(),
             'showFlow' => true,
         ];
     }
@@ -68,13 +68,25 @@ class BtcController extends Controller
             'tdsNatures' => collect(config('btc.tds_natures'))->map(fn ($n) => ['label' => $n['label'], 'rate' => $n['rate']])->all(),
             'tdsNatureByCategory' => config('btc.tds_nature_by_category'),
             'vendors' => $this->formVendors(),
-            'vendorTypesByCategory' => config('btc.vendor_types_by_category', []),
+            'vendorTypesByCategory' => $this->vendorTypes(),
             'canAdmin' => $user->can('btc.admin'),
             // BTC-REQ-08/16/19 (17 Nov 2026): the process flow (header line and the stage bar) only for the Finance side
             'showFlow' => collect(['btc.admin', 'btc.audit', 'btc.dms', 'btc.bill_upload', 'btc.verifier', 'btc.fin_approver', 'btc.finance', 'btc.checker', 'btc.treasury'])->contains(fn ($p) => $user->can($p)),
             'billSources' => config('btc.bill_sources'),
             'extractFields' => config('btc.extraction.fields'),
         ]);
+    }
+
+    /** BTC category => vendor types shown for it (core list: the BTC category itself; old list: config). */
+    private function vendorTypes(): array
+    {
+        if (\App\Services\Btc\CoreVendors::active()) {
+            $served = collect((array) config('btc.core_vendors.category_map'))->flatten()->unique()->all();
+
+            return collect(array_keys(config('btc.categories')))->mapWithKeys(fn ($k) => [$k => in_array($k, $served, true) ? [$k] : []])->all();
+        }
+
+        return config('btc.vendor_types_by_category', []);
     }
 
     /**
@@ -84,6 +96,11 @@ class BtcController extends Controller
      */
     private function formVendors(): array
     {
+        // BTC-VENDOR-CORE-01 (20 Nov 2026): the core application's vendor list once it has been synced
+        if (\App\Services\Btc\CoreVendors::active()) {
+            return \App\Services\Btc\CoreVendors::forForm();
+        }
+
         $rows = DB::table('vendor_list')->where('status', '1')->whereNotNull('vendor_name')
             ->orderBy('vendor_name')->orderBy('id')->get(['id', 'vendor_name', 'gst_no', 'vendor_type']);
         $junk = ['', 'na', 'n/a', 'other', 'others', '-', '--', '.', 'nil', 'none', 'test'];
@@ -167,7 +184,7 @@ class BtcController extends Controller
             'location' => 'nullable|string|max:150',
             'service_from' => 'nullable|date',
             'service_to' => 'nullable|date|after_or_equal:service_from',
-            'vendor_id' => 'nullable|integer',
+            'vendor_id' => 'nullable|string|max:20',   // BTC-VENDOR-CORE-01: "C<core id>" or an old vendor_list id
             'vendor_name' => 'nullable|string|max:200',
             'vendor_gstin' => 'nullable|string|max:20',
             'new_vendor' => 'nullable|boolean',
@@ -216,10 +233,13 @@ class BtcController extends Controller
         if (! $emp) {
             return response()->json(['success' => false, 'message' => 'Employee not found.'], 422);
         }
+        $v['vendor_code'] = null;
         if (! empty($v['vendor_id'])) {
-            $vendor = DB::table('vendor_list')->where('id', $v['vendor_id'])->first(['vendor_name', 'gst_no']);
-            $v['vendor_name'] = $vendor->vendor_name ?? $v['vendor_name'] ?? null;
-            $v['vendor_gstin'] = $vendor->gst_no ?? $v['vendor_gstin'] ?? null;
+            $vendor = \App\Services\Btc\CoreVendors::find($v['vendor_id']);
+            $v['vendor_name'] = $vendor['name'] ?? $v['vendor_name'] ?? null;
+            $v['vendor_gstin'] = $vendor['gstin'] ?? $v['vendor_gstin'] ?? null;
+            $v['vendor_code'] = $vendor['vendor_code'] ?? null;
+            $v['vendor_id'] = $vendor['vendor_id'] ?? null;
         }
         $cat = config("btc.categories.{$v['category']}");
         $case = DB::transaction(function () use ($v, $emp, $user, $cat) {
@@ -232,6 +252,7 @@ class BtcController extends Controller
                 'purpose' => $v['purpose'], 'location' => $v['location'] ?? null,
                 'service_from' => $v['service_from'] ?? null, 'service_to' => $v['service_to'] ?? null,
                 'vendor_id' => $v['vendor_id'] ?? null, 'vendor_name' => $v['vendor_name'] ?? null, 'vendor_gstin' => $v['vendor_gstin'] ?? null,
+                ...(\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'vendor_code') ? ['vendor_code' => $v['vendor_code'] ?? null] : []),
                 'new_vendor' => (bool) ($v['new_vendor'] ?? false), 'quotation_amount' => $v['quotation_amount'] ?? null,
                 'estimated_amount' => $v['estimated_amount'] ?? ($v['quotation_amount'] ?? null),
                 'advance_amount' => $v['route'] === 'employee_advance' ? (float) ($v['advance_amount'] ?? 0) : 0,

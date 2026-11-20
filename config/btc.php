@@ -63,6 +63,20 @@ return [
     ],
 
     // BTC-FORM-02: vendor types (vendor_list.vendor_type) offered for each category; [] = all vendors
+    // BTC-VENDOR-CORE-01 (20 Nov 2026, BTC requirement item 29): vendor list from the core application. The key is
+    // set in .env (BTC_CORE_VENDOR_KEY), never in the code. Core category => BTC categories it serves ([] = all).
+    'core_vendors' => [
+        'url' => env('BTC_CORE_VENDOR_URL', 'https://core.vnrin.in/api/btc_vendor'),
+        'key' => env('BTC_CORE_VENDOR_KEY', ''),
+        'category_map' => [
+            'Hotel Vendor' => ['hotel', 'meals', 'meeting'],
+            'Hired Vehicle Vendor' => ['vehicle'],
+            'Transport Service Vendor' => ['vehicle', 'bus'],
+            'Marketing Vendor' => ['meeting', 'meals'],
+        ],
+        'not_btc' => ['Rent Vendor', 'Courier Vendor'],   // not used for BTC requests
+    ],
+
     'vendor_types_by_category' => [
         'hotel' => ['hotel'],
         'vehicle' => ['agency', 'agent'],

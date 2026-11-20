@@ -34,6 +34,21 @@
         <button class="xe-btn xe-btn-blue mb-3"><i class="ri-save-line"></i>Save settings</button>
     </form>
 
+    {{-- BTC-VENDOR-CORE-01 (20 Nov 2026, BTC requirement item 29): vendor list from the core application --}}
+    @php($cv = \App\Services\Btc\CoreVendors::ready() ? \Illuminate\Support\Facades\DB::table('btc_core_vendors')->selectRaw('SUM(active = 1) n, MAX(synced_at) at')->first() : null)
+    <section class="xe-section mb-3">
+        <div class="xe-section-hdr"><span class="xe-section-title">Vendor list (core application)</span></div>
+        <div class="xe-section-body d-flex flex-wrap gap-3 align-items-center">
+            <div class="small">
+                @if (! $cv)Run the BTC database update first.
+                @elseif ((int) $cv->n === 0)Not synced yet - the forms still use the old vendor list.
+                @else{{ number_format((int) $cv->n) }} active vendors, last synced {{ \Illuminate\Support\Carbon::parse($cv->at)->format('d-m-Y H:i') }}. Synced every day at 06:10.@endif
+                @if (config('btc.core_vendors.key') === '')<div class="text-danger">The API key is not set: add BTC_CORE_VENDOR_KEY to the server's .env.</div>@endif
+            </div>
+            <form method="post" action="{{ route('btc.settings.vendors-sync') }}">@csrf<button class="xe-btn xe-btn-plain"><i class="ri-refresh-line"></i>Sync vendors now</button></form>
+        </div>
+    </section>
+
     <section class="xe-section">
         <div class="xe-section-hdr"><span class="xe-section-title">Change history</span></div>
         <div class="table-responsive"><table class="table table-sm mb-0">

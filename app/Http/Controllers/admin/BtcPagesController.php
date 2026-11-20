@@ -237,6 +237,15 @@ class BtcPagesController extends Controller
             'natures' => collect(config('btc.tds_natures'))->map(fn ($n) => $n['label'])]);
     }
 
+    /** BTC-VENDOR-CORE-01 (20 Nov 2026): copy the vendor list from the core application now. */
+    public function vendorsSync()
+    {
+        $this->need('btc.configure');
+        $r = \App\Services\Btc\CoreVendors::sync();
+
+        return back()->with($r['ok'] ? 'success' : 'error', $r['message']);
+    }
+
     public function settingsSave(Request $request)
     {
         $this->need('btc.configure');

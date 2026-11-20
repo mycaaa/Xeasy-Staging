@@ -6,7 +6,6 @@ use App\Http\Controllers\admin\ActivityController;
 use App\Http\Controllers\admin\ActivityLogController;
 use App\Http\Controllers\admin\ActivityNameController;
 use App\Http\Controllers\admin\ActivityTypeController;
-use App\Http\Controllers\admin\AdvanceFinanceController;
 use App\Http\Controllers\admin\AdvanceReportController;
 use App\Http\Controllers\admin\AdvanceRequestAdminController;
 use App\Http\Controllers\admin\AdvanceRequestMasterController;
@@ -905,15 +904,10 @@ Route::middleware('auth')->group(function () {
     // Routes for finance level advance request approvals
     // ADV-WEB-01 (13 Nov 2026): the permission advance_finance_management does not exist, so only Super Admin could open
     // these screens; the menu ("Advance Approvals") gives them to Payment Section, which is what the route now checks.
-    Route::middleware('permission:payment_section')->group(function () {
-        Route::get('advance/finance', [AdvanceFinanceController::class, 'index'])->name('advance.finance.index');
-        Route::get('advance/finance/pending', [AdvanceFinanceController::class, 'pending'])->name('advance.finance.pending');
-        // ROUTE-CLEAN-01 (method does not exist): Route::get('advance/finance/rejected', [AdvanceFinanceController::class, 'rejected'])->name('advance.finance.rejected');
-        // ROUTE-CLEAN-01 (method does not exist): Route::get('advance/finance/approved', [AdvanceFinanceController::class, 'approved'])->name('advance.finance.approved');
-        Route::post('advance/finance/approve', [AdvanceFinanceController::class, 'approve'])->name('advance.finance.approve');
-        Route::post('advance/finance/reject', [AdvanceFinanceController::class, 'reject'])->name('advance.finance.reject');
-        Route::post('advance/finance/revert', [AdvanceFinanceController::class, 'revert'])->name('advance.finance.revert');
-    });
+    // PAGE-CLEAN-04 (20 Nov 2026, Page cleanup row 89, decision "Remove old"): the old Finance - Advance Requests page
+    // is retired; its address opens Advance Approvals (Finance), the one screen where Finance approves / rejects
+    // advances. Its own approve / reject / revert routes are removed (Advance Approvals uses the advance API).
+    Route::get('advance/finance', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/finance/advance-approvals')->name('advance.finance.index');
     // Admin Advance Request Submission
     // Routes for admin to submit advance requests on behalf of employees
     // TODO: Add permission middleware after testing - Route::middleware('permission:advance_admin_submit')->group(function () {
@@ -1186,6 +1180,7 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/exceptions/review', [\App\Http\Controllers\admin\BtcPagesController::class, 'exceptionReview'])->name('exceptions.review');
     Route::get('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settings'])->name('settings');
     Route::post('/settings', [\App\Http\Controllers\admin\BtcPagesController::class, 'settingsSave'])->name('settings.save');
+    Route::post('/settings/vendors-sync', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorsSync'])->middleware('throttle:6,1')->name('settings.vendors-sync');   // BTC-VENDOR-CORE-01
     Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
     // BTC-V2 (19 Nov 2026, sheet item 24): Bill Upload by Finance, Automatic Data Extraction, Finance Verifier 1 (+ Focus
@@ -1255,28 +1250,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/punching-change-report/export', [\App\Http\Controllers\admin\PunchChangeReportController::class, 'export'])->name('punch.change.report.export');
 });
 
-// ── Bill to Company ──────────────────────────────────────────────────────────
-Route::prefix('bill-to-company')->name('bill-to-company.')->group(function () {
-    Route::get('/', [\App\Http\Controllers\admin\BillToCompanyController::class, 'index'])->name('index');
-    Route::get('/data', [\App\Http\Controllers\admin\BillToCompanyController::class, 'getData'])->name('data');
-    Route::post('/', [\App\Http\Controllers\admin\BillToCompanyController::class, 'store'])->name('store');
-    Route::get('/employees/search', [\App\Http\Controllers\admin\BillToCompanyController::class, 'searchEmployees'])->name('employees.search');
-
-    // ── Categories ───────────────────────────────────────────────────────────
-    Route::get('/categories/list', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'list'])->name('categories.list');
-    Route::prefix('categories')->name('categories.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'index'])->name('index');
-        Route::get('/data', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'getData'])->name('data');
-        Route::post('/', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'store'])->name('store');
-        Route::put('/{id}', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'update'])->name('update');
-        Route::post('/toggle/{id}', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'toggle'])->name('toggle');
-        Route::delete('/{id}', [\App\Http\Controllers\admin\BillToCompanyCategoryController::class, 'destroy'])->name('destroy');
-    });
-
-    Route::get('/{id}', [\App\Http\Controllers\admin\BillToCompanyController::class, 'show'])->name('show');
-    Route::post('/{id}/remarks', [\App\Http\Controllers\admin\BillToCompanyController::class, 'updateRemarks'])->name('update-remarks');
-    Route::delete('/{id}', [\App\Http\Controllers\admin\BillToCompanyController::class, 'destroy'])->name('destroy');
-});
+// ── Bill to Company (old module) ─────────────────────────────────────────────
+// PAGE-CLEAN-04 (20 Nov 2026, Page cleanup row 88, decision "Remove old"): the old Bill to Company screens
+// (table bill_to_company_bills, categories) are retired; every old address opens BTC. The old table stays for history.
+Route::get('bill-to-company/{any?}', \App\Http\Controllers\AliasRedirectController::class)->where('any', '.*')->defaults('to', '/btc')->name('bill-to-company.index');
 
 // PAX Details API Routes for Claims (Lodging, Meals, Rail Fare, etc.)
 // These endpoints retrieve and manage PAX details, employee eligibility, and quotas

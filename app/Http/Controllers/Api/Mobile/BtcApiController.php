@@ -79,6 +79,15 @@ class BtcApiController extends BaseMobileController
                         'vendor_types' => config('btc.vendor_types_by_category')]);
                 case 'vendors':
                     $q = trim((string) $request->input('q'));
+                    if (\App\Services\Btc\CoreVendors::active()) {   // BTC-VENDOR-CORE-01: vendor list from the core application
+                        $cat = (string) $request->input('category');
+                        $rows = collect(\App\Services\Btc\CoreVendors::forForm())
+                            ->filter(fn ($v) => ! $v['types'] || in_array($cat, $v['types'], true))
+                            ->filter(fn ($v) => $q === '' || stripos($v['name'], $q) !== false || stripos($v['gst'], $q) !== false)
+                            ->take(30)->map(fn ($v) => ['id' => $v['id'], 'name' => $v['name'], 'gst' => $v['gst']])->values();
+
+                        return $this->ok(['rows' => $rows]);
+                    }
                     $types = config('btc.vendor_types_by_category.'.$request->input('category'), []);
 
                     return $this->ok(['rows' => DB::table('vendor_list')->where('status', '1')->when($types, fn ($w) => $w->whereIn('vendor_type', $types))

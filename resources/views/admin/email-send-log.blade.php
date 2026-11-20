@@ -28,6 +28,7 @@
 <div class="page-content">
 <div class="container-fluid">
 
+    @include('admin.partials._email-log-tabs')
     {{-- Page Header --}}
     <div class="row mb-3 align-items-center">
         <div class="col">

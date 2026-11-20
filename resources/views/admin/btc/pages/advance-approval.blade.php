@@ -29,7 +29,7 @@
         @endif
         <section class="xe-section"><div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
-                <thead><tr>@if ($canAct)<th><input type="checkbox" id="aaAll" aria-label="Tick all"></th>@endif<th>BTC ID</th><th>Employee / department</th><th>Category · purpose</th><th>Vendor</th><th class="text-end">Quotation</th><th class="text-end">Advance</th><th>Manager approval</th><th>Finance approval</th><th>Instruction</th><th></th></tr></thead>
+                <thead><tr>@if ($canAct)<th><input type="checkbox" id="aaAll" aria-label="Tick all"></th>@endif<th>BTC ID</th><th>Employee / department</th><th>Category · purpose</th><th>Vendor</th><th class="text-end">Quotation</th><th class="text-end">Advance</th><th>Manager approval</th><th>Finance approval</th><th>Instruction</th><th class="text-end">Paid / to settle</th><th></th></tr></thead>
                 <tbody>
                 @forelse ($rows as $c)
                     <tr>
@@ -43,10 +43,12 @@
                         <td class="small">{{ optional($c->manager_action_at)->format('d-m-Y') }}</td>
                         <td class="small">@if ($c->adv_fin_at){{ \App\Models\User::whereKey($c->adv_fin_by)->value('name') }}<div class="text-muted">{{ $c->adv_fin_at->format('d-m-Y H:i') }}</div>@else - @endif</td>
                         <td class="small">@if ($c->adv_instructed_at){{ $c->adv_instructed_at->format('d-m-Y H:i') }}<div class="text-muted">{{ $c->adv_instruction_ref }}</div>@if ($c->advance_paid_amount)<span class="badge bg-success">Paid {{ $inr($c->advance_paid_amount) }}</span>@else<span class="badge bg-warning text-dark">To pay</span>@endif @else - @endif</td>
+                        @php($af = $c->advanceFigures())
+                        <td class="text-end small">@if ($c->adv_stage === 'rejected')<span class="text-danger">Rejected</span><div class="text-muted">{{ \Illuminate\Support\Str::limit($c->adv_fin_remark, 60) }}</div>@elseif ($af['paid'] > 0){{ $inr($af['paid']) }}@if ($af['balance'] > 0.5)<div class="text-danger">{{ $inr($af['balance']) }} to settle</div>@else<div class="text-success">Settled</div>@endif @else - @endif</td>
                         <td><button type="button" class="xe-btn xe-btn-plain" data-open="{{ $c->id }}">Open</button></td>
                     </tr>
                 @empty
-                    <tr><td colspan="11" class="text-center text-muted py-4">Nothing here.</td></tr>
+                    <tr><td colspan="12" class="text-center text-muted py-4">Nothing here.</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -8,7 +8,7 @@
 </div>
 <section class="xe-section"><div class="table-responsive">
     <table class="table table-sm table-hover mb-0 align-middle">
-        <thead><tr><th>BTC ID</th><th>Vendor</th><th>Invoice</th><th class="text-end">Invoice amount</th><th class="text-end">GST</th><th class="text-end">Net payable</th><th>Employee / department</th><th>Source · uploaded</th><th>Data</th><th>Stage</th><th>Updated</th><th></th></tr></thead>
+        <thead><tr><th>BTC ID</th><th>Vendor</th><th>Invoice</th><th class="text-end">Invoice amount</th><th class="text-end">GST</th>@if (! empty($advCols))<th class="text-end">TDS</th><th class="text-end">Advance paid</th><th class="text-end">Adjusted</th>@endif<th class="text-end">Net payable</th><th>Employee / department</th><th>Source · uploaded</th><th>Data</th><th>Stage</th><th>Updated</th><th></th></tr></thead>
         <tbody>
         @forelse ($rows as $c)
             <tr role="button" data-open="{{ $c->id }}">
@@ -17,7 +17,13 @@
                 <td class="text-nowrap">{{ $c->bill_no ?: '-' }}<div class="small text-muted">{{ optional($c->bill_date)->format('d-m-Y') }}</div></td>
                 <td class="text-end">{{ $inr($c->bill_amount) }}</td>
                 <td class="text-end">{{ $inr($c->gst_amount) }}</td>
-                <td class="text-end">{{ $inr($c->net_payable) }}</td>
+                @if (! empty($advCols))
+                    @php($af = $c->advanceFigures())
+                    <td class="text-end">{{ $inr($c->tds_amount) }}</td>
+                    <td class="text-end">{{ $af['paid'] > 0 ? $inr($af['paid']) : '-' }}</td>
+                    <td class="text-end">{{ (float) $c->advance_adjusted > 0 ? $inr($c->advance_adjusted) : '-' }}@if ($af['balance'] > 0.5 && in_array($c->status, ['focus_done', 'fin_approved'], true))<div class="small text-danger">{{ $inr($af['balance']) }} still to settle</div>@endif</td>
+                @endif
+                <td class="text-end">@if ((float) $c->net_payable < 0)<span class="text-danger">Recover {{ $inr(abs((float) $c->net_payable)) }}</span>@else{{ $inr($c->net_payable) }}@endif</td>
                 <td>{{ trim($c->emp_code.' '.$c->emp_name) ?: '-' }}<div class="small text-muted">{{ $c->department_name }}</div></td>
                 <td class="small">{{ config('btc.bill_sources.'.$c->bill_source, $c->bill_source) }}<div class="text-muted">{{ optional($c->bill_uploaded_at)->format('d-m-Y H:i') }}</div></td>
                 <td class="small">
@@ -36,7 +42,7 @@
                 <td><button type="button" class="xe-btn xe-btn-blue" data-open="{{ $c->id }}">Open</button></td>
             </tr>
         @empty
-            <tr><td colspan="12" class="text-center text-muted py-4">Nothing here.</td></tr>
+            <tr><td colspan="{{ empty($advCols) ? 12 : 15 }}" class="text-center text-muted py-4">Nothing here.</td></tr>
         @endforelse
         </tbody>
     </table>

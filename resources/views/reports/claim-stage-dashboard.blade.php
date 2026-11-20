@@ -249,6 +249,7 @@
                                 @if(session('company_id') == 11)
                                     <option value="pending_approval">Submitted, pending approval</option>
                                     <option value="pending_payment">Approved, pending payment</option>
+                                    <option value="pending_payment_left">Approved, pending payment - left employees (F&amp;F)</option>
                                     <option value="paid_pending_courier">Paid, pending courier</option>
                                     <option value="pending_verification">Courier received, pending verification</option>
                                 @else
@@ -257,6 +258,7 @@
                                     <option value="pending_approval">Verified, pending manager approval</option>
                                     <option value="pending_finance">Approved, pending finance</option>
                                     <option value="pending_payment">Finance processed, pending payment</option>
+                                    <option value="pending_payment_left">Finance processed, pending payment - left employees (F&amp;F)</option>
                                 @endif
                                 <option value="paid">Paid (completed)</option>
                                 <option value="no_claim">No Claim Employee List</option>
@@ -680,6 +682,7 @@ function loadStageSummary(callback) {
                 { label: 'Total open, final submission not done', key: 'open_final_submission', cls: 'text-primary' },
                 { label: 'Submitted, pending approval', key: 'pending_approval', cls: 'text-primary' },
                 { label: 'Approved, pending payment', key: 'pending_payment', cls: 'text-primary' },
+                { label: 'Approved, pending payment - employees who have left (F&amp;F)', key: 'pending_payment_left', cls: 'text-primary' },   // STAGE-LEFT-01
                 { label: 'Paid, pending courier', key: 'paid_pending_courier', cls: 'text-primary' },
                 { label: 'Courier received, pending verification', key: 'pending_verification', cls: 'text-primary' },
             ];
@@ -698,6 +701,7 @@ function loadStageSummary(callback) {
                 { label: 'Total verified, pending manager approval', key: 'pending_approval', cls: 'text-primary' },
                 { label: 'Total approved, pending finance', key: 'pending_finance', cls: 'text-primary' },
                 { label: 'Total finance processed, pending payment', key: 'pending_payment', cls: 'text-primary' },
+                { label: 'Finance processed, pending payment - employees who have left (F&amp;F)', key: 'pending_payment_left', cls: 'text-primary' },   // STAGE-LEFT-01 (IT tracker #7)
             ];
         }
 
@@ -716,7 +720,7 @@ function loadStageSummary(callback) {
                 const display = row.suffix ? val + row.suffix : val;
 
                 // Make stage detail rows clickable (the blue rows + no_claims_submitted)
-                const clickableKeys = ['open_final_submission', 'submitted_courier_not_sent', 'pending_verification', 'pending_approval', 'pending_finance', 'pending_payment', 'paid_pending_courier', 'total_paid', 'no_claims_submitted'];
+                const clickableKeys = ['open_final_submission', 'submitted_courier_not_sent', 'pending_verification', 'pending_approval', 'pending_finance', 'pending_payment', 'pending_payment_left', 'paid_pending_courier', 'total_paid', 'no_claims_submitted'];
                 if (clickableKeys.includes(row.key) && val > 0) {
                     // Map row.key to pendingStageSelect value
                     const stageMap = {
@@ -726,6 +730,7 @@ function loadStageSummary(callback) {
                         'pending_approval': 'pending_approval',
                         'pending_finance': 'pending_finance',
                         'pending_payment': 'pending_payment',
+                        'pending_payment_left': 'pending_payment_left',
                         'paid_pending_courier': 'paid_pending_courier',
                         'total_paid': 'paid',
                         'no_claims_submitted': 'no_claim',
@@ -1274,6 +1279,7 @@ $(document).ready(function() {
             'pending_approval': 'Verified - Pending Approval',
             'pending_finance': 'Approved - Pending Finance',
             'pending_payment': 'Finance Processed - Pending Payment',
+            'pending_payment_left': 'Pending Payment - employees who have left (F&F)',
             'paid_pending_courier': 'Paid - Pending Courier',
             'paid': 'Paid',
             'no_claim': 'No Claim Employee List',

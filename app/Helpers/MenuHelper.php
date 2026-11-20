@@ -141,10 +141,19 @@ if (!function_exists('getMenuTree')) {
                         return $map ?: ['__none__' => '__none__'];
                     });
                 }
-                if (!isset($permissionCache[$menu->permission_name])) {
-                    $permissionCache[$menu->permission_name] = $menu->permission_name;
+                // PAGE-CLEAN-04 (20 Nov 2026): "perm_a|perm_b" = the item shows for a user with any of them (one menu
+                // item for a page that two roles reach, e.g. Claims / Finance Claim)
+                $anyOf = false;
+                foreach (array_filter(array_map('trim', explode('|', $menu->permission_name))) as $pn) {
+                    if (!isset($permissionCache[$pn])) {
+                        $permissionCache[$pn] = $pn;
+                    }
+                    if (Auth::user()->can($permissionCache[$pn])) {
+                        $anyOf = true;
+                        break;
+                    }
                 }
-                if (!Auth::user()->can($permissionCache[$menu->permission_name])) {
+                if (!$anyOf) {
                     continue;
                 }
             }

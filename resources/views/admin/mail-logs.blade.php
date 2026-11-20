@@ -7,10 +7,11 @@
         <div class="row mb-3">
             <div class="col-12">
                 <h4 class="fw-bold" style="color:#15648C;">
-                    <i class="ri-mail-send-line me-2"></i>Sent Mail Logs
+                    <i class="ri-mail-send-line me-2"></i>Email Logs
                 </h4>
             </div>
         </div>
+        @include('admin.partials._email-log-tabs')
 
         {{-- Filters --}}
         <div class="card mb-3" style="border:1px solid #e0e7ef;">

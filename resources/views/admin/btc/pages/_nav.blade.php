@@ -17,7 +17,7 @@
         ['btc.classification', 'Classification', 'ri-price-tag-3-line', 'btc.dms|btc.bill_upload|btc.finance'],
         ['btc.punch', 'Punch Screen', 'ri-keyboard-box-line', 'btc.bill_upload|btc.finance'],
         ['btc.verifier', 'Finance Level Verification', 'ri-checkbox-multiple-line', 'btc.verifier|btc.audit'],
-        ['btc.approval', 'Finance Approval', 'ri-shield-check-line', 'btc.fin_approver|btc.audit'],
+        ['btc.approval', 'Payment Approval & Advance Adjustment', 'ri-shield-check-line', 'btc.fin_approver|btc.audit'],
         ['btc.advance-approval', 'Finance Advance Approval', 'ri-hand-coin-line', 'btc.fin_approver|btc.advance|btc.audit'],
         ['btc.treasury', 'Treasury Payment', 'ri-bank-line', 'btc.treasury|btc.audit'],
         ['btc.access', 'Roles & Access', 'ri-shield-user-line', 'btc.access'],

@@ -371,13 +371,20 @@ class BtcV2Controller extends Controller
         $this->need('btc.fin_approver|btc.advance|btc.audit');
         abort_unless($this->ready() && Schema::hasColumn('btc_cases', 'adv_stage'), 503, 'Run the BTC database update first.');
         $adv = fn ($q) => $q->where('status', 'advance_requested');
+        $paid = fn ($q) => $q->where('advance_amount', '>', 0)->where(fn ($w) => $w->where('advance_paid_amount', '>', 0)->orWhereNotNull('advance_paid_on'));
 
         return $this->queue('advance-approval', 'Finance Advance Approval', 'ri-hand-coin-line',
             'Advances approved by the reporting manager wait here for Finance: approve (or reject), then give the payment instruction. Finance Advance pays only instructed advances.',
             [
                 'pending' => ['Pending', fn ($q) => $adv($q)->where(fn ($w) => $w->whereNull('adv_stage')->orWhereIn('adv_stage', ['', 'pending']))],
                 'approved' => ['Approved', fn ($q) => $adv($q)->where('adv_stage', 'approved')],
-                'instructed' => ['Instructed', fn ($q) => $q->where('adv_stage', 'instructed')],
+                'instructed' => ['Instructed', fn ($q) => $adv($q)->where('adv_stage', 'instructed')],
+                // BTC-SCAN-02 (20 Nov 2026, tracker tab 5 d-f): confirmed = advance paid; unsettled = paid, not yet
+                // adjusted against the bill or refunded; rejected by Finance
+                'confirmed' => ['Confirmed (paid)', fn ($q) => $paid($q)],
+                'unsettled' => ['Unsettled', fn ($q) => $paid($q)->whereNotIn('status', ['closed', 'cancelled'])
+                    ->whereRaw('(COALESCE(advance_paid_amount, advance_amount) + COALESCE(tds_on_advance, 0) - COALESCE(advance_adjusted, 0) - COALESCE(advance_refund, 0)) > 0.5')],
+                'rejected' => ['Rejected', fn ($q) => $q->where('adv_stage', 'rejected')],
             ], (string) $request->input('tab', 'pending'), $request);
     }
 
@@ -455,13 +462,15 @@ class BtcV2Controller extends Controller
     {
         $this->need('btc.fin_approver|btc.audit');
 
-        return $this->queue('queue', 'Finance Approval', 'ri-shield-check-line',
-            'Final approval before Treasury: invoice, extracted data, Focus entry and export. Approve, return, reject or hold.',
+        // BTC-SCAN-02 (20 Nov 2026, tracker tab 6): Payment approval & advance adjustment after the bill - pending,
+        // approved, held; the advance paid, adjusted against this bill and the net payable are shown per case
+        return $this->queue('queue', 'Payment Approval & Advance Adjustment', 'ri-shield-check-line',
+            'After the bill is verified: check the advance paid and adjusted against the bill, the TDS and the net payable (or the amount to recover), then approve for Treasury, return, reject or hold.',
             [
-                'pending' => ['To approve', fn ($q) => $q->where('status', 'focus_done')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
-                'hold' => ['On hold', fn ($q) => $q->whereIn('status', ['focus_done', 'fin_approved'])->where('on_hold', 1)],
-                'approved' => ['Approved, with Treasury', fn ($q) => $q->where('status', 'fin_approved')],
-            ], (string) $request->input('tab', 'pending'), $request);
+                'pending' => ['Pending', fn ($q) => $q->where('status', 'focus_done')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
+                'approved' => ['Approved', fn ($q) => $q->where('status', 'fin_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
+                'hold' => ['Held', fn ($q) => $q->whereIn('status', ['focus_done', 'fin_approved'])->where('on_hold', 1)],
+            ], (string) $request->input('tab', 'pending'), $request, ['advCols' => true]);
     }
 
     // ---- Treasury Payment ---------------------------------------------------------------------------------------

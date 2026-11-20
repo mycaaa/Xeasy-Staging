@@ -40,7 +40,7 @@ class ClaimStageReportController extends Controller
             'months' => $months,
         ], $organogramFilters);
 
-        $data = ReportCacheService::remember('stage_summary_v3', $filters, function () use ($months, $organogramFilters) {
+        $data = ReportCacheService::remember('stage_summary_v4', $filters, function () use ($months, $organogramFilters) {
             $yearId = \App\Support\CurrentYear::id();
             $companyId = (int) session('company_id', 1);
             $expenseConn = session('expense_connection', \App\Helpers\DatabaseSwitcher::getExpenseConnection());
@@ -81,6 +81,7 @@ class ClaimStageReportController extends Controller
                 'mef.Finance_Date',
                 'mef.Fin_PayDate',
                 'mef.Fin_PayAmt',
+                'e.EmpStatus', // STAGE-LEFT-01
                 DB::raw('IFNULL(ec.total_claims, 0) as claim_count'),
                 ...array_diff(\App\Support\Paid::selects($expenseConn, $table, 'mef'), ['mef.Fin_PayDate']), // PAID-01
             ])->get();
@@ -110,6 +111,7 @@ class ClaimStageReportController extends Controller
                     'pending_approval' => 0,
                     'pending_finance' => 0,
                     'pending_payment' => 0,
+                    'pending_payment_left' => 0,   // STAGE-LEFT-01
                     'paid_pending_courier' => 0,
                 ];
             }
@@ -131,7 +133,8 @@ class ClaimStageReportController extends Controller
                     case 'pending_verification': $results[$m]['pending_verification']++; break;
                     case 'pending_approval': $results[$m]['pending_approval']++; break;
                     case 'pending_finance': $results[$m]['pending_finance']++; break;
-                    case 'pending_payment': $results[$m]['pending_payment']++; break;
+                    // STAGE-LEFT-01 (IT tracker #7): employees who have left are settled in F&F - counted apart
+                    case 'pending_payment': $results[$m][\App\Services\Reports\ClaimStageReportService::hasLeft($row) ? 'pending_payment_left' : 'pending_payment']++; break;
                     case 'paid_pending_courier': $results[$m]['paid_pending_courier']++; break;
                     case 'paid': $results[$m]['total_paid']++; break;
                 }

@@ -84,7 +84,7 @@ $(function () {
     const vendorPick = (c) => {
         const want = BTC_VENDOR_TYPES[c.category] || [];
         const list = BTC_VENDORS.filter(v => !want.length || v.types.some(t => want.includes(t)));
-        return `<div class="col-md-5"><label class="btc-label">Vendor / hotel (from the vendor list) <span class="text-danger">*</span></label><select class="form-select form-select-sm btc-vpick" name="vendor_id"><option value="">— not listed: type the name —</option>${list.map(v => `<option value="${v.id}" ${String(v.id) === String(c.vendor_id) ? 'selected' : ''}>${esc(v.name + (v.gst ? ' · ' + v.gst : ''))}</option>`).join('')}</select></div>
+        return `<div class="col-md-5"><label class="btc-label">Vendor / hotel (from the vendor list) <span class="text-danger">*</span></label><select class="form-select form-select-sm btc-vpick" name="vendor_id"><option value="">— not listed: type the name —</option>${list.map(v => `<option value="${v.id}" ${(c.vendor_id && String(v.id) === String(c.vendor_id)) || (v.code && v.code === c.vendor_code) ? 'selected' : ''}>${esc(v.name + (v.gst ? ' · ' + v.gst : ''))}</option>`).join('')}</select></div>
             <div class="col-md-4"><label class="btc-label">or vendor name <span class="text-danger">*</span> (<a href="https://connect.vnrin.in/register" target="_blank" rel="noopener">register</a>)</label><input class="form-control form-control-sm" name="vendor_name" value="${c.vendor_id ? '' : esc(c.vendor_name || '')}"></div>`;
     };
     // BTC-V2 Step 2: the Finance data format, filled from the invoice; correct what was read wrongly

@@ -379,8 +379,11 @@ class AdvanceRequestLegacyController extends BaseMobileController
                                 foreach ($expenseMonthRows as $monthRowObj) {
                                     $monthRow = (array) $monthRowObj;
                                     $currentMonthNum = (int) $monthRow['Month'];
-                                    $claimAmount = $monthRow['Claim_Amount'];
-                                    $claim80Percent = round($claimAmount * 0.8, 2);
+                                    // AUTO-ADV-80-01 (20 Nov 2026, IT tracker #10): the app offered 80% of the month's whole claim
+                                    // (Claim_Amount, DA included) while the policy and the server check (AdvancePolicy) allow
+                                    // 80% of the claim without DA - the app now shows the same figure the server accepts
+                                    $claimAmount = \App\Services\Advance\AdvancePolicy::monthClaimWithoutDa($expenseConn, (int) $yearId, (int) $employeeID, (int) $monthRow['Month']);
+                                    $claim80Percent = floor($claimAmount * (float) config('advance_policy.supply_chain_auto.max_percent', 80) / 100);
 
                                     // Calculate previous month
                                     $previousMonth = $currentMonthNum - 1;

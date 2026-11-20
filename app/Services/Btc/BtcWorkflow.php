@@ -282,11 +282,8 @@ class BtcWorkflow
                     }
                 }
                 if (! empty($d['vendor_id'])) {
-                    $v = DB::table('vendor_list')->where('id', (int) $d['vendor_id'])->first(['id', 'vendor_name', 'gst_no']);
-                    if ($v) {
-                        $c->vendor_id = $v->id;
-                        $c->vendor_name = $v->vendor_name;
-                        $c->vendor_gstin = $v->gst_no;
+                    if ($v = CoreVendors::find($d['vendor_id'])) {   // BTC-VENDOR-CORE-01: core vendor ("C<id>") or old list
+                        $this->putVendor($c, $v);
                     }
                 } elseif (! empty($d['vendor_name'])) {
                     $c->vendor_name = mb_substr(trim((string) $d['vendor_name']), 0, 200);
@@ -327,13 +324,14 @@ class BtcWorkflow
                 break;
             case 'change_vendor':
                 $oldV = $c->vendor_name;
-                if (! empty($d['vendor_id']) && ($v = DB::table('vendor_list')->where('id', (int) $d['vendor_id'])->first(['id', 'vendor_name', 'gst_no']))) {
-                    $c->vendor_id = $v->id;
-                    $c->vendor_name = $v->vendor_name;
-                    $c->vendor_gstin = $v->gst_no;
+                if (! empty($d['vendor_id']) && ($v = CoreVendors::find($d['vendor_id']))) {
+                    $this->putVendor($c, $v);
                     $c->new_vendor = false;
                 } elseif (trim((string) ($d['vendor_name'] ?? '')) !== '') {
                     $c->vendor_id = null;
+                    if (Schema::hasColumn('btc_cases', 'vendor_code')) {
+                        $c->vendor_code = null;
+                    }
                     $c->vendor_name = mb_substr(trim((string) $d['vendor_name']), 0, 200);
                     $c->vendor_gstin = null;
                     $c->new_vendor = true;
@@ -743,6 +741,17 @@ class BtcWorkflow
         });
 
         return $c->fresh();
+    }
+
+    /** BTC-VENDOR-CORE-01: put a vendor found by CoreVendors::find() on the case. */
+    private function putVendor(BtcCase $c, array $v): void
+    {
+        $c->vendor_id = $v['vendor_id'];
+        $c->vendor_name = $v['name'];
+        $c->vendor_gstin = $v['gstin'];
+        if (Schema::hasColumn('btc_cases', 'vendor_code')) {
+            $c->vendor_code = $v['vendor_code'];
+        }
     }
 
     /** BTC-SCAN-01: the punch form of the bill type (fields as printed on the bill), kept on the case. */

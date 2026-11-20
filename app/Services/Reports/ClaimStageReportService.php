@@ -116,6 +116,7 @@ class ClaimStageReportService
             'mef.Finance_Date',
             'mef.Fin_PayDate',
             'mef.Fin_PayAmt',
+            'e.EmpStatus', // STAGE-LEFT-01
             DB::raw('IFNULL(ec.total_claims, 0) as claim_count'),
             ...array_diff(\App\Support\Paid::selects($this->expenseConn, $table, 'mef'), ['mef.Fin_PayDate']), // PAID-01
         ])->get();
@@ -153,6 +154,7 @@ class ClaimStageReportService
                 'pending_approval' => 0,
                 'pending_finance' => 0,
                 'pending_payment' => 0,
+                'pending_payment_left' => 0,   // STAGE-LEFT-01
                 'paid_pending_courier' => 0,
             ];
         }
@@ -184,7 +186,8 @@ class ClaimStageReportService
                     $results[$m]['pending_finance']++;
                     break;
                 case 'pending_payment':
-                    $results[$m]['pending_payment']++;
+                    // STAGE-LEFT-01 (IT tracker #7): employees who have left are settled in F&F - counted apart
+                    $results[$m][self::hasLeft($row) ? 'pending_payment_left' : 'pending_payment']++;
                     break;
                 case 'paid_pending_courier':
                     $results[$m]['paid_pending_courier']++;
@@ -219,6 +222,14 @@ class ClaimStageReportService
      * Hierarchical: each record appears in the HIGHEST completed stage only.
      * PAID-01: "paid" is App\Support\Paid::is (pay date, confirmed with UTR, or no payment due).
      */
+    /** STAGE-LEFT-01: the employee has left (HRIMS status not Active) - claims are settled in the F&F. */
+    public static function hasLeft($row): bool
+    {
+        $st = $row->EmpStatus ?? null;
+
+        return $st !== null && $st !== '' && $st !== 'A';
+    }
+
     private function detectStageVNR($row): string
     {
         if (\App\Support\Paid::is($row)) return 'paid'; // PAID-01
@@ -353,10 +364,18 @@ class ClaimStageReportService
                 }
                 break;
             case 'pending_payment':
-                // VNR: Finance processed but not paid
-                $query->where('mef.Finance_Date', '!=', '0000-00-00')
-                    ->whereNotNull('mef.Finance_Date')
-                    ->whereRaw('NOT '.\App\Support\Paid::sql($this->expenseConn, $table, 'mef'));
+            case 'pending_payment_left':
+                // VNR: Finance processed but not paid (VVNR: approved, not paid). STAGE-LEFT-01: employees who have left
+                // (settled in F&F) are listed apart
+                if ($this->companyId == 11) {
+                    $query->where('mef.Approved_Date', '!=', '0000-00-00')->whereNotNull('mef.Approved_Date');
+                } else {
+                    $query->where('mef.Finance_Date', '!=', '0000-00-00')->whereNotNull('mef.Finance_Date');
+                }
+                $query->whereRaw('NOT '.\App\Support\Paid::sql($this->expenseConn, $table, 'mef'));
+                $stage === 'pending_payment_left'
+                    ? $query->where(fn ($q) => $q->whereNotNull('e.EmpStatus')->where('e.EmpStatus', '!=', 'A'))
+                    : $query->where(fn ($q) => $q->whereNull('e.EmpStatus')->orWhere('e.EmpStatus', 'A'));
                 break;
             case 'pending_finance':
                 // VNR only: Approved but finance not processed
