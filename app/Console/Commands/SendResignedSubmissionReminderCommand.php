@@ -77,11 +77,11 @@ class SendResignedSubmissionReminderCommand extends Command
         }
 
         if ($employees->isEmpty()) {
-            $this->info('No eligible resigned employees with pending claims found.');
+            $this->info('No resigned employee with expense claims found.');
             return self::SUCCESS;
         }
 
-        $scopeMsg = $isAllResigned ? 'all eligible resigned employees' : 'resigned employees WITH PENDING CLAIMS FOR SUBMISSION';
+        $scopeMsg = $isAllResigned ? 'all eligible resigned employees' : 'resigned employees with expense claims';
         $this->line("Found {$employees->count()} {$scopeMsg} across selected companies.");
 
         $sentCount    = 0;
@@ -94,37 +94,11 @@ class SendResignedSubmissionReminderCommand extends Command
             $nextReminderCount    = $currentReminderCount + 1;
             $targetEmail          = $testEmail ?: ($emp->email ?? 'No Email');
 
-            // 1. Max reminders check
-            if (!$isForce && $settings->max_reminders_per_employee > 0 && $currentReminderCount >= $settings->max_reminders_per_employee) {
+            // FNF-01 (20 Nov 2026): daily from 7 days before the last working day up to that day, once a day
+            if (!$isForce && ($why = $service->scheduleSkipReason($emp, $settings))) {
                 $skippedCount++;
-                $rows[] = [
-                    $emp->EmployeeID,
-                    $emp->EmpCode,
-                    $emp->employee_name,
-                    $emp->company_name,
-                    $targetEmail,
-                    $currentReminderCount,
-                    '<comment>SKIPPED (Max ' . $settings->max_reminders_per_employee . ' reached)</comment>',
-                ];
+                $rows[] = [$emp->EmployeeID, $emp->EmpCode, $emp->employee_name, $emp->company_name, $targetEmail, $currentReminderCount, '<comment>SKIPPED ('.$why.')</comment>'];
                 continue;
-            }
-
-            // 2. Minimum interval check (e.g., at least 3 days between consecutive reminders)
-            if (!$isForce && !empty($emp->last_sent_at) && $settings->min_days_between_reminders > 0) {
-                $daysSinceLastSent = Carbon::parse($emp->last_sent_at)->diffInDays(now());
-                if ($daysSinceLastSent < $settings->min_days_between_reminders) {
-                    $skippedCount++;
-                    $rows[] = [
-                        $emp->EmployeeID,
-                        $emp->EmpCode,
-                        $emp->employee_name,
-                        $emp->company_name,
-                        $targetEmail,
-                        $currentReminderCount,
-                        '<comment>SKIPPED (Sent ' . $daysSinceLastSent . 'd ago, wait ' . $settings->min_days_between_reminders . 'd)</comment>',
-                    ];
-                    continue;
-                }
             }
 
             if ($isDryRun) {

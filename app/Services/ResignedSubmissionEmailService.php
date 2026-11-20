@@ -12,8 +12,11 @@ use Illuminate\Support\Facades\Mail;
 class ResignedSubmissionEmailService
 {
     public const NOTIFICATION_TYPE = 'resigned_final_submission';
-    public const DEFAULT_SUBJECT   = 'Final Submission of Expense Claims in Xeasy Before Last Working Day';
-    public const TEMPLATE_NAME     = 'Resigned Employee Final Expense Submission Reminder';
+    // FNF-01 (20 Nov 2026, tracker tab "FNF_Xeasy 20 Nov", sections 1-6): daily reminder from 7 days before the last
+    // working day (separation date) up to that day, only to employees who have expense claims, with the status of
+    // their latest claim months. New template name, so the new text is created next to the old one.
+    public const DEFAULT_SUBJECT   = 'Complete your expense claims in Xeasy before your last working day';
+    public const TEMPLATE_NAME     = 'Separation Expense Reminder (FNF)';
 
     protected EmailLogService $emailLogService;
 
@@ -35,10 +38,10 @@ class ResignedSubmissionEmailService
                 'is_active'                   => 1,
                 'send_time'                   => '09:00',
                 'frequency'                   => 'daily',
-                'min_days_between_reminders'  => 3,
-                'max_reminders_per_employee'  => 5,
+                'min_days_between_reminders'  => 1,
+                'max_reminders_per_employee'  => 8,
                 'target_companies'            => json_encode([1, 2, 3, 4, 11]),
-                'days_before_separation'      => 60,
+                'days_before_separation'      => 7,
                 'query_email'                 => 'query@vnrseeds.com',
                 'created_at'                  => now(),
                 'updated_at'                  => now(),
@@ -223,10 +226,10 @@ class ResignedSubmissionEmailService
         // Attach pending expense claims detection
         $withClaims = $this->attachPendingClaimsInfo($mapped);
 
-        // Filter: only those who have claims pending for final submission
+        // FNF-01: no claims = no reminder (any expense claim in the active years counts)
         if ($onlyPendingClaims) {
             return $withClaims->filter(function ($emp) {
-                return !empty($emp->has_pending_claims);
+                return !empty($emp->has_claims);
             })->values();
         }
 
@@ -280,6 +283,17 @@ class ResignedSubmissionEmailService
                 }
             }
 
+            // FNF-01: any claim at all, and the status of the latest claim months for the mail
+            $emp->has_claims = $totalClaims > 0;
+            foreach ($activeYears as $yId) {
+                try {
+                    if (!$emp->has_claims && DB::connection($conn)->table("y{$yId}_expenseclaims")->where('CrBy', $emp->EmployeeID)->where('ClaimStatus', '!=', 'Deactivate')->exists()) {
+                        $emp->has_claims = true;
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
+            $emp->claim_status_rows = $emp->has_claims ? $this->claimStatusRows($emp, $conn) : [];
             $emp->has_pending_claims   = ($totalClaims > 0);
             $emp->pending_claim_count  = $totalClaims;
             $emp->pending_claim_amount = $totalAmount;
@@ -306,6 +320,9 @@ class ResignedSubmissionEmailService
     {
         $employeeData = $this->resolveEmployeeVariables($employeeOrName);
         $templateHtml = $customHtml ?: ($this->getTemplate()->body_html ?: $this->getDefaultTemplateHtml());
+        // FNF-01: the claim status table is HTML built here (escaped cell by cell), put in as it is
+        $table = is_object($employeeOrName) ? $this->claimStatusTableHtml($employeeOrName) : '';
+        $templateHtml = preg_replace('/\{\{\s*claim_status_table\s*\}\}/i', str_replace(['\\', '$'], ['\\\\', '\\$'], $table), $templateHtml);
 
         return $this->interpolateVariables($templateHtml, $employeeData);
     }
@@ -317,6 +334,7 @@ class ResignedSubmissionEmailService
     {
         $employeeData = $this->resolveEmployeeVariables($employeeOrName);
         $templateText = $customText ?: ($this->getTemplate()->body_text ?: $this->getDefaultTemplateText());
+        $employeeData['claim_status_table'] = is_object($employeeOrName) ? $this->claimStatusText($employeeOrName) : '';
 
         return $this->interpolateVariables($templateText, $employeeData);
     }
@@ -364,6 +382,87 @@ class ResignedSubmissionEmailService
     }
 
     /**
+     * FNF-01: status of the employee's latest claim months (two months before the last working day up to its month),
+     * read from Xeasy at the time of sending.
+     *
+     * @return array<int,array{month:string,status:string,claims:int}>
+     */
+    public function claimStatusRows(object $emp, ?string $conn = null): array
+    {
+        $conn = $conn ?: DatabaseSwitcher::getExpenseConnection($emp->CompanyId ?? 1);
+        $lwd = ($emp->DateOfSepration ?? null) && (string) $emp->DateOfSepration > '2000-01-01' ? Carbon::parse($emp->DateOfSepration) : now();
+        $rows = [];
+        for ($i = 2; $i >= 0; $i--) {
+            $d = $lwd->copy()->startOfMonth()->subMonthsNoOverflow($i);
+            $y = \App\Support\CompanyYear::containing($conn, $d->toDateString());
+            if (!$y) {
+                continue;
+            }
+            try {
+                $mef = DB::connection($conn)->table("y{$y}_monthexpensefinal")->where('EmployeeID', $emp->EmployeeID)->where('Month', $d->month)->first();
+                $n = DB::connection($conn)->table("y{$y}_expenseclaims")->where('CrBy', $emp->EmployeeID)->where('ClaimMonth', $d->month)->where('ClaimStatus', '!=', 'Deactivate')->count();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if (!$mef && $n === 0 && $i > 0) {
+                continue;   // earlier month with nothing: not shown
+            }
+            $rows[] = ['month' => $d->format('F Y'), 'status' => \App\Services\Fnf\FnfCalculator::monthStatus($mef, $n), 'claims' => $n];
+        }
+
+        return array_reverse($rows);   // latest first
+    }
+
+    /** FNF-01: claim status table (HTML) for the mail. */
+    public function claimStatusTableHtml(object $emp): string
+    {
+        $rows = $emp->claim_status_rows ?? $this->claimStatusRows($emp);
+        if (!$rows) {
+            return '';
+        }
+        $tr = '';
+        foreach ($rows as $r) {
+            $warn = in_array($r['status'], ['Not submitted', 'Submitted - hard copy not received'], true);
+            $tr .= '<tr><td style="padding:6px 10px;border:1px solid #e5e7eb;">'.e($r['month']).'</td><td style="padding:6px 10px;border:1px solid #e5e7eb;'.($warn ? 'color:#b91c1c;font-weight:600;' : '').'">'.e($r['status']).'</td></tr>';
+        }
+
+        return '<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:14px;margin:6px 0 18px 0;">'
+            .'<tr><th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f8fafc;text-align:left;">Claim month</th><th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f8fafc;text-align:left;">Claim status</th></tr>'
+            .$tr.'</table>';
+    }
+
+    /** FNF-01: claim status as plain text for the text part of the mail. */
+    public function claimStatusText(object $emp): string
+    {
+        return collect($emp->claim_status_rows ?? $this->claimStatusRows($emp))->map(fn ($r) => str_pad($r['month'], 18).$r['status'])->implode("\n");
+    }
+
+    /**
+     * FNF-01: whether the daily job sends today - from (last working day - days_before_separation) up to the last
+     * working day, once a day. Null = send, else the reason it is skipped.
+     */
+    public function scheduleSkipReason(object $emp, object $settings): ?string
+    {
+        $lwd = ($emp->DateOfSepration ?? null) && (string) $emp->DateOfSepration > '2000-01-01' ? Carbon::parse($emp->DateOfSepration)->startOfDay() : null;
+        if (!$lwd) {
+            return 'No last working day entered';
+        }
+        $start = $lwd->copy()->subDays(max(0, (int) ($settings->days_before_separation ?? 7)));
+        $today = now()->startOfDay();
+        if ($today->lt($start)) {
+            return 'Reminders start on '.$start->format('d-m-Y');
+        }
+        if ($today->gt($lwd)) {
+            return 'Last working day '.$lwd->format('d-m-Y').' has passed';
+        }
+        if (!empty($emp->last_sent_at) && Carbon::parse($emp->last_sent_at)->isSameDay(now())) {
+            return 'Already sent today';
+        }
+
+        return null;
+    }
+
+    /**
      * Interpolate mustache style variables (supports {{var}} and {{ var }}).
      */
     protected function interpolateVariables(string $template, array $data): string
@@ -401,11 +500,11 @@ class ResignedSubmissionEmailService
             $employee = $tempColl->first();
         }
 
-        if (empty($employee->has_pending_claims)) {
+        if (empty($employee->has_claims)) {   // FNF-01: no claims = no reminder
             return [
                 'success'       => false,
                 'skipped'       => true,
-                'message'       => "Employee {$employeeName} (ID: {$employee->EmployeeID}) has no pending expense claims for submission. Notification skipped.",
+                'message'       => "Employee {$employeeName} (ID: {$employee->EmployeeID}) has no expense claims in Xeasy. Notification skipped.",
                 'employee_id'   => $employee->EmployeeID,
                 'employee_name' => $employeeName,
                 'email'         => $recipientEmail,
@@ -545,36 +644,11 @@ class ResignedSubmissionEmailService
         $skippedCount = 0;
 
         foreach ($query as $emp) {
-            // If cron, apply frequency / interval rules
-            if ($isCron) {
-                // 1. Max reminder limit check
-                if ($settings->max_reminders_per_employee > 0 && ($emp->reminder_count ?? 0) >= $settings->max_reminders_per_employee) {
-                    $skippedCount++;
-                    $results[] = [
-                        'success'       => false,
-                        'skipped'       => true,
-                        'message'       => "Skipped: Reached max reminders limit ({$settings->max_reminders_per_employee})",
-                        'employee_id'   => $emp->EmployeeID,
-                        'employee_name' => $emp->employee_name,
-                    ];
-                    continue;
-                }
-
-                // 2. Minimum interval check (e.g., at least 3 days between reminders)
-                if (!empty($emp->last_sent_at) && $settings->min_days_between_reminders > 0) {
-                    $daysSinceLastSent = Carbon::parse($emp->last_sent_at)->diffInDays(now());
-                    if ($daysSinceLastSent < $settings->min_days_between_reminders) {
-                        $skippedCount++;
-                        $results[] = [
-                            'success'       => false,
-                            'skipped'       => true,
-                            'message'       => "Skipped: Last sent {$daysSinceLastSent} day(s) ago (min required: {$settings->min_days_between_reminders} days)",
-                            'employee_id'   => $emp->EmployeeID,
-                            'employee_name' => $emp->employee_name,
-                        ];
-                        continue;
-                    }
-                }
+            // FNF-01: the daily job sends from 7 days before the last working day up to that day, once a day
+            if ($isCron && ($why = $this->scheduleSkipReason($emp, $settings))) {
+                $skippedCount++;
+                $results[] = ['success' => false, 'skipped' => true, 'message' => 'Skipped: '.$why, 'employee_id' => $emp->EmployeeID, 'employee_name' => $emp->employee_name];
+                continue;
             }
 
             $res = $this->sendReminder($emp, $overrideEmail, $isCron);
@@ -695,81 +769,33 @@ class ResignedSubmissionEmailService
      */
     public function getDefaultTemplateHtml(): string
     {
+        // FNF-01 (20 Nov 2026): text of tracker tab "FNF_Xeasy 20 Nov", section 4, with the claim status of section 5
         return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Final Submission of Expense Claims</title>
-</head>
-<body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #333333; line-height: 1.6;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 20px 0;">
-        <tr>
-            <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 620px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border: 1px solid #e5e7eb;">
-                    <!-- Header -->
-                    <tr>
-                        <td style="background: linear-gradient(135deg, #1e3a8a 0%, #0d9488 100%); padding: 24px 30px; text-align: left; color: #ffffff;">
-                            <div style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; margin-bottom: 4px;">Xeasy Expense Management</div>
-                            <h2 style="margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; color: #ffffff;">Final Submission of Expense Claims</h2>
-                        </td>
-                    </tr>
-
-                    <!-- Body Content -->
-                    <tr>
-                        <td style="padding: 30px 30px 20px 30px;">
-                            <p style="margin: 0 0 16px 0; font-size: 16px; color: #1f2937;">
-                                Dear <strong>{{employee_name}}</strong>,
-                            </p>
-                            
-                            <p style="margin: 0 0 16px 0; font-size: 14px; color: #374151;">
-                                As your employee status has been updated to <strong style="color: #b91c1c;">Resigned</strong> in the system, the <strong>Final Submission</strong> option for your expense claims is now enabled in Xeasy.
-                            </p>
-
-                            <p style="margin: 0 0 12px 0; font-size: 14px; color: #374151; font-weight: 600;">
-                                Please ensure the following before your last working day:
-                            </p>
-
-                            <!-- Instructions Box -->
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc; border-left: 4px solid #0d9488; border-radius: 4px; margin-bottom: 20px;">
-                                <tr>
-                                    <td style="padding: 14px 18px;">
-                                        <ul style="margin: 0; padding-left: 18px; color: #334155; font-size: 14px;">
-                                            <li style="margin-bottom: 10px; line-height: 1.5;">
-                                                <strong>Submit all pending claims</strong> after verifying the details, as final submission cannot be reverted or modified.
-                                            </li>
-                                            <li style="margin-bottom: 0; line-height: 1.5;">
-                                                <strong>Send all supporting documents and hard copies</strong> to the Finance Department, VNR Seeds, Raipur Head Office.
-                                            </li>
-                                        </ul>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <p style="margin: 0 0 24px 0; font-size: 14px; color: #374151;">
-                                For any clarification, please email us at <a href="mailto:{{query_email}}" style="color: #0284c7; text-decoration: underline; font-weight: 500;">{{query_email}}</a>.
-                            </p>
-
-                            <!-- Signoff -->
-                            <div style="border-top: 1px solid #f1f5f9; padding-top: 18px; margin-top: 20px; font-size: 14px; color: #475569;">
-                                <p style="margin: 0 0 4px 0;">Regards,</p>
-                                <p style="margin: 0; font-weight: 700; color: #0f172a;">Finance Department</p>
-                                <p style="margin: 0; font-size: 13px; color: #64748b;">{{company_name}}</p>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background-color: #f8fafc; padding: 16px 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
-                            This is an automated system notification from Xeasy Expense Portal &bull; {{company_name}}
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Expense claims before your last working day</title></head>
+<body style="margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;background-color:#f4f6f8;color:#1f2937;line-height:1.55;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">
+<tr><td style="padding:22px 28px 6px 28px;font-size:14px;">
+<p style="margin:0 0 14px 0;">Dear {{employee_name}},</p>
+<p style="margin:0 0 14px 0;">As per our records, your last working day with the organisation is <strong>{{separation_date}}</strong>.</p>
+<p style="margin:0 0 10px 0;">We request you to review the status of your latest expense claims in Xeasy and ensure that all pending expenses are submitted before your separation.</p>
+{{claim_status_table}}
+<p style="margin:0 0 6px 0;">Please ensure the following:</p>
+<ol style="margin:0 0 14px 0;padding-left:20px;">
+<li style="margin-bottom:6px;">Submit all your pending expense claims, including the current month's expenses, on or before your Last Working Day.</li>
+<li style="margin-bottom:6px;">Submit the corresponding hard copies of all expense claims to the Finance Department on your Last Working Day.</li>
+<li>Ensure that all submitted claims are duly approved and the required supporting documents are provided.</li>
+</ol>
+<p style="margin:0 0 6px 0;"><strong>Important - FNF Settlement:</strong></p>
+<p style="margin:0 0 10px 0;">Please note that any pending or unsubmitted expenses may not be considered as part of your Full &amp; Final (FNF) settlement.</p>
+<p style="margin:0 0 18px 0;">You are therefore requested to complete all expense-related formalities within the stipulated timeline to avoid any delay or omission in your FNF settlement.</p>
+<p style="margin:0 0 18px 0;">For any clarification, please write to <a href="mailto:{{query_email}}" style="color:#0369a1;">{{query_email}}</a>.</p>
+<p style="margin:0;">Regards,<br><strong>Finance &amp; Accounts Department</strong><br>{{company_name}}</p>
+</td></tr>
+<tr><td style="padding:14px 28px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">This is an automated reminder from Xeasy. Employee code {{emp_code}}.</td></tr>
+</table></td></tr></table>
 </body>
 </html>
 HTML;
@@ -783,16 +809,27 @@ HTML;
         return <<<TEXT
 Dear {{employee_name}},
 
-As your employee status has been updated to Resigned in the system, the Final Submission option for your expense claims is now enabled in Xeasy.
+As per our records, your last working day with the organisation is {{separation_date}}.
 
-Please ensure the following before your last working day:
-- Submit all pending claims after verifying the details, as final submission cannot be reverted or modified.
-- Send all supporting documents and hard copies to the Finance Department, VNR Seeds, Raipur Head Office.
+We request you to review the status of your latest expense claims in Xeasy and ensure that all pending expenses are submitted before your separation.
 
-For any clarification, please email us at {{query_email}}.
+Claim month       Claim status
+{{claim_status_table}}
+
+Please ensure the following:
+
+1. Submit all your pending expense claims, including the current month's expenses, on or before your Last Working Day.
+2. Submit the corresponding hard copies of all expense claims to the Finance Department on your Last Working Day.
+3. Ensure that all submitted claims are duly approved and the required supporting documents are provided.
+
+Important - FNF Settlement:
+
+Please note that any pending or unsubmitted expenses may not be considered as part of your Full & Final (FNF) settlement.
+
+You are therefore requested to complete all expense-related formalities within the stipulated timeline to avoid any delay or omission in your FNF settlement.
 
 Regards,
-Finance Department
+Finance & Accounts Department
 {{company_name}}
 TEXT;
     }

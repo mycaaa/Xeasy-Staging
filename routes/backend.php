@@ -973,6 +973,10 @@ Route::middleware('auth')->group(function () {
     });
     // Finance Advance Approvals
     Route::middleware('permission:payment_section')->group(function () {
+        // FNF-01 (20 Nov 2026, tracker tab "FNF_Xeasy 20 Nov"): FNF - employee-wise Finance clearance
+        Route::get('/fnf', [\App\Http\Controllers\admin\FnfController::class, 'index'])->name('fnf.index');
+        Route::get('/fnf/{id}', [\App\Http\Controllers\admin\FnfController::class, 'show'])->whereNumber('id')->name('fnf.show');
+        Route::post('/fnf/{id}', [\App\Http\Controllers\admin\FnfController::class, 'save'])->whereNumber('id')->middleware('throttle:60,1')->name('fnf.save');
         Route::get('/expense-payments', [ExpensePaymentController::class, 'displayRecords'])->name('expense-payments.index');
         // UTR-02: reasons for months marked paid with no UTR / ₹0, and F&F settlement links
         Route::get('/expense-payments/utr-exemptions', [\App\Http\Controllers\UtrExemptionController::class, 'index'])->name('expense-payments.utr-exemptions');
