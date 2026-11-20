@@ -81,8 +81,9 @@ class BtcApiController extends BaseMobileController
                     $q = trim((string) $request->input('q'));
                     if (\App\Services\Btc\CoreVendors::active()) {   // BTC-VENDOR-CORE-01: vendor list from the core application
                         $cat = (string) $request->input('category');
+                        $served = in_array($cat, collect((array) config('btc.core_vendors.category_map'))->flatten()->all(), true);   // Air / Train: no core category - all vendors, as on the web
                         $rows = collect(\App\Services\Btc\CoreVendors::forForm())
-                            ->filter(fn ($v) => ! $v['types'] || in_array($cat, $v['types'], true))
+                            ->filter(fn ($v) => ! $served || ! $v['types'] || in_array($cat, $v['types'], true))
                             ->filter(fn ($v) => $q === '' || stripos($v['name'], $q) !== false || stripos($v['gst'], $q) !== false)
                             ->take(30)->map(fn ($v) => ['id' => $v['id'], 'name' => $v['name'], 'gst' => $v['gst']])->values();
 
