@@ -9,6 +9,15 @@
             <span class="small text-muted align-self-center">The export file follows the existing Focus JV format; each case records when it was exported.</span>
         </div>
     @endif
+    @if (! empty($pick) && $rows->count())
+        {{-- BTC-PAY-02 (20 Nov 2026, tracker tab 6 d): payment instruction to Treasury for the ticked bills --}}
+        <form method="post" action="{{ route('btc.approval.instruct') }}" id="paForm" class="d-flex flex-wrap gap-2 align-items-end mb-2">@csrf
+            <div><label class="form-label small mb-1" for="paRef">Payment instruction ref. (optional)</label><input id="paRef" name="pay_instruction_ref" maxlength="60" class="form-control form-control-sm"></div>
+            <div><label class="form-label small mb-1" for="paRemark">Remark</label><input id="paRemark" name="remark" maxlength="500" class="form-control form-control-sm"></div>
+            <button class="xe-btn xe-btn-blue" id="paGo" disabled>Give payment instruction for ticked bills</button>
+            <span class="small text-muted">Treasury pays only instructed bills.</span>
+        </form>
+    @endif
     @include('admin.btc.pages._queue-table')
 </div></div>
 @include('admin.btc._casewin')
@@ -18,6 +27,10 @@
 $(function () {
     $(document).on('click', '[data-open]', function (e) { e.stopPropagation(); window.BtcCase.open($(this).data('open')); });
     $(document).on('btc:changed', function () { $('#btcCaseModal').one('hidden.bs.modal', () => location.reload()); });
+    const sync = () => $('#paGo').prop('disabled', !$('.qt-pick:checked').length);
+    $('#qtAll').on('change', function () { $('.qt-pick').prop('checked', this.checked); sync(); });
+    $(document).on('change', '.qt-pick', sync);
+    $('#paForm').on('submit', function () { $('#paGo').prop('disabled', true).text('Saving…'); });
     const open = new URLSearchParams(location.search).get('case');
     if (open) window.BtcCase.open(open);
 });

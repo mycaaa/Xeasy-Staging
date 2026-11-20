@@ -461,30 +461,83 @@ class BtcV2Controller extends Controller
     public function approval(Request $request)
     {
         $this->need('btc.fin_approver|btc.audit');
+        $free = fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0);
+        $ins = Schema::hasColumn('btc_cases', 'pay_instructed_at');
+        // advance paid on the case and not yet adjusted against the bill or refunded
+        $advOpen = '(COALESCE(advance_paid_amount, CASE WHEN advance_paid_on IS NOT NULL THEN advance_amount ELSE 0 END) + COALESCE(tds_on_advance, 0)'
+            .' - COALESCE(advance_adjusted, 0) - COALESCE(advance_refund, 0)) > 0.5 AND COALESCE(advance_paid_amount, CASE WHEN advance_paid_on IS NOT NULL THEN advance_amount ELSE 0 END) > 0';
 
-        // BTC-SCAN-02 (20 Nov 2026, tracker tab 6): Payment approval & advance adjustment after the bill - pending,
-        // approved, held; the advance paid, adjusted against this bill and the net payable are shown per case
+        // BTC-SCAN-02 (20 Nov 2026, tracker tab 6): Payment approval & advance adjustment after the bill; BTC-PAY-02
+        // (tab 6 d-f): approved -> payment instruction to Treasury -> confirmed (paid); unsettled = part paid or an
+        // advance still to adjust / recover
         return $this->queue('queue', 'Payment Approval & Advance Adjustment', 'ri-shield-check-line',
-            'After the bill is verified: check the advance paid and adjusted against the bill, the TDS and the net payable (or the amount to recover), then approve for Treasury, return, reject or hold.',
+            'After the bill is verified: check the advance paid and adjusted against the bill, the TDS and the net payable (or the amount to recover), then approve, return, reject or hold. Approved bills are paid by Treasury after the payment instruction.',
             [
-                'pending' => ['Pending', fn ($q) => $q->where('status', 'focus_done')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
-                'approved' => ['Approved', fn ($q) => $q->where('status', 'fin_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
+                'pending' => ['Pending', fn ($q) => $q->where('status', 'focus_done')->where($free)],
+                'approved' => ['Approved', fn ($q) => $q->where('status', 'fin_approved')->where($free)->when($ins, fn ($w) => $w->whereNull('pay_instructed_at'))],
                 'hold' => ['Held', fn ($q) => $q->whereIn('status', ['focus_done', 'fin_approved'])->where('on_hold', 1)],
-            ], (string) $request->input('tab', 'pending'), $request, ['advCols' => true]);
+                'instructed' => ['Instructed', fn ($q) => $ins ? $q->where('status', 'fin_approved')->whereNotNull('pay_instructed_at')->where($free) : $q->whereRaw('1 = 0')],
+                'confirmed' => ['Confirmed (paid)', fn ($q) => $q->whereIn('status', ['paid', 'closed'])->whereNotNull('paid_on')],
+                'unsettled' => ['Unsettled', fn ($q) => $q->whereIn('status', ['fin_approved', 'paid', 'closed'])
+                    ->where(fn ($w) => $w->where(fn ($p) => $p->where('status', 'fin_approved')->where('paid_amount', '>', 0))->orWhereRaw($advOpen))],
+            ], (string) $request->input('tab', 'pending'), $request, ['advCols' => true, 'payCols' => true,
+                'pick' => $ins && $request->input('tab') === 'approved' && (auth()->user()->can('btc.fin_approver') || auth()->user()->can('btc.admin'))]);
+    }
+
+    /** BTC-PAY-02: payment instruction to Treasury for the ticked approved bills. */
+    public function approvalInstruct(Request $request)
+    {
+        $this->need('btc.fin_approver');
+        $v = $request->validate(['ids' => 'required|array|min:1|max:100', 'ids.*' => 'integer', 'pay_instruction_ref' => 'nullable|string|max:60',
+            'remark' => 'nullable|string|max:500'], ['ids.required' => 'Tick the bills.']);
+        $user = auth()->user();
+        $wf = app(BtcWorkflow::class);
+        $ok = [];
+        $bad = [];
+        foreach ($this->cases()->whereIn('id', $v['ids'])->get() as $c) {
+            try {
+                $wf->act($c, 'pay_instruct', ['remark' => $v['remark'] ?? '', 'pay_instruction_ref' => $v['pay_instruction_ref'] ?? null], $user);
+                $ok[] = $c->case_no;
+            } catch (\RuntimeException $e) {
+                $bad[] = $c->case_no.': '.$e->getMessage();
+            }
+        }
+        $back = redirect()->route('btc.approval', ['tab' => 'approved']);
+        $done = 'Payment instruction given: '.implode(', ', $ok);
+
+        return $bad ? $back->with('success', $ok ? $done : null)->withErrors(['pay' => implode(' | ', $bad)]) : $back->with('success', $done.'.');
     }
 
     // ---- Treasury Payment ---------------------------------------------------------------------------------------
     public function treasury(Request $request)
     {
         $this->need('btc.treasury|btc.audit');
+        $free = fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0);
+        $need = BtcWorkflow::instructionRequired();
+        $tabs = [
+            'topay' => ['To pay', fn ($q) => $q->where('status', 'fin_approved')->where($free)->when($need, fn ($w) => $w->whereNotNull('pay_instructed_at'))],
+        ];
+        if ($need) {
+            $tabs['waiting'] = ['Approved, instruction awaited', fn ($q) => $q->where('status', 'fin_approved')->where($free)->whereNull('pay_instructed_at')];
+        }
+        $tabs['hold'] = ['On hold', fn ($q) => $q->where('status', 'fin_approved')->where('on_hold', 1)];
+        $tabs['paid'] = ['Paid', fn ($q) => $q->whereIn('status', ['paid', 'closed'])->whereNotNull('paid_on')];
+        $focus = \App\Services\Btc\BtcFocusExport::ready();
+        $mx = \App\Services\Btc\BtcMatrixVerify::ready();
 
         return $this->queue('treasury', 'Treasury Payment', 'ri-bank-line',
-            'Finance-approved cases. Pay in the bank, then record the payment and UTR here (one case or several). Payment details are logged on each case.',
-            [
-                'topay' => ['To pay', fn ($q) => $q->where('status', 'fin_approved')->where(fn ($w) => $w->whereNull('on_hold')->orWhere('on_hold', 0))],
-                'hold' => ['On hold', fn ($q) => $q->where('status', 'fin_approved')->where('on_hold', 1)],
-                'paid' => ['Paid', fn ($q) => $q->whereIn('status', ['paid', 'closed'])->whereNotNull('paid_on')],
-            ], (string) $request->input('tab', 'topay'), $request, ['modes' => config('btc.payment_modes')]);
+            'Bills with Finance\'s payment instruction. Pay in the bank, then record the payment and UTR here (one case or several). Export the Focus files from here; recorded payments are confirmed to Matrix.',
+            $tabs, (string) $request->input('tab', 'topay'), $request, ['modes' => config('btc.payment_modes'), 'payCols' => true,
+                'focus' => $focus ? [
+                    'jv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('finance_at')->whereNull('focus_jv_doc')
+                        ->when($need, fn ($w) => $w->whereNotNull('pay_instructed_at'))->count(),
+                    'ejv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->count(),
+                    'bank' => DB::table('btc_payments as p')->join('btc_cases as c', 'c.id', '=', 'p.btc_case_id')->where('c.company_id', (int) session('company_id', 1))
+                        ->where('p.status', 'success')->whereNull('p.focus_doc')->count(),
+                ] : null,
+                'matrix' => $mx ? ['on' => \App\Services\Btc\BtcMatrixVerify::enabled(), 'waiting' => \App\Services\Btc\BtcMatrixVerify::pending()->count(),
+                    'counts' => DB::table('btc_payments')->where('status', 'success')->whereNotNull('matrix_status')->groupBy('matrix_status')->selectRaw('matrix_status, COUNT(*) n')->pluck('n', 'matrix_status')->all()] : null,
+            ]);
     }
 
     /** Record payments for the ticked cases: one date and mode, a UTR per case (or one UTR for a bulk transfer). */
@@ -521,6 +574,10 @@ class BtcV2Controller extends Controller
             }
         }
         $back = redirect()->route('btc.treasury');
+        // BTC-MATRIX-01: confirm the new payments to Matrix after the page is answered (only when switched on)
+        if ($ok && \App\Services\Btc\BtcMatrixVerify::ready() && \App\Services\Btc\BtcMatrixVerify::enabled()) {
+            dispatch(fn () => app(\App\Services\Btc\BtcMatrixVerify::class)->run(null, false, 200))->afterResponse();
+        }
 
         return $bad ? $back->with('success', $ok ? 'Paid: '.implode(', ', $ok) : null)->withErrors(['pay' => implode(' | ', $bad)]) : $back->with('success', 'Payment recorded: '.implode(', ', $ok).'.');
     }
@@ -550,5 +607,100 @@ class BtcV2Controller extends Controller
         };
 
         return \Maatwebsite\Excel\Facades\Excel::download($export, 'BTC_Treasury_to_pay_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /**
+     * BTC-FOCUS-01 (20 Nov 2026, tracker items 7 and 8): Focus import files from the Treasury screen.
+     *  jv   vendor JV for instructed bills not yet exported; ejv employee JV; bank = payments recorded, not exported.
+     * ?check=1 gives the check sheet only (no document numbers used). Each file has the import sheet in the exact
+     * Focus column order and a "Check" sheet: pass / fail per bill with the reason and the values fetched.
+     */
+    public function focusFile(Request $request, string $kind)
+    {
+        $this->need('btc.treasury|btc.fin_approver|btc.verifier|btc.audit');
+        abort_unless(\App\Services\Btc\BtcFocusExport::ready(), 503, 'Run the BTC database update first.');
+        // only Treasury (or BTC admin) takes document numbers; everyone else gets the check sheet
+        $assign = ! $request->boolean('check') && (auth()->user()->can('btc.treasury') || auth()->user()->can('btc.admin'));
+        $x = new \App\Services\Btc\BtcFocusExport();
+        $company = (int) session('company_id', 1);
+        $base = BtcCase::where('company_id', $company)->orderBy('id');
+        if ($kind === 'jv') {
+            $cases = $base->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('finance_at')->whereNull('focus_jv_doc')
+                ->when(BtcWorkflow::instructionRequired(), fn ($w) => $w->whereNotNull('pay_instructed_at'))->limit(500)->get();
+            $out = $x->vendorJv($cases, $assign);
+            $cols = \App\Services\Btc\BtcFocusExport::JV_COLS;
+            $name = 'Jv_import_BTC';
+        } elseif ($kind === 'ejv') {
+            $cases = $base->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->limit(500)->get();
+            $out = $x->employeeJv($cases, $assign);
+            $cols = \App\Services\Btc\BtcFocusExport::EJV_COLS;
+            $name = 'Employee_jv_import_BTC';
+        } else {
+            $pays = DB::table('btc_payments as p')->join('btc_cases as c', 'c.id', '=', 'p.btc_case_id')->where('c.company_id', $company)
+                ->where('p.status', 'success')->whereNull('p.focus_doc')->orderBy('p.id')->limit(500)->get(['p.*']);
+            $out = $x->bankPayments($pays, $assign);
+            $cols = \App\Services\Btc\BtcFocusExport::BANK_COLS;
+            $name = 'Bank_payment_import_BTC';
+        }
+        $check = array_map(fn ($r) => [$r['type'], $r['case'], $r['result'], $r['problems'], $r['employee'], $r['entity'], $r['vendor'], $r['ledger'], $r['sub'], $r['dims'], $r['amount']], $out['check']);
+        $dateCols = [];
+        foreach ($cols as $i => $h) {
+            if (in_array($h, ['Date', 'Bill Date'], true)) {
+                $dateCols[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1)] = 'dd/mm/yyyy';
+            }
+        }
+        $sheet = fn (string $title, array $head, array $rows, array $fmt = []) => new class($title, $head, $rows, $fmt) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithTitle, \Maatwebsite\Excel\Concerns\WithColumnFormatting
+        {
+            public function __construct(private string $t, private array $h, private array $r, private array $f) {}
+
+            public function array(): array
+            {
+                return $this->r;
+            }
+
+            public function headings(): array
+            {
+                return $this->h;
+            }
+
+            public function title(): string
+            {
+                return $this->t;
+            }
+
+            public function columnFormats(): array
+            {
+                return $this->f;
+            }
+        };
+        $sheets = [];
+        if ($assign) {
+            $sheets[] = $sheet('Sheet1', $cols, $out['rows'], $dateCols);
+        }
+        $sheets[] = $sheet('Check', ['File', 'BTC ID', 'Result', 'What is wrong / pending', 'Employee(s)', 'Entity', 'Vendor (code)', 'Ledger', 'Sub ledger / cost center',
+            'Dept / sub dept / BU / region / zone / function / vertical / location / state', 'Amount'], $check);
+        $book = new class($sheets) implements \Maatwebsite\Excel\Concerns\Export, \Maatwebsite\Excel\Concerns\WithMultipleSheets
+        {
+            public function __construct(private array $s) {}
+
+            public function sheets(): array
+            {
+                return $this->s;
+            }
+        };
+        $pass = collect($out['check'])->where('result', 'Pass')->count();
+        \Illuminate\Support\Facades\Log::info('btc focus file', ['kind' => $kind, 'assign' => $assign, 'pass' => $pass, 'fail' => count($out['check']) - $pass, 'by' => auth()->id()]);
+
+        return \Maatwebsite\Excel\Facades\Excel::download($book, ($assign ? $name : $name.'_check').'_'.now()->format('Ymd_His').'.xlsx');
+    }
+
+    /** BTC-MATRIX-01: send the recorded payments to Matrix now (or check what would be sent while it is off). */
+    public function matrixSend(Request $request)
+    {
+        $this->need('btc.treasury');
+        $svc = app(\App\Services\Btc\BtcMatrixVerify::class);
+        $r = $svc->run(null, ! \App\Services\Btc\BtcMatrixVerify::enabled(), 500);
+
+        return redirect()->route('btc.treasury', ['tab' => 'paid'])->with($r['ok'] ? 'success' : 'error', $r['message']);
     }
 }

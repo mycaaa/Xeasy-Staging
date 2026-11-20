@@ -285,4 +285,55 @@ return [
         'suggest_from' => 40,
         'auto_link' => 90,
     ],
+
+    // ---- BTC-PAY-02 (20 Nov 2026, tracker tab "Data Punching Form & Finance approval screens" 6 d-f) -----------------
+    // Treasury pays a bill only after Finance gives the payment instruction (Payment Approval > Approved).
+    'payment_instruction_required' => (bool) env('BTC_PAY_INSTRUCTION_REQUIRED', true),
+
+    // ---- BTC-FOCUS-01 (20 Nov 2026, same tab, item 7): Focus JV (vendor) and Employee JV import files ------------------
+    // Ledger / sub-ledger codes as written in the tracker (from New_Focus_Ledgers_.xlsx). Keyed by Type of Expense,
+    // then entity (VNR / VVNR): [ledger code, sub-ledger code or 'N/A']. A missing entity means "not given": the export
+    // stops for that case and lists it, it never guesses a code.
+    'focus_export' => [
+        'business_entity' => ['VNR' => '120', 'VVNR' => env('BTC_FOCUS_ENTITY_VVNR', '')],   // VVNR: Finance to confirm
+        'vendor_series' => 'JV/BTC/{fy}/',           // JV/BTC/2026-27/0001 - numbered within each financial year
+        'employee_series' => 'EJV/BTC/{fy}/',        // EJV/BTC/2026-27/0001
+        'bank_series' => 'BP/BTC/{fy}/',             // payment release (Focus Bank Payment - non cheque)
+        'employee_account' => 'BTC-E{code4}',        // employee BTC account in Focus, e.g. BTC-E1301
+        'cash_bank_ac' => env('BTC_FOCUS_BANK_AC', 'BANK-26'),
+        'pmt_category' => env('BTC_FOCUS_PMT_CATEGORY', 'BTC Vendor Payment'),
+        'activity_default' => 'All Activity',
+        // Activity Head (OSA / PSA / PDA / PLA) is entered as its Focus code (ledger file col D); suggestions only
+        'activity_heads' => ['PRE SALE ACTIVITY', 'Product Launch Activity'],
+        'expense_types' => ['Lodging', 'Air Fare', 'Rail Fare', 'Bus Fare', 'Hired Vehicle', 'Team Meeting Expenses', 'Conveyance', 'Fooding', 'Gift',
+            'Business Entertainment', 'Hall & Event Setup', 'Merchandise Cost', 'Misc.', 'Training - Internal', 'Training - External'],
+        'expense_type_by_category' => ['hotel' => 'Lodging', 'air' => 'Air Fare', 'train' => 'Rail Fare', 'bus' => 'Bus Fare', 'vehicle' => 'Hired Vehicle',
+            'meeting' => 'Team Meeting Expenses', 'meals' => 'Fooding', 'other' => 'Misc.'],
+        'activity_types' => ['Farmer Meeting', 'Distributor / Dealer Meeting', 'Retailer Meeting', 'Market Meeting', 'Aao Khel Khele', 'Jeep Campaign', 'MDO Training'],
+        'ledgers' => [
+            'Lodging' => ['VNR' => ['INDIRECT-TRA-25', 'SLC-0273'], 'VVNR' => ['INDIRECT-TRA-26', 'SLC-0282']],
+            'Air Fare' => ['VNR' => ['INDIRECT-TRA-25', 'SLC-0272'], 'VVNR' => ['INDIRECT-TRA-26', 'SLC-0281']],
+            'Rail Fare' => ['VNR' => ['INDIRECT-TRA-25', 'SLC-0271'], 'VVNR' => ['INDIRECT-TRA-26', 'SLC-0280']],
+            'Bus Fare' => ['VNR' => ['INDIRECT-TRA-25', 'SLC-0271'], 'VVNR' => ['INDIRECT-TRA-26', 'SLC-0280']],
+            'Hired Vehicle' => ['VNR' => ['INDIRECT-TRA-14', 'N/A'], 'VVNR' => ['INDIRECT-TRA-14', 'N/A']],
+            'Team Meeting Expenses' => ['VNR' => ['INDIRECT-MET-04', 'N/A'], 'VVNR' => ['INDIRECT-MET-04', 'N/A']],
+            'Training - Internal' => ['VNR' => ['INDIRECT-MET-05', 'SLC-0134']],
+            'Training - External' => ['VNR' => ['INDIRECT-MET-05', 'SLC-0133']],
+        ],
+        // meeting / market expenses: Type of Activity + Type of Expense (VNR only in the ledger file)
+        'activity_ledgers' => [
+            'Farmer Meeting|Fooding' => ['VNR' => ['INDIRECT-MET-06', 'SLC-0257']],
+        ],
+    ],
+
+    // ---- BTC-MATRIX-01 (20 Nov 2026, same tab, item 9): payment confirmation sent to Matrix -----------------------------
+    // POST {url}/verify (one) and {url}/verify-bulk (many). Off until switched on with the key in .env.
+    'matrix_verify' => [
+        'enabled' => (bool) env('BTC_MATRIX_VERIFY_ENABLED', false),
+        'url' => rtrim((string) env('BTC_MATRIX_VERIFY_URL', 'https://matrix.vnin.in/api/v1/payment'), '/'),
+        'key' => env('BTC_MATRIX_VERIFY_KEY', ''),
+        'key_header' => env('BTC_MATRIX_VERIFY_KEY_HEADER', 'X-API-Key'),
+        'source' => 'Xeasy_BTC',
+        'bulk_size' => 100,
+    ],
 ];

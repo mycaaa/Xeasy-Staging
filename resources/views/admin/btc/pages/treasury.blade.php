@@ -4,6 +4,35 @@
 @php $inr = fn ($n) => number_format((float) $n, 2); @endphp
 <div class="page-content"><div class="container-fluid xe-screen">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
+    @if (! empty($focus) || ! empty($matrix))
+        {{-- BTC-FOCUS-01 / BTC-MATRIX-01 (20 Nov 2026, tracker items 7, 8, 9) --}}
+        <section class="xe-section mb-2"><div class="p-2 px-3 d-flex flex-wrap gap-3 align-items-center">
+            @if (! empty($focus))
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="small fw-semibold">Focus import files</span>
+                    @foreach (['jv' => 'JV - vendor bills', 'ejv' => 'Employee JV', 'bank' => 'Bank payment (release)'] as $k => $l)
+                        <span class="d-inline-flex gap-1">
+                            <a class="xe-btn xe-btn-green" href="{{ route('btc.treasury.focus', $k) }}" title="Gives the next document numbers to the bills that pass the checks"><i class="ri-file-excel-2-line"></i> {{ $l }} <span class="badge bg-light text-dark">{{ $focus[$k] }}</span></a>
+                            <a class="xe-btn xe-btn-plain" href="{{ route('btc.treasury.focus', [$k, 'check' => 1]) }}" title="Checks only - no document numbers used">Check</a>
+                        </span>
+                    @endforeach
+                </div>
+            @endif
+            @if (! empty($matrix))
+                <div class="d-flex flex-wrap gap-2 align-items-center ms-md-auto small">
+                    <span class="fw-semibold">Matrix payment confirmation</span>
+                    @if ($matrix['on'])<span class="badge bg-success">On</span>@else<span class="badge bg-secondary" title="BTC_MATRIX_VERIFY_ENABLED and BTC_MATRIX_VERIFY_KEY in .env">Off</span>@endif
+                    <span>waiting {{ $matrix['waiting'] }}</span>
+                    @foreach (['verified' => 'matched', 'mismatch' => 'not matched', 'sent' => 'sent', 'failed' => 'failed', 'no_account' => 'no bank a/c'] as $k => $l)
+                        @if (! empty($matrix['counts'][$k]))<span>· {{ $l }} {{ $matrix['counts'][$k] }}</span>@endif
+                    @endforeach
+                    @can('btc.treasury')
+                        <form method="post" action="{{ route('btc.treasury.matrix') }}">@csrf<button class="xe-btn xe-btn-plain">{{ $matrix['on'] ? 'Send now' : 'Check what would be sent' }}</button></form>
+                    @endcan
+                </div>
+            @endif
+        </div></section>
+    @endif
     @if ($tab === 'topay' && $rows->count() && (auth()->user()->can('btc.treasury') || auth()->user()->can('btc.admin')))
         <div class="xe-seg mb-2">@foreach ($tabs as $k => $l)<a href="{{ route('btc.treasury', ['tab' => $k]) }}" class="{{ $tab === $k ? 'active' : '' }}">{{ $l }} <span class="badge bg-light text-dark">{{ $counts[$k] }}</span></a>@endforeach</div>
         <form method="post" action="{{ route('btc.treasury.pay') }}" id="tpForm">@csrf

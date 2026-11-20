@@ -1204,9 +1204,13 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/case/{id}/reread', [\App\Http\Controllers\admin\BtcV2Controller::class, 'reread'])->whereNumber('id')->middleware('throttle:30,1')->name('reread');
     Route::get('/verifier', [\App\Http\Controllers\admin\BtcV2Controller::class, 'verifier'])->name('verifier');
     Route::get('/approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'approval'])->name('approval');
+    Route::post('/approval/instruct', [\App\Http\Controllers\admin\BtcV2Controller::class, 'approvalInstruct'])->middleware('throttle:30,1')->name('approval.instruct');   // BTC-PAY-02
     Route::get('/treasury', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasury'])->name('treasury');
     Route::post('/treasury/pay', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasuryPay'])->name('treasury.pay');
     Route::get('/treasury/export', [\App\Http\Controllers\admin\BtcV2Controller::class, 'treasuryExport'])->name('treasury.export');
+    // BTC-FOCUS-01 / BTC-MATRIX-01 (20 Nov 2026, tracker items 7, 8, 9)
+    Route::get('/treasury/focus/{kind}', [\App\Http\Controllers\admin\BtcV2Controller::class, 'focusFile'])->whereIn('kind', ['jv', 'ejv', 'bank'])->middleware('throttle:20,1')->name('treasury.focus');
+    Route::post('/treasury/matrix', [\App\Http\Controllers\admin\BtcV2Controller::class, 'matrixSend'])->middleware('throttle:6,1')->name('treasury.matrix');
     Route::post('/invoice-reader/read', [\App\Http\Controllers\admin\BtcReaderController::class, 'read'])->middleware('throttle:30,1')->name('reader.read');
     Route::get('/booking', [\App\Http\Controllers\admin\BtcPagesController::class, 'booking'])->name('booking');
     Route::get('/advances', [\App\Http\Controllers\admin\BtcPagesController::class, 'advances'])->name('advances');

@@ -128,6 +128,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // VEH-RATE-REPORT-01: Monday mail to HR
         // BTC-VENDOR-CORE-01 (20 Nov 2026): BTC vendor list from the core application, daily
         $schedule->command('btc:vendors-sync')->dailyAt('06:10')->timezone('Asia/Kolkata')->withoutOverlapping()->runInBackground();
+        // BTC-MATRIX-01 (20 Nov 2026): payments recorded by Treasury sent to Matrix (does nothing while switched off)
+        $schedule->command('btc:matrix-verify')->everyThirtyMinutes()->withoutOverlapping()->runInBackground();
         $schedule->command('reports:vehicle-rate-gaps --company=1')->weeklyOn(1, '08:40')->withoutOverlapping()
             ->appendOutputTo(storage_path('logs/vehicle-rate-gaps.log'));
         // M-08: punch-to-claim mover (replaces the old extract-data.php cron)

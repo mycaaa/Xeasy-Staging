@@ -17,6 +17,7 @@ class BtcCase extends Model
         'manager_action_at' => 'datetime', 'bill_submitted_at' => 'datetime', 'dms_at' => 'datetime', 'finance_at' => 'datetime',
         'checker_at' => 'datetime', 'treasury_at' => 'datetime', 'dept_approved_at' => 'datetime', 'closed_at' => 'datetime',
         'focus_exported_at' => 'datetime',
+        'pay_instructed_at' => 'datetime', 'focus_ejv_at' => 'datetime',   // BTC-PAY-02 / BTC-FOCUS-01
         'booking_date' => 'date', 'activity_completed_on' => 'date', 'advance_refund_on' => 'date',
         'doc_waived_at' => 'datetime', 'hold_at' => 'datetime', 'on_hold' => 'boolean',
         'dms_received_on' => 'date', 'dms_to_finance_on' => 'date', 'bill_uploaded_at' => 'datetime', 'verify1_at' => 'datetime', 'fin_approved_at' => 'datetime',   // BTC-V2

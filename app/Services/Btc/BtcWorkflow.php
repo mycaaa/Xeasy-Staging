@@ -71,6 +71,8 @@ class BtcWorkflow
         'fin_approve' => [['focus_done'], 'btc.fin_approver', 'fin_approved'],
         'fin_return' => [['focus_done'], 'btc.fin_approver', null],
         'fin_reject' => [['focus_done'], 'btc.fin_approver', 'rejected'],
+        // BTC-PAY-02 (20 Nov 2026, tracker tab "Data Punching Form ..." 6 d): payment instruction to Treasury
+        'pay_instruct' => [['fin_approved'], 'btc.fin_approver', null],
         'pay' => [['fin_approved'], 'btc.treasury', 'paid'],
         // BTC-PAY-01 (17 Nov 2026): a failed / returned payment is reversed with its reason (back to Treasury)
         'payment_failed' => [['fin_approved', 'paid'], 'btc.treasury', 'fin_approved'],
@@ -117,7 +119,9 @@ class BtcWorkflow
         return match ($action) {
             'hold' => ! $held,
             'release_hold' => $held,
-            'pay', 'close', 'fin_approve' => ! $held,
+            'pay' => ! $held && (! self::instructionRequired() || ! empty($c->pay_instructed_at)),
+            'pay_instruct' => ! $held && empty($c->pay_instructed_at),
+            'close', 'fin_approve' => ! $held,
             'payment_failed' => (float) $c->paid_amount > 0,
             // a bill uploaded by Finance has no owner to return it to
             'return' => (bool) $c->employee_id && $c->route !== 'direct_bill',
@@ -129,6 +133,12 @@ class BtcWorkflow
             'finance_upload' => $c->status !== 'scanned',
             default => true,
         };
+    }
+
+    /** BTC-PAY-02: Treasury pays a bill only after Finance gives the payment instruction (switchable). */
+    public static function instructionRequired(): bool
+    {
+        return (bool) config('btc.payment_instruction_required', true) && Schema::hasColumn('btc_cases', 'pay_instructed_at');
     }
 
     /** BTC-TRY-01: a payment entered by the Treasury maker and not yet authorised. */
@@ -201,6 +211,9 @@ class BtcWorkflow
         }
         if (in_array($action, ['pay', 'close', 'fin_approve'], true) && ($c->on_hold ?? false)) {
             throw new RuntimeException('The case is on financial hold ('.$c->hold_reason.'). Release the hold first.');
+        }
+        if ($action === 'pay' && self::instructionRequired() && empty($c->pay_instructed_at)) {
+            throw new RuntimeException('Finance has not given the payment instruction for this case yet (Payment Approval > Approved).');
         }
         $old = $c->status;
         $payRow = null;      // BTC-PAY-01: payment row written with the status change
@@ -557,6 +570,18 @@ class BtcWorkflow
                 // the Focus entry (ledger, TDS, advance set-off, dimensions, narration, JV no.) on the verifier's screen
                 $this->financeVerify($c, $d + ['duplicate_checked' => 1, 'duplicate_override' => 1, 'claim_overlap_override' => 1], $user);
                 $remark = trim('Focus entry prepared'.($c->jv_no ? ' (JV '.$c->jv_no.')' : '').', net payable Rs '.number_format((float) $c->net_payable, 2).($remark ? ' - '.$remark : ''));
+                break;
+            case 'pay_instruct':
+                if (! Schema::hasColumn('btc_cases', 'pay_instructed_at')) {
+                    throw new RuntimeException('Run the BTC database update first.');
+                }
+                if (! empty($c->pay_instructed_at)) {
+                    throw new RuntimeException('The payment instruction is already given.');
+                }
+                $c->pay_instructed_at = $now;
+                $c->pay_instructed_by = $user->id ?? null;
+                $c->pay_instruction_ref = isset($d['pay_instruction_ref']) ? (mb_substr(trim((string) $d['pay_instruction_ref']), 0, 60) ?: null) : null;
+                $remark = 'Payment instruction given to Treasury'.($c->pay_instruction_ref ? ' (ref '.$c->pay_instruction_ref.')' : '').($remark ? ' - '.$remark : '');
                 break;
             case 'fin_approve':
                 if ((int) $c->verify1_by === (int) ($user->id ?? 0) && ! $user->can('btc.admin')) {
@@ -972,10 +997,17 @@ class BtcWorkflow
         $c->advance_adjusted = $adv;
         $c->net_payable = $net;
         // BTC-FIN-02 (17 Nov 2026): accounting dimensions, narration, JV numbers
-        foreach (['dim_function', 'dim_vertical', 'dim_region', 'dim_activity', 'dim_crop', 'narration', 'jv_no', 'tds_jv_no'] as $k) {
+        // BTC-FOCUS-01 (20 Nov 2026, tracker tab item 7): Type of Expense / Type of Activity / Activity Head for the JV
+        foreach (['dim_function', 'dim_vertical', 'dim_region', 'dim_activity', 'dim_crop', 'narration', 'jv_no', 'tds_jv_no', 'focus_expense_type', 'focus_activity_type', 'focus_activity_head'] as $k) {
             if (array_key_exists($k, $d) && \Illuminate\Support\Facades\Schema::hasColumn($c->getTable(), $k)) {
                 $c->{$k} = trim((string) $d[$k]) ?: null;
+                if (str_starts_with($k, 'focus_') && $c->{$k} !== null) {
+                    $c->{$k} = mb_substr($c->{$k}, 0, 60);
+                }
             }
+        }
+        if (! empty($c->focus_expense_type) && ! in_array($c->focus_expense_type, (array) config('btc.focus_export.expense_types', []), true)) {
+            throw new RuntimeException('Choose the Type of expense from the list.');
         }
         $c->duplicate_checked = true;
         $c->finance_by = $user->id;
