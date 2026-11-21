@@ -93,6 +93,10 @@ class FocusLedgers
                 : "No row for expense \"{$expense}\" in the Focus ledgers (BTC Settings) - add it and upload."];
         }
         $p = $entity === 'VVNR' ? 'vvnr' : 'vnr';
+        // Finance, 21 Nov 2026: only travel codes differ for VVNR; a row without VVNR codes uses the VNR codes
+        if ($p === 'vvnr' && trim((string) ($r['vvnr_ledger'] ?? '')) === '') {
+            $p = 'vnr';
+        }
         $ledger = trim((string) ($r[$p.'_ledger'] ?? ''));
         if ($ledger === '') {
             return [null, null, "The Focus ledgers have no {$entity} ledger code for \"".($act !== '' ? $act.' / ' : '')."{$expense}\" - fill it in and upload."];
@@ -218,7 +222,8 @@ class FocusLedgers
             'Type of Expense and Type of Activity must be written exactly as Finance chooses them in the Focus entry of a BTC bill.',
             'VNR codes are used for VNR employees, VVNR codes for VVNR employees. Leave a code blank only when it does not exist:',
             '  - a blank Sub Ledger Code is exported as N/A;',
-            '  - a blank Ledger Code stops the export for that bill with the reason (nothing is guessed).',
+            '  - a blank VVNR Ledger Code means VVNR uses the VNR codes (only travel codes differ for VVNR);',
+            '  - a row with no ledger code at all stops the export for that bill with the reason (nothing is guessed).',
             'Ledger Head and Sub Ledger are the names, for reading only.',
             '',
             'Sheet "Activity Heads": the Focus code of each Activity Head (OSA / PSA / PDA / PLA ...).',
