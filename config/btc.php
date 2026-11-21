@@ -309,7 +309,7 @@ return [
         // Activity Head (OSA / PSA / PDA / PLA) is entered as its Focus code (ledger file col D); suggestions only
         'activity_heads' => ['PRE SALE ACTIVITY', 'Product Launch Activity'],
         'expense_types' => ['Lodging', 'Air Fare', 'Rail Fare', 'Bus Fare', 'Hired Vehicle', 'Team Meeting Expenses', 'Conveyance', 'Fooding', 'Gift',
-            'Business Entertainment', 'Hall & Event Setup', 'Merchandise Cost', 'Misc.', 'Training - Internal', 'Training - External'],
+            'Business Entertainment', 'Hall & Event Setup', 'Merchandise Cost (Branding & Transport)', 'Misc.', 'Training - Internal', 'Training - External'],
         'expense_type_by_category' => ['hotel' => 'Lodging', 'air' => 'Air Fare', 'train' => 'Rail Fare', 'bus' => 'Bus Fare', 'vehicle' => 'Hired Vehicle',
             'meeting' => 'Team Meeting Expenses', 'meals' => 'Fooding', 'other' => 'Misc.'],
         'activity_types' => ['Farmer Meeting', 'Distributor / Dealer Meeting', 'Retailer Meeting', 'Market Meeting', 'Aao Khel Khele', 'Jeep Campaign', 'MDO Training'],

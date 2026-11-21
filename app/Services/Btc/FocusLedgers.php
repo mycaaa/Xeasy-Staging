@@ -20,9 +20,13 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
  */
 class FocusLedgers
 {
-    public const COLS = ['Type of Activity', 'Type of Expense', 'Ledger Head', 'Sub Ledger', 'VNR Ledger Code', 'VNR Sub Ledger Code', 'VVNR Ledger Code', 'VVNR Sub Ledger Code'];
+    public const COLS = ['Expense Group', 'Type of Expense', 'Ledger Head', 'Sub Ledger', 'VNR Ledger Code', 'VNR Sub Ledger Code', 'VVNR Ledger Code', 'VVNR Sub Ledger Code'];
 
     public const HEAD_COLS = ['Activity Head', 'Focus Code'];
+
+    // BTC-FOCUS-04 (21 Nov 2026, Finance's New_Focus_Ledgers_.xlsx): Type of Activity -> Expense Group
+    // (Farmer / Distributor / Dealer / Retailer / Market / Other); the ledger rows are per Expense Group + Type of Expense
+    public const ACT_COLS = ['Type of Activity', 'Expense Group'];
 
     private static ?array $cache = null;
 
@@ -41,7 +45,12 @@ class FocusLedgers
         if (self::$cache !== null) {
             return self::$cache;
         }
-        $out = ['rows' => [], 'heads' => []];
+        $out = ['rows' => [], 'heads' => [], 'acts' => []];
+        if (Schema::hasTable('btc_focus_activity_types')) {
+            foreach (DB::table('btc_focus_activity_types')->orderBy('id')->get() as $a) {
+                $out['acts'][mb_strtolower(trim($a->activity_type))] = ['name' => $a->activity_type, 'group' => $a->expense_group];
+            }
+        }
         if (self::ready() && DB::table('btc_focus_ledgers')->exists()) {
             foreach (DB::table('btc_focus_ledgers')->orderBy('id')->get() as $r) {
                 $out['rows'][self::key($r->activity_type, $r->expense_type)] = (array) $r;
@@ -75,7 +84,9 @@ class FocusLedgers
     {
         $rows = self::load()['rows'];
         $act = trim((string) $activity);
-        $r = $rows[self::key($act, $expense)] ?? null;
+        // a Type of Activity (e.g. Retailer Crop Tour) is booked under its Expense Group (Retailer)
+        $grp = self::load()['acts'][mb_strtolower($act)]['group'] ?? $act;
+        $r = $rows[self::key($grp, $expense)] ?? $rows[self::key($act, $expense)] ?? null;
         if (! $r) {
             return [null, null, $act !== ''
                 ? "No row for activity \"{$act}\" with expense \"{$expense}\" in the Focus ledgers (BTC Settings) - add it and upload."
@@ -111,9 +122,35 @@ class FocusLedgers
 
     public static function activityTypes(): array
     {
-        $t = array_values(array_unique(array_merge((array) config('btc.focus_export.activity_types', []), array_map(fn ($r) => (string) $r['activity_type'], self::load()['rows']))));
+        $acts = array_column(self::load()['acts'], 'name');
+        $t = $acts ?: array_values(array_unique(array_merge((array) config('btc.focus_export.activity_types', []), array_map(fn ($r) => (string) $r['activity_type'], self::load()['rows']))));
 
         return array_values(array_filter($t, fn ($x) => trim((string) $x) !== ''));
+    }
+
+    /** Replace the codes with Finance's ledger file as received on 21 Nov 2026 (BTC-FOCUS-04), unless Finance has already uploaded its own. */
+    public static function loadFinanceFile(bool $force = false): int
+    {
+        if (! self::ready() || ! Schema::hasTable('btc_focus_activity_types')) {
+            return 0;
+        }
+        if (! $force && Schema::hasTable('btc_setting_logs') && DB::table('btc_setting_logs')->where('key', 'focus_ledgers')->exists()) {
+            return 0;
+        }
+        $f = require base_path('database/data/btc_focus_ledgers_2026_11_21.php');
+        $now = now();
+        DB::transaction(function () use ($f, $now) {
+            DB::table('btc_focus_ledgers')->delete();
+            DB::table('btc_focus_ledgers')->insert(array_map(fn ($r) => array_combine(['activity_type', 'expense_type', 'ledger_head', 'sub_ledger', 'vnr_ledger', 'vnr_sub', 'vvnr_ledger', 'vvnr_sub'], $r)
+                + ['created_at' => $now, 'updated_at' => $now], $f['ledgers']));
+            DB::table('btc_focus_activity_types')->delete();
+            DB::table('btc_focus_activity_types')->insert(array_map(fn ($r) => ['activity_type' => $r[0], 'expense_group' => $r[1], 'created_at' => $now, 'updated_at' => $now], $f['activities']));
+            DB::table('btc_focus_heads')->delete();
+            DB::table('btc_focus_heads')->insert(array_map(fn ($r) => ['head' => $r[0], 'focus_code' => $r[1], 'created_at' => $now, 'updated_at' => $now], $f['heads']));
+        });
+        self::$cache = null;
+
+        return count($f['ledgers']);
     }
 
     public static function heads(): array
@@ -160,12 +197,24 @@ class FocusLedgers
         $h->getStyle('A1:B1')->getFont()->setBold(true);
         $h->getColumnDimension('A')->setWidth(18);
         $h->getColumnDimension('B')->setWidth(32);
+        $a = $book->createSheet()->setTitle('Activity Types');
+        $a->fromArray(self::ACT_COLS, null, 'A1');
+        $i = 2;
+        foreach (self::load()['acts'] as $v) {
+            $a->fromArray([$v['name'], $v['group']], null, 'A'.$i++);
+        }
+        $a->getStyle('A1:B1')->getFont()->setBold(true);
+        $a->getColumnDimension('A')->setWidth(36);
+        $a->getColumnDimension('B')->setWidth(24);
         $n = $book->createSheet()->setTitle('How to fill');
         $lines = [
             'Focus ledgers for BTC - how to fill',
             '',
-            'Sheet "Ledgers": one row per Type of Expense (travel, stay, vehicle ...) with Type of Activity left blank,',
-            'and one row per Type of Activity + Type of Expense for meeting / market / training expenses (e.g. Farmer Meeting + Fooding).',
+            'Sheet "Ledgers": one row per Type of Expense for travel, stay, vehicle and team meeting (Expense Group left blank),',
+            'and one row per Expense Group + Type of Expense for farmer / distributor / retailer / market meetings and training',
+            '(e.g. Farmer + Fooding -> INDIRECT-MET-06 / SLC-0257).',
+            'Sheet "Activity Types": each Type of Activity Finance can choose on a bill, and the Expense Group it is booked under',
+            '(e.g. Retailer Crop Tour (RCT) -> Retailer).',
             'Type of Expense and Type of Activity must be written exactly as Finance chooses them in the Focus entry of a BTC bill.',
             'VNR codes are used for VNR employees, VVNR codes for VVNR employees. Leave a code blank only when it does not exist:',
             '  - a blank Sub Ledger Code is exported as N/A;',
@@ -204,6 +253,9 @@ class FocusLedgers
         $sheet = $book->getSheetByName('Ledgers') ?? $book->getSheet(0);
         $data = $sheet->toArray(null, true, false, false);
         $head = array_map(fn ($v) => trim((string) $v), $data[0] ?? []);
+        if (($head[0] ?? '') === 'Type of Activity') {
+            $head[0] = 'Expense Group';   // files downloaded before 21 Nov
+        }
         if (array_slice($head, 0, count(self::COLS)) !== self::COLS) {
             return ['ok' => false, 'message' => 'The "Ledgers" sheet must have these columns in this order: '.implode(' | ', self::COLS).'. Download the current file and edit that.'];
         }
@@ -258,19 +310,44 @@ class FocusLedgers
                 $heads[mb_strtolower($h)] = ['head' => mb_substr($h, 0, 40), 'focus_code' => mb_substr($c, 0, 80), 'created_at' => now(), 'updated_at' => now()];
             }
         }
+        $acts = [];
+        if ($as = $book->getSheetByName('Activity Types')) {
+            foreach (array_slice($as->toArray(null, true, false, false), 1) as $i => $r) {
+                $a = trim((string) ($r[0] ?? ''));
+                $g = trim((string) ($r[1] ?? ''));
+                if ($a === '' && $g === '') {
+                    continue;
+                }
+                if ($a === '' || $g === '') {
+                    $errors[] = 'Activity Types row '.($i + 2).': both the Type of Activity and its Expense Group are needed.';
+                    continue;
+                }
+                $groups = array_unique(array_map(fn ($x) => mb_strtolower($x['activity_type']), $rows));
+                if (! in_array(mb_strtolower($g), $groups, true)) {
+                    $errors[] = 'Activity Types row '.($i + 2).": Expense Group \"{$g}\" has no rows in the Ledgers sheet.";
+                }
+                $acts[mb_strtolower($a)] = ['activity_type' => mb_substr($a, 0, 80), 'expense_group' => mb_substr($g, 0, 80), 'created_at' => now(), 'updated_at' => now()];
+            }
+        }
         if ($errors) {
             return ['ok' => false, 'message' => 'Nothing was changed. Fix these and upload again:', 'errors' => array_slice($errors, 0, 40)];
         }
         $before = self::workbook();
         $dir = storage_path('app/btc/focus_ledgers');
-        @mkdir($dir, 0775, true);
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
         $stamp = now()->format('Ymd_His');
         try {
             IOFactory::createWriter($before, 'Xlsx')->save("{$dir}/before_{$stamp}.xlsx");
         } catch (\Throwable $e) {
             report($e);
         }
-        DB::transaction(function () use ($rows, $heads, $file, $userId, $userName, $stamp) {
+        DB::transaction(function () use ($rows, $heads, $acts, $file, $userId, $userName, $stamp) {
+            if ($acts && Schema::hasTable('btc_focus_activity_types')) {
+                DB::table('btc_focus_activity_types')->delete();
+                DB::table('btc_focus_activity_types')->insert(array_values($acts));
+            }
             DB::table('btc_focus_ledgers')->delete();
             foreach (array_chunk($rows, 200) as $ch) {
                 DB::table('btc_focus_ledgers')->insert($ch);
