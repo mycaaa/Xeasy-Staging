@@ -471,8 +471,10 @@ class OdometerContinuityReportController extends Controller
                 $rowYearId = (int) ($item->ClaimYearId ?: $yearId);
 
                 // Image URLs with fallback
-                $openImgUrl = $this->resolveImageUrl($item->opening_filepath, $rowYearId, $empId);
-                $closeImgUrl = $this->resolveImageUrl($item->closing_filepath, $rowYearId, $empId);
+                // ODO-CONT-PERF-01 (21 Nov 2026, "Decision for You" testing point 7): signing two photo links per row made
+                // the list time out on xeasy ("Error in loading this screen"); the link is now signed when a photo is opened
+                $openImgUrl = $this->photoLink($item->opening_filepath, $rowYearId, $empId);
+                $closeImgUrl = $this->photoLink($item->closing_filepath, $rowYearId, $empId);
                 $backupOpenUrl = $this->getBackupImageUrl($item->opening_filepath, $rowYearId, $empId);
                 $backupCloseUrl = $this->getBackupImageUrl($item->closing_filepath, $rowYearId, $empId);
 
@@ -588,6 +590,29 @@ class OdometerContinuityReportController extends Controller
     /**
      * Resolve public URL for uploaded odometer images.
      */
+    private function photoLink(?string $fileName, int $yearId, int $empId): ?string
+    {
+        if (empty($fileName)) {
+            return null;
+        }
+        if (filter_var($fileName, FILTER_VALIDATE_URL)) {
+            return $fileName;
+        }
+
+        return route('reports.odometer-continuity.photo', ['y' => $yearId, 'e' => $empId, 'f' => ltrim($fileName, '/')]);
+    }
+
+    /** ODO-CONT-PERF-01: one odometer photo, signed when it is opened. */
+    public function photo(Request $request)
+    {
+        $f = (string) $request->query('f', '');
+        abort_if($f === '' || str_contains($f, '..') || str_contains($f, '\\'), 404);
+        $url = $this->resolveImageUrl($f, (int) $request->query('y'), (int) $request->query('e'));
+        abort_unless($url, 404);
+
+        return redirect()->away($url);
+    }
+
     private function resolveImageUrl(?string $fileName, int $yearId, int $empId): ?string
     {
         if (empty($fileName)) {

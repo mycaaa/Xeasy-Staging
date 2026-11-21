@@ -783,7 +783,7 @@ $(document).ready(function() {
             if (row.has_open_img && row.open_img) {
                 photosHtml += `
                     <div class="d-inline-block position-relative me-1" title="Opening Odometer: ${row.open_km} KM">
-                        <img src="${row.open_img}" class="odo-thumb btn-view-photo"
+                        <img loading="lazy" src="${row.open_img}" class="odo-thumb btn-view-photo"
                              data-img="${row.open_img}"
                              data-backup="${row.backup_open_img || ''}"
                              data-caption="Opening Odometer: ${Number(row.open_km).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} KM (${row.bill_date})"
@@ -797,7 +797,7 @@ $(document).ready(function() {
             if (row.has_close_img && row.close_img) {
                 photosHtml += `
                     <div class="d-inline-block position-relative" title="Closing Odometer: ${row.close_km} KM">
-                        <img src="${row.close_img}" class="odo-thumb btn-view-photo"
+                        <img loading="lazy" src="${row.close_img}" class="odo-thumb btn-view-photo"
                              data-img="${row.close_img}"
                              data-backup="${row.backup_close_img || ''}"
                              data-caption="Closing Odometer: ${Number(row.close_km).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} KM (${row.bill_date})"

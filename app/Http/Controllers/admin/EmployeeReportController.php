@@ -63,6 +63,13 @@ class EmployeeReportController extends Controller
                         $q->whereNull('e.DateOfResignation')
                           ->orWhereIn('e.DateOfResignation', $blankDates);
                     });
+            } elseif ($request->status === 'R') {
+                // EMP-REP-01 (21 Nov 2026, "Decision for You" testing point 8): resigned = a resignation or separation
+                // date is entered (serving notice or already left)
+                $query->where(function ($q) use ($blankDates) {
+                    $q->where(fn ($q2) => $q2->whereNotNull('e.DateOfResignation')->whereNotIn('e.DateOfResignation', $blankDates))
+                      ->orWhere(fn ($q2) => $q2->whereNotNull('e.DateOfSepration')->whereNotIn('e.DateOfSepration', $blankDates));
+                });
             } elseif ($request->status === 'D') {
                 $query->where(function ($q) use ($blankDates) {
                     $q->where('e.EmpStatus', '!=', 'A')
@@ -76,6 +83,13 @@ class EmployeeReportController extends Controller
                       });
                 });
             }
+        }
+        // EMP-REP-01: separation date in a month (YYYY-MM) or in a year (YYYY)
+        if ($request->filled('sep_month') && preg_match('/^\d{4}-\d{2}$/', (string) $request->sep_month)) {
+            $from = $request->sep_month.'-01';
+            $query->whereBetween('e.DateOfSepration', [$from, date('Y-m-t', strtotime($from))]);
+        } elseif ($request->filled('sep_year') && preg_match('/^\d{4}$/', (string) $request->sep_year)) {
+            $query->whereBetween('e.DateOfSepration', [$request->sep_year.'-01-01', $request->sep_year.'-12-31']);
         }
         if ($request->filled('department')) {
             $query->where('eg.DepartmentId', $request->department);

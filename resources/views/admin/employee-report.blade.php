@@ -75,7 +75,22 @@
                     <select name="status" class="form-select form-select-sm">
                         <option value="">All</option>
                         <option value="A" {{ request('status') == 'A' ? 'selected' : '' }}>Active</option>
+                        <option value="R" {{ request('status') == 'R' ? 'selected' : '' }}>Resigned</option>
                         <option value="D" {{ request('status') == 'D' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+                {{-- EMP-REP-01 (21 Nov 2026): separation date by month + year, or the whole year --}}
+                <div class="col-md-2">
+                    <label class="form-label mb-1 fs-12 fw-semibold" for="sepMonth">Separation month</label>
+                    <input type="month" id="sepMonth" name="sep_month" class="form-control form-control-sm" value="{{ request('sep_month') }}">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label mb-1 fs-12 fw-semibold" for="sepYear">or year</label>
+                    <select id="sepYear" name="sep_year" class="form-select form-select-sm">
+                        <option value="">Any</option>
+                        @for ($yy = (int) date('Y'); $yy >= 2015; $yy--)
+                            <option value="{{ $yy }}" @selected(request('sep_year') == $yy)>{{ $yy }}</option>
+                        @endfor
                     </select>
                 </div>
                 <div class="col-md-2">

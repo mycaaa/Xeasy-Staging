@@ -507,6 +507,7 @@ Route::middleware('auth')->group(function () {
         Route::get('odometer-continuity-report', [OdometerContinuityReportController::class, 'index'])->name('reports.odometer-continuity');
         Route::get('reports/odometer-continuity', \App\Http\Controllers\AliasRedirectController::class)->defaults('to', '/odometer-continuity-report');   // PAGE-CLEAN-02
         Route::post('odometer-continuity-report/data', [OdometerContinuityReportController::class, 'getData'])->name('reports.odometer-continuity.data');
+        Route::get('odometer-continuity-report/photo', [OdometerContinuityReportController::class, 'photo'])->name('reports.odometer-continuity.photo');   // ODO-CONT-PERF-01
         Route::get('odometer-continuity-report/export', [OdometerContinuityReportController::class, 'export'])->name('reports.odometer-continuity.export');
         Route::post('filter-claims', [ReportController::class, 'filterClaims']);
         Route::post('expense-claims/export', [ReportController::class, 'export']);
