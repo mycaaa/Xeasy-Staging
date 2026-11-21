@@ -477,6 +477,16 @@ class ClaimSubmissionValidator
         if ($value === '' || str_starts_with($value, '0000-00-00')) {
             return null;
         }
+        // APP-DATE-01 (21 Nov 2026, tracker tab "App testing errors" #1 and #2): the app sends the date it shows,
+        // "21 Nov 2026" / "5 Nov 2026" (d MMM yyyy); that was refused as "not a valid date". Month names are read too.
+        $text = preg_replace('/\s+/', ' ', $value);
+        foreach (['j M Y', 'd M Y', 'j F Y', 'd F Y', 'j-M-Y', 'd-M-Y', 'j/M/Y', 'd/M/Y', 'M j, Y', 'M d, Y'] as $format) {
+            $d = \DateTime::createFromFormat('!'.$format, $text);
+            $errors = \DateTime::getLastErrors();
+            if ($d !== false && (! $errors || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)) && strcasecmp($d->format($format), $text) === 0) {
+                return $d->format('Y-m-d');
+            }
+        }
         $value = substr($value, 0, 10);
         // Day first always (Indian bills): 05/08/2026 is 5 August, never 8 May.
         foreach (['Y-m-d', 'd-m-Y', 'd/m/Y', 'd.m.Y', 'Y/m/d', 'j/n/Y', 'j-n-Y', 'j.n.Y'] as $format) {
