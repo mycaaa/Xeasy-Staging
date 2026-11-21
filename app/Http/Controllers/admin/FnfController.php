@@ -93,7 +93,13 @@ class FnfController extends Controller
             if ($s && $s->status === 'cleared' && $s->working_json) {   // frozen at clearance
                 $w = json_decode($s->working_json, true);
             } else {
-                $w = FnfCalculator::forEmployee($e, (float) ($ledger[(int) $e->EmployeeID]['total_balance'] ?? 0));
+                try {
+                    $w = FnfCalculator::forEmployee($e, (float) ($ledger[(int) $e->EmployeeID]['total_balance'] ?? 0));
+                } catch (\Throwable $ex) {   // one employee's data must not stop the list
+                    report($ex);
+                    $w = ['ledger_balance' => 0, 'hold_amount' => 0, 'hold' => [], 'expense_current' => 0, 'expense_previous' => 0, 'expense_other' => 0,
+                        'expense_total' => 0, 'months' => [], 'waiting' => 0, 'excluded' => 0, 'lwd' => null, 'hard_copy_until' => null, 'error' => true];
+                }
             }
             $hr = (float) ($s->hr_amount ?? 0);
             $rows[] = ['e' => $e, 's' => $s, 'w' => $w, 'hr' => $hr, 'final' => FnfCalculator::finalBalance((float) $w['ledger_balance'], (float) $w['expense_total'], $hr)];
@@ -113,7 +119,16 @@ class FnfController extends Controller
         $w = $s && $s->status === 'cleared' && $s->working_json ? json_decode($s->working_json, true) : FnfCalculator::forEmployee($e);
         $hr = (float) ($s->hr_amount ?? 0);
 
-        return response()->json(['e' => $e, 's' => $s, 'w' => $w, 'hr' => $hr, 'final' => FnfCalculator::finalBalance((float) $w['ledger_balance'], (float) $w['expense_total'], $hr)]);
+        // FNF-LIVE-01: claims' status today, month by month, beside the working; links to the month summary sheet
+        try {
+            $live = FnfCalculator::liveStatus($e, $w['months'] ?? []);
+        } catch (\Throwable $ex) {
+            report($ex);
+            $live = [];
+        }
+
+        return response()->json(['e' => $e, 's' => $s, 'w' => $w, 'hr' => $hr, 'live' => $live, 'summary_url' => url('printdetails'),
+            'final' => FnfCalculator::finalBalance((float) $w['ledger_balance'], (float) $w['expense_total'], $hr)]);
     }
 
     /** Save HR's recovery / payment figure (+ payable to the employee, - recoverable) or mark the Finance clearance. */
@@ -134,13 +149,21 @@ class FnfController extends Controller
         }
         $user = auth()->user();
         $row = ['company_id' => $companyId, 'employee_id' => $id, 'emp_code' => $e->EmpCode, 'emp_name' => $e->name,
-            'separation_date' => substr((string) $e->DateOfSepration, 0, 10) ?: null, 'updated_by' => $user->id, 'updated_at' => now()];
+            // FNF-FIX-01 (21 Nov 2026, testing point 2): a blank separation date in HRIMS is 0000-00-00, which the table refuses
+            'separation_date' => ((string) $e->DateOfSepration > '2000-01-01') ? substr((string) $e->DateOfSepration, 0, 10) : null,
+            'updated_by' => $user->id, 'updated_at' => now()];
         if ($v['action'] !== 'reopen') {
             $row['hr_amount'] = round((float) ($v['hr_amount'] ?? ($s->hr_amount ?? 0)), 2);
             $row['hr_remark'] = $v['hr_remark'] ?? ($s->hr_remark ?? null);
         }
         if ($v['action'] === 'clear') {
-            $w = FnfCalculator::forEmployee($e);
+            try {
+                $w = FnfCalculator::forEmployee($e);
+            } catch (\Throwable $ex) {
+                report($ex);
+
+                return response()->json(['success' => false, 'message' => 'The F&F working could not be made - '.mb_substr($ex->getMessage(), 0, 300)], 500);
+            }
             if ($w['waiting'] > 0) {
                 return response()->json(['success' => false, 'message' => 'Hard copies are still awaited (until '.date('d-m-Y', strtotime($w['hard_copy_until'])).'); clear after that date.'], 422);
             }
@@ -155,7 +178,14 @@ class FnfController extends Controller
         } else {
             $row['status'] = $s->status ?? 'pending';
         }
-        $s ? DB::table('fnf_clearances')->where('id', $s->id)->update($row) : DB::table('fnf_clearances')->insert($row + ['created_at' => now(), 'status' => $row['status'] ?? 'pending']);
+        try {
+            $s ? DB::table('fnf_clearances')->where('id', $s->id)->update($row) : DB::table('fnf_clearances')->insert($row + ['created_at' => now(), 'status' => $row['status'] ?? 'pending']);
+        } catch (\Throwable $ex) {
+            report($ex);
+            \Illuminate\Support\Facades\Log::error('FNF save failed', ['employee' => $id, 'action' => $v['action'], 'error' => $ex->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Not saved - '.mb_substr(preg_replace('/\(Connection:.*$/s', '', $ex->getMessage()), 0, 300)], 500);
+        }
 
         return response()->json(['success' => true, 'message' => ['save' => 'Saved.', 'clear' => 'Finance clearance done.', 'reopen' => 'Reopened.'][$v['action']]]);
     }

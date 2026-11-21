@@ -45,7 +45,10 @@ class FnfCalculator
         $lwdC = Carbon::parse($lwd);
         $curM = (int) $lwdC->month;
         $prevM = (int) $lwdC->copy()->subMonthNoOverflow()->month;
-        $waitUntil = $lwdC->copy()->addDays(self::HARD_COPY_WAIT_DAYS);
+        // FNF-RULES-01: rule values in force on the last working day (Payment > F&F Rules)
+        $rules = FnfRules::all($lwd);
+        $waitUntil = $lwdC->copy()->addDays((int) $rules['hard_copy_wait_days']);
+        $oldest = $lwdC->copy()->startOfMonth()->subMonthsNoOverflow((int) $rules['lookback_months'])->format('Y-m');
 
         $years = array_values(array_unique(array_filter([
             CompanyYear::containing($conn, $lwd),
@@ -74,16 +77,20 @@ class FnfCalculator
                 if ($mef && \App\Support\Paid::is($mef)) {
                     continue;
                 }
+                // FNF-RULES-01: only months within the look-back window before the last working day
+                if (self::monthKey($conn, $y, $m) < $oldest) {
+                    continue;
+                }
                 // Rule 1: on payment hold
-                if ($mef && (int) ($mef->is_exported ?? 0) === 2) {
+                if ($rules['include_hold_months'] && $mef && (int) ($mef->is_exported ?? 0) === 2) {
                     $amt = (float) ($mef->payment_amount ?: $mef->actual_expense_amount ?: $mef->Finance_Amount ?: $mef->Approved_Amount ?: 0);
                     $hold[] = ['year' => $y, 'month' => $m, 'label' => $label, 'amount' => round($amt, 2), 'remark' => (string) ($mef->hold_remark ?? '')];
                     continue;
                 }
                 // approved for payment (instructed / pending at Treasury) but not held: counted as payable, shown apart
-                $approved = $mef && in_array((string) ($mef->payment_status ?? ''), ['Approved', 'Instructed', 'Pending'], true)
+                $approved = $rules['include_approved_unpaid'] && $mef && in_array((string) ($mef->payment_status ?? ''), ['Approved', 'Instructed', 'Pending'], true)
                     && ((float) ($mef->Finance_Amount ?? 0) > 0 || (float) ($mef->Approved_Amount ?? 0) > 0) && \App\Support\ZeroDate::has($mef->Approved_Date ?? null);
-                $months[] = self::monthWorking($conn, $ecT, $emp, $y, $m, $label, $mef, $approved, $lwd, $waitUntil)
+                $months[] = self::monthWorking($conn, $ecT, $emp, $y, $m, $label, $mef, $approved, $lwd, $waitUntil, $rules)
                     + ['bucket' => $m === $curM && $y === ($years[0] ?? $y) ? 'current' : ($m === $prevM ? 'previous' : 'other')];
             }
         }
@@ -111,6 +118,7 @@ class FnfCalculator
             'excluded' => round(collect($months)->sum('excluded'), 2),
             'lwd' => $lwd,
             'hard_copy_until' => $waitUntil->toDateString(),
+            'rules' => $rules,                    // FNF-RULES-01: the rule values used
         ];
     }
 
@@ -120,8 +128,9 @@ class FnfCalculator
         return round($expense - $ledger + $hr, 2);
     }
 
-    private static function monthWorking(string $conn, string $ecT, object $emp, int $y, int $m, string $label, ?object $mef, bool $approved, string $lwd, Carbon $waitUntil): array
+    private static function monthWorking(string $conn, string $ecT, object $emp, int $y, int $m, string $label, ?object $mef, bool $approved, string $lwd, Carbon $waitUntil, ?array $rules = null): array
     {
+        $rules = $rules ?? FnfRules::all($lwd);
         $claims = DB::connection($conn)->table($ecT)->where('CrBy', (int) $emp->EmployeeID)->where('ClaimMonth', $m)
             ->where('ClaimStatus', '!=', 'Deactivate')->where(fn ($q) => $q->whereNull('FilledOkay')->orWhere('FilledOkay', '!=', 2))
             ->get(['ExpId', 'ClaimId', 'BillDate', 'FilledTAmt', 'VerifyTAmt', 'ApprTAmt', 'ApprBy', 'App_Odometer', 'ClaimStatus']);
@@ -152,9 +161,9 @@ class FnfCalculator
             $notes[] = 'Approved for payment, not paid';
         } else {
             if ($odoAmt > 0) {
-                if ($odoDays <= self::ODO_FREE_DAYS) {
+                if ($odoDays <= (int) $rules['odo_free_days'] || ! $rules['odo_needs_approval']) {
                     $eligible += $odoAmt;
-                    $notes[] = "Odometer {$odoDays} day(s): eligible without courier (rule A)";
+                    $notes[] = $odoDays <= (int) $rules['odo_free_days'] ? "Odometer {$odoDays} day(s): eligible without courier (rule A)" : "Odometer {$odoDays} days: approval not needed (rule B off)";
                 } elseif ($odoApproved) {
                     $eligible += $odoAmt;
                     $notes[] = "Odometer {$odoDays} days: approved by the approver (rule B)";
@@ -172,7 +181,7 @@ class FnfCalculator
                     $notes[] = 'Other claims: waiting for the hard copy until '.$waitUntil->format('d-m-Y').' (rule C)';
                 } else {
                     $excluded += $otherAmt;
-                    $notes[] = 'Other claims: hard copy not received in '.self::HARD_COPY_WAIT_DAYS.' days - left out (rule C)';
+                    $notes[] = 'Other claims: hard copy not received in '.(int) $rules['hard_copy_wait_days'].' days - left out (rule C)';
                 }
             }
         }
@@ -229,6 +238,49 @@ class FnfCalculator
 
             return 0.0;
         }
+    }
+
+    /** "2026-09" for month 9 of financial year $y. */
+    private static function monthKey(string $conn, int $y, int $m): string
+    {
+        static $from = [];
+        $k = $conn.'|'.$y;
+        if (! isset($from[$k])) {
+            $from[$k] = (int) substr((string) DB::connection($conn)->table('financialyear')->where('YearId', $y)->value('FromDate'), 0, 4);
+        }
+        $yr = $m >= 4 ? $from[$k] : $from[$k] + 1;
+
+        return sprintf('%04d-%02d', $yr, $m);
+    }
+
+    /**
+     * FNF-LIVE-01 (21 Nov 2026, "Decision for You" testing point 4): the status of the employee's claims now, month by
+     * month, beside the F&F working (which follows the rules as on the last working day): claims by status and the
+     * month's payment stage today.
+     */
+    public static function liveStatus(object $emp, array $months): array
+    {
+        $conn = DatabaseSwitcher::getExpenseConnection((int) ($emp->CompanyId ?? 1)) ?: 'expense';
+        $out = [];
+        foreach ($months as $mo) {
+            $y = (int) ($mo['year'] ?? 0);
+            $m = (int) ($mo['month'] ?? 0);
+            if (! $y || ! $m || ! Schema::connection($conn)->hasTable("y{$y}_expenseclaims")) {
+                continue;
+            }
+            $by = DB::connection($conn)->table("y{$y}_expenseclaims")->where('CrBy', (int) $emp->EmployeeID)->where('ClaimMonth', $m)
+                ->where('ClaimStatus', '!=', 'Deactivate')->selectRaw('ClaimStatus, COUNT(*) n, SUM(COALESCE(NULLIF(ApprTAmt,0), NULLIF(VerifyTAmt,0), FilledTAmt, 0)) amt')
+                ->groupBy('ClaimStatus')->get();
+            $mef = Schema::connection($conn)->hasTable("y{$y}_monthexpensefinal")
+                ? DB::connection($conn)->table("y{$y}_monthexpensefinal")->where('EmployeeID', (int) $emp->EmployeeID)->where('Month', $m)->first() : null;
+            $out[$y.'-'.$m] = [
+                'claims' => $by->map(fn ($r) => ['status' => (string) $r->ClaimStatus, 'n' => (int) $r->n, 'amount' => round((float) $r->amt, 2)])->values()->all(),
+                'month' => $mef ? (\App\Support\Paid::is($mef) ? 'Paid' : ((int) ($mef->is_exported ?? 0) === 2 ? 'On payment hold' : self::monthStatus($mef, (int) $by->sum('n')))) : 'No month row',
+                'hard_copy' => $mef && \App\Support\ZeroDate::has($mef->RecevingDate ?? null) ? substr((string) $mef->RecevingDate, 0, 10) : null,
+            ];
+        }
+
+        return $out;
     }
 
     private static function monthLabel(string $conn, int $y, int $m): string

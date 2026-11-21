@@ -47,7 +47,7 @@
 </div></div>
 
 <div class="modal fade" id="fnfModal" tabindex="-1" aria-labelledby="fnfTitle">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width:96vw"><div class="modal-content">
         <div class="modal-header py-2"><h6 class="modal-title" id="fnfTitle">FNF working</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
         <div class="modal-body" id="fnfBody"></div>
     </div></div>
@@ -65,7 +65,12 @@ $(function () {
         const w = j.w, s = j.s || {}, done = s.status === 'cleared';
         const fin = (h) => Number(w.expense_total) - Number(w.ledger_balance) + Number(h || 0);
         const line = (n, t, a, src) => `<tr><td>${n}</td><td>${t}</td><td class="fnf-num">${a}</td><td class="small text-muted">${src}</td></tr>`;
-        const months = (w.months || []).map(m => `<tr><td>${esc(m.label)}</td><td>${esc(m.status)}</td><td class="fnf-num">${m.claims}</td><td class="fnf-num">${m.odo_days || '-'}</td><td class="fnf-num">${fmt(m.eligible)}</td><td class="fnf-num">${m.waiting ? fmt(m.waiting) : '-'}</td><td class="fnf-num">${m.excluded ? fmt(m.excluded) : '-'}</td><td class="small">${(m.notes || []).map(esc).join('<br>')}</td></tr>`).join('');
+        // FNF-LIVE-01 (21 Nov 2026, testing point 4): View = the employee's summary sheet of that month; "Now" = claims' status today
+        const live = j.live || {};
+        const sumUrl = (m) => `${j.summary_url}?e=${encodeURIComponent(j.e.EmployeeID)}&m=${m.month}&y=${m.year}&n=1`;
+        const nowCell = (m) => { const l = live[m.year + '-' + m.month]; if (!l) return '<span class="text-muted">-</span>';
+            return `<div class="fw-semibold">${esc(l.month)}</div>` + (l.claims || []).map(c => `<div>${esc(c.status)}: ${c.n} (₹${fmt(c.amount)})</div>`).join('') + (l.hard_copy ? `<div class="text-muted">Hard copy ${d(l.hard_copy)}</div>` : ''); };
+        const months = (w.months || []).map(m => `<tr><td class="text-nowrap">${esc(m.label)}<div><a class="small" target="_blank" rel="noopener" href="${sumUrl(m)}"><i class="ri-eye-line"></i> View</a></div></td><td>${esc(m.status)}</td><td class="fnf-num">${m.claims}</td><td class="fnf-num">${m.odo_days || '-'}</td><td class="fnf-num">${fmt(m.eligible)}</td><td class="fnf-num">${m.waiting ? fmt(m.waiting) : '-'}</td><td class="fnf-num">${m.excluded ? fmt(m.excluded) : '-'}</td><td class="small">${(m.notes || []).map(esc).join('<br>')}</td><td class="small fnf-now">${nowCell(m)}</td></tr>`).join('');
         const holds = (w.hold || []).map(h => `<tr><td>${esc(h.label)}</td><td class="fnf-num">${fmt(h.amount)}</td><td class="small text-muted">${esc(h.remark)}</td></tr>`).join('');
         $('#fnfTitle').text(`FNF working - ${j.e.EmpCode} ${j.e.name}`);
         $('#fnfBody').html(`
@@ -89,12 +94,13 @@ $(function () {
                     : '<button class="btn btn-sm btn-outline-primary" data-act="save">Save</button><button class="btn btn-sm btn-success" data-act="clear">Finance clearance done</button>'}</div>
                 ${w.waiting > 0 ? `<div class="small text-warning mt-2">₹${fmt(w.waiting)} of claims wait for hard copies until ${d(w.hard_copy_until)}; clearance is possible after that date.</div>` : ''}
                 ${w.excluded > 0 ? `<div class="small text-muted mt-1">₹${fmt(w.excluded)} left out by the expense rules (see the months).</div>` : ''}
+                ${w.rules ? `<div class="small text-muted mt-1">Rules used (F&amp;F Rules, as on the last working day): odometer free days ${w.rules.odo_free_days}, approval above that ${w.rules.odo_needs_approval ? 'needed' : 'not needed'}, hard-copy wait ${w.rules.hard_copy_wait_days} days, hold months ${w.rules.include_hold_months ? 'counted' : 'not counted'}.</div>` : ''}
               </div>
               <div class="col-lg-7">
                 <p class="fw-semibold small mb-1">Payment hold (rule 1)</p>
                 <table class="table table-sm fnf-work mb-3"><tr class="table-light"><th>Month</th><th class="fnf-num">Amount</th><th>Hold remark</th></tr>${holds || '<tr><td colspan="3" class="text-muted">No month on hold.</td></tr>'}</table>
                 <p class="fw-semibold small mb-1">Months not yet approved for payment (rule 2)</p>
-                <table class="table table-sm fnf-work"><tr class="table-light"><th>Month</th><th>Status</th><th class="fnf-num">Claims</th><th class="fnf-num">Odo days</th><th class="fnf-num">Eligible</th><th class="fnf-num">Waiting</th><th class="fnf-num">Left out</th><th>Rule</th></tr>${months || '<tr><td colspan="8" class="text-muted">None.</td></tr>'}</table>
+                <table class="table table-sm fnf-work"><tr class="table-light"><th>Month</th><th>Status</th><th class="fnf-num">Claims</th><th class="fnf-num">Odo days</th><th class="fnf-num">Eligible</th><th class="fnf-num">Waiting</th><th class="fnf-num">Left out</th><th>Rule (as on the last working day)</th><th>Now (real-time claim status)</th></tr>${months || '<tr><td colspan="9" class="text-muted">None.</td></tr>'}</table>
               </div>
             </div>`);
         const upd = () => { const f = fin($('#fnfHr').val()); $('#fnfFinal').html(`<span class="${f >= 0 ? 'fnf-pay' : 'fnf-rec'}">${f >= 0 ? 'Pay' : 'Recover'} ${fmt(Math.abs(f))}</span>`); };

@@ -469,6 +469,53 @@
     </style>
 @endpush
 @push('scripts')
+    <script>
+        // RKM-VIEW-01 (21 Nov 2026, "Decision for You" testing point 5): a claim opened from Verify (Running Km) showed
+        // in a narrow row squeezed into the table; it now opens in a full-size window (files left, punch form right).
+        // RKM-RATE-02 (21 Nov 2026): rate set by hand for an exceptional case - reason compulsory, every change logged
+        $(document).on('click', '.rkm-manual-rate', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            const expId = $(this).data('expid'), cur = $(this).data('rate'), km = parseFloat($(this).data('km')) || 0;
+            $.get(@json(route('verify.running.km.rate.log')), {expId}).always(function (r) {
+                const rows = (r && r.rows) || [];
+                const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+                const log = rows.length ? '<div class="text-start small mt-2"><b>Changes so far</b><table class="table table-sm mb-0"><tr><th>When</th><th>By</th><th>What</th><th>Rate</th><th>Reason</th></tr>'
+                    + rows.map(x => `<tr><td>${esc(x.at)}</td><td>${esc(x.by)}</td><td>${esc(x.action)}</td><td>${esc(x.old)} → ${esc(x.new)} (eligible ${esc(x.eligible)})</td><td>${esc(x.reason)}</td></tr>`).join('') + '</table></div>' : '';
+                Swal.fire({
+                    title: 'Rate for claim ' + expId,
+                    html: `<div class="text-start small">Current rate ${esc(cur)}/km, ${km} km. Use only for exceptional cases.</div>
+                        <div class="text-start mt-2"><label class="form-label small mb-1" for="rkmRate">New rate per km</label><input id="rkmRate" type="number" step="0.01" min="0.5" max="100" class="form-control" value="${esc(cur)}"></div>
+                        <div class="text-start mt-2"><label class="form-label small mb-1" for="rkmWhy">Reason (compulsory)</label><textarea id="rkmWhy" class="form-control" maxlength="300" rows="2"></textarea></div>
+                        <div class="form-check text-start mt-2"><input class="form-check-input" type="checkbox" id="rkmAuto"><label class="form-check-label small" for="rkmAuto">Set back to the employee's eligible rate</label></div>` + log,
+                    width: 720, showCancelButton: true, confirmButtonText: 'Save rate', focusConfirm: false,
+                    preConfirm: () => {
+                        const auto = $('#rkmAuto').is(':checked'), rate = $('#rkmRate').val(), reason = $.trim($('#rkmWhy').val());
+                        if (reason.length < 5) { Swal.showValidationMessage('Give the reason (at least 5 characters).'); return false; }
+                        if (!auto && !(parseFloat(rate) > 0)) { Swal.showValidationMessage('Enter the rate.'); return false; }
+                        return $.post(@json(route('verify.running.km.manual.rate')), {_token: @json(csrf_token()), expId, action: auto ? 'auto' : 'manual', rate, reason})
+                            .catch(x => { Swal.showValidationMessage((x.responseJSON && (x.responseJSON.message || Object.values(x.responseJSON.errors || {}).flat().join(' '))) || 'Not saved.'); });
+                    }
+                }).then(res => {
+                    if (res.isConfirmed && res.value && res.value.success) {
+                        Swal.fire('Saved', res.value.message, 'success');
+                        if (window.$ && $.fn.DataTable && $.fn.DataTable.isDataTable('#runningKmTable')) { $('#runningKmTable').DataTable().ajax.reload(null, false); }
+                    }
+                });
+            });
+        });
+
+        function rkmOpen($row, rowId) {
+            const $inner = $row.find('td').first().children().first().detach();
+            $inner.find('[style*="max-height:450px"]').css('max-height', '78vh');
+            $inner.find('[style*="max-height:400px"]').css('max-height', '76vh');
+            $inner.find('.row.g-0').css('min-height', '70vh');
+            const $m = $('<div class="modal fade" tabindex="-1" aria-label="Claim details"><div class="modal-dialog modal-dialog-scrollable" style="max-width:96vw;width:96vw;"><div class="modal-content"></div></div></div>');
+            $m.attr('id', rowId).find('.modal-content').append($inner);
+            $('body').append($m);
+            $m.on('hidden.bs.modal', function () { $m.remove(); });
+            bootstrap.Modal.getOrCreateInstance($m[0]).show();
+        }
+    </script>
     {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
     <script src="{{ asset('custom/js/pages/eligibility_panel.js') }}"></script>
     <script>
@@ -851,8 +898,7 @@
 
                     // Toggle if already exists
                     if ($existing.length) {
-                        $existing.toggleClass("d-none");
-                        return;
+                        $existing.remove();   // RKM-VIEW-01: reopened fresh in the full-size window
                     }
 
                     const colCount = $tr.find("td").length;
@@ -885,7 +931,7 @@
                             </td>
                         </tr>
                     `);
-                    $tr.after($row);
+                    rkmOpen($row, rowId);
 
                     // Fetch claim detail form
                     $.get("{{ url('claim-detail') }}", { claim_id: claimId, expid: expId }, function(data) {
@@ -922,7 +968,8 @@
                 // Close detail row
                 $(document).off("click", ".close-detail-row").on("click", ".close-detail-row", function() {
                     const rowId = $(this).data("row");
-                    $("#" + rowId).remove();
+                    const $el = $("#" + rowId);
+                    if ($el.hasClass("modal")) { bootstrap.Modal.getOrCreateInstance($el[0]).hide(); } else { $el.remove(); }
                 });
             }
 
@@ -1303,8 +1350,7 @@
             const $existing = $('#' + rowId);
 
             if ($existing.length) {
-                $existing.toggleClass('d-none');
-                return;
+                $existing.remove();   // RKM-VIEW-01
             }
 
             const colCount = $tr.find('td').length;
@@ -1335,7 +1381,7 @@
                     </td>
                 </tr>
             `);
-            $tr.after($row);
+            rkmOpen($row, rowId);
 
             $.get('{{ url("claim-detail") }}', { claim_id: claimId, expid: expId }, function(data) {
                 let filesHtml = '';

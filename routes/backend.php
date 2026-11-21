@@ -817,6 +817,9 @@ Route::middleware('auth')->group(function () {
         Route::post('verify-running-km/bulk-deactivate', [VerifierController::class, 'bulkDeactivateRunningKmRecords'])->name('verify.running.km.bulk.deactivate');
         Route::post('verify-running-km/revert-deactivated', [VerifierController::class, 'revertDeactivatedRunningKmRecord'])->name('verify.running.km.revert.deactivated');
         Route::post('verify-running-km/calculate-rate', [VerifierController::class, 'getRunningKmRate'])->name('verify.running.km.calculate.rate');
+        // RKM-RATE-02 (21 Nov 2026): rate set by hand for exceptional cases (reason compulsory, logged)
+        Route::post('verify-running-km/manual-rate', [VerifierController::class, 'manualRunningKmRate'])->middleware('throttle:60,1')->name('verify.running.km.manual.rate');
+        Route::get('verify-running-km/rate-log', [VerifierController::class, 'runningKmRateLog'])->name('verify.running.km.rate.log');
         Route::post('verify-running-km/duplicate-odometer', [VerifierController::class, 'duplicateOdometerData'])->name('verify.running.km.duplicate.odometer');
         Route::post('verify-running-km/duplicate-odometer/not-duplicate', [VerifierController::class, 'markOdometerNotDuplicate'])->name('verify.running.km.duplicate.odometer.review'); // ODO-DUP-02
         Route::match(['get', 'post'], 'verify-running-km/duplicate-odometer/export', [VerifierController::class, 'exportDuplicateOdometer'])->name('verify.running.km.duplicate.odometer.export');
@@ -977,6 +980,9 @@ Route::middleware('auth')->group(function () {
     // Finance Advance Approvals
     Route::middleware('permission:payment_section')->group(function () {
         // FNF-01 (20 Nov 2026, tracker tab "FNF_Xeasy 20 Nov"): FNF - employee-wise Finance clearance
+        // FNF-RULES-01 (21 Nov 2026): F&F rules with effective dates (before /fnf/{id})
+        Route::get('/fnf/rules', [\App\Http\Controllers\admin\FnfRulesController::class, 'index'])->name('fnf.rules');
+        Route::post('/fnf/rules', [\App\Http\Controllers\admin\FnfRulesController::class, 'save'])->middleware('throttle:30,1')->name('fnf.rules.save');
         Route::get('/fnf', [\App\Http\Controllers\admin\FnfController::class, 'index'])->name('fnf.index');
         Route::get('/fnf/{id}', [\App\Http\Controllers\admin\FnfController::class, 'show'])->whereNumber('id')->name('fnf.show');
         Route::post('/fnf/{id}', [\App\Http\Controllers\admin\FnfController::class, 'save'])->whereNumber('id')->middleware('throttle:60,1')->name('fnf.save');
@@ -1118,7 +1124,9 @@ Route::middleware(['auth', 'permission:seection_settings'])->group(function () {
 });
 
 // Resigned Employees Final Expense Submission Reminder & Testing Page
-Route::prefix('resigned-submission-reminder')->name('admin.resigned-submission.')->group(function () {
+// SEC-RSR-01 (21 Nov 2026): this page sends mails and shows employees' claims; it was open without login. Now for
+// signed-in users with Settings or Payment Section access (also reached from Payment > F&F Reminder Mails).
+Route::prefix('resigned-submission-reminder')->middleware(['auth', 'permission:seection_settings|payment_section'])->name('admin.resigned-submission.')->group(function () {
     Route::get('/', [\App\Http\Controllers\admin\ResignedSubmissionEmailController::class, 'testPage'])->name('test');
     Route::get('/preview', [\App\Http\Controllers\admin\ResignedSubmissionEmailController::class, 'preview'])->name('preview');
     Route::post('/send', [\App\Http\Controllers\admin\ResignedSubmissionEmailController::class, 'send'])->name('send');
@@ -1130,8 +1138,9 @@ Route::prefix('resigned-submission-reminder')->name('admin.resigned-submission.'
     Route::get('/docs/download', [\App\Http\Controllers\admin\ResignedSubmissionEmailController::class, 'downloadDocs'])->name('docs.download');
 });
 // Print Details & Account Summary
-Route::get('/printdetails', [PrintDetailsController::class, 'printDetails'])->name('print.details');
-Route::get('/account-summary', [AccountSummaryController::class, 'index']);
+// SEC-PRINT-01 (21 Nov 2026): an employee's month summary and account summary need a signed-in user
+Route::get('/printdetails', [PrintDetailsController::class, 'printDetails'])->middleware('auth')->name('print.details');
+Route::get('/account-summary', [AccountSummaryController::class, 'index'])->middleware('auth');
 // KM-CAP-01: HOD approval of running km above the monthly limit
 Route::middleware(['auth'])->group(function () {
     Route::get('/km-cap-approvals', [\App\Http\Controllers\admin\KmCapApprovalController::class, 'index'])->name('km.cap.approvals');

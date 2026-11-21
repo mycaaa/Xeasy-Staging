@@ -313,7 +313,11 @@ class VerifierController extends Controller
         data-type="verifyremark"
         value="' . ($row->VerifyTRemark ?? '') . '" />';
         })->editColumn('TotKm', function ($row) {
-            return '<span class="fw-bold">' . number_format($row->TotKm, 0) . '</span>';
+            // ODO-PUNCH-01: readings changed by the employee wait for the punching team before they can be verified
+            $wait = \App\Services\Claims\OdoManualPunch::pendingIds((string) session('expense_connection'), (int) session('year_id'), [(int) $row->ExpId])
+                ? '<span class="badge bg-warning text-dark d-block mt-1" title="The employee changed the readings by hand: Data Punch > Odometer readings changed">Waiting for punching</span>' : '';
+
+            return '<span class="fw-bold">' . number_format($row->TotKm, 0) . '</span>' . $wait;
         })->addColumn('cumulative_km', function ($row) use ($request, $cumulativeKmMap) {
             if ($request->boolean('only_employee') && isset($cumulativeKmMap[$row->ExpId])) {
                 return '<span class="fw-bold text-primary">' . $cumulativeKmMap[$row->ExpId] . '</span>';
@@ -327,7 +331,10 @@ class VerifierController extends Controller
             data-expid="' . $row->ExpId . '"
             value="' . number_format($rate, 2, '.', '') . '" style="width:80px;"'
             // RKM-RATE-01: the rate is fetched from the eligibility, not typed
-            . (config('claim_rules.running_km.manual_rate', false) ? '' : ' readonly title="Rate from the employee\'s eligibility (auto)" ') . ' />';
+            . (config('claim_rules.running_km.manual_rate', false) ? '' : ' readonly title="Rate from the employee\'s eligibility (auto)" ') . ' />'
+            // RKM-RATE-02: set the rate by hand for an exceptional case (reason compulsory, logged)
+            . (\App\Services\Claims\RunningKmRate::override((string) session('expense_connection'), (int) session('year_id'), (int) $row->ExpId) ? '<span class="badge bg-warning text-dark d-block mt-1" title="Rate set by hand">Manual</span>' : '')
+            . '<a href="javascript:void(0)" class="rkm-manual-rate small d-block" data-expid="'.$row->ExpId.'" data-rate="'.number_format($rate, 2, '.', '').'" data-km="'.(float) $row->TotKm.'" title="Set the rate by hand (reason needed)"><i class="ri-edit-line"></i> Rate</a>';
         })->addColumn('amount_column', function ($row) use ($resolveRowRate) {
             $amount = (float) ($row->FilledTAmt ?? 0);
             if ($amount <= 0 && (float) $row->TotKm > 0) {
@@ -939,6 +946,8 @@ class VerifierController extends Controller
             // RKM-RATE-01 (10 Nov 2026): the verifier corrects readings; the rate is always fetched
             if (config('claim_rules.running_km.manual_rate', false) && $request->filled('rate') && (float) $request->rate > 0) {
                 $ratePerKm = (float) $request->rate;
+            } elseif ($ov = \App\Services\Claims\RunningKmRate::override((string) session('expense_connection'), (int) $yearId, (int) $request->expId)) {
+                $ratePerKm = $ov['rate'];   // RKM-RATE-02: rate set by hand (with reason) stays until set back
             } else {
                 $ratePerKm = (float) $this->getRatePerKM($expense->CrBy, $billDate, $request->vehicleType, 0, $request->input('with_driver', $expense->With_Driver ?? null));
             }
@@ -1094,7 +1103,15 @@ class VerifierController extends Controller
             // 3. System calculated rate
             // RKM-RATE-01 (10 Nov 2026): the rate is always the employee's eligible rate on the trip date
             $manualRate = false;
-            if (config('claim_rules.running_km.manual_rate', false) && $request->filled('rate') && (float) $request->rate > 0) {
+            $ov = \App\Services\Claims\RunningKmRate::override((string) session('expense_connection'), (int) $yearId, (int) $request->expId);
+            if ($ov) {
+                // RKM-RATE-02: the rate set by hand for this claim (reason logged); the reason also stands for the cap check
+                $rate = $ov['rate'];
+                $manualRate = true;
+                if (! $request->filled('verifyremark') && ! $request->filled('remark')) {
+                    $request->merge(['verifyremark' => 'Manual rate: '.$ov['reason']]);
+                }
+            } elseif (config('claim_rules.running_km.manual_rate', false) && $request->filled('rate') && (float) $request->rate > 0) {
                 $rate = (float) $request->rate;
                 $manualRate = true;
             } else {
@@ -1589,6 +1606,68 @@ class VerifierController extends Controller
                 'message' => 'Failed to revert claim. ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * RKM-RATE-02 (21 Nov 2026): set the running-km rate by hand for an exceptional case, or set it back to the
+     * eligible rate. Reason compulsory; every change logged (running_km_rate_logs) and tracked on the claim.
+     */
+    public function manualRunningKmRate(Request $request)
+    {
+        $v = $request->validate([
+            'expId' => 'required|integer',
+            'action' => 'required|in:manual,auto',
+            'rate' => 'required_if:action,manual|nullable|numeric|min:0.5|max:100',
+            'reason' => 'required|string|min:5|max:300',
+        ], ['reason.required' => 'Give the reason for changing the rate.', 'reason.min' => 'Give the reason for changing the rate (at least 5 characters).']);
+        abort_unless(\App\Services\Claims\RunningKmRate::ready(), 503, 'Run the database update first.');
+        $conn = (string) session('expense_connection');
+        $yearId = (int) session('year_id');
+        $table = "y{$yearId}_expenseclaims";
+        $db = DB::connection($conn);
+        $e = $db->table($table)->where('ExpId', $v['expId'])->where('ClaimId', 7)
+            ->first(array_merge(['ExpId', 'CrBy', 'BillDate', 'WType', 'ClaimStatus'], \App\Services\Claims\ClaimChangeTracker::trackedColumns()));
+        if (! $e) {
+            return response()->json(['success' => false, 'message' => 'Running km claim not found.'], 404);
+        }
+        if (in_array($e->ClaimStatus, ['Approved', 'Financed', 'Deactivate'], true)) {
+            return response()->json(['success' => false, 'message' => 'The claim is already '.$e->ClaimStatus.'; its rate cannot be changed here.'], 422);
+        }
+        $auto = (float) $this->getRatePerKM($e->CrBy, $e->BillDate ?: date('Y-m-d'), $e->WType ?: 2, 0, $e->With_Driver ?? null);
+        $new = $v['action'] === 'manual' ? round((float) $v['rate'], 2) : $auto;
+        $km = (float) $e->TotKm > 0 ? (float) $e->TotKm : max(0, (float) $e->odomtr_closing - (float) $e->odomtr_opening);
+        $upd = ['RatePerKM' => $new, 'VerifyTAmt' => round($km * $new, 2)];
+        $me = auth()->user();
+        $db->beginTransaction();
+        try {
+            (new \App\Services\Claims\ClaimChangeTracker($db, $yearId))->record((int) $e->ExpId, $e, $upd, 'running_km_manual_rate',
+                ($v['action'] === 'manual' ? 'Rate set by hand: ' : 'Rate set back to eligible: ').$v['reason'], (int) $e->CrBy, (int) (session('employee_id') ?? session('EmployeeID') ?? 0) ?: null);
+            $db->table($table)->where('ExpId', $e->ExpId)->update($upd);
+            $db->commit();
+        } catch (\Throwable $ex) {
+            $db->rollBack();
+            report($ex);
+
+            return response()->json(['success' => false, 'message' => 'Not saved: '.$ex->getMessage()], 500);
+        }
+        \App\Services\Claims\RunningKmRate::log(['conn' => $conn, 'year_id' => $yearId, 'exp_id' => (int) $e->ExpId, 'emp_id' => (int) $e->CrBy,
+            'action' => $v['action'], 'old_rate' => (float) ($e->RatePerKM ?? 0), 'new_rate' => $new, 'eligible_rate' => $auto, 'km' => $km,
+            'old_amount' => (float) ($e->VerifyTAmt ?? 0), 'new_amount' => $upd['VerifyTAmt'], 'reason' => $v['reason'],
+            'user_id' => $me->id ?? null, 'user_name' => (string) ($me->name ?? ''), 'ip' => $request->ip()]);
+
+        return response()->json(['success' => true, 'message' => $v['action'] === 'manual'
+            ? "Rate set to {$new}/km by hand (eligible rate {$auto}); amount ".number_format($upd['VerifyTAmt'], 2).'.'
+            : "Rate set back to the eligible {$auto}/km."]);
+    }
+
+    /** RKM-RATE-02: the rate change log of one claim. */
+    public function runningKmRateLog(Request $request)
+    {
+        $rows = \App\Services\Claims\RunningKmRate::history((string) session('expense_connection'), (int) session('year_id'), (int) $request->input('expId'));
+
+        return response()->json(['rows' => $rows->map(fn ($r) => ['at' => \Carbon\Carbon::parse($r->created_at)->format('d-m-Y H:i'), 'by' => $r->user_name,
+            'action' => $r->action === 'manual' ? 'Set by hand' : 'Back to eligible', 'old' => $r->old_rate, 'new' => $r->new_rate, 'eligible' => $r->eligible_rate,
+            'amount' => $r->new_amount, 'reason' => $r->reason])]);
     }
 
     public function getRunningKmRate(Request $request)

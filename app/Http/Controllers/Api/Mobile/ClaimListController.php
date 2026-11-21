@@ -44,6 +44,29 @@ class ClaimListController extends BaseMobileController
             foreach ($monthListRows as $row) {
                 $month_list[] = (array) $row;
             }
+            // BACKDATE-APP-01 (21 Nov 2026, "Decision for You" testing point 1): the app lets the employee pick dates
+            // only in these months, so a back-dated odometer or bill for an earlier month of the year with nothing in
+            // it yet could not be entered (the web allows it, ODO-FY-01). Months of this financial year up to today
+            // that have no month row yet are offered too; a submitted (closed) month stays closed.
+            try {
+                $fyRow = DB::connection($expenseConn)->table('financialyear')->where('YearId', $YearId)->first(['FromDate']);
+                if ($fyRow && config('claim_rules.app_backdate_open_months', true)) {
+                    $have = DB::connection($expenseConn)->table("y{$YearId}_monthexpensefinal")->where('EmployeeID', $empid)->where('YearId', $YearId)
+                        ->pluck('Month')->map(fn ($m) => (int) $m)->all();
+                    $listed = array_map(fn ($r) => (int) ($r['Month'] ?? 0), $month_list);
+                    $d = \Carbon\Carbon::parse($fyRow->FromDate)->startOfMonth();
+                    $end = now('Asia/Kolkata')->startOfMonth();
+                    for ($i = 0; $i < 12 && $d->lte($end); $i++, $d->addMonthNoOverflow()) {
+                        $m = (int) $d->month;
+                        if (! in_array($m, $have, true) && ! in_array($m, $listed, true)) {
+                            $month_list[] = ['Month' => (string) $m];   // as the other rows (the app reads text)
+                        }
+                    }
+                    usort($month_list, fn ($a, $b) => (((int) $b['Month'] + 8) % 12) <=> (((int) $a['Month'] + 8) % 12));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('BACKDATE-APP-01: '.$e->getMessage());
+            }
 
             $Open_list = [];
             $currentMonth = (int) date('n');
