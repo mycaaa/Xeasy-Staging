@@ -294,7 +294,13 @@ class BtcController extends Controller
 
         return response()->json([
             'case' => $c, 'status_label' => $c->statusLabel(), 'category_label' => $c->categoryLabel(),
-            'route_label' => config("btc.routes.{$c->route}"), 'manager' => $name($c->manager_id), 'dept_approver' => $name($c->dept_approver_id),
+            // BTC-SCAN-SRC-01 (23 Nov 2026, testing point 6): a bill scanned without a request shows where it came from
+            // (e.g. "Scanned bill - received from Admin"), not "C · Final bill after the activity"
+            'route_label' => ($c->route === 'direct_bill' && $c->bill_source && ($c->status === 'scanned' || str_starts_with((string) $c->purpose, 'Scanned bill')
+                || \App\Models\BtcCaseLog::where('btc_case_id', $c->id)->where('action', 'scanned')->exists()))
+                ? 'Scanned bill - received from '.config('btc.bill_sources.'.$c->bill_source, $c->bill_source)
+                : config("btc.routes.{$c->route}"),
+            'manager' => $name($c->manager_id), 'dept_approver' => $name($c->dept_approver_id),
             'pending' => $c->waitingFor(), 'actions' => BtcWorkflow::allowed($c, $user),
             'duplicates' => array_intersect(['verify1', 'confirm_extraction'], BtcWorkflow::allowed($c, $user)) ? BtcWorkflow::duplicates($c) : [],
             // BTC-PAY-01 / CLOSE-01 / DUP-02 / TDS-02 / GST-01 (17 Nov 2026)

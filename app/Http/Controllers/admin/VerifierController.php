@@ -3470,7 +3470,7 @@ class VerifierController extends Controller
                       AND e.CrBy = ?
                       AND e.FilledOkay = 1
                       AND e.ClaimStatus NOT IN ('Deactivate', 'Draft')
-                      AND e.ClaimAtStep >= 3
+                      AND e.ClaimAtStep >= 2
                       {$appOdometerCond}
                   
                       ORDER BY e.BillDate ASC", [$month, $yearId, $empId]);
@@ -3498,7 +3498,11 @@ class VerifierController extends Controller
                 $claim->stay_details = ($empId);
                 $processedClaims[] = $claim;
             }
-            $totals = $this->calculateClaimTotals($empId, $month, $yearId);
+            // VERIFY-ZERO-01 (23 Nov 2026, testing point 3): the header totals are the totals of the claims listed, so the
+            // top and the bottom of the screen always agree. A claim of the submitted month still at step 2 (e.g. an
+            // activity saved again from the app after submission) is listed too; it used to count in the header only.
+            $sum = fn (string $col, ?string $by = null) => round(array_sum(array_map(fn ($c) => ($by === null || (int) ($c->{$by} ?? 0) > 0) ? (float) ($c->{$col} ?? 0) : 0.0, $processedClaims)), 2);
+            $totals = ['filled' => $sum('FilledTAmt'), 'verified' => $sum('VerifyTAmt', 'VerifyBy'), 'approved' => $sum('ApprTAmt', 'ApprBy')];
             $isVVNR = ((int) session('company_id') === 11);
 
             return response()->json([
@@ -3523,7 +3527,7 @@ class VerifierController extends Controller
             $expId = $request->expid;
             $yearId = session('year_id');
             $expTable = "y{$yearId}_expenseclaims";
-            $claim = DB::connection(session('expense_connection'))->table("{$expTable} as e")->select('e.*', 'c.ClaimName', 'c.cgid')->join('claimtype as c', 'c.ClaimId', '=', 'e.ClaimId')->where('e.ExpId', $expId)->where('e.ClaimMonth', $month)->where('e.ClaimYearId', $yearId)->where('e.CrBy', $empId)->where('e.FilledOkay', 1)->whereNotIn('e.ClaimStatus', ['Deactivate', 'Draft'])->where('e.ClaimAtStep', '>=', 3)->first();
+            $claim = DB::connection(session('expense_connection'))->table("{$expTable} as e")->select('e.*', 'c.ClaimName', 'c.cgid')->join('claimtype as c', 'c.ClaimId', '=', 'e.ClaimId')->where('e.ExpId', $expId)->where('e.ClaimMonth', $month)->where('e.ClaimYearId', $yearId)->where('e.CrBy', $empId)->where('e.FilledOkay', 1)->whereNotIn('e.ClaimStatus', ['Deactivate', 'Draft'])->where('e.ClaimAtStep', '>=', 2)->first();   // VERIFY-ZERO-01
             if (!$claim) {
                 return response()->json(['success' => false, 'message' => 'Claim not found']);
             }
@@ -3618,6 +3622,7 @@ class VerifierController extends Controller
             if (!$claimInfo) {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, null, 0);
 
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
                 return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
             }
             $claimId = $claimInfo->ClaimId;
@@ -3628,6 +3633,7 @@ class VerifierController extends Controller
             if (!$isCgId7 || !$claimId) {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, $claimName, $filledAmount);
 
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
                 return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
             }
             // Get activity fields locally instead of external API (handles deactivated claim types too)
@@ -3665,6 +3671,7 @@ class VerifierController extends Controller
             if (!$apiResponse) {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, $claimName, $filledAmount);
 
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
                 return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
             }
             $valueLabelMap = [];
@@ -3678,6 +3685,7 @@ class VerifierController extends Controller
             if (empty($values)) {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, $claimName, $filledAmount);
 
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
                 return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
             }
             $normalFields = implode(',', $values);
@@ -3737,6 +3745,7 @@ class VerifierController extends Controller
             } else {
                 $this->handleSimpleVerification($expId, $verifyAmt, $verifyRemark, $verifyDate, $detailsTable, $expTable, $verifierId, $claimName, $filledAmount);
 
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
                 return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
             }
 
@@ -3754,7 +3763,8 @@ class VerifierController extends Controller
             }
             DB::connection(session('expense_connection'))->table($expTable)->where('ExpId', $expId)->update($updateData);
 
-            return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
+            \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);   // VERIFY-ZERO-01
+                return response()->json(['success' => true, 'message' => 'Claim verified successfully']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to verify claim: ' . $e->getMessage()], 500);
         }

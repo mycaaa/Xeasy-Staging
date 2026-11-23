@@ -101,11 +101,22 @@ $(function () {
         return `<div class="col-12"><div class="fw-semibold small mt-1">Punch form: ${esc(P.title)} <span class="text-muted fw-normal">- as printed on the bill${P.saved ? '' : ' (filled from the bill reader; check each field)'}</span></div></div>${cells}
             <div class="col-12"><div class="fw-semibold small mt-2">Finance data <span class="text-muted fw-normal">- fields left empty are filled from the punch form when saved</span></div></div>`;
     }
+    // BTC-FORMAT-01 (23 Nov 2026, testing point 7): the bill in its own prescribed format (Hotel / Lodging, Air / Rail /
+    // Bus, Hired vehicle, Meals, Team meeting), read-only, on every view of the case
+    function billFormat(d) {
+        const P = d.punch; if (!P || !Object.values(P.values || {}).some(v => String(v || '').trim() !== '')) return '';
+        const cells = Object.entries(P.fields).map(([k, l]) => `<div class="col-6 col-md-3 col-lg-2"><div class="btc-label">${esc(l)}</div><div class="small fw-semibold">${esc(P.values[k] || '-')}</div></div>`).join('');
+        return `<div class="border rounded p-2 mb-2"><div class="fw-semibold small mb-1">Bill details - ${esc(P.title)} format${P.saved ? '' : ' <span class="text-muted fw-normal">(as read from the bill, not yet punched)</span>'}</div><div class="row g-2">${cells}</div></div>`;
+    }
     // BTC-SCAN-01: Finance level verification - each field checked against the hard copy
+    // BTC-FORMAT-01: the fields of the bill's own format first, then the Finance data
     function verifyChecks(c, d) {
         const F = d.extract_fields || {}, num = ['taxable_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'other_charges', 'bill_amount'];
-        const rows = Object.entries(F).map(([k, l]) => `<tr><td class="text-muted">${esc(l)}</td><td>${num.includes(k) ? fmt(c[k]) : esc(k === 'bill_date' ? (c[k] || '').substring(0, 10) : c[k])}</td>
-            <td class="text-nowrap"><label class="me-2"><input type="radio" name="checks[${k}]" value="ok"> Matches</label><label class="text-danger"><input type="radio" name="checks[${k}]" value="diff"> Differs</label></td></tr>`).join('');
+        const radio = k => `<td class="text-nowrap"><label class="me-2"><input type="radio" name="checks[${esc(k)}]" value="ok"> Matches</label><label class="text-danger"><input type="radio" name="checks[${esc(k)}]" value="diff"> Differs</label></td>`;
+        const P = d.punch, own = P ? Object.entries(P.fields).filter(([k]) => String(P.values[k] || '').trim() !== '') : [];
+        const ownRows = own.length ? `<tr class="table-light"><th colspan="3">${esc(P.title)} format</th></tr>` + own.map(([k, l]) => `<tr><td class="text-muted">${esc(l)}</td><td>${esc(P.values[k])}</td>${radio('p:' + k)}</tr>`).join('') + `<tr class="table-light"><th colspan="3">Finance data</th></tr>` : '';
+        const rows = ownRows + Object.entries(F).map(([k, l]) => `<tr><td class="text-muted">${esc(l)}</td><td>${num.includes(k) ? fmt(c[k]) : esc(k === 'bill_date' ? (c[k] || '').substring(0, 10) : c[k])}</td>
+            ${radio(k)}</tr>`).join('');
         return `<div class="col-12"><table class="table table-sm table-bordered small mb-1"><tr class="table-light"><th>Field</th><th>Punched</th><th>Hard copy <button type="button" class="btn btn-link btn-sm p-0 ms-2" onclick="$(this).closest('table').find('input[value=ok]').prop('checked', true)">all match</button></th></tr>${rows}</table>
             <input type="hidden" name="checks_form" value="1"><label class="small"><input type="checkbox" name="hard_copy_seen" value="1"> I have checked the received hard copy of the bill</label></div>`;
     }
@@ -193,7 +204,7 @@ $(function () {
             case 'return': f.push(`<div class="col-12 small text-muted">Back to the requester to upload a correct bill.</div>`, rmk(true)); break;
             // BTC-V2 (19 Nov 2026): the revised steps
             case 'dms_receive': f.push(inp('dms_received_on', 'Physical bill received by DMS on', 'date', today()), inp('dms_to_finance_on', 'Handed over to Finance on', 'date', today()), inp('dms_doc_no', 'DMS entry no. (optional)', 'text', c.dms_doc_no), rmk(false)); break;
-            case 'finance_upload': f.push(`<div class="col-md-3"><label class="btc-label">Bill received from</label><select class="form-select form-select-sm" name="bill_source">${Object.entries(d.bill_sources || {}).filter(([k]) => k !== 'employee').map(([k, l]) => `<option value="${k}" ${k === (c.route === 'admin_booking' ? 'dms' : 'vendor') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`, file('bill', 'Scanned invoice'), file('supporting', 'Supporting'), file('supporting', 'Supporting'), rmk(false)); break;
+            case 'finance_upload': f.push(`<div class="col-md-3"><label class="btc-label">Bill received from</label><select class="form-select form-select-sm" name="bill_source">${Object.entries(d.bill_sources || {}).filter(([k]) => k !== 'employee').map(([k, l]) => `<option value="${k}" ${k === (c.bill_source && c.bill_source !== 'employee' ? c.bill_source : (c.route === 'admin_booking' ? 'dms' : 'vendor')) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`, file('bill', 'Scanned invoice'), file('supporting', 'Supporting'), file('supporting', 'Supporting'), rmk(false)); break;
             case 'save_extraction': case 'confirm_extraction': f.push(punchForm(c, d), extractFields(c, d), rmk(false)); break;
             // BTC-SCAN-01: Finance Advance Approval and the scanned bill not to be processed
             case 'adv_fin_approve': f.push(`<div class="col-12 small">Advance ₹${fmt(c.advance_approved ?? c.advance_amount)} to ${esc(c.vendor_name || c.emp_name || '')}${c.quotation_amount ? ' (quotation ₹' + fmt(c.quotation_amount) + ')' : ''}.</div>`, rmk(false)); break;
@@ -233,8 +244,8 @@ $(function () {
             const files = d.files.map(f => `<a class="me-3" target="_blank" href="${f.url}"><i class="ri-file-line"></i> ${esc(f.kind.replace('_', ' '))}: ${esc(f.name)}</a>`).join('') || '<span class="text-muted">none</span>';
             const logs = d.logs.map(l => `<div class="btc-log"><b>${esc(l.at)}</b> ${esc(l.by)} · ${esc(l.action.replace(/_/g, ' '))} → ${esc(l.to)}${l.remark ? '<br>' + esc(l.remark) : ''}</div>`).join('');
             const acts = d.actions.map(a => `<button class="btn btn-sm ${['return', 'manager_reject', 'cancel', 'discard_scan', 'adv_fin_reject', 'verify1_return', 'verify1_reject', 'fin_return', 'fin_reject', 'payment_failed', 'hold'].includes(a) ? 'btn-outline-danger' : 'btn-outline-primary'} me-1 mb-1" data-act="${a}">${LABEL[a] || a}</button>`).join('');
-            const body = `${SHOW_FLOW ? '<div class="mb-2">' + flow + '</div>' : ''}
-                <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
+            const body = `${SHOW_FLOW ? '<div class="mb-2">' + flow + '</div>' : ''}${billFormat(d)}
+                <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${c.bill_source ? kv('Bill received from', esc((d.stamps || {}).source)) : ''}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
                 ${kv('Purpose', esc(c.purpose))}${c.request_remarks ? kv('Remarks', esc(c.request_remarks)) : ''}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
                 ${kv('Quotation ₹', fmt(c.quotation_amount))}${kv('Advance ₹', fmt(c.advance_amount))}${kv('Bill', esc((c.bill_no || '') + ' ' + (c.bill_date || '').substring(0, 10)))}${kv('Bill ₹', fmt(c.bill_amount))}
                 ${kv('TDS ₹', fmt(c.tds_amount))}${kv('Net payable ₹', fmt(c.net_payable))}${kv('PNR / sector', esc((c.pnr || '') + ' ' + (c.travel_sector || '')))}${kv('Bill source', esc((d.stamps || {}).source))}${kv('Uploaded', esc((d.stamps || {}).uploaded))}${kv('DMS', esc((d.stamps || {}).dms))}${kv('Verifier 1', esc((d.stamps || {}).verify1))}${kv('Focus entry', esc((d.stamps || {}).focus))}${kv('Finance approval', esc((d.stamps || {}).approved))}

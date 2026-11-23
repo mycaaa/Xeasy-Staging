@@ -97,6 +97,14 @@ class ExtractionController extends BaseMobileController
                 } elseif (isset($apiResponse['response']) && is_array($apiResponse['response'])) {
                     $extractedData = $apiResponse['response'];
                 }
+                // OCR-STORE-01 (23 Nov 2026): keep what was read for the punch form (temp_punch), as the old
+                // extract-data.php did; the upload queues it with this id and the punch mover fills the form
+                if ($extractedData && empty($extractedData['temp_punch_id'])) {
+                    $tid = \App\Services\Claims\TempPunchStore::store($expenseConn, (int) $yearId, $claimId, $empId, $extractedData);
+                    if ($tid) {
+                        $extractedData['temp_punch_id'] = (string) $tid;
+                    }
+                }
 
                 return response()->json([
                     'success' => 'true',
@@ -273,8 +281,14 @@ class ExtractionController extends BaseMobileController
         $expenseConn = $this->getExpenseConnection($comId);
 
         try {
-            $claims = DB::connection($expenseConn)
-                ->select("SELECT ClaimId, ClaimName, ClaimStatus FROM claimtype WHERE ClaimStatus='A' ORDER BY ClaimId");
+            // APP-BILLS-01 (23 Nov 2026, testing point 4): the Bills section lists only regular expense bills (claim group
+            // Travel); activity heads (claim group 7 "Activity" and the old activity groups 2-6) are uploaded only from
+            // the Activity section. The groups are in config claim_rules.app_bill_claim_groups.
+            $groups = array_values(array_filter(array_map('intval', (array) config('claim_rules.app_bill_claim_groups', [1]))));
+            $claims = DB::connection($expenseConn)->table('claimtype')->where('ClaimStatus', 'A')
+                ->when($groups, fn ($q) => $q->whereIn('cgId', $groups))
+                ->whereNotIn('ClaimId', (array) config('claim_rules.app_bill_excluded_claims', [7, 18, 19, 20]))   // as the old list: odometer, boarding pass, DA
+                ->orderBy('ClaimId')->get(['ClaimId', 'ClaimName', 'ClaimStatus'])->all();
 
             $data = array_map(function ($row) {
                 return (array) $row;

@@ -187,6 +187,14 @@ return [
             'Amount' => 'Amount',
         ]],
     ],
+    // BTC-FORMAT-01 (23 Nov 2026): the key fields of each format shown in the lists
+    'punch_summary' => [
+        'hotel' => ['Hotel Name', 'Chk. In Date', 'Chk. Out Date', 'Number of Rooms', 'Grand Total'],
+        'air' => ['Mode', 'PNR Number', 'Journey Date', 'Journey From', 'Journey Upto', 'Total Fare'],
+        'vehicle' => ['Agency Name', 'Vehicle No', 'Total KM', 'Total Amount'],
+        'meals' => ['Hotel Name', 'Bill Date', 'Amount'],
+        'meeting' => ['Vendor', 'Meeting Date', 'Participants', 'Amount'],
+    ],
     'punch_form_of' => ['hotel' => 'hotel', 'vehicle' => 'vehicle', 'air' => 'air', 'train' => 'air', 'bus' => 'air', 'meals' => 'meals', 'meeting' => 'meeting', 'other' => 'meeting'],
     // amount-like punch fields (number inputs)
     'punch_numbers' => ['Per KM Rate', 'Start Reading', 'Closing Reading', 'Total KM', 'Other Charges', 'Total Amount', 'Base Fare', 'GST', 'Fees & Surcharge',

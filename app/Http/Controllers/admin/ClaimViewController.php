@@ -1982,7 +1982,13 @@ class ClaimViewController extends Controller
                     $isVVNR = ($companyId === 11 || str_contains($expenseConn, 'vvnr'));
 
                     $resolvedVerifyTAmt = $totalVerified;
-                    if (!$isVVNR) {
+                    // VERIFY-ZERO-01 (23 Nov 2026, testing point 3): a verifier's save keeps the verified amount as entered,
+                    // including 0 (a 0 used to be replaced by the claimed amount, so the claim stayed at e.g. 7,582)
+                    $referer = (string) $request->headers->get('referer', '');
+                    $byVerifier = $request->input('is_data_punch') !== '1' && ($request->input('is_verifier') === '1'
+                        || str_contains($referer, 'verify-pending') || str_contains($referer, 'verify-approved'));
+                    $verifierZero = $byVerifier && $request->has('totalVerified') && is_numeric($totalVerified) && (float) $totalVerified == 0.0;
+                    if (!$isVVNR && ! $verifierZero) {
                         $isVerifyEmptyOrZero = !$existingClaim
                             || empty($existingClaim->VerifyDate)
                             || \App\Support\ZeroDate::none($existingClaim->VerifyDate)
@@ -2002,7 +2008,7 @@ class ClaimViewController extends Controller
                         'ClaimId' => $claimId,
                         'activity_type' => $formDataArray['activity_type'] ?? null,
                         'FilledTAmt' => $this->filledAmountFrozen($existingClaim) ? $existingClaim->FilledTAmt : $totalAmount, // FREEZE-01
-                        'VerifyTAmt' => $this->filledAmountFrozen($existingClaim) && (empty($totalVerified) || (float) $totalVerified <= 0) ? $totalAmount : $resolvedVerifyTAmt,
+                        'VerifyTAmt' => $verifierZero ? 0 : ($this->filledAmountFrozen($existingClaim) && (empty($totalVerified) || (float) $totalVerified <= 0) ? $totalAmount : $resolvedVerifyTAmt),
                         'ApprTAmt' => $totalApproved,
                         'FinancedTAmt' => $totalFinance,
                     ];
@@ -2658,6 +2664,10 @@ class ClaimViewController extends Controller
                 \App\Services\Claims\MonthRecord::ensure((string) session('expense_connection'), (int) $yearId, (int) $expId);
             }
             \App\Services\Claims\PunchChangeTrack::record((string) session('expense_connection'), (int) $yearId, (int) $cgId, (int) $expId, $punchBefore, (int) session('company_id', 1));
+            // VERIFY-ZERO-01: a verifier's change to a month already verified updates that month's verified total
+            if ($expId && $request->input('is_verifier') === '1') {
+                \App\Services\Claims\MonthVerifiedTotal::refreshForClaim((string) session('expense_connection'), (int) $yearId, (int) $expId);
+            }
             // EMP-CONFIRM-01: a claim the employee denied goes back to the employee once the punching team has
             // saved it again (it used to stay 'Denied' for good: out of the month and in the punching Denied tab)
             if ($expId && $request->input('is_data_punch') === '1') {
@@ -2767,9 +2777,24 @@ class ClaimViewController extends Controller
     private function processExpensesData($expensesData, $expenseHeads, Request $request, $claimId, $yearId, $empId)
     {
         $g7Data = [];
+        // VERIFY-ZERO-01 (23 Nov 2026): the activity table's columns are named after the head (e.g.
+        // conveyance_for_meeting_participants, as every reader of the table expects); the short codes added to the heads
+        // (ConvMeet ...) have no columns, so saving by short code failed with "Unknown column file_ConvMeet" and the
+        // verifier's change (e.g. to 0) was never saved. The head's column name is used; the short code only if a
+        // column of that name exists.
+        $g7Cols = array_flip(\Illuminate\Support\Facades\Schema::connection(session('expense_connection'))->getColumnListing("y{$yearId}_g7_expensefilldata"));
         foreach ($expensesData as $index => $expense) {
             $valueKey = strtolower($expense['value'] ?? '');
-            $key = $expenseHeads[$valueKey]->short_code ?? $this->sanitizeColumnName($expense['label'] ?? 'unknown');
+            $head = $expenseHeads[$valueKey] ?? null;
+            $name = (string) ($head->expense_head_name ?? ($expense['label'] ?? 'unknown'));
+            $appStyle = strtolower(preg_replace('/__+/', '_', preg_replace('/\s+/', '_', trim(preg_replace('/[^A-Za-z0-9 ]/', '', $name)))));   // as the app names it
+            $key = $this->sanitizeColumnName($name);
+            foreach ([$valueKey, $key, $appStyle, (string) ($head->short_code ?? '')] as $cand) {
+                if ($cand !== '' && isset($g7Cols[$cand])) {
+                    $key = $cand;
+                    break;
+                }
+            }
             $claimAmount = $expense['claim_amount'] ?? null;
             $verifiedAmt = $expense['verified_amount'] ?? null;
             $approvedAmt = $expense['approved_amount'] ?? null;
@@ -2790,6 +2815,10 @@ class ClaimViewController extends Controller
             $g7Data["app_{$key}"] = $approvedAmt;
             $g7Data["app_remark_{$key}"] = $appRemark;
             $g7Data["pay_{$key}"] = $financeAmt;
+        }
+        if ($missing = array_diff_key($g7Data, $g7Cols)) {   // a head with no column yet: logged, not a failed save
+            Log::warning('Activity heads without a column in g7 table', ['year' => $yearId, 'claim' => $claimId, 'columns' => array_keys($missing)]);
+            $g7Data = array_intersect_key($g7Data, $g7Cols);
         }
         return $g7Data;
     }

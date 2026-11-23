@@ -232,4 +232,9 @@ return [
     'sod' => [
         'block_own_claim' => (bool) env('CLAIM_RULES_BLOCK_OWN_CLAIM', true),
     ],
+
+    // APP-BILLS-01 (23 Nov 2026): claim groups offered in the app's Bills section (1 = Travel / regular bills);
+    // activity heads are uploaded from the Activity section only
+    'app_bill_excluded_claims' => [7, 18, 19, 20],   // 2/4 wheeler (odometer), boarding pass, DA@HQ, DA outstation - not bills
+    'app_bill_claim_groups' => array_values(array_filter(array_map('intval', explode(',', (string) env('APP_BILL_CLAIM_GROUPS', '1'))))),
 ];

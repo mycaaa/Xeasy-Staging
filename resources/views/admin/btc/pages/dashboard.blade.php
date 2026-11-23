@@ -9,7 +9,8 @@
     .btc-small td, .btc-small th { font-size: .78rem; }
 </style>
 <div class="page-content"><div class="container-fluid xe-screen">
-    @include('admin.btc.pages._nav', ['title' => 'BTC Dashboard', 'icon' => 'ri-dashboard-3-line', 'sub' => 'All live BTC requests of this company within your access'])
+    @include('admin.btc.pages._nav', ['title' => 'BTC Dashboard', 'icon' => 'ri-dashboard-3-line', 'sub' => 'Live BTC requests you are allowed to see'])
+    <div class="alert alert-light border py-2 small mb-3"><i class="ri-eye-line me-1"></i>Showing: <b>{{ $scope['label'] }}</b></div>
 
     <div class="row g-2 mb-3">
         @foreach ([
@@ -38,7 +39,7 @@
                 <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-error-warning-line"></i>Exceptions</span></div>
                 <div class="xe-section-body p-0"><table class="table table-sm mb-0 btc-small">
                     <tbody>@foreach ($exceptions as [$l, $n, $url])
-                        <tr><td>{{ $l }}</td><td class="text-end">@if ($n)<a href="{{ $url }}" class="fw-semibold text-danger">{{ $n }}</a>@else<span class="text-muted">0</span>@endif</td></tr>
+                        <tr><td>{{ $l }}</td><td class="text-end">@if ($n)@if ($links)<a href="{{ $url }}" class="fw-semibold text-danger">{{ $n }}</a>@else<span class="fw-semibold text-danger">{{ $n }}</span>@endif@else<span class="text-muted">0</span>@endif</td></tr>
                     @endforeach</tbody>
                 </table></div>
             </section>
@@ -65,7 +66,7 @@
                 <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-flow-chart"></i>Requests by stage</span></div>
                 <div class="xe-section-body d-flex flex-wrap gap-2">
                     @forelse ($byStatus as $st => $n)
-                        <a class="xe-btn xe-btn-plain" href="{{ route('btc.register', ['status' => $st]) }}">{{ config("btc.statuses.$st", $st) }} <span class="xe-count">{{ $n }}</span></a>
+                        @if ($links)<a class="xe-btn xe-btn-plain" href="{{ route('btc.register', ['status' => $st]) }}">{{ config("btc.statuses.$st", $st) }} <span class="xe-count">{{ $n }}</span></a>@else<span class="xe-btn xe-btn-plain">{{ config("btc.statuses.$st", $st) }} <span class="xe-count">{{ $n }}</span></span>@endif
                     @empty
                         <span class="text-muted small">No BTC requests yet.</span>
                     @endforelse

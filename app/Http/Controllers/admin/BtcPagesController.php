@@ -41,11 +41,16 @@ class BtcPagesController extends Controller
     // ---- 1. Dashboard ------------------------------------------------------------------------------------------
     public function dashboard()
     {
-        $this->need('btc.dashboard|btc.audit');
+        // BTC-DASH-ROLE-01 (23 Nov 2026): open to every signed-in user; the figures follow the user's role and reporting
+        // line (company for Super Admin, department for admins, own + reportees for managers, own for employees)
+        abort_unless(auth()->check(), 403);
         if (! $this->ready()) {
             return $this->notReady();
         }
-        $all = $this->cases()->whereNotIn('status', ['draft'])->get();
+        $scope = \App\Services\Btc\BtcDashboardScope::for(auth()->user());
+        $all = \App\Services\Btc\BtcDashboardScope::apply(BtcCase::query()->where('company_id', (int) session('company_id', 1)), $scope)
+            ->whereNotIn('status', ['draft'])->get();
+        $links = in_array($scope['level'], ['company', 'department'], true);
         $live = $all->whereNotIn('status', ['cancelled', 'rejected']);
         $value = fn ($c) => (float) ($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount);
         $unpaid = $live->filter(fn ($c) => $c->bill_no && ! in_array($c->status, ['paid', 'closed'], true));
@@ -89,7 +94,7 @@ class BtcPagesController extends Controller
                 'advance_outstanding' => $adv->sum(fn ($a) => max(0, $a['balance'])),
                 'advance_cases' => $adv->filter(fn ($a) => $a['balance'] > 0.5)->count(),
             ],
-            'ageing' => $ageing, 'exceptions' => $exceptions,
+            'ageing' => $ageing, 'exceptions' => $exceptions, 'scope' => $scope, 'links' => $links,
             'byDept' => $group('department_name')->take(15), 'byVendor' => $group('vendor_name')->take(15),
             // BTC-V2: every stage of the revised workflow, in order (with its count)
             'byStatus' => collect(array_keys(config('btc.statuses')))->mapWithKeys(fn ($st) => [$st => $all->where('status', $st)->count()])

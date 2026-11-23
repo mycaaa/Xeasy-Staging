@@ -23,7 +23,7 @@
             </div>
             <div class="d-flex gap-2 flex-wrap">
                 @php $u = auth()->user(); @endphp
-                @if ($u->can('btc.dashboard') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.dashboard') }}"><i class="ri-dashboard-3-line"></i> Dashboard</a>@endif
+                @if (true)<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.dashboard') }}"><i class="ri-dashboard-3-line"></i> Dashboard</a>@endif
                 @if (\App\Http\Controllers\admin\BtcPagesController::hasTeam() || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-primary" href="{{ route('btc.team') }}"><i class="ri-team-line"></i> My team</a>@endif
                 @if ($u->can('btc.register') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.register') }}"><i class="ri-list-check-2"></i> Register</a>@endif
                 @if ($u->can('btc.booking') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.booking') }}"><i class="ri-hotel-line"></i> Booking queue</a>@endif

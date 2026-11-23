@@ -45,6 +45,47 @@ class BtcCase extends Model
         return config("btc.categories.{$this->category}.label", $this->category);
     }
 
+    /**
+     * BTC-FORMAT-01 (23 Nov 2026, testing point 7): the bill in its own prescribed format - the punch form of its type
+     * (Hotel / Lodging, Air / Rail / Bus, Hired vehicle, Meals, Team meeting) with the punched values, else as read.
+     * @return array{title: string, form: string, fields: array<string,string>, values: array<string,string>}|null
+     */
+    public function punchFormat(): ?array
+    {
+        $key = config('btc.punch_form_of.'.$this->category, 'meeting');
+        $form = config('btc.punch_forms.'.$key);
+        if (! $form) {
+            return null;
+        }
+        $saved = json_decode((string) ($this->punch_json ?? ''), true);
+        $raw = (array) (json_decode((string) ($this->extract_json ?? ''), true)['raw'] ?? []);
+        $vals = [];
+        foreach (array_keys($form['fields']) as $k) {
+            $v = is_array($saved) && array_key_exists($k, $saved) ? $saved[$k] : ($raw[$k] ?? null);
+            $vals[$k] = is_scalar($v) ? trim((string) $v) : '';
+        }
+
+        return ['title' => $form['title'], 'form' => $key, 'fields' => $form['fields'], 'values' => $vals];
+    }
+
+    /** BTC-FORMAT-01: the key fields of the bill's own format, for lists ("Hotel X · in 22-10 · out 23-10 · 2,000"). */
+    public function punchSummary(): string
+    {
+        $p = $this->punchFormat();
+        if (! $p) {
+            return '';
+        }
+        $parts = [];
+        foreach ((array) config('btc.punch_summary.'.$p['form'], []) as $k) {
+            $v = $p['values'][$k] ?? '';
+            if ($v !== '') {
+                $parts[] = ($p['fields'][$k] ?? $k).': '.$v;
+            }
+        }
+
+        return $parts ? $p['title'].' - '.implode(' · ', $parts) : '';
+    }
+
     /** Things still open after payment (closure is blocked until they are in). */
     public function pendingDocuments(): array
     {

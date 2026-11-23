@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\Schema;
  */
 class PunchQueueMover
 {
+    private const STATES = ['andhra pradesh', 'arunachal pradesh', 'assam', 'bihar', 'chhattisgarh', 'goa', 'gujarat', 'haryana',
+        'himachal pradesh', 'jharkhand', 'karnataka', 'kerala', 'madhya pradesh', 'maharashtra', 'manipur', 'meghalaya', 'mizoram',
+        'nagaland', 'odisha', 'orissa', 'punjab', 'rajasthan', 'sikkim', 'tamil nadu', 'telangana', 'tripura', 'uttar pradesh',
+        'uttarakhand', 'west bengal', 'india', 'jammu and kashmir', 'ladakh', 'puducherry', 'chandigarh ut', 'delhi ncr'];
+
     public function __construct(private string $conn, private int $yearId)
     {
     }
@@ -105,6 +110,17 @@ class PunchQueueMover
                 }
             }
 
+            // OCR-STORE-01 (23 Nov 2026, testing point 5): the bill reader gives no city, so the lodging city (and its
+            // tier) is found in the hotel address against the company's city master, as the punch form needs it
+            if ($claimId === 1 && isset($targetCols['CityName']) && empty($data['CityName'])) {
+                if ($city = self::cityFromText((string) ($src->hotel_address ?? '').' '.(string) ($src->billing_address ?? ''), $this->conn)) {
+                    $data['CityName'] = $city->city_name;
+                    if (isset($targetCols['CityCategory'])) {
+                        $data['CityCategory'] = $city->city_category;
+                    }
+                }
+            }
+
             $db->transaction(function () use ($db, $target, $expId, $data, $y, $claimId, $punchId, $row) {
                 if ($data) {
                     $db->table($target)->updateOrInsert(['ExpId' => $expId], $data);
@@ -128,6 +144,32 @@ class PunchQueueMover
 
             return [false, 'failed: '.$e->getMessage()];
         }
+    }
+
+    /**
+     * OCR-STORE-01: the city of the city master named in a text (the hotel address first) - whole words, the longest
+     * name wins (so "Navi Mumbai" before "Mumbai"); null when none is named.
+     */
+    public static function cityFromText(string $text, string $conn): ?object
+    {
+        $text = ' '.mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $text)).' ';
+        if (trim($text) === '' || ! Schema::connection($conn)->hasTable('city_category')) {
+            return null;
+        }
+        static $cities = [];
+        $cities[$conn] ??= DB::connection($conn)->table('city_category')->whereNotNull('city_name')->where('city_name', '!=', '')
+            ->orderByRaw('CHAR_LENGTH(city_name) DESC')->orderBy('ccid')->get(['ccid', 'city_name', 'city_category'])->all();
+        foreach ($cities[$conn] as $c) {
+            $n = trim(mb_strtolower(preg_replace('/[^\p{L}\p{N}]+/u', ' ', (string) $c->city_name)));
+            if (in_array($n, self::STATES, true)) {
+                continue;   // a state name in the master is not the city of the hotel
+            }
+            if (mb_strlen($n) >= 3 && str_contains($text, ' '.$n.' ')) {
+                return $c;
+            }
+        }
+
+        return null;
     }
 
     /** Closest master value by text similarity (>= 50%), as the old mover did. */

@@ -536,13 +536,22 @@ class BtcWorkflow
                 }
                 // BTC-SCAN-01: Finance level verification - every field checked against the hard copy
                 if (Schema::hasColumn('btc_cases', 'verify1_checks') && (! empty($d['checks_form']) || isset($d['checks']))) {
-                    $fields = array_keys((array) config('btc.extraction.fields'));
+                    // BTC-FORMAT-01 (23 Nov 2026): the filled fields of the bill's own format (p:<field>) are checked too
+                    $own = $c->punchFormat();
+                    $ownLabels = [];
+                    foreach ((array) ($own['values'] ?? []) as $k => $v) {
+                        if (trim((string) $v) !== '') {
+                            $ownLabels['p:'.$k] = $own['fields'][$k] ?? $k;
+                        }
+                    }
+                    $labels = $ownLabels + (array) config('btc.extraction.fields');
+                    $fields = array_keys($labels);
                     $checks = array_intersect_key(is_array($d['checks'] ?? null) ? $d['checks'] : [], array_flip($fields));
                     if (count($checks) < count($fields) || in_array('', $checks, true)) {
                         throw new RuntimeException('Mark every field as matching the hard copy or not.');
                     }
                     if ($bad = array_keys(array_filter($checks, fn ($v) => $v !== 'ok'))) {
-                        throw new RuntimeException('Not matching the hard copy: '.collect($bad)->map(fn ($k) => rtrim(config("btc.extraction.fields.{$k}", $k), '.'))->implode(', ').' - return it for correction.');
+                        throw new RuntimeException('Not matching the hard copy: '.collect($bad)->map(fn ($k) => rtrim((string) ($labels[$k] ?? $k), '.'))->implode(', ').' - return it for correction.');
                     }
                     if (empty($d['hard_copy_seen'])) {
                         throw new RuntimeException('Confirm that the hard copy of the bill was checked.');
@@ -560,7 +569,8 @@ class BtcWorkflow
             case 'fin_reject':
                 if ($action === 'verify1_return' && $remark === '' && isset($d['checks']) && is_array($d['checks'])) {   // BTC-SCAN-01: the fields not matching
                     $bad = array_keys(array_filter($d['checks'], fn ($v) => $v === 'diff'));
-                    $remark = $bad ? 'Not matching the hard copy: '.collect($bad)->map(fn ($k) => config("btc.extraction.fields.{$k}", $k))->implode(', ') : '';
+                    $own = $c->punchFormat();
+                    $remark = $bad ? 'Not matching the hard copy: '.collect($bad)->map(fn ($k) => str_starts_with($k, 'p:') ? ($own['fields'][substr($k, 2)] ?? substr($k, 2)) : config("btc.extraction.fields.{$k}", $k))->implode(', ') : '';
                 }
                 if ($remark === '') {
                     throw new RuntimeException($action === 'verify1_return' ? 'Say what is to be corrected.' : 'Give the reason for rejecting.');
