@@ -63,11 +63,9 @@ class BtcReaderController extends Controller
     /** Signed 15-minute link for the reading service (no login; route btc.reader.file in web.php, 'signed' middleware). */
     public function signedFile(Request $request)
     {
-        try {
-            $path = \App\Services\Btc\InvoiceReader::untoken((string) $request->query('f'));   // BTC-READER-02
-        } catch (\Throwable $e) {
-            abort(404);
-        }
+        // BTC-READER-03: /btc/reader-file/<token>/invoice.<ext> - the token is the encrypted path + expiry
+        $path = \App\Services\Btc\InvoiceReader::untoken((string) $request->route('t'));
+        abort_unless($path !== null, 403, 'This link has expired or is not valid.');
         abort_unless(str_starts_with($path, 'btc/') && ! str_contains($path, '..') && Storage::disk('local')->exists($path), 404);
 
         return Storage::disk('local')->response($path);

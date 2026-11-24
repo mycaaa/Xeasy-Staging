@@ -39,10 +39,11 @@ class InvoiceReader
         // the reader expects a file-like address (ending in .pdf / .jpg ...)
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         $ext = in_array($ext, ['pdf', 'jpg', 'png', 'webp', 'heic'], true) ? $ext : 'pdf';
-        // BTC-READER-02 (24 Nov 2026): the link is signed on its path only (signed:relative), so it stays valid whatever
-        // scheme / host the reading service uses to fetch it. On xeasy the reader got "403" for every bill: the link was
-        // signed for one address (APP_URL, http) and arrived as another (https), so the signature check refused it.
-        $rel = URL::temporarySignedRoute('btc.reader.file', now()->addMinutes(15), ['n' => 'invoice.'.$ext, 'f' => self::token($path)], false);
+        // BTC-READER-03 (24 Nov 2026): the link carries no query string at all - the encrypted (tamper-proof) file path
+        // and expiry time are one URL-safe part of the path: /btc/reader-file/<token>/invoice.pdf. On xeasy the reading
+        // service got 403 for every signed link (the signature check never matched the address it fetched); a path-only
+        // link cannot be changed in transit.
+        $rel = '/btc/reader-file/'.self::token($path, now()->addMinutes(15)->getTimestamp()).'/invoice.'.$ext;
         // the reading service must reach this app from the internet: a public base address may differ from APP_URL
         $base = rtrim((string) config('btc.reader.public_base', ''), '/');
         if ($base === '') {
@@ -57,16 +58,22 @@ class InvoiceReader
      * has "+", "/" and "=", which a fetching service may decode or re-encode differently, so the signed address no
      * longer matched and xeasy answered 403.
      */
-    public static function token(string $path): string
+    public static function token(string $path, int $expires = 0): string
     {
-        return rtrim(strtr(base64_encode(Crypt::encryptString($path)), '+/', '-_'), '=');
+        return rtrim(strtr(base64_encode(Crypt::encryptString(json_encode(['p' => $path, 'e' => $expires ?: now()->addMinutes(15)->getTimestamp()]))), '+/', '-_'), '=');
     }
 
-    public static function untoken(string $t): string
+    /** The file path of a valid, unexpired token; null otherwise (tampered tokens fail decryption). */
+    public static function untoken(string $t): ?string
     {
-        $raw = base64_decode(strtr($t, '-_', '+/'), true);
+        try {
+            $raw = base64_decode(strtr($t, '-_', '+/'), true);
+            $j = json_decode(Crypt::decryptString($raw === false ? $t : $raw), true);
+        } catch (\Throwable $e) {
+            return null;
+        }
 
-        return Crypt::decryptString($raw !== false && str_starts_with($raw, 'eyJ') ? $raw : $t);   // older links: plain
+        return is_array($j) && ! empty($j['p']) && (int) ($j['e'] ?? 0) >= time() ? (string) $j['p'] : null;
     }
 
     /**

@@ -22,7 +22,7 @@ Route::view('privacy', 'legal.privacy-notice')->name('privacy.notice');
 // BTC-V2 (19 Nov 2026): the vendor boarding-pass portal links are removed (sheet item 24)
 
 // BTC-READER-01 (18 Nov 2026): 15-minute signed link the invoice-reading service fetches a stored BTC invoice from (no login)
-Route::get('btc/reader-file/{n}', [\App\Http\Controllers\admin\BtcReaderController::class, 'signedFile'])->where('n', 'invoice\.(pdf|jpg|png|webp|heic)')->middleware(['signed:relative', 'throttle:60,1'])->name('btc.reader.file');   // BTC-READER-02: path-only signature
+Route::get('btc/reader-file/{t}/{n}', [\App\Http\Controllers\admin\BtcReaderController::class, 'signedFile'])->where('t', '[A-Za-z0-9_-]+')->where('n', 'invoice\.(pdf|jpg|png|webp|heic)')->middleware(['throttle:60,1'])->name('btc.reader.file');   // BTC-READER-03: the token (encrypted path + expiry) is the credential
 
 // Test route to check financial years
 Route::get('test/financial-years', function () {
