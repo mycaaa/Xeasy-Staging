@@ -26,7 +26,9 @@ return [
     'treasury_checker_unused' => (bool) env('BTC_TREASURY_CHECKER', true),
     // BTC-FLOW-01 (18 Nov 2026): Finance may verify an air case before the boarding pass is in (it is then chased and
     // still needed for closure). Default true = the old rule (no verification without the boarding pass).
-    'boarding_pass_before_verify' => (bool) env('BTC_BOARDING_PASS_BEFORE_VERIFY', true),
+    // BTC-FOCUS-02 (24 Nov 2026, testing point 8): default false - only the expense booking (employee JV) waits for the
+    // boarding pass; verification, the vendor JV, approval and payment go on ("do not hold all entries")
+    'boarding_pass_before_verify' => (bool) env('BTC_BOARDING_PASS_BEFORE_VERIFY', false),
 
     // BTC-READER-01 (18 Nov 2026): invoices read inside Xeasy (same bill-reading service as the claim screens)
     'reader' => [

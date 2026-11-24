@@ -68,6 +68,7 @@
                         <div class="col-md-6"><label class="btc-label" for="clDept">or department</label><input id="clDept" name="department_name" maxlength="150" class="form-control form-control-sm"></div>
                         <div class="col-12"><label class="btc-label" for="clPurpose">Purpose</label><select id="clPurpose" name="purpose" class="form-select form-select-sm"><option value="">— choose —</option>@foreach ($purposes as $p)<option value="{{ $p }}">{{ $p }}</option>@endforeach</select></div>
                     </div>
+                    <div class="col-12" id="clRead"></div>
                     <div class="col-12"><label class="btc-label" for="clRemark">Remark</label><input id="clRemark" name="remark" maxlength="500" class="form-control form-control-sm"></div>
                     <div class="col-12 d-flex gap-2"><button type="button" class="btn btn-sm btn-primary" id="clSave">Save and send to Punch Screen</button><span class="small text-muted align-self-center" id="clMsg"></span></div>
                 </form>
@@ -94,6 +95,22 @@ $(function () {
         $('#clForm')[0].reset(); $('#clLink, #clEmp').val(null).trigger('change'); $('#clMsg').text('');
         $('#clScan').html(b.file ? `<p class="btc-label">Scanned bill · <a target="_blank" rel="noopener" href="${b.file}">open in a new tab</a></p>` + (Number(b.pdf) ? `<iframe src="${b.file}" title="Scanned bill" style="width:100%;height:70vh;border:1px solid #e5e7eb;border-radius:6px"></iframe>` : `<img src="${b.file}" alt="Scanned bill" style="max-width:100%;border:1px solid #e5e7eb;border-radius:6px">`) : '<div class="text-muted">No file</div>');
         bootstrap.Modal.getOrCreateInstance($m[0]).show();
+        // BTC-CLASSIFY-02 (24 Nov 2026): read the bill first and fill the form; the person checks and corrects
+        $('#clRead').html('<div class="small text-muted"><span class="spinner-border spinner-border-sm me-1"></span>Reading the bill to fill the form…</div>');
+        const cid = id;
+        $.ajax({url: @json(url('btc/classification')) + '/' + cid + '/suggest', method: 'POST', headers: {'X-CSRF-TOKEN': CSRF}})
+            .done(r => {
+                if (cid !== id) return;
+                if (!r.success) { $('#clRead').html('<div class="small text-warning-emphasis">' + esc(r.message) + '</div>'); return; }
+                $('#clForm [name=category][value="' + r.category + '"]').prop('checked', true);
+                if (r.link) { $('#clLink').append(new Option(r.link.text, r.link.id, true, true)).trigger('change'); }
+                else if (r.employee) { $('#clEmp').append(new Option(r.employee.text, r.employee.id, true, true)).trigger('change'); }
+                const rows = Object.entries(r.read || {}).map(([k, v]) => `<tr><td class="text-muted text-nowrap">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+                $('#clRead').html(`<div class="border rounded p-2 small"><div class="fw-semibold mb-1">Filled from the bill - check and correct</div>
+                    <div>Type: <b>${esc(r.category_label)}</b>${r.link ? ' · request <b>' + esc(r.link.text.split(' · ')[0]) + '</b>' : ''}${r.employee ? ' · employee <b>' + esc(r.employee.text) + '</b>' : ' · employee not found on the bill - choose him'}</div>
+                    <details class="mt-1"><summary>What was read (${Object.keys(r.read || {}).length} fields)</summary><table class="table table-sm mb-0">${rows}</table></details></div>`);
+            })
+            .fail(() => { if (cid === id) $('#clRead').html('<div class="small text-warning-emphasis">The bill could not be read; classify by hand.</div>'); });
     });
     $('#clSave').on('click', function () {
         if (!$('#clForm [name=category]:checked').length) { $('#clMsg').addClass('text-danger').text('Choose the bill type.'); return; }

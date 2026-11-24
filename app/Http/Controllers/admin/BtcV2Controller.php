@@ -277,6 +277,96 @@ class BtcV2Controller extends Controller
                 'purposes' => (array) config('btc.purposes', [])]);
     }
 
+    /**
+     * BTC-CLASSIFY-02 (24 Nov 2026, testing point 9): the scanned bill is read before anyone types - the readers of the
+     * bill types are asked together, the type that reads the most fields is proposed, and the employee (by code, else
+     * by full name) and an open BTC request of that employee are looked up. The person only checks and corrects.
+     * The answer is kept on the scan, so it is read once.
+     */
+    public function suggest(int $id)
+    {
+        $this->need('btc.dms|btc.bill_upload|btc.finance');
+        $scan = $this->cases()->where('status', 'scanned')->findOrFail($id);
+        $prev = json_decode((string) $scan->extract_json, true);
+        if (is_array($prev) && ! empty($prev['suggest'])) {
+            return response()->json(['success' => true] + $prev['suggest']);
+        }
+        $f = $scan->files()->where('kind', 'bill')->orderByDesc('id')->first();
+        if (! $f) {
+            return response()->json(['success' => false, 'message' => 'No scanned file on this entry.']);
+        }
+        $types = ['hotel', 'air', 'train', 'vehicle', 'meals'];
+        $link = \App\Services\Btc\InvoiceReader::fileUrl($f->file_path);
+        try {
+            $res = \Illuminate\Support\Facades\Http::pool(fn ($pool) => array_map(fn ($t) => $pool->as($t)->timeout((int) config('btc.reader.timeout', 60))
+                ->withOptions(['verify' => \App\Support\TlsVerify::option()])
+                ->post(\App\Services\Btc\InvoiceReader::endpoint($t), ['fileUrl' => $link]), $types));
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => 'The bill reader could not be reached; classify by hand.']);
+        }
+        $best = null;
+        $bestScore = 0;
+        $reads = [];
+        foreach ($types as $t) {
+            $r = $res[$t] ?? null;
+            $data = ($r instanceof \Illuminate\Http\Client\Response && $r->successful()) ? (array) ($r->json('data') ?? []) : [];
+            $data = array_filter($data, fn ($v) => is_scalar($v) && trim((string) $v) !== '' && ! in_array(strtolower(trim((string) $v)), ['0', 'n/a', 'na', 'null', '-'], true));
+            $reads[$t] = $data;
+            // the fields that only a bill of this type has decide it (hotel: check-in; air: PNR / flight; ...)
+            $key = ['hotel' => ['Chk. In Date', 'Chk. Out Date', 'Hotel Name', 'Room Type', 'Number of Rooms'], 'air' => ['PNR Number', 'Airline', 'Flight Number', 'Ticket Number'],
+                'train' => ['Train Number', 'Train Name', 'PNR Number', 'Coach'], 'vehicle' => ['Vehicle No', 'Start Reading', 'Closing Reading', 'Total KM', 'Per KM Rate'],
+                'meals' => ['Particulars', 'Hotel Name']][$t];
+            $score = count($data) + 3 * count(array_intersect_key($data, array_flip($key)));
+            if ($score > $bestScore) {
+                [$best, $bestScore] = [$t, $score];
+            }
+        }
+        if (! $best) {
+            return response()->json(['success' => false, 'message' => 'The bill could not be read; classify by hand.']);
+        }
+        $read = $reads[$best];
+        // the employee: an employee code on the bill, else a full name that matches one active employee
+        $emp = null;
+        $h = DB::connection('hrims');
+        foreach (['Emp Code', 'Employee Code', 'Emp. Code'] as $k) {
+            if (! $emp && ! empty($read[$k]) && ($code = preg_replace('/\D/', '', (string) $read[$k]))) {
+                $emp = $h->table('hrm_employee')->where('EmpCode', ltrim($code, '0'))->orderByRaw("EmpStatus = 'A' DESC")->first(['EmployeeID', 'EmpCode', 'Fname', 'Sname', 'Lname']);
+            }
+        }
+        foreach (['Employee', 'Employee Name', 'Passenger', 'Passenger Name', 'Billing Name', 'Billing Person', 'Guest Name'] as $k) {
+            if ($emp || empty($read[$k])) {
+                continue;
+            }
+            $name = strtoupper(trim(preg_replace('/^(MR|MRS|MS|DR|SHRI)\.?\s+/i', '', preg_replace('/\s+/', ' ', (string) $read[$k]))));
+            $parts = explode(' ', $name);
+            if (count($parts) < 2) {
+                continue;
+            }
+            $hits = $h->table('hrm_employee')->where('EmpStatus', 'A')->whereRaw('UPPER(Fname) = ?', [$parts[0]])->whereRaw('UPPER(Lname) = ?', [end($parts)])->limit(2)->get(['EmployeeID', 'EmpCode', 'Fname', 'Sname', 'Lname']);
+            if ($hits->count() === 1) {
+                $emp = $hits->first();
+            }
+        }
+        $empOut = $emp ? ['id' => (int) $emp->EmployeeID, 'text' => $emp->EmpCode.' - '.trim(preg_replace('/\s+/', ' ', $emp->Fname.' '.$emp->Sname.' '.$emp->Lname))] : null;
+        // an open BTC request of that employee waiting for its bill (same type first)
+        $linkOut = null;
+        if ($emp) {
+            $req = $this->cases()->whereIn('status', BtcWorkflow::ACTIONS['finance_upload'][0])->where('employee_id', (int) $emp->EmployeeID)
+                ->orderByRaw('category = ? DESC', [$best])->orderByDesc('id')->first();
+            if ($req) {
+                $linkOut = ['id' => $req->id, 'text' => $req->case_no.' · '.trim($req->emp_code.' '.$req->emp_name).' · '.$req->categoryLabel().($req->vendor_name ? ' · '.$req->vendor_name : '').' · '.$req->statusLabel()];
+            }
+        }
+        $out = ['category' => $best, 'category_label' => config("btc.categories.{$best}.label", $best), 'employee' => $empOut, 'link' => $linkOut,
+            'read' => array_slice(array_map(fn ($v) => mb_substr((string) $v, 0, 120), $read), 0, 30, true)];
+        $j = is_array($prev) ? $prev : [];
+        $j['suggest'] = $out;
+        $scan->extract_json = json_encode($j);
+        $scan->save();
+
+        return response()->json(['success' => true] + $out);
+    }
+
     public function classify(Request $request, int $id)
     {
         $this->need('btc.dms|btc.bill_upload|btc.finance');
@@ -365,7 +455,7 @@ class BtcV2Controller extends Controller
             ], (string) $request->input('tab', 'all'), $request, ['open' => (int) $request->input('case')]);
     }
 
-    /** Finance Advance Approval: pending -> approved -> instructed (then Finance Advance records the payment). */
+    /** Finance Advance Approval: pending -> approved -> instructed (then Treasury releases it - BTC-ADV-TREAS-01). */
     public function advanceApproval(Request $request)
     {
         $this->need('btc.fin_approver|btc.advance|btc.audit');
@@ -374,7 +464,7 @@ class BtcV2Controller extends Controller
         $paid = fn ($q) => $q->where('advance_amount', '>', 0)->where(fn ($w) => $w->where('advance_paid_amount', '>', 0)->orWhereNotNull('advance_paid_on'));
 
         return $this->queue('advance-approval', 'Finance Advance Approval', 'ri-hand-coin-line',
-            'Advances approved by the reporting manager wait here for Finance: approve (or reject), then give the payment instruction. Finance Advance pays only instructed advances.',
+            'Advances approved by the reporting manager wait here for Finance: approve (or reject), then give the payment instruction. Instructed advances go to Treasury Payment > Advances to release, where Treasury pays them.',
             [
                 'pending' => ['Pending', fn ($q) => $adv($q)->where(fn ($w) => $w->whereNull('adv_stage')->orWhereIn('adv_stage', ['', 'pending']))],
                 'approved' => ['Approved', fn ($q) => $adv($q)->where('adv_stage', 'approved')],
@@ -525,11 +615,17 @@ class BtcV2Controller extends Controller
         }
         $tabs['hold'] = ['On hold', fn ($q) => $q->where('status', 'fin_approved')->where('on_hold', 1)];
         $tabs['paid'] = ['Paid', fn ($q) => $q->whereIn('status', ['paid', 'closed'])->whereNotNull('paid_on')];
+        // BTC-ADV-TREAS-01 (24 Nov 2026, testing point 11): advances Finance approved and instructed come to Treasury,
+        // which releases them (Open > Advance paid: amount, UTR, date)
+        if (Schema::hasColumn('btc_cases', 'adv_stage')) {
+            $tabs['advances'] = ['Advances to release', fn ($q) => $q->where('status', 'advance_requested')->where('adv_stage', 'instructed')];
+            $tabs['adv_paid'] = ['Advances released', fn ($q) => $q->whereNotNull('advance_paid_on')->where('advance_paid_amount', '>', 0)];
+        }
         $focus = \App\Services\Btc\BtcFocusExport::ready();
         $mx = \App\Services\Btc\BtcMatrixVerify::ready();
 
         return $this->queue('treasury', 'Treasury Payment', 'ri-bank-line',
-            'Bills with Finance\'s payment instruction. Pay in the bank, then record the payment and UTR here (one case or several). Export the Focus files from here; recorded payments are confirmed to Matrix.',
+            'Bills with Finance\'s payment instruction, and advances Finance has instructed. Pay in the bank, then record the payment and UTR here (bills: one or several; advances: Open > Advance paid). Export the Focus files from here; recorded payments are confirmed to Matrix.',
             $tabs, (string) $request->input('tab', 'topay'), $request, ['modes' => config('btc.payment_modes'), 'payCols' => true,
                 'focus' => $focus ? [
                     'jv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('finance_at')->whereNull('focus_jv_doc')

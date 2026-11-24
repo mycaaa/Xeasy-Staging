@@ -1202,6 +1202,7 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/settings/focus-ledgers', [\App\Http\Controllers\admin\BtcPagesController::class, 'focusLedgersUpload'])->middleware('throttle:10,1')->name('settings.focus-ledgers.upload');
     Route::post('/settings/vendors-sync', [\App\Http\Controllers\admin\BtcPagesController::class, 'vendorsSync'])->middleware('throttle:6,1')->name('settings.vendors-sync');   // BTC-VENDOR-CORE-01
     Route::post('/case/{id}/preview', [\App\Http\Controllers\admin\BtcController::class, 'preview'])->whereNumber('id')->name('preview');
+    Route::post('/case/{id}/focus-preview', [\App\Http\Controllers\admin\BtcController::class, 'focusPreview'])->whereNumber('id')->name('focus-preview');   // BTC-FOCUS-02
     Route::get('/team/export', [\App\Http\Controllers\admin\BtcPagesController::class, 'teamExport'])->name('team.export');
     // BTC-V2 (19 Nov 2026, sheet item 24): Bill Upload by Finance, Automatic Data Extraction, Finance Verifier 1 (+ Focus
     // entry), Finance Approval, Treasury Payment (each checks its permission in the controller)
@@ -1214,6 +1215,7 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::post('/scanner', [\App\Http\Controllers\admin\BtcV2Controller::class, 'scannerStore'])->middleware('throttle:30,1')->name('scanner.store');
     Route::get('/classification', [\App\Http\Controllers\admin\BtcV2Controller::class, 'classification'])->name('classification');
     Route::post('/classification/{id}', [\App\Http\Controllers\admin\BtcV2Controller::class, 'classify'])->whereNumber('id')->middleware('throttle:60,1')->name('classify');
+    Route::post('/classification/{id}/suggest', [\App\Http\Controllers\admin\BtcV2Controller::class, 'suggest'])->whereNumber('id')->middleware('throttle:30,1')->name('classify.suggest');   // BTC-CLASSIFY-02
     Route::get('/punch', [\App\Http\Controllers\admin\BtcV2Controller::class, 'punch'])->name('punch');
     Route::get('/advance-approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'advanceApproval'])->name('advance-approval');
     Route::post('/advance-approval', [\App\Http\Controllers\admin\BtcV2Controller::class, 'advanceBulk'])->middleware('throttle:30,1')->name('advance-approval.bulk');

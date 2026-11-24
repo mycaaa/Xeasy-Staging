@@ -29,6 +29,9 @@
                     {{-- BTC-PAY-02 / BTC-MATRIX-01 (20 Nov 2026): instruction, payment and Matrix confirmation --}}
                     @php($lp = \App\Services\Btc\BtcMatrixVerify::ready() ? \Illuminate\Support\Facades\DB::table('btc_payments')->where('btc_case_id', $c->id)->where('status', 'success')->orderByDesc('id')->first() : null)
                     <td class="small text-nowrap">
+                        {{-- BTC-ADV-TREAS-01 (24 Nov 2026): the advance Treasury releases --}}
+                        @if ($c->status === 'advance_requested' && ($c->adv_stage ?? null) === 'instructed')<div class="fw-semibold">Advance {{ $inr($c->advance_approved ?? $c->advance_amount) }} to release</div><div class="text-muted">instructed {{ optional($c->adv_instructed_at)->format('d-m-Y') }}@if ($c->adv_instruction_ref ?? null) ({{ $c->adv_instruction_ref }})@endif</div>@endif
+                        @if ((float) ($c->advance_paid_amount ?? 0) > 0)<div>Advance released {{ $inr($c->advance_paid_amount) }} @if ($c->advance_paid_on)on {{ \Carbon\Carbon::parse($c->advance_paid_on)->format('d-m-Y') }}@endif</div>@if ($c->advance_payment_ref ?? null)<div class="text-muted">{{ $c->advance_payment_ref }}</div>@endif @endif
                         @if (! empty($c->pay_instructed_at))<div>Instructed {{ $c->pay_instructed_at->format('d-m-Y') }}@if ($c->pay_instruction_ref) <span class="text-muted">({{ $c->pay_instruction_ref }})</span>@endif</div>@elseif ($c->status === 'fin_approved')<div class="text-warning">Instruction awaited</div>@endif
                         @if ((float) $c->paid_amount > 0)<div>Paid {{ $inr($c->paid_amount) }}@if ($c->payment_status === 'partial') <span class="badge bg-warning text-dark">part</span>@endif</div><div class="text-muted">{{ $c->utr_number }}</div>@endif
                         @if ($lp)

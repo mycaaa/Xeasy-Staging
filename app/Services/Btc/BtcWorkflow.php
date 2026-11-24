@@ -46,7 +46,8 @@ class BtcWorkflow
         'dms_receive' => [['bill_with_dms'], 'btc.dms', 'bill_with_finance'],
         'complete_activity' => [['booked'], 'owner|btc.booking', null],
         // BTC-REQ-06: Finance Advance pays the advance; a refund from the vendor is recorded separately
-        'advance_paid' => [['advance_requested'], 'btc.finance|btc.advance', 'advance_paid'],
+        // BTC-ADV-TREAS-01 (24 Nov 2026, testing point 11): Treasury releases the advance Finance instructed
+        'advance_paid' => [['advance_requested'], 'btc.treasury|btc.finance|btc.advance', 'advance_paid'],
         // BTC-SCAN-01 (19 Nov 2026): Finance Advance Approval - pending -> approved -> instructed (to Treasury / bank),
         // only then the advance is paid
         'adv_fin_approve' => [['advance_requested'], 'btc.fin_approver', null],
@@ -932,6 +933,37 @@ class BtcWorkflow
             ->get(['id', 'case_no', 'bill_no', 'bill_date', 'bill_amount', 'status']);
     }
 
+    /**
+     * BTC-FOCUS-02: the employees of the bill as typed on the Focus entry (codes, comma / space separated). The employee
+     * of the request stays; the others are kept as co-travellers. Unknown codes are refused.
+     */
+    public static function applyPax(BtcCase $c, array $d): void
+    {
+        if (! array_key_exists('pax_codes', $d) || ! \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'travellers')) {
+            return;
+        }
+        $codes = array_values(array_unique(array_filter(preg_split('/[\s,;]+/', strtoupper((string) $d['pax_codes'])), fn ($x) => $x !== '')));
+        $codes = array_map(fn ($x) => preg_replace('/^E0*/', '', $x) ?: $x, $codes);
+        if (! $codes) {
+            throw new RuntimeException('Give at least one employee code for the Focus entry.');
+        }
+        $fx = new BtcFocusExport;
+        $others = [];
+        foreach ($codes as $code) {
+            $m = $fx->employee((string) $code);
+            if (! $m) {
+                throw new RuntimeException("Employee code {$code} is not in the employee master.");
+            }
+            if ((string) $code !== (string) $c->emp_code) {
+                $others[] = ['id' => $m['employee_id'], 'code' => $m['code'], 'name' => $m['name']];
+            }
+        }
+        if ($c->emp_code && ! in_array((string) $c->emp_code, $codes, true)) {
+            throw new RuntimeException('The employee of the request ('.$c->emp_code.') must stay on the bill; add the others after him.');
+        }
+        $c->travellers = $others ? json_encode($others) : null;
+    }
+
     /** BTC-FIN-02: the accounting the Finance form would produce, without saving (Dr/Cr preview). */
     public function preview(BtcCase $c, array $d, $user): array
     {
@@ -1018,6 +1050,16 @@ class BtcWorkflow
         }
         if (! empty($c->focus_expense_type) && ! in_array($c->focus_expense_type, FocusLedgers::expenseTypes(), true)) {
             throw new RuntimeException('Choose the Type of expense from the list.');
+        }
+        // BTC-FOCUS-02 (24 Nov 2026, testing point 8): the Focus entry form has only the inputs of the tracker - employees,
+        // Type of expense, Type of activity, Activity head; the ledger / sub ledger come from the Focus ledgers
+        self::applyPax($c, $d);
+        $first = array_key_first(BtcFocusExport::pax($c));
+        $ent = $first ? ((new BtcFocusExport)->employee((string) $first)['entity'] ?? 'VNR') : 'VNR';
+        [$lc, $sc] = BtcFocusExport::ledger($c, $ent);
+        if ($lc) {
+            $c->expense_ledger = mb_substr((string) $lc, 0, 100);
+            $c->cost_centre = mb_substr((string) ($sc ?: 'N/A'), 0, 100);
         }
         $c->duplicate_checked = true;
         $c->finance_by = $user->id;

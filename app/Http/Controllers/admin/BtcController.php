@@ -334,6 +334,7 @@ class BtcController extends Controller
             'logs' => $c->logs->map(fn ($l) => ['at' => optional($l->created_at)->format('d/m/Y H:i'), 'by' => $l->user_name, 'action' => $l->action,
                 'to' => config("btc.statuses.{$l->to_status}", $l->to_status), 'remark' => $l->remark]),
             'default_ledger' => config("btc.focus.expense_ledgers.{$c->category}"),
+            'focus_pax' => \App\Services\Btc\BtcFocusExport::pax($c),   // BTC-FOCUS-02
             'advance' => $c->advanceFigures(), 'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),
 
         ]);
@@ -382,6 +383,64 @@ class BtcController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * BTC-FOCUS-02 (24 Nov 2026, testing point 8): the Focus entry as the tracker asks - validation (Pass / Fail),
+     * the values fetched from the masters, the vendor JV rows and the employee JV rows (or why the expense booking
+     * waits), in the import columns. Nothing is saved and no document number is used.
+     */
+    public function focusPreview(Request $request, int $id)
+    {
+        $c = BtcCase::findOrFail($id);
+        $user = auth()->user();
+        $this->authorizeView($c, $user);
+        abort_unless($this->canAny($user, 'btc.finance|btc.checker|btc.verifier|btc.fin_approver|btc.audit'), 403);
+        $copy = $c->replicate();
+        $copy->id = $c->id;
+        $copy->exists = false;
+        try {
+            foreach (['focus_expense_type', 'focus_activity_type', 'focus_activity_head'] as $k) {
+                if ($request->has($k)) {
+                    $copy->{$k} = trim((string) $request->input($k)) ?: null;
+                }
+            }
+            BtcWorkflow::applyPax($copy, $request->only('pax_codes'));
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+        if (! $copy->finance_at) {
+            $copy->finance_at = now();
+        }
+        $fx = new \App\Services\Btc\BtcFocusExport;
+        $jv = $fx->vendorJv(collect([$copy]), false);
+        $ejv = $fx->employeeJv(collect([$copy]), false);
+        $dmy = fn ($v) => is_numeric($v) && $v > 30000 ? \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($v)->format('d-m-Y') : $v;
+        $fmt = function (array $rows, array $cols) use ($dmy) {
+            return array_map(fn ($r) => array_map(fn ($v, $i) => in_array($cols[$i] ?? '', ['Date', 'Bill Date'], true) ? $dmy($v) : $v, $r, array_keys($r)), $rows);
+        };
+        $fetched = [];
+        foreach (\App\Services\Btc\BtcFocusExport::pax($copy) as $code => $name) {
+            $m = $fx->employee((string) $code);
+            $fetched[] = $m ? ['Employee' => $m['code'].' '.$m['name'], 'Account' => \App\Services\Btc\BtcFocusExport::employeeAccount($m['code']), 'Entity' => $m['entity'],
+                'Department' => $m['department'], 'Sub department' => $m['sub_department'], 'Business unit' => $m['business_unit'], 'Region' => $m['region'],
+                'Zone' => $m['zone'], 'Function' => $m['function'], 'Vertical' => $m['vertical'], 'Location' => $m['location'], 'State' => $m['state']]
+                : ['Employee' => $code.' '.$name.' - not in the employee master'];
+        }
+        $first = $fetched ? $fx->employee((string) array_key_first(\App\Services\Btc\BtcFocusExport::pax($copy))) : null;
+        [$lc, $sc, $lerr] = \App\Services\Btc\BtcFocusExport::ledger($copy, $first['entity'] ?? 'VNR');
+        [$narr] = \App\Services\Btc\BtcFocusExport::narration($copy, \App\Services\Btc\BtcFocusExport::pax($copy), \App\Services\Btc\BtcFocusExport::vendorState($copy) ?: (string) ($first['state_name'] ?? ''));
+
+        return response()->json(['success' => true,
+            'check' => array_merge($jv['check'], $ejv['check']),
+            'bill' => ['Vendor' => trim($c->vendor_name.' ('.($c->vendor_code ?: 'no vendor code').')'), 'Bill no.' => $c->bill_no, 'Bill date' => optional($c->bill_date)->format('d-m-Y'),
+                'Amount' => number_format((float) $c->bill_amount, 2), 'Type of expense' => \App\Services\Btc\BtcFocusExport::expenseType($copy),
+                'Ledger' => $lc ?: '-', 'Sub ledger (Cost Center)' => $sc ?: 'N/A', 'Activity' => \App\Services\Btc\BtcFocusExport::activity($copy), 'Narration' => $narr],
+            'ledger_error' => $lerr,
+            'fetched' => $fetched,
+            'jv' => ['cols' => \App\Services\Btc\BtcFocusExport::JV_COLS, 'rows' => $fmt($jv['rows'], \App\Services\Btc\BtcFocusExport::JV_COLS)],
+            'ejv' => ['cols' => \App\Services\Btc\BtcFocusExport::EJV_COLS, 'rows' => $fmt($ejv['rows'], \App\Services\Btc\BtcFocusExport::EJV_COLS)],
+        ]);
     }
 
     public function file(int $fileId)

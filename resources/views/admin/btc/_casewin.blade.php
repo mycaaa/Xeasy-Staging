@@ -101,6 +101,22 @@ $(function () {
         return `<div class="col-12"><div class="fw-semibold small mt-1">Punch form: ${esc(P.title)} <span class="text-muted fw-normal">- as printed on the bill${P.saved ? '' : ' (filled from the bill reader; check each field)'}</span></div></div>${cells}
             <div class="col-12"><div class="fw-semibold small mt-2">Finance data <span class="text-muted fw-normal">- fields left empty are filled from the punch form when saved</span></div></div>`;
     }
+    // BTC-FOCUS-02 (24 Nov 2026, testing point 8): 1 validation, 2 values fetched, 3 JV rows, 4 employee JV rows / pending
+    function focusHtml(r) {
+        const tbl = (cols, rows) => `<div class="table-responsive"><table class="table table-sm table-bordered mb-2" style="font-size:11px"><thead class="table-light"><tr>${cols.map(h => `<th class="text-nowrap">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(rw => `<tr>${rw.map(v => `<td class="text-nowrap">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+        const kv = o => Object.entries(o).map(([k, v]) => `<tr><td class="text-muted text-nowrap">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('');
+        const chk = (r.check || []).map(x => `<div class="${x.result === 'Pass' ? 'text-success' : 'text-danger'}"><b>${esc(x.type === 'JV' ? 'Vendor JV' : 'Employee JV')}: ${esc(x.result)}</b>${x.problems ? ' - ' + esc(x.problems) : ''}</div>`).join('');
+        const f = r.fetched || [];
+        const fcols = f.length ? Object.keys(f[0]) : [];
+        const ejvPending = (r.check || []).filter(x => x.type === 'EJV' && x.result !== 'Pass').map(x => x.problems).join('; ');
+        return `<div class="border rounded p-2 bg-light-subtle">
+            <div class="fw-semibold mb-1">1. Validation</div>${chk || '-'}
+            <div class="fw-semibold mt-2 mb-1">2. Fetched from the bill and the masters</div><table class="table table-sm mb-2" style="font-size:12px">${kv(r.bill || {})}</table>
+            ${fcols.length ? tbl(fcols, f.map(o => fcols.map(k => o[k] ?? ''))) : ''}
+            <div class="fw-semibold mt-2 mb-1">3. JV (vendor bill) - Focus import columns</div>${(r.jv.rows || []).length ? tbl(r.jv.cols, r.jv.rows) : '<div class="text-danger">No JV rows - see the validation above.</div>'}
+            <div class="fw-semibold mt-2 mb-1">4. Employee JV (expense booking)</div>${(r.ejv.rows || []).length ? tbl(r.ejv.cols, r.ejv.rows) : `<div class="text-warning-emphasis">${esc(ejvPending || 'Expense booking pending')}</div>`}
+            <div class="text-muted mt-1">The document numbers (JV/BTC/…, EJV/BTC/…) are given when Treasury exports the files.</div></div>`;
+    }
     // BTC-FORMAT-01 (23 Nov 2026, testing point 7): the bill in its own prescribed format (Hotel / Lodging, Air / Rail /
     // Bus, Hired vehicle, Meals, Team meeting), read-only, on every view of the case
     function billFormat(d) {
@@ -165,25 +181,26 @@ $(function () {
             case 'submit_bill': f.push(`<div class="col-12 small text-muted">Upload the bill (PDF or photo). Xeasy reads it and sends it to Finance.</div>`, file('bill', 'Final bill'), file('supporting', 'Supporting'));   // BTC-V2: the data is read from the bill
                 if (c.category === 'air') f.push(inp('pnr', 'PNR', 'text', c.pnr), inp('travel_sector', 'Sector', 'text', c.travel_sector), inp('travel_date', 'Travel date', 'date', (c.travel_date || '').substring(0, 10)), file('boarding_pass', 'Boarding pass (if available)')); break;
             case 'focus_entry': {   // BTC-V2: the Focus entry on the Verifier 1 screen
+                // BTC-FOCUS-02 (24 Nov 2026, testing point 8): the form of the tracker - the only inputs are the employees,
+                // Type of expense, Type of activity and Activity head; everything else is fetched from the bill and the masters
+                // and shown as the Focus entry itself (validation, fetched values, JV rows, employee JV rows or why it waits)
                 const dup = (d.duplicates || []).length ? `<div class="col-12 text-danger small">Possible duplicate: ${d.duplicates.map(x => esc(x.case_no + ' (' + x.bill_no + ', ₹' + fmt(x.bill_amount) + ')')).join(', ')} <label class="ms-2"><input type="checkbox" name="duplicate_override" value="1"> not a duplicate</label></div>` : '';
-                f.push(inp('expense_ledger', 'Expense ledger', 'text', c.expense_ledger || d.default_ledger), inp('cost_centre', 'Cost centre', 'text', c.cost_centre || c.department_name), inp('taxable_amount', 'Taxable ₹', 'number', c.taxable_amount || c.bill_amount),
-                    `<div class="col-md-5"><label class="btc-label">Nature of payment (decides TDS)</label><select class="form-select form-select-sm" name="tds_nature" onchange="(function(s){const n=NATURES[s.value]; const r=s.form.querySelector('[name=tds_rate]'); if(n&&r){ const pan=(${JSON.stringify(c.vendor_gstin || '')}).toUpperCase(); const ind=pan.length===15&&['P','H'].includes(pan[5]); r.value=n.rate[ind?0:1]; }})(this)">${Object.entries(NATURES).map(([k, n]) => `<option value="${k}" ${k === (c.tds_nature || NATURE_BY_CAT[c.category] || 'none') ? 'selected' : ''}>${n.label}</option>`).join('')}</select></div>`,
-                    inp('tds_rate', 'TDS rate %', 'number', c.tds_rate || 0), inp('advance_adjusted', 'Advance to set off ₹ (paid ₹' + fmt(c.advance_amount) + ', TDS on it ₹' + fmt(c.tds_on_advance) + ')', 'number', c.advance_amount || 0),
+                const paxCodes = Object.keys(d.focus_pax || {}).join(', ');
+                f.push(`<div class="col-12 fw-semibold small">Focus entry - inputs</div>`,
+                    `<div class="col-md-4"><label class="btc-label">Employee code(s) on the bill (one or more pax)</label><input class="form-control form-control-sm btc-fx" name="pax_codes" value="${esc(paxCodes)}" placeholder="e.g. 897, 1363"></div>`,
+                    `<div class="col-md-3"><label class="btc-label">Type of expense</label><select class="form-select form-select-sm btc-fx" name="focus_expense_type">${(FOCUSX.expense_types || []).map(t => `<option ${t === (c.focus_expense_type || (FOCUSX.expense_type_by_category || {})[c.category]) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`,
+                    `<div class="col-md-3"><label class="btc-label">Type of activity (meeting / market / training)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_type" value="${esc(c.focus_activity_type || '')}" list="btcDl_fat" placeholder="blank for travel / stay"><datalist id="btcDl_fat">${(FOCUSX.activity_types || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`,
+                    `<div class="col-md-2"><label class="btc-label">Activity head (optional)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_head" value="${esc(c.focus_activity_head || '')}" list="btcDl_fah" placeholder="All Activity"><datalist id="btcDl_fah">${(FOCUSX.activity_heads || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`,
                     dup,
-                    // BTC-DUP-02 / TDS-02 / GST-01 (17 Nov 2026)
                     (d.claim_overlaps || []).length ? `<div class="col-12 text-danger small">Also in the employee's own expense claim: ${d.claim_overlaps.map(o => esc(o.type + ' ' + o.date + ' ₹' + fmt(o.amount) + ' (' + o.status + ', ExpId ' + o.exp_id + ')')).join('; ')} <label class="ms-2"><input type="checkbox" name="claim_overlap_override" value="1"> not the same expense</label></div>` : '',
-                    d.vendor_year ? `<div class="col-12 small text-muted">This vendor in FY ${esc(d.vendor_year.fy)} (other bills): ₹${fmt(d.vendor_year.total)} in ${d.vendor_year.count} bill(s). <label class="ms-2"><input type="checkbox" name="tds_threshold_override" value="1"> TDS not applicable (give remark)</label></div>` : '',
-                    // BTC-FIN-02 (17 Nov 2026): accounting dimensions, narration, JV numbers and a Dr/Cr preview
-                    ...(d.dims ? [dl('function', 'Function', c.dim_function || d.dims.defaults.function, d.dims.options.function), dl('vertical', 'Vertical', c.dim_vertical || d.dims.defaults.vertical, d.dims.options.vertical),
-                        dl('region', 'Region', c.dim_region || d.dims.defaults.region, d.dims.options.region), dl('crop', 'Crop', c.dim_crop, d.dims.options.crop),
-                        inp('dim_activity', 'Activity', 'text', c.dim_activity), inp('jv_no', 'JV no.', 'text', c.jv_no), inp('tds_jv_no', 'TDS JV no.', 'text', c.tds_jv_no),
-                        // BTC-FOCUS-01 (20 Nov 2026, tracker item 7): Type of Expense / Activity decide the Focus ledger and sub ledger
-                        `<div class="col-md-3"><label class="btc-label">Type of expense (Focus)</label><select class="form-select form-select-sm" name="focus_expense_type">${(FOCUSX.expense_types || []).map(t => `<option ${t === (c.focus_expense_type || (FOCUSX.expense_type_by_category || {})[c.category]) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`,
-                        `<div class="col-md-3"><label class="btc-label">Type of activity (meetings)</label><input class="form-control form-control-sm" name="focus_activity_type" value="${esc(c.focus_activity_type || '')}" list="btcDl_fat" placeholder="blank for travel / stay"><datalist id="btcDl_fat">${(FOCUSX.activity_types || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`,
-                        `<div class="col-md-3"><label class="btc-label">Activity head (Focus code)</label><input class="form-control form-control-sm" name="focus_activity_head" value="${esc(c.focus_activity_head || '')}" list="btcDl_fah" placeholder="All Activity"><datalist id="btcDl_fah">${(FOCUSX.activity_heads || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`,
-                        `<div class="col-md-9"><label class="btc-label">Narration</label><input class="form-control form-control-sm" name="narration" maxlength="500" value="${esc(c.narration || '')}" placeholder="${esc(c.case_no + ' ' + (c.vendor_name || '') + ' bill ' + (c.bill_no || '') + ' for ' + c.emp_code + ' ' + c.emp_name)}"></div>`,
-                        `<div class="col-12"><button type="button" class="btn btn-sm btn-outline-secondary" id="btcPreview"><i class="ri-eye-line"></i> Preview accounting (Dr / Cr)</button><div id="btcPreviewOut" class="mt-2"></div></div>`] : []),
                     d.gstin_ok === false ? `<div class="col-12 text-danger small">Vendor GSTIN ${esc(c.vendor_gstin)} is not a valid GSTIN (format / check digit) - check before claiming GST input.</div>` : '',
+                    `<div class="col-12"><div id="btcFocusOut" class="small text-muted">Working out the Focus entry…</div></div>`,
+                    // payment side (net payable), not part of the JV: TDS and advance set-off, as before
+                    `<div class="col-12"><details><summary class="small">Payment details: TDS ${fmt(c.tds_amount || 0)} · advance set-off - change only if needed</summary><div class="row g-2 mt-1">
+                        <div class="col-md-5"><label class="btc-label">Nature of payment (decides TDS)</label><select class="form-select form-select-sm" name="tds_nature" onchange="(function(s){const n=NATURES[s.value]; const r=s.form.querySelector('[name=tds_rate]'); if(n&&r){ const pan=(${JSON.stringify(c.vendor_gstin || '')}).toUpperCase(); const ind=pan.length===15&&['P','H'].includes(pan[5]); r.value=n.rate[ind?0:1]; }})(this)">${Object.entries(NATURES).map(([k, n]) => `<option value="${k}" ${k === (c.tds_nature || NATURE_BY_CAT[c.category] || 'none') ? 'selected' : ''}>${n.label}</option>`).join('')}</select></div>
+                        ${inp('tds_rate', 'TDS rate %', 'number', c.tds_rate || 0)}${inp('advance_adjusted', 'Advance to set off ₹ (paid ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount || 0)}
+                        ${d.vendor_year ? `<div class="col-12 small text-muted">This vendor in FY ${esc(d.vendor_year.fy)}: ₹${fmt(d.vendor_year.total)} in ${d.vendor_year.count} bill(s). <label class="ms-2"><input type="checkbox" name="tds_threshold_override" value="1"> TDS not applicable (give remark)</label></div>` : ''}
+                        <input type="hidden" name="taxable_amount" value="${esc(c.taxable_amount || c.bill_amount)}"></div></details></div>`,
                     rmk(false));
                 break;
             }
@@ -284,6 +301,16 @@ $(function () {
                         .done(r => { Swal.fire(r.success ? 'Read' : 'Not read', r.message, r.success ? 'success' : 'warning'); openCase(c.id); })
                         .fail(x => $('#btcRereadMsg').text((x.responseJSON && x.responseJSON.message) || 'Could not read the invoice.'));
                 });
+                // BTC-FOCUS-02: the Focus entry worked out from the inputs (nothing saved)
+                const focusOut = function () {
+                    if (!$('#btcFocusOut').length) return;
+                    const fd = new FormData($('#btcActForm')[0]);
+                    $.ajax({url: '{{ url('btc/case') }}/' + c.id + '/focus-preview', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
+                        .done(r => $('#btcFocusOut').removeClass('text-muted').html(focusHtml(r)))
+                        .fail(x => $('#btcFocusOut').html('<div class="text-danger">' + esc((x.responseJSON && x.responseJSON.message) || 'Could not work out the Focus entry') + '</div>'));
+                };
+                $('#btcActForm .btc-fx').on('change', focusOut);
+                focusOut();
                 $('#btcDo').on('click', function () {
                     if (!checkAmounts($('#btcActForm'))) return;   // BTC-AMT-01
                     const $af = $('#btcActForm');   // BTC-REQ-27: vendor name is mandatory when booking / updating the vendor
