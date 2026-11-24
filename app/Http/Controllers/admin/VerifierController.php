@@ -1909,6 +1909,7 @@ class VerifierController extends Controller
                 'lc.LastClaimMonth',
                 'lc.LastMonthClaimCount',
                 'lc.LastMonthClaimAmount',
+                ...$this->liveMonthSums((string) $yearId),   // VERIFY-ZERO-02
             ])
             ->where('m.YearId', $yearId)
             ->where('m.Status', 'Closed')
@@ -1969,7 +1970,7 @@ class VerifierController extends Controller
                 return '<a href="javascript:void(0);" onclick="' . $this->getViewClaimJS($row) . '" class="text-primary text-decoration-underline">' . $monthName . '</a>';
             })
             ->editColumn('Total_Claim', fn($row) => '<span class="fw-bold">' . number_format($row->Total_Claim, 0) . '</span>')
-            ->editColumn('Claim_Amount', fn($row) => '<span class="fw-bold">' . number_format($row->Claim_Amount, 0) . '</span>')
+            ->editColumn('Claim_Amount', fn($row) => $this->amountCell($row->Live_Claim ?? null, $row->Claim_Amount))   // VERIFY-ZERO-02
             ->addColumn('Actions', function ($row) use ($canReturn, $canEHome) {
                 return $this->generateActionButtons($row, $canReturn, $canEHome);
             })
@@ -2320,6 +2321,34 @@ class VerifierController extends Controller
         });
     }
 
+    /**
+     * VERIFY-ZERO-02 (24 Nov 2026, testing point 3): the month list shows the live totals of the month's claims, worked
+     * out by the same rule as the claim screen (claims confirmed, not withdrawn, at step 2 or later, the app-odometer
+     * rule of departments 2 and 3), so the list and the claim screen always show the same amounts. The amounts stored
+     * at submission (m.Claim_Amount / m.Verified_Amount) stay in the table; the list shows "submitted ..." when the
+     * claims have changed since.
+     */
+    private function liveMonthSums(string $yearId): array
+    {
+        $ec = "y{$yearId}_expenseclaims";
+        $base = "FROM `{$ec}` x WHERE x.CrBy = m.EmployeeID AND x.ClaimMonth = m.Month AND x.ClaimYearId = m.YearId AND x.FilledOkay = 1"
+            ." AND x.ClaimStatus NOT IN ('Deactivate','Draft') AND x.ClaimAtStep >= 2"
+            ." AND (IFNULL(g.DepartmentId,0) NOT IN (2,3) OR x.ClaimId != 7 OR IFNULL(x.App_Odometer,'') NOT IN ('N','R'))";
+
+        return [
+            DB::raw("(SELECT COALESCE(SUM(x.FilledTAmt),0) {$base}) AS Live_Claim"),
+            DB::raw("(SELECT COALESCE(SUM(CASE WHEN x.VerifyBy > 0 THEN x.VerifyTAmt ELSE 0 END),0) {$base}) AS Live_Verified"),
+        ];
+    }
+
+    private function amountCell($live, $stored): string
+    {
+        $live = $live === null ? (float) $stored : (float) $live;
+        $note = abs($live - (float) $stored) > 0.5 ? '<div class="small text-muted" title="Amount when the month was submitted / verified">submitted '.number_format((float) $stored, 0).'</div>' : '';
+
+        return '<span class="fw-bold">'.number_format($live, 0).'</span>'.$note;
+    }
+
     public function verifyApprovedClaimsData(Request $request)
     {
         $yearId = session('year_id');
@@ -2358,6 +2387,7 @@ class VerifierController extends Controller
                 'm.Approved_Amount',
                 'm.Approved_Date',
                 'm.id as claim_id',  // Add claim ID
+                ...$this->liveMonthSums((string) $yearId),   // VERIFY-ZERO-02
             ])
             ->where('m.YearId', $yearId)
             ->where('m.Status', 'Closed')
@@ -2475,8 +2505,8 @@ class VerifierController extends Controller
                 return '<a href="javascript:void(0);" onclick="viewClaim(' . $row->EmployeeID . ', ' . $row->Month . ', ' . "'" . ($row->DateOfSubmit ? Carbon::parse($row->DateOfSubmit)->format('d-m-Y') : '') . "', " . "'' , " . "'' , " . "'" . ($row->RecevingDate ? Carbon::parse($row->RecevingDate)->format('d-m-Y') : '') . "'" . ')" class="text-primary text-decoration-underline" title="View Claims">' . $monthName . '</a>';
             })
             ->editColumn('Total_Claim', fn($row) => '<span class="fw-bold">' . number_format($row->Total_Claim, 0) . '</span>')
-            ->editColumn('Claim_Amount', fn($row) => '<span class="fw-bold">' . number_format($row->Claim_Amount, 0) . '</span>')
-            ->editColumn('Verified_Amount', fn($row) => '<span class="fw-bold">' . number_format($row->Verified_Amount, 0) . '</span>')
+            ->editColumn('Claim_Amount', fn($row) => $this->amountCell($row->Live_Claim ?? null, $row->Claim_Amount))   // VERIFY-ZERO-02
+            ->editColumn('Verified_Amount', fn($row) => $this->amountCell($row->Live_Verified ?? null, $row->Verified_Amount))
             ->editColumn('Verified_Date', fn($row) => $row->Verified_Date && \App\Support\ZeroDate::has($row->Verified_Date) ? Carbon::parse($row->Verified_Date)->format('d-m-Y') : '')
             ->addColumn('Actions', function ($row) use ($canEHome, $canRevert, $companyId) {
                 $actions = '<div class="d-flex justify-content-center gap-2">';
