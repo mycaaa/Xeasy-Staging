@@ -105,6 +105,12 @@ class PaymentFigures
             $errors[] = 'Other adjustment cannot be negative.';
         }
         $totalAdj = round($actTotal + $expTotal + $otherAdj, 2);
+        // ADV-ADJ-CAP-01 (24 Nov 2026, testing point 15): advances are adjusted only up to the month's claim (a claim of
+        // Rs 48,599 had the full Rs 50,000 activity advance adjusted, so Rs 1,401 of the advance was written off as used)
+        if ($totalAdj > $base + self::TOLERANCE) {
+            $errors[] = 'Adjustments ₹'.number_format($totalAdj, 2).' are more than the claim ₹'.number_format($base, 2)
+                .'. Adjust at most ₹'.number_format($base, 2).'; the rest of the advance stays open for a later month.';
+        }
         $payment = round(max(0, $base - $totalAdj), 2);
 
         $cmp = [

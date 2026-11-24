@@ -126,6 +126,9 @@ return [
     'rate_by_effective_date' => env('RATE_BY_EFFECTIVE_DATE', true),
 
     // RND-2W-01 (HR 7 Nov 2026): R&D two-wheeler policy 3 = flat Rs 3.50/km (no 6.75 / 1.95 slabs)
+    // RATE-WTYPE-01: vehicle policies that are for a two-wheeler; every other policy is a car policy
+    'two_wheeler_policies' => [3, 8, 9, 10],
+
     'rnd_2w_flat' => [
         'policies' => [3],
         'rate' => (float) env('RND_2W_FLAT_RATE', 3.50),

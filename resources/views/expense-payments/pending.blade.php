@@ -1366,7 +1366,9 @@
 
             // Update displays
             $('#diff_' + rowId + ' span').text('₹' + formatNumber(Math.round(payable)));
-            $('#total_adj_all_' + rowId).text(formatNumber(Math.round(totalAdjustment)));
+            $('#total_adj_all_' + rowId).text(formatNumber(Math.round(totalAdjustment)))
+                .toggleClass('text-danger fw-bold', totalAdjustment > actualExpense + 1)   // ADV-ADJ-CAP-01
+                .attr('title', totalAdjustment > actualExpense + 1 ? 'More than the claim - reduce the adjustment' : '');
 
             // Update expense total
             const $totalAdjExpense = $('#total_adj_expense_' + rowId);
@@ -2329,6 +2331,15 @@
     // Calculate payment amount (actual expense minus total adjustments)
     const paymentAmount = Math.max(0, actualExpenseAmount - totalAdjustment);
 
+    // ADV-ADJ-CAP-01 (24 Nov 2026, testing point 15): an advance is adjusted only up to the month's claim;
+    // what is left stays open on the advance for a later month
+    if (totalAdjustment > actualExpenseAmount + 1) {
+        alert('Adjustments (Rs. ' + Number(totalAdjustment).toLocaleString('en-IN') + ') are more than the claim (Rs. ' +
+            Number(actualExpenseAmount).toLocaleString('en-IN') + ').\nAdjust at most Rs. ' + Number(actualExpenseAmount).toLocaleString('en-IN') +
+            '; the rest of the advance stays open for a later month.');
+        return;
+    }
+
     // LV-U02 / U-01: confirmation names the employee, month and amounts
     const fmt = v => Number(v || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     const $tds = $('#row_' + rowNo).find('td'); const empLabel = (($tds.eq(1).text() || '').trim().replace(/\s+/g, ' ') + ' (' + ($tds.eq(2).text() || '').trim() + ')').replace(/^ \(\)$/, '') || ('Employee ' + empId);
@@ -2657,7 +2668,9 @@ function updateAllRemainingBalances(rowId) {
 
             // Update displays
             $('#diff_' + rowId + ' span').text('₹' + formatNumber(Math.round(payable)));
-            $('#total_adj_all_' + rowId).text(formatNumber(Math.round(totalAdjustment)));
+            $('#total_adj_all_' + rowId).text(formatNumber(Math.round(totalAdjustment)))
+                .toggleClass('text-danger fw-bold', totalAdjustment > actualExpense + 1)   // ADV-ADJ-CAP-01
+                .attr('title', totalAdjustment > actualExpense + 1 ? 'More than the claim - reduce the adjustment' : '');
 
             // Update expense total
             const $totalAdjExpense = $('#total_adj_expense_' + rowId);

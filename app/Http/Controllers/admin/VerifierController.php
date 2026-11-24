@@ -247,9 +247,11 @@ class VerifierController extends Controller
 
         $rateCache = [];
         $resolveRowRate = function ($row) use (&$rateCache) {
-            $rate = (float) ($row->RatePerKM ?? 0);
-            if ($rate > 0) {
-                return $rate;
+            // RATE-WTYPE-01 (24 Nov 2026): the rate shown is the one Verify will use - a rate set by hand, else the
+            // employee's eligible rate for the vehicle type on the reading (was the rate stored from the app, which
+            // could be the car rate on a two-wheeler reading)
+            if ($ov = \App\Services\Claims\RunningKmRate::override((string) session('expense_connection'), (int) session('year_id'), (int) $row->ExpId)) {
+                return (float) $ov['rate'];
             }
             $wheelType = (int) ($row->WType ?: 2);
             $billDate = $row->BillDate ? Carbon::parse($row->BillDate)->format('Y-m-d') : date('Y-m-d');
@@ -257,7 +259,7 @@ class VerifierController extends Controller
             if (!isset($rateCache[$cacheKey])) {
                 $rateCache[$cacheKey] = (float) $this->getRatePerKM($row->CrBy, $billDate, $wheelType, 0, $row->With_Driver ?? null);
             }
-            return $rateCache[$cacheKey];
+            return $rateCache[$cacheKey] > 0 ? $rateCache[$cacheKey] : (float) ($row->RatePerKM ?? 0);
         };
 
         $dataTable = DataTables::of($query)->addIndexColumn()->filter(function ($query) {
@@ -336,14 +338,13 @@ class VerifierController extends Controller
             . (\App\Services\Claims\RunningKmRate::override((string) session('expense_connection'), (int) session('year_id'), (int) $row->ExpId) ? '<span class="badge bg-warning text-dark d-block mt-1" title="Rate set by hand">Manual</span>' : '')
             . '<a href="javascript:void(0)" class="rkm-manual-rate small d-block" data-expid="'.$row->ExpId.'" data-rate="'.number_format($rate, 2, '.', '').'" data-km="'.(float) $row->TotKm.'" title="Set the rate by hand (reason needed)"><i class="ri-edit-line"></i> Rate</a>';
         })->addColumn('amount_column', function ($row) use ($resolveRowRate) {
-            $amount = (float) ($row->FilledTAmt ?? 0);
-            if ($amount <= 0 && (float) $row->TotKm > 0) {
-                $rate = $resolveRowRate($row);
-                if ($rate > 0) {
-                    $amount = round((float) $row->TotKm * $rate, 2);
-                }
-            }
-            return '<span class="fw-bold row-amount-' . $row->ExpId . '">' . number_format($amount, 2) . '</span>';
+            // RATE-WTYPE-01: km x the rate Verify will use; the amount the employee claimed is shown under it when different
+            $claimed = (float) ($row->FilledTAmt ?? 0);
+            $rate = $resolveRowRate($row);
+            $amount = ((float) $row->TotKm > 0 && $rate > 0) ? round((float) $row->TotKm * $rate, 2) : $claimed;
+
+            return '<span class="fw-bold row-amount-' . $row->ExpId . '">' . number_format($amount, 2) . '</span>'
+                . ($claimed > 0 && abs($claimed - $amount) >= 0.01 ? '<small class="text-muted d-block">claimed '.number_format($claimed, 2).'</small>' : '');
         })->addColumn('vehicle_type', function ($row) {
             $checked2W = $row->WType == '2' ? 'checked' : '';
             $checked4W = $row->WType == '4' ? 'checked' : '';

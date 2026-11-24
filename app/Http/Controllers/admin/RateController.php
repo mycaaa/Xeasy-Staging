@@ -503,6 +503,18 @@ class RateController extends Controller
             return $this->getBaseRate($policyData, $wheelType);
         }
         $policyId = (int)$policyId;
+        // RATE-WTYPE-01 (24 Nov 2026, testing point 13): a vehicle policy covers one kind of vehicle - the R&D two-wheeler
+        // policies (3, 8, 9, 10) a two-wheeler, the others a car. A run on the other kind of vehicle is paid at the
+        // employee's own eligibility rate for that vehicle (Travel_TwoWeeKM / Travel_FourWeeKM). Before this a two-wheeler
+        // run of an Own Your Car employee got the car rate (Rs 10-15.50/km instead of Rs 3.50/km).
+        $twoWheelerPolicies = array_map('intval', (array) config('claim_rules.two_wheeler_policies', [3, 8, 9, 10]));
+        $policyIsTwoWheeler = in_array($policyId, $twoWheelerPolicies, true);
+        if (($wheelType == self::VEHICLE_TYPE_TWO_WHEELER && ! $policyIsTwoWheeler)
+            || ($wheelType == self::VEHICLE_TYPE_FOUR_WHEELER && $policyIsTwoWheeler)) {
+            $this->lastRateInfo['rule'] = 'eligibility_rate_other_vehicle';
+
+            return $this->getBaseRate($policyData, $wheelType);
+        }
         // Get current month's kilometer breakdown based on bill date
         $monthlyKms = $this->getCurrentMonthKilometers($kilometerStats, $billDate);
         // Calculate rate based on vehicle type

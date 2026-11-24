@@ -2431,7 +2431,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
         $q = DB::connection(session('expense_connection'))->table($tableName);
         $scope($q);
         $hit = $q->where('payment_approved_by', (int) Auth::id())->exists();
-        if ($hit && config('payment_controls.maker_checker_mode', 'enforce') === 'log') {
+        if ($hit && config('payment_controls.expense_payment_mode', 'log') === 'log') {   // PAY-SAME-USER-01
             Log::warning('Maker-checker (log only): same user approved and released', ['user' => Auth::id(), 'table' => $tableName]);
 
             return false;
@@ -3209,7 +3209,7 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
                 // For records with payment_amount = 0, also mark as ConfirmedPayment
                 // (LV-C05: not by the person who approved them - those stay for another user to confirm)
                 $mc = (bool) config('payment_controls.maker_checker', true) && ! $this->isSuperAdmin()
-                    && config('payment_controls.maker_checker_mode', 'enforce') !== 'log';
+                    && config('payment_controls.expense_payment_mode', 'log') !== 'log';   // PAY-SAME-USER-01
                 $connection->update("
                     UPDATE {$tableName}
                     SET payment_status = 'ConfirmedPayment',
