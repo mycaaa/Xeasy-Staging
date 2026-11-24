@@ -78,16 +78,20 @@ class InvoiceReader
             return ['ok' => false, 'fields' => [], 'raw' => [], 'error' => 'Invoice reading is switched off (BTC Settings).'];
         }
         try {
+            $link = self::fileUrl($path);
             $res = Http::timeout((int) config('btc.reader.timeout', 60))
                 ->withOptions(['verify' => \App\Support\TlsVerify::option()])
-                ->post(self::endpoint($category), ['fileUrl' => self::fileUrl($path)]);
+                ->post(self::endpoint($category), ['fileUrl' => $link]);
         } catch (\Throwable $e) {
             return ['ok' => false, 'fields' => [], 'raw' => [], 'error' => 'The invoice reader could not be reached. Enter the details by hand.'];
         }
         $j = $res->json() ?: [];
         $data = is_array($j['data'] ?? null) ? $j['data'] : (is_array($j['response'] ?? null) ? $j['response'] : []);
         if (! $res->successful() || ! $data) {
-            return ['ok' => false, 'fields' => [], 'raw' => $j, 'error' => 'The invoice could not be read ('.($j['message'] ?? 'HTTP '.$res->status()).'). Enter the details by hand.'];
+            // BTC-READER-02: say which address the reader was given, so a link it cannot open (403 / 404) can be traced
+            $at = parse_url($link, PHP_URL_SCHEME).'://'.parse_url($link, PHP_URL_HOST).(parse_url($link, PHP_URL_PORT) ? ':'.parse_url($link, PHP_URL_PORT) : '');
+
+            return ['ok' => false, 'fields' => [], 'raw' => $j, 'error' => 'The invoice could not be read ('.($j['message'] ?? 'HTTP '.$res->status()).'; bill fetched from '.$at.'). Enter the details by hand.'];
         }
         $f = self::normalise($data);
 
