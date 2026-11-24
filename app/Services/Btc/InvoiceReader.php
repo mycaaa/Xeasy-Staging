@@ -39,14 +39,17 @@ class InvoiceReader
         // the reader expects a file-like address (ending in .pdf / .jpg ...)
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         $ext = in_array($ext, ['pdf', 'jpg', 'png', 'webp', 'heic'], true) ? $ext : 'pdf';
-        $url = URL::temporarySignedRoute('btc.reader.file', now()->addMinutes(15), ['n' => 'invoice.'.$ext, 'f' => Crypt::encryptString($path)]);
-        // the reading service must reach this app from the internet: allow a public base address different from APP_URL
-        if ($pub = rtrim((string) config('btc.reader.public_base', ''), '/')) {
-            $p = parse_url($url);
-            $url = $pub.($p['path'] ?? '').(isset($p['query']) ? '?'.$p['query'] : '');
+        // BTC-READER-02 (24 Nov 2026): the link is signed on its path only (signed:relative), so it stays valid whatever
+        // scheme / host the reading service uses to fetch it. On xeasy the reader got "403" for every bill: the link was
+        // signed for one address (APP_URL, http) and arrived as another (https), so the signature check refused it.
+        $rel = URL::temporarySignedRoute('btc.reader.file', now()->addMinutes(15), ['n' => 'invoice.'.$ext, 'f' => Crypt::encryptString($path)], false);
+        // the reading service must reach this app from the internet: a public base address may differ from APP_URL
+        $base = rtrim((string) config('btc.reader.public_base', ''), '/');
+        if ($base === '') {
+            $base = (app()->runningInConsole() || ! request()->getHost()) ? rtrim((string) config('app.url'), '/') : request()->getSchemeAndHttpHost();
         }
 
-        return $url;
+        return $base.$rel;
     }
 
     /**
