@@ -42,7 +42,7 @@ class InvoiceReader
         // BTC-READER-02 (24 Nov 2026): the link is signed on its path only (signed:relative), so it stays valid whatever
         // scheme / host the reading service uses to fetch it. On xeasy the reader got "403" for every bill: the link was
         // signed for one address (APP_URL, http) and arrived as another (https), so the signature check refused it.
-        $rel = URL::temporarySignedRoute('btc.reader.file', now()->addMinutes(15), ['n' => 'invoice.'.$ext, 'f' => Crypt::encryptString($path)], false);
+        $rel = URL::temporarySignedRoute('btc.reader.file', now()->addMinutes(15), ['n' => 'invoice.'.$ext, 'f' => self::token($path)], false);
         // the reading service must reach this app from the internet: a public base address may differ from APP_URL
         $base = rtrim((string) config('btc.reader.public_base', ''), '/');
         if ($base === '') {
@@ -50,6 +50,23 @@ class InvoiceReader
         }
 
         return $base.$rel;
+    }
+
+    /**
+     * BTC-READER-02: the encrypted file path as URL-safe characters only (A-Z a-z 0-9 - _). The plain encrypted text
+     * has "+", "/" and "=", which a fetching service may decode or re-encode differently, so the signed address no
+     * longer matched and xeasy answered 403.
+     */
+    public static function token(string $path): string
+    {
+        return rtrim(strtr(base64_encode(Crypt::encryptString($path)), '+/', '-_'), '=');
+    }
+
+    public static function untoken(string $t): string
+    {
+        $raw = base64_decode(strtr($t, '-_', '+/'), true);
+
+        return Crypt::decryptString($raw !== false && str_starts_with($raw, 'eyJ') ? $raw : $t);   // older links: plain
     }
 
     /**

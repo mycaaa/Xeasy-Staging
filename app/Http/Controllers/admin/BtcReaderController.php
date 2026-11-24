@@ -64,7 +64,7 @@ class BtcReaderController extends Controller
     public function signedFile(Request $request)
     {
         try {
-            $path = Crypt::decryptString((string) $request->query('f'));
+            $path = \App\Services\Btc\InvoiceReader::untoken((string) $request->query('f'));   // BTC-READER-02
         } catch (\Throwable $e) {
             abort(404);
         }
