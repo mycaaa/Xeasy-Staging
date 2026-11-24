@@ -167,6 +167,18 @@ class BtcWorkflow
         return $full ? 'paid' : 'fin_approved';
     }
 
+    /** BTC-SOD-01: the steps a person may never take on a request that is his own (as employee or as the one who raised it). */
+    public const NOT_ON_OWN = ['manager_approve', 'manager_reject', 'adv_fin_approve', 'adv_fin_reject', 'adv_instruct', 'advance_paid',
+        'verify1', 'verify1_return', 'verify1_reject', 'focus_entry', 'fin_approve', 'fin_return', 'fin_reject', 'pay_instruct', 'pay',
+        'waive_document', 'release_hold'];
+
+    public static function isOwn(BtcCase $c, $user): bool
+    {
+        $empId = (int) ($user->employee_id ?? 0);
+
+        return ($empId > 0 && $empId === (int) $c->employee_id) || (int) ($user->id ?? 0) === (int) $c->created_by;
+    }
+
     public static function may(BtcCase $c, $user, ?string $perm, string $action): bool
     {
         if (! $user) {
@@ -174,6 +186,12 @@ class BtcWorkflow
         }
         $empId = (int) ($user->employee_id ?? 0);
         $can = fn ($p) => method_exists($user, 'can') && $user->can($p);
+        // BTC-SOD-01 (24 Nov 2026, testing point 12): nobody approves, verifies or pays his own request - not even a BTC
+        // admin. Samrat Gupta (BTC/26/00024) and Dipesh Paul (BTC/26/00025) approved their own advance as manager,
+        // then as Finance, and gave the payment instruction, because the BTC admin right allowed every step.
+        if (in_array($action, self::NOT_ON_OWN, true) && self::isOwn($c, $user)) {
+            return false;
+        }
         if ($can('btc.admin')) {
             return true;
         }
@@ -208,6 +226,9 @@ class BtcWorkflow
             throw new RuntimeException('This step is not possible while the case is "'.$c->statusLabel().'".');
         }
         if (! self::may($c, $user, $perm, $action)) {
+            if (in_array($action, self::NOT_ON_OWN, true) && self::isOwn($c, $user)) {
+                throw new RuntimeException('This is your own request: it must be approved, verified and paid by someone else (your reporting manager / Finance).');
+            }
             throw new RuntimeException('You are not allowed to do this step on this case.');
         }
         if (in_array($action, ['pay', 'close', 'fin_approve'], true) && ($c->on_hold ?? false)) {
