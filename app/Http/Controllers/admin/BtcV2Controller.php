@@ -442,7 +442,7 @@ class BtcV2Controller extends Controller
         $form = fn (array $cats) => fn ($q) => $q->where('status', 'bill_submitted')->whereIn('category', $cats);
 
         return $this->queue('queue', 'Punch Screen', 'ri-keyboard-box-line',
-            'Bills to punch. Open a bill: the punch form of its type (hired vehicle, air / rail / bus, hotel, meals, team meeting) is filled from the bill reader; check each field with the bill, correct it and send it to Finance level verification.',
+            'Bills to punch. Open a bill: the punch form of its type (hired vehicle, air / rail / bus, hotel, meals, team meeting) is filled from the bill reader. Check each field with the bill, choose the employee(s) and the activity, then Focus Export: the JV import rows get their DocNo and the bill goes to Finance level verification.',
             [
                 'all' => ['All to punch', fn ($q) => $q->where('status', 'bill_submitted')],
                 'vehicle' => ['Hired vehicle', $form(['vehicle'])],
@@ -452,7 +452,7 @@ class BtcV2Controller extends Controller
                 'meeting' => ['Team meeting / other', $form(['meeting', 'other'])],
                 'returned' => ['Returned by verification', fn ($q) => $q->where('status', 'bill_submitted')->whereExists(fn ($l) => $l->from('btc_case_logs')->whereColumn('btc_case_logs.btc_case_id', 'btc_cases.id')->where('btc_case_logs.action', 'verify1_return'))],
                 'sent' => ['Sent to verification', fn ($q) => $q->where('status', 'extracted')],
-            ], (string) $request->input('tab', 'all'), $request, ['open' => (int) $request->input('case')]);
+            ], (string) $request->input('tab', 'all'), $request, ['open' => (int) $request->input('case'), 'punchSheet' => \App\Services\Btc\BtcFocusExport::ready()]);
     }
 
     /** Finance Advance Approval: pending -> approved -> instructed (then Treasury releases it - BTC-ADV-TREAS-01). */
@@ -716,14 +716,26 @@ class BtcV2Controller extends Controller
      */
     public function focusFile(Request $request, string $kind)
     {
-        $this->need('btc.treasury|btc.fin_approver|btc.verifier|btc.audit');
+        // BTC-FLOW-18 (25 Nov 2026, testing point 18): the Focus import sheet of bills exported on the Punch Screen (their
+        // DocNo stays; nothing new is numbered) - by bill (ids) or by export day
+        $again = $kind === 'jv' && ($request->filled('ids') || $request->filled('exported_on'));
+        $this->need($again ? 'btc.bill_upload|btc.finance|btc.verifier|btc.treasury|btc.fin_approver|btc.audit' : 'btc.treasury|btc.fin_approver|btc.verifier|btc.audit');
         abort_unless(\App\Services\Btc\BtcFocusExport::ready(), 503, 'Run the BTC database update first.');
         // only Treasury (or BTC admin) takes document numbers; everyone else gets the check sheet
         $assign = ! $request->boolean('check') && (auth()->user()->can('btc.treasury') || auth()->user()->can('btc.admin'));
         $x = new \App\Services\Btc\BtcFocusExport();
         $company = (int) session('company_id', 1);
         $base = BtcCase::where('company_id', $company)->orderBy('id');
-        if ($kind === 'jv') {
+        if ($again) {
+            $ids = array_filter(array_map('intval', explode(',', (string) $request->input('ids'))));
+            $cases = $this->cases()->whereNotNull('focus_jv_doc')->whereNotIn('status', ['cancelled', 'rejected'])
+                ->when($ids, fn ($w) => $w->whereIn('id', $ids))
+                ->when(! $ids, fn ($w) => $w->whereDate('focus_exported_at', $request->date('exported_on') ?? now()))->orderBy('id')->limit(500)->get();
+            $out = $x->vendorJv($cases, false);
+            $assign = true;   // the rows carry their own DocNo
+            $cols = \App\Services\Btc\BtcFocusExport::JV_COLS;
+            $name = 'Focus_import_BTC';
+        } elseif ($kind === 'jv') {
             $cases = $base->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('finance_at')->whereNull('focus_jv_doc')
                 ->when(BtcWorkflow::instructionRequired(), fn ($w) => $w->whereNotNull('pay_instructed_at'))->limit(500)->get();
             $out = $x->vendorJv($cases, $assign);
@@ -776,6 +788,9 @@ class BtcV2Controller extends Controller
         $sheets = [];
         if ($assign) {
             $sheets[] = $sheet(['jv' => 'Sheet2', 'ejv' => 'Sheet1', 'bank' => 'Payment Export'][$kind], $cols, $out['rows'], $dateCols);
+        }
+        if ($again) {
+            $sheets = [$sheet('Sheet2', $cols, $out['rows'], $dateCols)];
         }
         $sheets[] = $sheet('Check', ['File', 'BTC ID', 'Result', 'What is wrong / pending', 'Employee(s)', 'Entity', 'Vendor (code)', 'Ledger', 'Sub ledger / cost center',
             'Dept / sub dept / BU / region / zone / function / vertical / location / state', 'Amount'], $check);

@@ -9,6 +9,14 @@
             <span class="small text-muted align-self-center">The export file follows the existing Focus JV format; each case records when it was exported.</span>
         </div>
     @endif
+    @if (! empty($punchSheet))
+        {{-- BTC-FLOW-18 (25 Nov 2026, testing point 18): the Focus import sheet of the bills exported on this screen --}}
+        <form method="get" action="{{ route('btc.treasury.focus', 'jv') }}" class="d-flex flex-wrap gap-2 align-items-end mb-2">
+            <div><label class="form-label small mb-1" for="psDay">Focus import sheet of bills exported on</label><input type="date" id="psDay" name="exported_on" value="{{ now()->toDateString() }}" class="form-control form-control-sm"></div>
+            <button class="xe-btn xe-btn-green"><i class="ri-file-excel-2-line"></i> Download Focus import sheet</button>
+            <span class="small text-muted">Each bill keeps the DocNo given at its Focus Export; downloading again gives no new number.</span>
+        </form>
+    @endif
     @if (! empty($pick) && $rows->count())
         {{-- BTC-PAY-02 (20 Nov 2026, tracker tab 6 d): payment instruction to Treasury for the ticked bills --}}
         <form method="post" action="{{ route('btc.approval.instruct') }}" id="paForm" class="d-flex flex-wrap gap-2 align-items-end mb-2">@csrf

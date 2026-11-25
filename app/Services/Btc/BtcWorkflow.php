@@ -285,6 +285,16 @@ class BtcWorkflow
                 $this->withinLimit($user, (float) ($c->quotation_amount ?: $c->estimated_amount ?: $c->advance_amount), 'approve this request');
                 if ($c->route === 'admin_booking') {
                     $to = 'booking_requested';
+                    // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): for an Air / Train booking the manager chooses the
+                    // booking type (corporate / normal); the booking desk sees it
+                    if (in_array($c->category, (array) config('btc.trip_categories', ['air', 'train']), true) && Schema::hasColumn('btc_cases', 'booking_type')) {
+                        $bt = (string) ($d['booking_type'] ?? '');
+                        if (! array_key_exists($bt, (array) config('btc.booking_types'))) {
+                            throw new RuntimeException('Choose the booking type: Corporate booking or Normal booking.');
+                        }
+                        $c->booking_type = $bt;
+                        $remark = trim(config('btc.booking_types.'.$bt).($remark ? ' - '.$remark : ''));
+                    }
                 } else {
                     // BTC-REQ-06: the manager may approve less advance than requested
                     $req = (float) $c->advance_amount;
@@ -537,7 +547,10 @@ class BtcWorkflow
                         throw new RuntimeException($err);
                     }
                     $c->extract_status = $c->extract_status === 'read' ? 'read' : 'corrected';
-                    $remark = trim('Data checked, sent to Finance Verifier 1'.($remark ? ' - '.$remark : ''));
+                    // BTC-FLOW-18 (25 Nov 2026, testing points 18 / 19): the Punch Screen makes the Focus entry - employees,
+                    // activity, then Focus Export (the JV import rows and their DocNo); Finance verification only ticks it
+                    $doc = config('btc.focus_at_punch', true) ? $this->focusAtPunch($c, $d, $user) : null;
+                    $remark = trim(($doc ? 'Punched, Focus JV '.$doc.' exported, sent to Finance verification' : 'Data checked, sent to Finance Verifier 1').($remark ? ' - '.$remark : ''));
                 } else {
                     $remark = 'Extracted data corrected'.($remark ? ' - '.$remark : '');
                 }
@@ -579,6 +592,17 @@ class BtcWorkflow
                         throw new RuntimeException('Confirm that the hard copy of the bill was checked.');
                     }
                     $c->verify1_checks = json_encode(['fields' => $checks, 'hard_copy' => true, 'at' => $now->toDateTimeString()]);
+                }
+                // BTC-FLOW-18: the Focus entry was made on the Punch Screen - the verified bill goes on to Finance Approval
+                if (! empty($c->focus_jv_doc) && config('btc.focus_at_punch', true)) {
+                    $rules = config("btc.categories.{$c->category}", []);
+                    if ($c->boarding_pass_required && ! $c->boarding_pass_received_on && config('btc.boarding_pass_before_verify', false)) {
+                        throw new RuntimeException('Air travel: the expense is booked only after the boarding pass / proof of travel is received.');
+                    }
+                    if (empty($rules['scan_ok']) && ! $c->original_received_on) {
+                        throw new RuntimeException('This category needs the original bill before verification.');
+                    }
+                    $to = 'focus_done';
                 }
                 $c->duplicate_checked = true;
                 $c->verify1_by = $user->id;
@@ -817,19 +841,8 @@ class BtcWorkflow
         if (! isset($d['punch']) || ! is_array($d['punch']) || ! Schema::hasColumn('btc_cases', 'punch_json')) {
             return [];
         }
-        $form = config('btc.punch_forms.'.config('btc.punch_form_of.'.$c->category, 'meeting'), []);
-        $nums = (array) config('btc.punch_numbers');
-        $out = [];
-        foreach (array_keys($form['fields'] ?? []) as $k) {
-            $v = trim((string) ($d['punch'][$k] ?? ''));
-            if ($v !== '' && in_array($k, $nums, true) && ! is_numeric(str_replace(',', '', $v))) {
-                throw new RuntimeException(($form['fields'][$k] ?? $k).' must be a number.');
-            }
-            $out[$k] = mb_substr($v, 0, 200);
-        }
-        $c->punch_json = json_encode($out, JSON_UNESCAPED_UNICODE);
 
-        return $out;
+        return PunchForm::take($c, $d['punch']);   // BTC-PUNCH-02: header fields, tables and their totals
     }
 
     /** BTC-V2: the extraction fields as corrected by the Finance user (only the Finance data format fields). */
@@ -955,6 +968,56 @@ class BtcWorkflow
     }
 
     /**
+     * BTC-FLOW-18 / BTC-FOCUS-05 (25 Nov 2026, testing points 18 and 19): Focus Export from the Punch Screen. The punch
+     * user has chosen the employees (Employee Master) and the activity; the duplicate rule is vendor + invoice no. +
+     * invoice date; every lookup (employee master, vendor code, ledger) must be found, else nothing is exported and
+     * the reason is shown for Finance. Returns the JV DocNo given to the bill.
+     */
+    private function focusAtPunch(BtcCase $c, array $d, $user): string
+    {
+        if (! BtcFocusExport::ready()) {
+            throw new RuntimeException('Run the BTC database update first (Focus export).');
+        }
+        $codes = $d['pax'] ?? ($d['pax_codes'] ?? '');
+        $codes = is_array($codes) ? implode(',', $codes) : (string) $codes;
+        if (trim($codes) === '') {
+            $codes = implode(',', array_filter(array_merge([(string) $c->emp_code], PunchForm::tableEmployees($c))));
+        }
+        if (trim($codes) === '') {
+            throw new RuntimeException('Choose the employee(s) of this bill from the Employee Master.');
+        }
+        // the bill may be for other employees only (a scanned bill has no requester): the first chosen is the employee
+        if (! $c->emp_code) {
+            $first = (new BtcFocusExport)->employee((string) preg_replace('/^E0*/i', '', trim(preg_split('/[\s,;]+/', trim($codes))[0])));
+            if ($first) {
+                $c->employee_id = $first['employee_id'];
+                $c->emp_code = $first['code'];
+                $c->emp_name = $first['name'];
+            }
+        }
+        $dup = BtcCase::where('id', '!=', $c->id)->where('company_id', $c->company_id)->whereNotIn('status', ['cancelled', 'rejected'])
+            ->where('bill_no', $c->bill_no)->whereDate('bill_date', $c->bill_date)
+            ->where(fn ($q) => $q->where('vendor_name', $c->vendor_name)->when($c->vendor_code, fn ($w) => $w->orWhere('vendor_code', $c->vendor_code)))
+            ->value('case_no');
+        if ($dup) {
+            throw new RuntimeException('Duplicate: '.$c->vendor_name.' invoice '.$c->bill_no.' of '.optional($c->bill_date)->format('d-m-Y').' is already on '.$dup.'.');
+        }
+        $nature = (string) ($d['tds_nature'] ?? config('btc.tds_nature_by_category.'.$c->category, 'none'));
+        $this->financeVerify($c, ['pax_codes' => $codes, 'tds_nature' => $nature, 'duplicate_checked' => 1, 'duplicate_override' => 1,
+            'claim_overlap_override' => 1, '__at_punch' => 1] + array_intersect_key($d, array_flip(['focus_expense_type', 'focus_activity_type', 'focus_activity_head',
+            'tds_rate', 'advance_adjusted', 'tds_threshold_override', 'remark'])), $user);
+        $fx = new BtcFocusExport;
+        $chk = $fx->vendorJv(collect([$c]), false);
+        $bad = collect($chk['check'])->where('result', '!=', 'Pass')->pluck('problems')->filter()->implode('; ');
+        if ($bad !== '') {
+            throw new RuntimeException('Not exported - for Finance to set up: '.$bad.'.');
+        }
+        $fx->vendorJv(collect([$c]), true);   // gives the DocNo (kept on the case)
+
+        return (string) $c->focus_jv_doc;
+    }
+
+    /**
      * BTC-FOCUS-02: the employees of the bill as typed on the Focus entry (codes, comma / space separated). The employee
      * of the request stays; the others are kept as co-travellers. Unknown codes are refused.
      */
@@ -998,7 +1061,7 @@ class BtcWorkflow
 
     private function financeVerify(BtcCase $c, array $d, $user): void
     {
-        $preview = ! empty($d['__preview']);
+        $preview = ! empty($d['__preview']) || ! empty($d['__at_punch']);   // BTC-FLOW-18: checked at verification instead
         $rules = config("btc.categories.{$c->category}", []);
         if (! $preview && $c->boarding_pass_required && ! $c->boarding_pass_received_on && config('btc.boarding_pass_before_verify', true)) {   // BTC-FLOW-01: switchable
             throw new RuntimeException('Air travel: the expense is booked only after the boarding pass / proof of travel is received.');

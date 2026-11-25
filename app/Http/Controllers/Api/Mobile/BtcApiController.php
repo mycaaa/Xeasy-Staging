@@ -76,7 +76,10 @@ class BtcApiController extends BaseMobileController
                     return $this->ok(['routes' => collect($routes)->map(fn ($k) => ['key' => $k, 'title' => config("btc.route_choices.{$k}.0", $k), 'help' => config("btc.route_choices.{$k}.1", '')])->values(),
                         'categories' => collect(config('btc.categories'))->filter(fn ($c) => $c['new_case'] ?? true)->map(fn ($c, $k) => ['key' => $k, 'label' => $c['label']])->values(),   // BTC-REQ-25
                         'purposes' => (array) config('btc.purposes', []),
-                        'vendor_types' => config('btc.vendor_types_by_category')]);
+                        'vendor_types' => config('btc.vendor_types_by_category'),
+                        // BTC-TRIP-01 (25 Nov 2026): Air / Train - travel_from, travel_to, trip_type (one_way / round_trip),
+                        // travel_date, return_date; the manager sends booking_type with manager_approve of an admin booking
+                        'trip_categories' => (array) config('btc.trip_categories', []), 'booking_types' => (array) config('btc.booking_types', [])]);
                 case 'vendors':
                     $q = trim((string) $request->input('q'));
                     if (\App\Services\Btc\CoreVendors::active()) {   // BTC-VENDOR-CORE-01: vendor list from the core application

@@ -11,8 +11,11 @@ class BtcCase extends Model
 
     protected $guarded = ['id'];
 
+    /** BTC-CANCEL-01: who cancelled (false = not looked up yet). */
+    protected string|null|false $cancelledByMemo = false;
+
     protected $casts = [
-        'service_from' => 'date', 'service_to' => 'date', 'bill_date' => 'date', 'travel_date' => 'date',
+        'service_from' => 'date', 'service_to' => 'date', 'bill_date' => 'date', 'travel_date' => 'date', 'return_date' => 'date',
         'advance_paid_on' => 'date', 'original_received_on' => 'date', 'boarding_pass_received_on' => 'date', 'paid_on' => 'date',
         'manager_action_at' => 'datetime', 'bill_submitted_at' => 'datetime', 'dms_at' => 'datetime', 'finance_at' => 'datetime',
         'checker_at' => 'datetime', 'treasury_at' => 'datetime', 'dept_approved_at' => 'datetime', 'closed_at' => 'datetime',
@@ -37,7 +40,26 @@ class BtcCase extends Model
 
     public function statusLabel(): string
     {
+        // BTC-CANCEL-01 (25 Nov 2026, testing point 16): a cancelled request says who cancelled it, on every screen
+        if ($this->status === 'cancelled' && ($by = $this->cancelledBy())) {
+            return 'Cancelled by '.$by;
+        }
+
         return config("btc.statuses.{$this->status}", $this->status);
+    }
+
+    /** BTC-CANCEL-01: who cancelled the case (the last cancel step in its history). */
+    public function cancelledBy(): ?string
+    {
+        if ($this->status !== 'cancelled' || ! $this->id) {
+            return null;
+        }
+        if ($this->cancelledByMemo === false) {
+            $this->cancelledByMemo = BtcCaseLog::where('btc_case_id', $this->id)->where('to_status', 'cancelled')
+                ->whereIn('action', ['cancel', 'cancel_booking', 'discard_scan'])->orderByDesc('id')->value('user_name');
+        }
+
+        return $this->cancelledByMemo ?: null;
     }
 
     public function categoryLabel(): string
@@ -52,20 +74,7 @@ class BtcCase extends Model
      */
     public function punchFormat(): ?array
     {
-        $key = config('btc.punch_form_of.'.$this->category, 'meeting');
-        $form = config('btc.punch_forms.'.$key);
-        if (! $form) {
-            return null;
-        }
-        $saved = json_decode((string) ($this->punch_json ?? ''), true);
-        $raw = (array) (json_decode((string) ($this->extract_json ?? ''), true)['raw'] ?? []);
-        $vals = [];
-        foreach (array_keys($form['fields']) as $k) {
-            $v = is_array($saved) && array_key_exists($k, $saved) ? $saved[$k] : ($raw[$k] ?? null);
-            $vals[$k] = is_scalar($v) ? trim((string) $v) : '';
-        }
-
-        return ['title' => $form['title'], 'form' => $key, 'fields' => $form['fields'], 'values' => $vals];
+        return \App\Services\Btc\PunchForm::data($this);   // BTC-PUNCH-02: with the tables (legs, rooms, items)
     }
 
     /** BTC-FORMAT-01: the key fields of the bill's own format, for lists ("Hotel X · in 22-10 · out 23-10 · 2,000"). */
@@ -81,6 +90,10 @@ class BtcCase extends Model
             if ($v !== '') {
                 $parts[] = ($p['fields'][$k] ?? $k).': '.$v;
             }
+        }
+
+        foreach (array_slice((array) ($p['tables']['legs'] ?? []), 0, 3) as $l) {   // BTC-PUNCH-02: each journey leg
+            $parts[] = trim(($l['Mode'] ?? '').' '.($l['Journey From'] ?? '').'-'.($l['Journey Upto'] ?? '').' '.($l['Journey Date'] ?? ''));
         }
 
         return $parts ? $p['title'].' - '.implode(' · ', $parts) : '';
@@ -242,6 +255,9 @@ class BtcCase extends Model
             default => '-',
         };
         $advance = $a['requested'] <= 0 ? '-' : match (true) {
+            // BTC-CANCEL-01: a cancelled / rejected request is not "pending Finance approval" any more
+            $this->status === 'cancelled' && $a['paid'] <= 0 => 'Cancelled'.(($by = $this->cancelledBy()) ? ' by '.$by : ''),
+            $this->status === 'rejected' && $a['paid'] <= 0 => 'Rejected',
             $a['paid'] > 0 => 'Paid '.number_format($a['paid']).($a['balance'] > 0.5 && $this->status !== 'draft' ? ' · due '.number_format($a['balance']) : ''),
             $this->status === 'advance_requested' => match ($this->adv_stage ?? null) { 'instructed' => 'Instructed, not paid', 'approved' => 'Finance approved', default => 'Pending Finance approval' },
             $this->status === 'pending_manager' => 'Waiting approval',

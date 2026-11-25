@@ -194,6 +194,9 @@ class BtcController extends Controller
             'pnr' => 'nullable|string|max:20',
             'travel_sector' => 'nullable|string|max:120',
             'travel_date' => 'nullable|date',
+            // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): Air / Train - from, to, one-way or round trip
+            'travel_from' => 'nullable|string|max:100', 'travel_to' => 'nullable|string|max:100',
+            'trip_type' => 'nullable|in:one_way,round_trip', 'return_date' => 'nullable|date|after_or_equal:travel_date',
             'bill_no' => 'nullable|string|max:60',
             'bill_date' => 'nullable|date|before_or_equal:today',
             'taxable_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
@@ -220,6 +223,28 @@ class BtcController extends Controller
         }
         if (! ($v['category'] === 'air' && $v['route'] === 'employee_advance')) {
             $v['pnr'] = null;
+        }
+        // BTC-TRIP-01: Air / Train have Travel From / To (no Location) and the journey date(s) (no activity dates); a
+        // round trip needs the return date
+        if (in_array($v['category'], (array) config('btc.trip_categories', ['air', 'train']), true)) {
+            foreach (['travel_from' => 'Travel from', 'travel_to' => 'Travel to', 'travel_date' => 'Travel date (onward)'] as $k => $l) {
+                if (trim((string) ($v[$k] ?? '')) === '') {
+                    return response()->json(['success' => false, 'message' => "{$l} is required for ".config("btc.categories.{$v['category']}.label").'.'], 422);
+                }
+            }
+            $v['trip_type'] = $v['trip_type'] ?? 'one_way';
+            if ($v['trip_type'] === 'round_trip' && empty($v['return_date'])) {
+                return response()->json(['success' => false, 'message' => 'Round trip: give the return travel date.'], 422);
+            }
+            if ($v['trip_type'] === 'one_way') {
+                $v['return_date'] = null;
+            }
+            $v['location'] = null;
+            $v['travel_sector'] = mb_substr(trim($v['travel_from']).' - '.trim($v['travel_to']).($v['trip_type'] === 'round_trip' ? ' - '.trim($v['travel_from']) : ''), 0, 120);
+            $v['service_from'] = $v['travel_date'];
+            $v['service_to'] = $v['return_date'] ?: $v['travel_date'];
+        } else {
+            $v['travel_from'] = $v['travel_to'] = $v['trip_type'] = $v['return_date'] = null;
         }
         $user = auth()->user();
         if (! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {   // BTC-REQ-23 (18 Nov 2026): also for the BTC admin
@@ -267,7 +292,9 @@ class BtcController extends Controller
                 'pax_count' => $v['pax_count'] ?? null, 'guests' => trim((string) ($v['guests'] ?? '')) ?: null,
                 'travellers' => ! empty($v['travellers']) ? json_encode(DB::connection('hrims')->table('hrm_employee')->whereIn('EmployeeID', $v['travellers'])
                     ->get(['EmployeeID as id', 'EmpCode as code', DB::raw("TRIM(CONCAT_WS(' ', Fname, Sname, Lname)) as name")])) : null,
-            ] : []) + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'request_remarks') ? ['request_remarks' => trim((string) ($v['request_remarks'] ?? '')) ?: null] : []));
+            ] : []) + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'request_remarks') ? ['request_remarks' => trim((string) ($v['request_remarks'] ?? '')) ?: null] : [])
+              + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'trip_type') ? ['travel_from' => $v['travel_from'] ?? null, 'travel_to' => $v['travel_to'] ?? null,
+                  'trip_type' => $v['trip_type'] ?? null, 'return_date' => $v['return_date'] ?? null] : []));   // BTC-TRIP-01
             $c->case_no = sprintf('BTC/%s/%05d', now('Asia/Kolkata')->format('y'), $c->id);
             $c->save();
 
@@ -368,7 +395,11 @@ class BtcController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['success' => true, 'message' => "{$c->case_no}: ".$c->statusLabel(), 'status' => $c->status]);
+        // BTC-FLOW-18: Focus Export on the Punch Screen gives the bill's import sheet at once
+        $dl = $request->input('action') === 'confirm_extraction' && ! empty($c->focus_jv_doc) && \Illuminate\Support\Facades\Route::has('btc.treasury.focus')
+            ? route('btc.treasury.focus', ['kind' => 'jv', 'ids' => $c->id]) : null;
+
+        return response()->json(['success' => true, 'message' => "{$c->case_no}: ".$c->statusLabel().($dl ? ' - Focus JV '.$c->focus_jv_doc : ''), 'status' => $c->status, 'download' => $dl]);
     }
 
     /** BTC-FIN-02 (17 Nov 2026): Dr/Cr preview of the Finance form, nothing saved. */
@@ -609,7 +640,7 @@ class BtcController extends Controller
 
         return DB::connection('hrims')->table('hrm_employee')->where('EmpStatus', 'A')
             ->where(fn ($w) => $w->where('EmpCode', 'like', "%{$s}%")->orWhere('Fname', 'like', "%{$s}%")->orWhere('Lname', 'like', "%{$s}%"))
-            ->limit(20)->get(['EmployeeID as id', DB::raw("CONCAT(EmpCode,' - ',Fname,' ',Lname) as text")]);
+            ->limit(20)->get([$request->boolean('codes') ? 'EmpCode as id' : 'EmployeeID as id', DB::raw("CONCAT(EmpCode,' - ',Fname,' ',Lname) as text")]);   // BTC-FLOW-18: codes for the Punch Screen
     }
 
     public function saveFiles(Request $request, BtcCase $c): void
@@ -639,22 +670,7 @@ class BtcController extends Controller
     /** BTC-SCAN-01: punch form of the case's bill type with the values punched, else as read from the bill. */
     private function punchData(BtcCase $c): ?array
     {
-        $form = config('btc.punch_forms.'.config('btc.punch_form_of.'.$c->category, 'meeting'));
-        if (! $form) {
-            return null;
-        }
-        $saved = json_decode((string) ($c->punch_json ?? ''), true);
-        $raw = (array) (json_decode((string) $c->extract_json, true)['raw'] ?? []);
-        $vals = [];
-        foreach (array_keys($form['fields']) as $k) {
-            $v = is_array($saved) && array_key_exists($k, $saved) ? $saved[$k] : ($raw[$k] ?? null);
-            if ($v === null && $k === 'Train Number') {
-                $v = $raw['Bus Number'] ?? null;
-            }
-            $vals[$k] = is_scalar($v) ? (string) $v : '';
-        }
-
-        return ['title' => $form['title'], 'fields' => $form['fields'], 'values' => $vals, 'numbers' => config('btc.punch_numbers'), 'saved' => is_array($saved)];
+        return \App\Services\Btc\PunchForm::data($c);   // BTC-PUNCH-02 (testing point 17)
     }
 
     public function authorizeView(BtcCase $c, $user): void

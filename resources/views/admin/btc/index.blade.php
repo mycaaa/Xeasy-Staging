@@ -86,11 +86,19 @@
                     <div class="col-md-6"><label class="btc-label">Category</label>
                         <select class="form-select form-select-sm" name="category" id="btcCategory">@foreach ($categories as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach</select></div>
                     {{-- BTC-REQ-25 (19 Nov 2026): no "Employee (Admin raising for someone)" field; purpose from a list --}}
-                    <div class="col-md-6"><label class="btc-label">Location</label><input class="form-control form-control-sm" name="location"></div>
+                    <div class="col-md-6 btc-notrip"><label class="btc-label">Location</label><input class="form-control form-control-sm" name="location"></div>
+                    {{-- BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): Air / Train - from / to and one-way or round trip --}}
+                    <div class="col-md-3 btc-trip"><label class="btc-label" for="btcFrom">Travel from <span class="text-danger">*</span></label><input class="form-control form-control-sm" name="travel_from" id="btcFrom" maxlength="100" placeholder="e.g. Raipur"></div>
+                    <div class="col-md-3 btc-trip"><label class="btc-label" for="btcTo">Travel to <span class="text-danger">*</span></label><input class="form-control form-control-sm" name="travel_to" id="btcTo" maxlength="100" placeholder="e.g. Delhi"></div>
                     <div class="col-md-6"><label class="btc-label" for="btcPurpose">Purpose / business requirement</label>
                         <select class="form-select form-select-sm" name="purpose" id="btcPurpose" required><option value="">— choose —</option>@foreach ($purposes as $p)<option value="{{ $p }}">{{ $p }}</option>@endforeach</select></div>
-                    <div class="col-md-3"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
-                    <div class="col-md-3"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
+                    <div class="col-md-3 btc-notrip"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
+                    <div class="col-md-3 btc-notrip"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
+                    <div class="col-md-4 btc-trip"><label class="btc-label">Trip type</label><div>
+                        <label class="me-3"><input type="radio" class="form-check-input me-1" name="trip_type" value="one_way" checked> One-way</label>
+                        <label><input type="radio" class="form-check-input me-1" name="trip_type" value="round_trip"> Round-trip</label></div></div>
+                    <div class="col-md-3 btc-trip"><label class="btc-label" for="btcGo">Travel date (onward) <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="travel_date" id="btcGo"></div>
+                    <div class="col-md-3 btc-trip btc-return"><label class="btc-label" for="btcRet">Return travel date <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="return_date" id="btcRet"></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
                     <div class="col-md-2"><label class="btc-label" for="btcPax">No. of pax</label><input type="number" min="1" max="500" class="form-control form-control-sm" name="pax_count" id="btcPax" value="1"></div>
                     <div class="col-md-6"><label class="btc-label">Employees (code or name)</label><select class="form-select form-select-sm" name="travellers[]" id="btcTravellers" multiple></select></div>
@@ -104,8 +112,7 @@
                     <div class="col-md-4 btc-b"><label class="btc-label">Quotation amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="quotation_amount"></div>
                     <div class="col-md-4 btc-b"><label class="btc-label">Advance required (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="advance_amount"></div>
                     <div class="col-md-4 btc-air btc-pnr"><label class="btc-label">PNR</label><input class="form-control form-control-sm" name="pnr" maxlength="20"></div>
-                    <div class="col-md-4 btc-air"><label class="btc-label">Sector</label><input class="form-control form-control-sm" name="travel_sector" placeholder="RPR-DEL" aria-label="RPR-DEL"></div>
-                    <div class="col-md-4 btc-air"><label class="btc-label">Travel date</label><input type="date" class="form-control form-control-sm" name="travel_date"></div>
+
                     <div class="col-12 btc-c"><hr class="my-1"><div class="btc-label fw-semibold">Final bill</div></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill no.</label><input class="form-control form-control-sm" name="bill_no"></div>
                     <div class="col-md-3 btc-c"><label class="btc-label">Bill date</label><input type="date" class="form-control form-control-sm" name="bill_date" max="{{ now()->toDateString() }}"></div>
@@ -196,6 +203,11 @@ $(function () {
         $('.btc-choice').removeClass('border-primary bg-primary-subtle'); $('.btc-route-radio:checked').closest('.btc-choice').addClass('border-primary bg-primary-subtle');
         $('.btc-b').toggle(r === 'employee_advance'); $('.btc-c').toggle(r === 'direct_bill');
         $('.btc-air').toggle(c === 'air'); $('.btc-newvendor').toggle(!$('#btcVendor').val());
+        // BTC-TRIP-01: Air / Train - from / to, trip type and journey dates in place of location and activity dates
+        const trip = @json((array) config('btc.trip_categories', ['air', 'train'])).includes(c);
+        $('.btc-trip').toggle(trip); $('.btc-notrip').toggle(!trip);
+        if (trip) $('[name=location],[name=service_from],[name=service_to]').val(''); else $('[name=travel_from],[name=travel_to],[name=travel_date],[name=return_date]').val('');
+        const rt = trip && $('[name=trip_type]:checked').val() === 'round_trip'; $('.btc-return').toggle(rt); if (!rt) $('[name=return_date]').val('');
         // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books)
         $('.btc-nota').toggle(r !== 'admin_booking');
         if (r === 'admin_booking') { $('#btcVendor').val('').trigger('change.select2'); $('[name=estimated_amount],[name=vendor_name],[name=vendor_gstin]').val(''); }
@@ -204,7 +216,8 @@ $(function () {
         const pnr = c === 'air' && r === 'employee_advance'; $('.btc-pnr').toggle(pnr); if (!pnr) $('[name=pnr]').val('');
         $('#btcFiles').html(fileRow(r === 'employee_advance' ? 'quotation' : (r === 'direct_bill' ? 'bill' : 'supporting')));
     }
-    $('#btcCategory, #btcVendor').on('change', shape); shape();
+    $('#btcCategory, #btcVendor').on('change', shape); $(document).on('change', '[name=trip_type]', shape); shape();
+    $('#btcGo').on('change', function () { $('#btcRet').attr('min', this.value); });
     $('#btcPurpose').on('change', function () { const o = String(this.value).startsWith('Other'); $('#btcRemarks').prop('required', o); $('#btcRemarksHint').text(o ? '(required - write the purpose)' : ''); });
     $('#btcAddFile').on('click', () => $('#btcFiles').append(fileRow('supporting')));
     // BTC-REQ-20: employees by code or name
@@ -258,6 +271,10 @@ $(function () {
         if (!checkAmounts($('#btcNewForm'))) return;
         if (!$('#btcPurpose').val()) { Swal.fire('Purpose needed', 'Choose the purpose of the requirement.', 'warning'); return; }
         if (String($('#btcPurpose').val()).startsWith('Other') && !$('#btcRemarks').val().trim()) { Swal.fire('Remarks needed', 'Write the purpose in the remarks.', 'warning'); return; }
+        if ($('.btc-trip:visible').length) {   // BTC-TRIP-01
+            const miss = [['#btcFrom', 'Travel from'], ['#btcTo', 'Travel to'], ['#btcGo', 'Travel date (onward)']].concat($('.btc-return:visible').length ? [['#btcRet', 'Return travel date']] : []).filter(([s]) => !String($(s).val() || '').trim()).map(([, l]) => l);
+            if (miss.length) { Swal.fire('Required', 'Fill in: ' + miss.join(', ') + '.', 'warning'); return; }
+        }
         const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit'));
         $.ajax({url: '{{ route('btc.store') }}', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
             .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); freshForm(); load(); })

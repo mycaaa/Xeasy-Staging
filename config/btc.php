@@ -163,25 +163,58 @@ return [
     // the fields as printed on the bill (the reading service's fields, scan_ocr/<type>); the Finance data format
     // (extraction.fields) is filled from them. key => [label, number field?]
     'classification' => ['hotel', 'vehicle', 'air', 'train', 'bus', 'meals', 'meeting'],
+    // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): the request form of these has Travel From / To and one-way / round
+    // trip in place of Location and activity dates; for an admin booking the manager chooses corporate or normal booking
+    'trip_categories' => ['air', 'train'],
+    'booking_types' => ['corporate' => 'Corporate booking', 'normal' => 'Normal booking'],
+    // BTC-PUNCH-02 (25 Nov 2026, testing point 17): the punch form of each type in the layout of the 19 Nov spec - header
+    // fields, then repeatable tables (journey legs, rooms, line items) with their totals. Keys of the header fields
+    // stay as before (lists, verification and the narration use them); the tables are kept in punch_json._t.
     'punch_forms' => [
-        'vehicle' => ['title' => 'Hired vehicle', 'fields' => [
-            'Agency Name' => 'Agency name', 'Invoice No' => 'Invoice no.', 'Invoice Date' => 'Invoice date', 'Vehicle No' => 'Vehicle no.',
-            'Per KM Rate' => 'Per km rate', 'Start Reading' => 'Start reading', 'Closing Reading' => 'Closing reading', 'Total KM' => 'Total km',
-            'Other Charges' => 'Other charges', 'Total Amount' => 'Total amount', 'Employee Name' => 'Employee name', 'Emp Code' => 'Emp code',
-        ]],
+        'vehicle' => ['title' => 'Hired vehicle (HRV)', 'fields' => [
+            'Agency Name' => 'Agency name', 'Agency Address' => 'Agency address', 'Billing Name' => 'Billing name', 'Billing Address' => 'Billing address',
+            'Employee Name' => 'Employee name', 'Emp Code' => 'Emp code', 'Vehicle No' => 'Vehicle no.', 'Location' => 'Location',
+            'Invoice No' => 'Invoice no.', 'Invoice Date' => 'Invoice date', 'Per KM Rate' => 'Per km rate', 'Booking Date' => 'Booking date', 'End Date' => 'End date',
+            'Start Reading' => 'Start reading', 'Closing Reading' => 'Closing reading', 'Total KM' => 'Total km',
+            'Other Charges' => 'Other charges (total - km x rate)', 'Total Amount' => 'Total amount',
+            'Route From' => 'Route from (manual)', 'Route To' => 'Route to (manual)', 'Purpose' => 'Purpose (manual)',
+        ], 'manual' => ['Route From', 'Route To', 'Purpose']],
         'air' => ['title' => 'Air / Rail / Bus', 'fields' => [
-            'Mode' => 'Mode', 'Agent Name' => 'Agent name', 'PNR Number' => 'PNR', 'Ticket Number' => 'Ticket no.', 'Date of Booking' => 'Booking date',
-            'Journey Date' => 'Journey date', 'Airline' => 'Airline / operator', 'Train Number' => 'Train / bus no.', 'Journey From' => 'From', 'Journey Upto' => 'To',
-            'Travel Class' => 'Class', 'Base Fare' => 'Base fare', 'GST' => 'GST', 'Fees & Surcharge' => 'Fees & surcharge', 'CUTE Charge' => 'CUTE charge',
-            'Extra Luggage' => 'Extra luggage', 'Other' => 'Other', 'Total Fare' => 'Total fare',
+            'Agent Name' => 'Agent name', 'Location' => 'Location', 'GST Calculation Level' => 'GST calculation level', 'Invoice No' => 'Invoice no.', 'Invoice Date' => 'Invoice date',
+            'Service Charge' => 'Service charge (invoice)', 'Service Charge GST' => 'GST on service charge', 'Total Fare' => 'Invoice total',
+        ], 'tables' => [
+            'legs' => ['title' => 'Journey leg / line item', 'block' => true, 'cols' => [
+                'Mode' => 'Mode', 'PNR Number' => 'PNR', 'Date of Booking' => 'Date of booking', 'Journey Date' => 'Journey date', 'Airline' => 'Airline / carrier',
+                'Ticket Number' => 'Ticket no.', 'Journey From' => 'Journey from', 'Journey Upto' => 'Journey upto', 'Travel Class' => 'Travel class',
+                'Passenger Details' => 'Passenger details', 'Employees' => 'Employees for this leg (codes)', 'Employee Remark' => 'Remark',
+                'Particulars' => 'Particulars', 'Base Fare' => 'Base fare', 'GST' => 'GST (Rs.)', 'GST Type' => 'GST type', 'Surcharge' => 'Surcharge', 'CUTE' => 'CUTE',
+                'Luggage' => 'Luggage', 'Reschedule' => 'Reschedule', 'Refund' => 'Refund (-)', 'Other' => 'Other', 'Leg Total' => 'Leg total',
+            ], 'numbers' => ['Base Fare', 'GST', 'Surcharge', 'CUTE', 'Luggage', 'Reschedule', 'Refund', 'Other', 'Leg Total'],
+                'total' => 'Leg Total', 'plus' => ['Base Fare', 'GST', 'Surcharge', 'CUTE', 'Luggage', 'Reschedule', 'Other'], 'minus' => ['Refund']],
         ]],
         'hotel' => ['title' => 'Hotel / Lodging', 'fields' => [
-            'Hotel Name' => 'Hotel name', 'Bill No' => 'Bill no.', 'Bill Date' => 'Bill date', 'Booking ID' => 'Booking ID', 'Chk. In Date' => 'Check-in date',
-            'Chk. Out Date' => 'Check-out date', 'Number of Rooms' => 'Rooms', 'Room Type' => 'Room type', 'Rate' => 'Rate', 'Amount' => 'Amount',
-            'Other Charges (+)' => 'Other charges (+)', 'Discount (-)' => 'Discount (-)', 'GST (%)' => 'GST %', 'Grand Total' => 'Grand total',
+            'Location' => 'Location', 'Bill No' => 'Bill no.', 'Bill Date' => 'Bill date', 'Billing Name' => 'Billing name', 'Billing Address' => 'Billing address',
+            'Hotel Name' => 'Hotel name', 'Hotel Address' => 'Hotel address', 'Billing Instruction' => 'Billing instruction', 'Booking ID' => 'Booking ID',
+            'Chk. In Date' => 'Check in date / time', 'Chk. Out Date' => 'Check out date / time', 'Duration of Stay' => 'Duration of stay', 'Number of Rooms' => 'Number of rooms',
+            'Grand Total' => 'Overall grand total',
+        ], 'tables' => [
+            'rooms' => ['title' => 'Room details', 'cols' => ['Room No' => 'Room no.', 'Room Type' => 'Room type', 'Meal Plan' => 'Meal plan', 'Pax' => 'Pax',
+                'Employees' => 'Employee(s) in the room (codes)', 'Guest Name' => 'Guest name as on the bill', 'Remark' => 'Remark'], 'numbers' => ['Pax']],
+            'items' => ['title' => 'Line items and GST', 'cols' => ['Particulars' => 'Particulars', 'Room Type' => 'Room type', 'Meal Plan' => 'Meal plan', 'Date' => 'Date',
+                'Amount' => 'Amount', 'Other' => 'Other (+)', 'Discount' => 'Discount (-)', 'GST %' => 'GST %', 'GST Type' => 'GST type', 'Grand Total' => 'Grand total'],
+                'numbers' => ['Amount', 'Other', 'Discount', 'GST %', 'Grand Total'], 'total' => 'Grand Total', 'plus' => ['Amount', 'Other'], 'minus' => ['Discount'], 'gst' => 'GST %'],
         ]],
-        'meals' => ['title' => 'Meals', 'fields' => [
-            'Hotel Name' => 'Hotel / restaurant', 'Bill No.' => 'Bill no.', 'Bill Date' => 'Bill date', 'Detail' => 'Detail', 'Amount' => 'Amount',
+        'meals' => ['title' => 'Meals / General invoice', 'fields' => [
+            'Bill No.' => 'Invoice no.', 'Bill Date' => 'Invoice date', 'Purchase Order No' => 'Purchase order no.', 'Purchase Order Date' => 'Purchase order date',
+            'GRN No' => 'GRN / SRN no.', 'GRN Date' => 'GRN / SRN date', 'Buyer' => 'Buyer', 'Buyer Address' => 'Buyer address', 'Hotel Name' => 'Vendor',
+            'Vendor Address' => 'Vendor address', 'Dispatch Details' => 'Dispatch details', 'Dispatch Through' => 'Dispatch through', 'Delivery Note Date' => 'Delivery note date',
+            'LR Number' => 'LR number', 'LR Date' => 'LR date', 'Pax' => 'No. of pax (manual)', 'Purpose' => 'Purpose (manual)',
+            'Additional Discount' => 'Additional discount', 'Amount' => 'Grand total',
+        ], 'manual' => ['Pax', 'Purpose'], 'tables' => [
+            'items' => ['title' => 'Items', 'cols' => ['Particular' => 'Particular', 'HSN/SAC' => 'HSN / SAC', 'Qty' => 'Qty', 'Unit' => 'Unit', 'MRP' => 'MRP',
+                'Dis Rs' => 'Dis (Rs)', 'Dis %' => 'Dis (%)', 'Dis On' => 'Dis on', 'Amt' => 'Amt', 'CGST %' => 'CGST %', 'SGST %' => 'SGST %', 'IGST %' => 'IGST %',
+                'Cess %' => 'Cess %', 'Total Amt' => 'Total amt'],
+                'numbers' => ['Qty', 'MRP', 'Dis Rs', 'Dis %', 'Amt', 'CGST %', 'SGST %', 'IGST %', 'Cess %', 'Total Amt'], 'total' => 'Total Amt'],
         ]],
         'meeting' => ['title' => 'Team meeting expense', 'fields' => [
             'Vendor' => 'Vendor / venue', 'Voucher No' => 'Bill / voucher no.', 'Voucher Date' => 'Bill date', 'Meeting Type' => 'Meeting type',
@@ -189,10 +222,17 @@ return [
             'Amount' => 'Amount',
         ]],
     ],
+    // BTC-PUNCH-02: old flat keys of the Air / Rail / Bus form, now the first journey leg
+    'punch_leg_from_flat' => ['Mode' => 'Mode', 'PNR Number' => 'PNR Number', 'Date of Booking' => 'Date of Booking', 'Journey Date' => 'Journey Date', 'Airline' => 'Airline',
+        'Ticket Number' => 'Ticket Number', 'Journey From' => 'Journey From', 'Journey Upto' => 'Journey Upto', 'Travel Class' => 'Travel Class', 'Base Fare' => 'Base Fare',
+        'GST' => 'GST', 'Surcharge' => 'Fees & Surcharge', 'CUTE' => 'CUTE Charge', 'Luggage' => 'Extra Luggage', 'Other' => 'Other'],
+    // BTC-FOCUS-05 (25 Nov 2026, testing point 19): {Mode} of the narration, from the category (the punch user may change it)
+    'narration_mode' => ['hotel' => 'lodging exp.', 'air' => 'air fare exp.', 'train' => 'rail fare exp.', 'bus' => 'bus fare exp.', 'vehicle' => 'hired vehicle exp.',
+        'meals' => 'fooding exp.', 'meeting' => 'meeting exp.', 'other' => 'misc. exp.'],
     // BTC-FORMAT-01 (23 Nov 2026): the key fields of each format shown in the lists
     'punch_summary' => [
         'hotel' => ['Hotel Name', 'Chk. In Date', 'Chk. Out Date', 'Number of Rooms', 'Grand Total'],
-        'air' => ['Mode', 'PNR Number', 'Journey Date', 'Journey From', 'Journey Upto', 'Total Fare'],
+        'air' => ['Agent Name', 'Invoice No', 'Total Fare'],
         'vehicle' => ['Agency Name', 'Vehicle No', 'Total KM', 'Total Amount'],
         'meals' => ['Hotel Name', 'Bill Date', 'Amount'],
         'meeting' => ['Vendor', 'Meeting Date', 'Participants', 'Amount'],
@@ -200,7 +240,8 @@ return [
     'punch_form_of' => ['hotel' => 'hotel', 'vehicle' => 'vehicle', 'air' => 'air', 'train' => 'air', 'bus' => 'air', 'meals' => 'meals', 'meeting' => 'meeting', 'other' => 'meeting'],
     // amount-like punch fields (number inputs)
     'punch_numbers' => ['Per KM Rate', 'Start Reading', 'Closing Reading', 'Total KM', 'Other Charges', 'Total Amount', 'Base Fare', 'GST', 'Fees & Surcharge',
-        'CUTE Charge', 'Extra Luggage', 'Other', 'Total Fare', 'Number of Rooms', 'Rate', 'Amount', 'Other Charges (+)', 'Discount (-)', 'GST (%)', 'Grand Total', 'Participants'],
+        'CUTE Charge', 'Extra Luggage', 'Other', 'Total Fare', 'Number of Rooms', 'Rate', 'Amount', 'Other Charges (+)', 'Discount (-)', 'GST (%)', 'Grand Total', 'Participants',
+        'Service Charge', 'Service Charge GST', 'Additional Discount', 'Pax'],
 
     // Focus JV ledgers (names/codes as in Focus; Finance to confirm)
     'focus' => [
@@ -306,7 +347,9 @@ return [
     // stops for that case and lists it, it never guesses a code.
     'focus_export' => [
         'business_entity' => ['VNR' => '120', 'VVNR' => env('BTC_FOCUS_ENTITY_VVNR', '')],   // VVNR: Finance to confirm
-        'vendor_series' => 'JV/BTC/{fy}/',           // JV/BTC/2026-27/0001 - numbered within each financial year
+        'vendor_series' => 'JV/BTC/{fy}/',           // (before 25 Nov) JV/BTC/2026-27/0001
+        // BTC-FOCUS-05 (25 Nov 2026, testing point 19): JV/BTC/26-27/2511/0026 - FY, DDMM of the import day, running no. for the FY
+        'vendor_doc' => env('BTC_FOCUS_JV_DOC', 'JV/BTC/{fys}/{ddmm}/'),
         'employee_series' => 'EJV/BTC/{fy}/',        // EJV/BTC/2026-27/0001
         'bank_series' => 'BP/BTC/{fy}/',             // payment release (Focus Bank Payment - non cheque)
         'employee_account' => 'BTC-E{code4}',        // employee BTC account in Focus, e.g. BTC-E1301

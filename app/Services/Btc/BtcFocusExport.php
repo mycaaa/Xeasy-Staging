@@ -23,9 +23,10 @@ class BtcFocusExport
 {
     // BTC-FOCUS-03 (20 Nov 2026): columns exactly as the samples Finance shared ("Jv import template Dt.09.10.26",
     // "employee jv import Dt.09.10.26", Treasury "Advance Sheet 22-10-2026" > Payment Export)
-    public const JV_COLS = ['DocNo', 'Date', 'Business Entity', 'Narration', 'TDS JVNo', 'Reverse Charge [Yn]', 'Bill No', 'Bill Date', 'Department',
-        'Cost Center', 'Business Unit', 'Activity', 'Location', 'State', 'Category', 'Crop', 'Region', 'Function', 'FC-Vertical', 'Sub Department', 'Zone',
-        'DrAccount', 'CrAccount', 'Amount', 'TDS', 'TDSPer'];
+    // BTC-FOCUS-05 (25 Nov 2026, testing point 19): the Focus import sheet in this column order
+    public const JV_COLS = ['DocNo', 'Date', 'Time', 'Business Entity', 'TDS JVNo', 'Reverse Charge [Yn]', 'Bill No', 'Bill Date', 'Department', 'Cost Center',
+        'Business Unit', 'Activity', 'Location', 'State', 'Category', 'Crop', 'Region', 'Function', 'FC-Vertical', 'Sub Department', 'Zone',
+        'DrAccount', 'CrAccount', 'Amount', 'Narration', 'Reference', 'TDS Bill Amount', 'TDS', 'TDS Per.'];
 
     public const EJV_COLS = ['DocNo', 'Date', 'Account (EC)', 'Business Entity', 'Region', 'Business Unit', 'sNarration', 'ActMonths', 'LB', 'Crop',
         'Department', 'Location', 'Activity', 'Category', 'Subledger', 'State', 'Function', 'FC-Vertical', 'Sub Department', 'Zone', 'LEDGER', 'Amount'];
@@ -71,6 +72,27 @@ class BtcFocusExport
         });
     }
 
+    /** "26-27" for a date. */
+    public static function fyShort($date): string
+    {
+        [$a, $b] = explode('-', self::fy($date));
+
+        return substr($a, -2).'-'.$b;
+    }
+
+    /**
+     * BTC-FOCUS-05: JV/BTC/26-27/2511/0026 - financial year, day and month of the import, then a number that runs through
+     * the whole financial year (the day part does not restart it).
+     */
+    public static function nextJvDoc($date, int $companyId): string
+    {
+        $pattern = (string) config('btc.focus_export.vendor_doc', 'JV/BTC/{fys}/{ddmm}/');
+        $series = 'JVBTC/'.self::fy($date).'/';   // one counter per financial year
+        $n = substr(self::nextDoc($series, $date, $companyId), -4);
+
+        return strtr($pattern, ['{fys}' => self::fyShort($date), '{fy}' => self::fy($date), '{ddmm}' => Carbon::parse($date ?: now())->format('dm')]).$n;
+    }
+
     public static function employeeAccount(string $empCode): string
     {
         $code = preg_replace('/\D/', '', $empCode);
@@ -104,7 +126,7 @@ class BtcFocusExport
                 ->where('e.EmpCode', $empCode)->orderByRaw("e.EmpStatus = 'A' DESC")->orderByDesc('e.EmployeeID')
                 ->first(['e.EmployeeID', 'e.EmpCode', 'e.Fname', 'e.Sname', 'e.Lname', 'e.CompanyId', 'd.department_code', 'sd.focus_code as sub_dept', 'sd.sub_department_name',
                     'bu.business_unit_code', 'r.focus_code as region', 'r.region_name', 'z.focus_code as zone_focus', 'z.zone_code', 'f.function_code', 'v.vertical_code',
-                    'hq.city_village_name as location', 'st.state_code', 'st.state_name', 'g.HQ']);
+                    'hq.city_village_name as location', 'st.state_code', 'st.state_name', 'g.HQ', 'g.Category']);
         } catch (\Throwable $e) {
             report($e);
         }
@@ -118,6 +140,7 @@ class BtcFocusExport
             'department' => $v($r->department_code), 'sub_department' => $v($r->sub_dept), 'business_unit' => $v($r->business_unit_code),
             'region' => $v($r->region), 'zone' => $v($r->zone_focus ?: $r->zone_code), 'function' => $v($r->function_code), 'vertical' => $v($r->vertical_code),
             'location' => $v(strtoupper((string) ($r->location ?: $r->HQ))), 'state' => $v($r->state_code), 'state_name' => (string) $r->state_name,
+            'category' => $v($r->Category ?? ''), 'crop' => 'All Crop',   // BTC-FOCUS-05: no crop on the employee master yet
         ] : null;
     }
 
@@ -178,14 +201,33 @@ class BtcFocusExport
         }
     }
 
-    /** Narration as in the tracker; null parts are left out, invalid dates never written. */
+    /** mm-dd-YYYY, as the narration wants it. */
+    private static function mdy($d): ?string
+    {
+        $x = self::dmy($d);
+
+        return $x ? Carbon::createFromFormat('d-m-Y', $x)->format('m-d-Y') : null;
+    }
+
+    /**
+     * BTC-FOCUS-05 (25 Nov 2026, testing point 19): "Being {Mode} of {Employee Name} & {Person Name} stay in {Vendor Name}
+     * in room no. {Room No} from Dt.- {Stay From} to dt.- {Stay To} vide bill no.- {Inv No} dt.-{Inv Date} For The Purpose
+     * of {Purpose}", dates mm-dd-YYYY, the Punch Screen's narration remark at the end. Null parts are left out.
+     */
     public static function narration(BtcCase $c, array $pax, string $stateName): array
     {
-        $type = self::expenseType($c);
-        $who = implode(' & ', array_map(fn ($code, $name) => trim($name).' '.self::employeeCodeE($code), array_keys($pax), $pax));
-        $from = self::dmy($c->service_from) ?: self::dmy(self::punch($c, 'Chk. In Date')) ?: self::dmy(self::punch($c, 'Journey Date')) ?: self::dmy($c->travel_date);
-        $to = self::dmy($c->service_to) ?: self::dmy(self::punch($c, 'Chk. Out Date')) ?: $from;
-        $billDt = self::dmy($c->bill_date);
+        $p = json_decode((string) ($c->punch_json ?? ''), true) ?: [];
+        $mode = trim((string) ($p['_mode'] ?? '')) ?: (string) config('btc.narration_mode.'.$c->category, mb_strtolower(self::expenseType($c)).' exp.');
+        $people = array_map(fn ($code, $name) => trim(trim($name).' '.self::employeeCodeE((string) $code)), array_keys($pax), $pax);
+        foreach (array_filter(array_map('trim', explode(',', (string) ($c->guests ?? '')))) as $g) {
+            $people[] = $g;
+        }
+        $who = implode(' & ', $people);
+        $legs = (array) ($p['_t']['legs'] ?? []);
+        $from = self::mdy($c->service_from) ?: self::mdy(self::punch($c, 'Chk. In Date')) ?: self::mdy(self::punch($c, 'Journey Date')) ?: self::mdy(self::punch($c, 'Booking Date')) ?: self::mdy($c->travel_date)
+            ?: self::mdy(self::punch($c, 'Meeting Date')) ?: (in_array($c->category, ['meals', 'meeting', 'other'], true) ? self::mdy($c->bill_date) : null);
+        $to = self::mdy($c->service_to) ?: self::mdy(self::punch($c, 'Chk. Out Date')) ?: self::mdy($legs ? (end($legs)['Journey Date'] ?? null) : null) ?: self::mdy(self::punch($c, 'End Date')) ?: $from;
+        $billDt = self::mdy($c->bill_date);
         $err = [];
         if (! $from) {
             $err[] = 'stay / travel date missing';
@@ -193,15 +235,23 @@ class BtcFocusExport
         if (! $billDt) {
             $err[] = 'bill date missing';
         }
-        $verb = in_array($c->category, ['hotel'], true) ? 'stay in' : (in_array($c->category, ['air', 'train', 'bus', 'vehicle'], true) ? 'travel by' : 'at');
+        $verb = $c->category === 'hotel' ? 'stay in' : (in_array($c->category, ['air', 'train', 'bus', 'vehicle'], true) ? 'travel by' : 'at');
         $room = self::punch($c, 'Room No') ?: self::punch($c, 'Room No.') ?: self::punch($c, 'Room Number');
-        $n = 'Being '.mb_strtolower($type)." exp. of {$who} {$verb} ".trim((string) $c->vendor_name).($stateName !== '' ? ", {$stateName}" : '')
+        $route = '';
+        if ($legs) {
+            $route = ' ('.implode(', ', array_filter(array_map(fn ($l) => trim(($l['Journey From'] ?? '').'-'.($l['Journey Upto'] ?? ''), '-'), $legs))).')';
+        } elseif (self::punch($c, 'Route From') || self::punch($c, 'Route To')) {
+            $route = ' ('.trim(self::punch($c, 'Route From').'-'.self::punch($c, 'Route To'), '-').')';
+        }
+        $remark = trim((string) ($p['_narration_remark'] ?? ''));
+        $n = 'Being '.$mode." of {$who} {$verb} ".trim((string) $c->vendor_name).($stateName !== '' ? ", {$stateName}" : '').($route !== ' ()' ? $route : '')
             .($room && $c->category === 'hotel' ? " in room no. {$room}" : '')
-            .($from ? " from Dt.- {$from} to Dt.- {$to}" : '')
-            .' vide bill no.- '.trim((string) $c->bill_no).($billDt ? " Dt.-{$billDt}" : '')
-            .(trim((string) $c->purpose) !== '' ? ' for the purpose of '.trim(preg_replace('/\s+/', ' ', (string) $c->purpose)) : '');
+            .($from ? " from Dt.- {$from} to dt.- {$to}" : '')
+            .' vide bill no.- '.trim((string) $c->bill_no).($billDt ? " dt.-{$billDt}" : '')
+            .(trim((string) $c->purpose) !== '' ? ' For The Purpose of '.trim(preg_replace('/\s+/', ' ', (string) $c->purpose)) : '')
+            .($remark !== '' ? ' '.$remark : '');
 
-        return [mb_substr($n, 0, 500), $err];
+        return [mb_substr(preg_replace('/\s+/', ' ', $n), 0, 500), $err];
     }
 
     /** The vendor's state from the core vendor list (narration "stay in <vendor>, <state>"). */
@@ -303,26 +353,29 @@ class BtcFocusExport
                 continue;
             }
             $activity = self::activity($c);
-            // one row per employee, each with its own DocNo (as in the sample); the amount split, any paisa on the last row
+            // BTC-FOCUS-05: one row per employee, all rows of the bill under one DocNo; amount = bill total / employees,
+            // any paisa difference on the last row so the rows add up to the bill total
             $n = count($pax);
             $total = round((float) $c->bill_amount, 2);
             $each = floor($total / $n * 100) / 100;
             $i = 0;
-            $docs = [];
+            $doc = $c->focus_jv_doc ?: ($assign ? self::nextJvDoc(now(), (int) $c->company_id) : '(on export)');
+            $at = $c->focus_exported_at ? Carbon::parse($c->focus_exported_at) : now();
             foreach ($pax as $code => $name) {
                 $i++;
                 $m = $this->employee((string) $code);
                 $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;
-                $doc = $assign ? self::nextDoc(config('btc.focus_export.vendor_series'), $date, (int) $c->company_id) : '(on export)';
-                $docs[] = $doc;
-                $rows[] = [$doc, self::xlDate($date), $be, $narr, '', '', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
-                    $m['business_unit'], $activity, $m['location'], $m['state'], 'N/A', 'All Crop', $m['region'], $m['function'], $m['vertical'], $m['sub_department'],
-                    $m['zone'], self::employeeAccount((string) $code), strtoupper((string) $c->vendor_code), $amt, '', ''];
+                $rows[] = [$doc, self::xlDate($at), $at->format('H:i:s'), $be, '', '', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
+                    $m['business_unit'], $activity, $m['location'], $m['state'], $m['category'] ?? 'N/A', $m['crop'] ?? 'All Crop', $m['region'], $m['function'], $m['vertical'],
+                    $m['sub_department'], $m['zone'], self::employeeAccount((string) $code), strtoupper((string) $c->vendor_code), $amt, $narr, '', '', '', ''];
             }
-            if ($assign) {
-                $ref = self::docRange($docs);
-                BtcCase::whereKey($c->id)->update(['focus_jv_doc' => $ref, 'focus_exported_at' => $c->focus_exported_at ?: now()]);
-                $this->log($c, 'Focus JV '.implode(', ', $docs).' exported');
+            if ($assign && ! $c->focus_jv_doc) {
+                $c->focus_jv_doc = $doc;
+                $c->focus_exported_at = now();
+                if ($c->exists) {
+                    BtcCase::whereKey($c->id)->update(['focus_jv_doc' => $doc, 'focus_exported_at' => $c->focus_exported_at]);
+                }
+                $this->log($c, 'Focus JV '.$doc.' exported ('.$n.' row'.($n > 1 ? 's' : '').', Rs '.number_format($total, 2).')');
             }
         }
 
@@ -370,18 +423,18 @@ class BtcFocusExport
             $each = floor($total / $n * 100) / 100;
             $i = 0;
             $docs = [];
+            $doc = $c->focus_ejv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)');   // BTC-FOCUS-05: one per bill
             foreach ($pax as $code => $name) {
                 $i++;
                 $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;   // equals the JV debit of this employee
-                $doc = $assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)';
                 $docs[] = $doc;
                 // as in the sample: the dimensions stay blank in the employee JV (they are on the vendor JV)
                 $rows[] = [$doc, self::xlDate($date), self::employeeAccount((string) $code), $be, '', '', $narr, $mon, '', 'All Crop',
                     '', '', $activity, 'N/A', $sub, '', '', '', '', '', $ledger, $amt];
             }
-            if ($assign) {
-                BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => self::docRange($docs), 'focus_ejv_at' => now()]);
-                $this->log($c, 'Focus Employee JV '.implode(', ', $docs).' exported');
+            if ($assign && ! $c->focus_ejv_doc) {
+                BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => $doc, 'focus_ejv_at' => now()]);
+                $this->log($c, 'Focus Employee JV '.$doc.' exported');
             }
         }
 

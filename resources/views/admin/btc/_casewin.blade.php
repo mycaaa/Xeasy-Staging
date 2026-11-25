@@ -40,6 +40,8 @@ $(function () {
             .always(function () { $b.prop('disabled', false); });
     });
     const STATUS = @json($statuses);
+    const TRIP_CATS = @json((array) config('btc.trip_categories', ['air', 'train']));   // BTC-TRIP-01
+    const BOOKING_TYPES = @json((array) config('btc.booking_types', []));
     const TDS = @json($tdsSections);
     const NATURES = @json($tdsNatures ?? []); // BTC-TDS-01
     const NATURE_BY_CAT = @json($tdsNatureByCategory ?? []);
@@ -91,15 +93,42 @@ $(function () {
     };
     // BTC-V2 Step 2: the Finance data format, filled from the invoice; correct what was read wrongly
     // BTC-SCAN-01 (19 Nov 2026): the punch form of the bill type - the fields as printed on the bill
+    // BTC-PUNCH-02 (25 Nov 2026, testing point 17): the punch form in the layout of the spec - header fields, then the
+    // tables of the type (journey legs with their fare table, rooms, line items) with add / remove rows and totals
     function punchForm(c, d) {
         const P = d.punch; if (!P) return '';
-        const cells = Object.entries(P.fields).map(([k, l]) => {
-            const n = (P.numbers || []).includes(k), date = /Date$/.test(k);
-            let v = P.values[k] || ''; if (date && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.substring(0, 10);
-            return `<div class="col-md-3 col-lg-2"><label class="btc-label">${esc(l)}</label><input class="form-control form-control-sm" name="punch[${esc(k)}]" type="${date && /^\d{4}-\d{2}-\d{2}$/.test(v || '2000-01-01') ? 'date' : (n ? 'number' : 'text')}" ${n ? 'step="0.01"' : ''} value="${esc(v)}"></div>`;
+        const isDate = k => /Date$|Date\/Time$/i.test(k) || k === 'Date';
+        const cell = (name, k, l, v, nums, w) => {
+            const n = (nums || []).includes(k), date = isDate(k); v = v || ''; if (date && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.substring(0, 10);
+            return `<div class="${w}"><label class="btc-label">${esc(l)}</label><input class="form-control form-control-sm btc-pf" data-k="${esc(k)}" name="${name}" type="${date && /^\d{4}-\d{2}-\d{2}$/.test(v || '2000-01-01') ? 'date' : (n ? 'number' : 'text')}" ${n ? 'step="0.01"' : ''} value="${esc(v)}"></div>`;
+        };
+        const head = Object.entries(P.fields).map(([k, l]) => cell(`punch[${k}]`, k, l + ((P.manual || []).includes(k) ? '' : ''), P.values[k], P.numbers, /Address|Particular|Purpose/.test(k) ? 'col-md-6 col-lg-4' : 'col-md-3 col-lg-2')).join('');
+        const tables = Object.entries(P.table_defs || {}).map(([t, td]) => {
+            const rows = (P.tables || {})[t] || [];
+            const rowHtml = (r, i) => td.block
+                ? `<div class="border rounded p-2 mb-2 btc-prow" data-t="${t}"><div class="d-flex justify-content-between"><b class="small">${esc(td.title)} <span class="btc-pno">${i + 1}</span></b><button type="button" class="btn btn-link btn-sm p-0 text-danger btc-pdel">remove</button></div><div class="row g-2">${Object.entries(td.cols).map(([k, l]) => cell(`punch[_t][${t}][${i}][${k}]`, k, l, r[k], td.numbers, k === 'Passenger Details' || k === 'Employees' ? 'col-md-4' : 'col-md-2')).join('')}</div></div>`
+                : `<tr class="btc-prow" data-t="${t}">${Object.keys(td.cols).map(k => { const n = (td.numbers || []).includes(k); return `<td><input class="form-control form-control-sm btc-pf" data-k="${esc(k)}" name="punch[_t][${t}][${i}][${esc(k)}]" ${n ? 'type="number" step="0.01"' : (isDate(k) ? 'type="date"' : '')} value="${esc((r[k] || '').substring(0, isDate(k) && /^\d{4}-/.test(r[k] || '') ? 10 : 300))}" style="min-width:${n ? 80 : 110}px"></td>`; }).join('')}<td><button type="button" class="btn btn-link btn-sm p-0 text-danger btc-pdel">x</button></td></tr>`;
+            const body = td.block ? rows.map(rowHtml).join('') : `<div class="table-responsive"><table class="table table-sm table-bordered small mb-1"><thead class="table-light"><tr>${Object.values(td.cols).map(l => `<th class="text-nowrap">${esc(l)}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(rowHtml).join('')}</tbody></table></div>`;
+            return `<div class="col-12 btc-ptable" data-t="${t}" data-block="${td.block ? 1 : 0}"><div class="fw-semibold small mt-2">${esc(td.title)}</div>${body}
+                <button type="button" class="btn btn-sm btn-link px-0 btc-padd" data-t="${t}">+ add ${td.block ? 'leg / line item' : 'row'}</button> <span class="small text-muted btc-ptot" data-t="${t}"></span>
+                <template class="btc-ptpl" data-t="${t}">${rowHtml(Object.fromEntries(Object.keys(td.cols).map(k => [k, ''])), '__I__')}</template></div>`;
         }).join('');
-        return `<div class="col-12"><div class="fw-semibold small mt-1">Punch form: ${esc(P.title)} <span class="text-muted fw-normal">- as printed on the bill${P.saved ? '' : ' (filled from the bill reader; check each field)'}</span></div></div>${cells}
-            <div class="col-12"><div class="fw-semibold small mt-2">Finance data <span class="text-muted fw-normal">- fields left empty are filled from the punch form when saved</span></div></div>`;
+        return `<div class="col-12"><div class="fw-semibold small mt-1">Punch form: ${esc(P.title)} <span class="text-muted fw-normal">- as printed on the bill${P.saved ? '' : ' (filled from the bill reader; check each field)'}</span></div></div>${head}${tables}
+            <div class="col-12 small text-muted" id="btcPunchTotals"></div>`;
+    }
+    // BTC-FLOW-18 / BTC-FOCUS-05 (25 Nov 2026, testing points 18 / 19): on the Punch Screen - employees from the Employee
+    // Master, the activity, the narration mode and remark; then Focus Export
+    function punchFocusInputs(c, d) {
+        const P = d.punch || {}, pax = d.focus_pax || {};
+        const opts = Object.entries(pax).map(([code, name]) => `<option value="${esc(code)}" selected>${esc(code + ' - ' + name)}</option>`).join('');
+        return `<div class="col-12"><div class="fw-semibold small mt-2">Focus entry <span class="text-muted fw-normal">- employees and activity; then Focus Export makes the JV import rows</span></div></div>
+            <div class="col-md-6"><label class="btc-label">Employee(s) on this bill (code or name, from the Employee Master) <span class="text-danger">*</span></label><select class="form-select form-select-sm btc-fx" name="pax[]" id="btcPax" multiple>${opts}</select></div>
+            <div class="col-md-3"><label class="btc-label">Type of expense</label><select class="form-select form-select-sm btc-fx" name="focus_expense_type">${(FOCUSX.expense_types || []).map(t => `<option ${t === (c.focus_expense_type || (FOCUSX.expense_type_by_category || {})[c.category]) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+            <div class="col-md-3"><label class="btc-label">Activity (type of activity)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_type" value="${esc(c.focus_activity_type || '')}" list="btcDl_fat2" placeholder="blank for travel / stay"><datalist id="btcDl_fat2">${(FOCUSX.activity_types || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>
+            <div class="col-md-3"><label class="btc-label">Activity head (optional)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_head" value="${esc(c.focus_activity_head || '')}" list="btcDl_fah2" placeholder="All Activity"><datalist id="btcDl_fah2">${(FOCUSX.activity_heads || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>
+            <div class="col-md-3"><label class="btc-label">Mode (narration)</label><input class="form-control form-control-sm btc-fx" name="punch[_mode]" value="${esc(P.mode || '')}" maxlength="60"></div>
+            <div class="col-md-6"><label class="btc-label">Narration remark (added at the end, optional)</label><input class="form-control form-control-sm btc-fx" name="punch[_narration_remark]" value="${esc(P.narration_remark || '')}" maxlength="200" placeholder="e.g. (TDS Deducted On Advance Payment)"></div>
+            <div class="col-12"><div id="btcFocusOut" class="small text-muted">Choose the employee(s) to see the Focus entry…</div></div>`;
     }
     // BTC-FOCUS-02 (24 Nov 2026, testing point 8): 1 validation, 2 values fetched, 3 JV rows, 4 employee JV rows / pending
     function focusHtml(r) {
@@ -115,14 +144,21 @@ $(function () {
             ${fcols.length ? tbl(fcols, f.map(o => fcols.map(k => o[k] ?? ''))) : ''}
             <div class="fw-semibold mt-2 mb-1">3. JV (vendor bill) - Focus import columns</div>${(r.jv.rows || []).length ? tbl(r.jv.cols, r.jv.rows) : '<div class="text-danger">No JV rows - see the validation above.</div>'}
             <div class="fw-semibold mt-2 mb-1">4. Employee JV (expense booking)</div>${(r.ejv.rows || []).length ? tbl(r.ejv.cols, r.ejv.rows) : `<div class="text-warning-emphasis">${esc(ejvPending || 'Expense booking pending')}</div>`}
-            <div class="text-muted mt-1">The document numbers (JV/BTC/…, EJV/BTC/…) are given when Treasury exports the files.</div></div>`;
+            <div class="text-muted mt-1">The JV DocNo is given at Focus Export on the Punch Screen; the employee JV number when Treasury exports it.</div></div>`;
     }
     // BTC-FORMAT-01 (23 Nov 2026, testing point 7): the bill in its own prescribed format (Hotel / Lodging, Air / Rail /
     // Bus, Hired vehicle, Meals, Team meeting), read-only, on every view of the case
     function billFormat(d) {
         const P = d.punch; if (!P || !Object.values(P.values || {}).some(v => String(v || '').trim() !== '')) return '';
-        const cells = Object.entries(P.fields).map(([k, l]) => `<div class="col-6 col-md-3 col-lg-2"><div class="btc-label">${esc(l)}</div><div class="small fw-semibold">${esc(P.values[k] || '-')}</div></div>`).join('');
-        return `<div class="border rounded p-2 mb-2"><div class="fw-semibold small mb-1">Bill details - ${esc(P.title)} format${P.saved ? '' : ' <span class="text-muted fw-normal">(as read from the bill, not yet punched)</span>'}</div><div class="row g-2">${cells}</div></div>`;
+        const cells = Object.entries(P.fields).filter(([k]) => String(P.values[k] || '').trim() !== '').map(([k, l]) => `<div class="col-6 col-md-3 col-lg-2"><div class="btc-label">${esc(l)}</div><div class="small fw-semibold">${esc(P.values[k] || '-')}</div></div>`).join('');
+        // BTC-PUNCH-02: the tables of the format (legs, rooms, line items)
+        const tbls = Object.entries(P.table_defs || {}).map(([t, td]) => {
+            const rows = ((P.tables || {})[t] || []).filter(r => Object.values(r).some(v => String(v || '').trim() !== ''));
+            if (!rows.length) return '';
+            const cols = Object.keys(td.cols).filter(k => rows.some(r => String(r[k] || '').trim() !== ''));
+            return `<div class="col-12"><div class="btc-label">${esc(td.title)}</div><div class="table-responsive"><table class="table table-sm table-bordered mb-1" style="font-size:11px"><tr class="table-light">${cols.map(k => `<th class="text-nowrap">${esc(td.cols[k])}</th>`).join('')}</tr>${rows.map(r => `<tr>${cols.map(k => `<td class="text-nowrap">${esc(r[k])}</td>`).join('')}</tr>`).join('')}</table></div></div>`;
+        }).join('');
+        return `<div class="border rounded p-2 mb-2"><div class="fw-semibold small mb-1">Bill details - ${esc(P.title)} format${P.saved ? '' : ' <span class="text-muted fw-normal">(as read from the bill, not yet punched)</span>'}</div><div class="row g-2">${cells}${tbls}</div></div>`;
     }
     // BTC-SCAN-01: Finance level verification - each field checked against the hard copy
     // BTC-FORMAT-01: the fields of the bill's own format first, then the Finance data
@@ -163,7 +199,10 @@ $(function () {
                 if (c.route === 'employee_advance') f.push(inp('quotation_amount', 'Quotation amount ₹', 'number', c.quotation_amount), inp('advance_amount', 'Advance required ₹', 'number', c.advance_amount), file('quotation', 'Quotation' + ((d.files || []).some(x => x.kind === 'quotation') ? ' (one attached; add another)' : '')));
                 else f.push(file('supporting', 'Attach a file (optional)'));
                 f.push(rmk(false)); break;
-            case 'manager_approve': if (c.route === 'employee_advance' && Number(c.advance_amount) > 0) f.push(inp('advance_approved', 'Advance approved ₹ (requested ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount)); f.push(rmk(false)); break;
+            case 'manager_approve': if (c.route === 'employee_advance' && Number(c.advance_amount) > 0) f.push(inp('advance_approved', 'Advance approved ₹ (requested ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount));
+                // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): the manager decides the booking type of an Air / Train booking
+                if (c.route === 'admin_booking' && TRIP_CATS.includes(c.category)) f.push(`<div class="col-md-4"><label class="btc-label">Booking type <span class="text-danger">*</span></label><select class="form-select form-select-sm" name="booking_type" required><option value="">— choose —</option>${Object.entries(BOOKING_TYPES).map(([k, l]) => `<option value="${k}" ${c.booking_type === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`);
+                f.push(rmk(false)); break;
             case 'change_vendor': f.push(vendorPick(c), rmk(true)); break;   // BTC-REQ-19
             case 'confirm_booking': case 'modify_booking': f.push(vendorPick(c),
                 inp('booking_ref', 'Booking reference', 'text', c.booking_ref), inp('booking_amount', 'Booking amount ₹ (0 allowed)', 'number', c.booking_amount ?? (c.estimated_amount || c.quotation_amount || 0)),
@@ -222,7 +261,8 @@ $(function () {
             // BTC-V2 (19 Nov 2026): the revised steps
             case 'dms_receive': f.push(inp('dms_received_on', 'Physical bill received by DMS on', 'date', today()), inp('dms_to_finance_on', 'Handed over to Finance on', 'date', today()), inp('dms_doc_no', 'DMS entry no. (optional)', 'text', c.dms_doc_no), rmk(false)); break;
             case 'finance_upload': f.push(`<div class="col-md-3"><label class="btc-label">Bill received from</label><select class="form-select form-select-sm" name="bill_source">${Object.entries(d.bill_sources || {}).filter(([k]) => k !== 'employee').map(([k, l]) => `<option value="${k}" ${k === (c.bill_source && c.bill_source !== 'employee' ? c.bill_source : (c.route === 'admin_booking' ? 'dms' : 'vendor')) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`, file('bill', 'Scanned invoice'), file('supporting', 'Supporting'), file('supporting', 'Supporting'), rmk(false)); break;
-            case 'save_extraction': case 'confirm_extraction': f.push(punchForm(c, d), extractFields(c, d), rmk(false)); break;
+            case 'save_extraction': f.push(punchForm(c, d), extractFields(c, d), rmk(false)); break;
+            case 'confirm_extraction': f.push(punchForm(c, d), extractFields(c, d), punchFocusInputs(c, d), rmk(false)); break;   // BTC-FLOW-18
             // BTC-SCAN-01: Finance Advance Approval and the scanned bill not to be processed
             case 'adv_fin_approve': f.push(`<div class="col-12 small">Advance ₹${fmt(c.advance_approved ?? c.advance_amount)} to ${esc(c.vendor_name || c.emp_name || '')}${c.quotation_amount ? ' (quotation ₹' + fmt(c.quotation_amount) + ')' : ''}.</div>`, rmk(false)); break;
             case 'adv_instruct': f.push(inp('adv_instruction_ref', 'Payment instruction ref. (optional)'), rmk(false)); break;
@@ -230,7 +270,8 @@ $(function () {
             case 'verify1': {
                 const dup = (d.duplicates || []).length ? `<div class="col-12 text-danger small">Possible duplicate: ${d.duplicates.map(x => esc(x.case_no + ' (' + x.bill_no + ', ₹' + fmt(x.bill_amount) + ')')).join(', ')} <label class="ms-2"><input type="checkbox" name="duplicate_override" value="1"> not a duplicate</label></div>` : '';
                 const ov = (d.claim_overlaps || []).length ? `<div class="col-12 text-danger small">Also in the employee's own expense claim: ${d.claim_overlaps.map(o => esc(o.type + ' ' + o.date + ' ₹' + fmt(o.amount) + ' (' + o.status + ', ExpId ' + o.exp_id + ')')).join('; ')} <label class="ms-2"><input type="checkbox" name="claim_overlap_override" value="1"> not the same expense</label></div>` : '';
-                f.push(`<div class="col-12 small">Check every field with the received hard copy of the bill (and the scan on the left). Verify when all match; if a field differs, return it for correction.</div>`, verifyChecks(c, d), dup, ov, rmk(false));
+                f.push(`<div class="col-12 small">Check every field with the received hard copy of the bill (and the scan on the left). Verify when all match; if a field differs, return it for correction.</div>`, verifyChecks(c, d), dup, ov,
+                    c.focus_jv_doc ? `<div class="col-12"><div class="fw-semibold small">Focus entry made on the Punch Screen (JV ${esc(c.focus_jv_doc)})</div><div id="btcFocusOut" class="small text-muted">Loading…</div></div>` : '', rmk(false));
                 break;
             }
             case 'pay_instruct': f.push(inp('pay_instruction_ref', 'Payment instruction ref. (optional)'), rmk(false)); break;   // BTC-PAY-02
@@ -240,7 +281,7 @@ $(function () {
         }
         return f.join('');
     }
-    const LABEL = {pay_instruct: 'Give payment instruction', change_vendor: 'Update vendor', forward_to_dms: 'Physical bill handed to DMS', dms_receive: 'Received by DMS, handed to Finance', confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Upload bill', finance_upload: 'Upload scanned bill', save_extraction: 'Save punch', confirm_extraction: 'Save punch, send to Finance verification', verify1: 'Verify', adv_fin_approve: 'Approve advance', adv_fin_reject: 'Reject advance', adv_instruct: 'Instruct payment', discard_scan: 'Not a BTC bill / scanned twice', verify1_return: 'Return for correction', verify1_reject: 'Reject', focus_entry: 'Save Focus entry, send for approval', fin_approve: 'Approve', fin_return: 'Return', fin_reject: 'Reject', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', waive_document: 'Waive document', hold: 'Put on hold', release_hold: 'Release hold', return: 'Return to requester', receive_document: 'Document received', cancel: 'Cancel case'};
+    const LABEL = {pay_instruct: 'Give payment instruction', change_vendor: 'Update vendor', forward_to_dms: 'Physical bill handed to DMS', dms_receive: 'Received by DMS, handed to Finance', confirm_booking: 'Confirm booking', modify_booking: 'Change booking', cancel_booking: 'Cancel booking', complete_activity: 'Activity completed', record_refund: 'Record refund', submit: 'Submit', manager_approve: 'Approve', manager_reject: 'Reject', advance_paid: 'Advance paid', booked: 'Mark booked', submit_bill: 'Upload bill', finance_upload: 'Upload scanned bill', save_extraction: 'Save punch', confirm_extraction: 'Focus Export (save punch, send to Finance verification)', verify1: 'Verified', adv_fin_approve: 'Approve advance', adv_fin_reject: 'Reject advance', adv_instruct: 'Instruct payment', discard_scan: 'Not a BTC bill / scanned twice', verify1_return: 'Return for correction', verify1_reject: 'Reject', focus_entry: 'Save Focus entry, send for approval', fin_approve: 'Approve', fin_return: 'Return', fin_reject: 'Reject', pay: 'Record payment', close: 'Close', payment_failed: 'Payment failed / returned', waive_document: 'Waive document', hold: 'Put on hold', release_hold: 'Release hold', return: 'Return to requester', receive_document: 'Document received', cancel: 'Cancel case'};
 
     // BTC-V2: the extracted invoice data in the Finance data format (with what the reader found)
     function extractTable(c, d) {
@@ -263,7 +304,7 @@ $(function () {
             const acts = d.actions.map(a => `<button class="btn btn-sm ${['return', 'manager_reject', 'cancel', 'discard_scan', 'adv_fin_reject', 'verify1_return', 'verify1_reject', 'fin_return', 'fin_reject', 'payment_failed', 'hold'].includes(a) ? 'btn-outline-danger' : 'btn-outline-primary'} me-1 mb-1" data-act="${a}">${LABEL[a] || a}</button>`).join('');
             const body = `${SHOW_FLOW ? '<div class="mb-2">' + flow + '</div>' : ''}${billFormat(d)}
                 <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${c.bill_source ? kv('Bill received from', esc((d.stamps || {}).source)) : ''}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
-                ${kv('Purpose', esc(c.purpose))}${c.request_remarks ? kv('Remarks', esc(c.request_remarks)) : ''}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
+                ${kv('Purpose', esc(c.purpose))}${c.travel_from ? kv('Journey', esc(c.travel_from + ' → ' + c.travel_to + ' · ' + (c.trip_type === 'round_trip' ? 'Round-trip' : 'One-way') + ' · ' + (c.travel_date || '').substring(0, 10) + (c.return_date ? ' / return ' + c.return_date.substring(0, 10) : ''))) : ''}${c.booking_type ? kv('Booking type', esc(BOOKING_TYPES[c.booking_type] || c.booking_type)) : ''}${c.request_remarks ? kv('Remarks', esc(c.request_remarks)) : ''}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${c.travel_from ? '' : kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
                 ${kv('Quotation ₹', fmt(c.quotation_amount))}${kv('Advance ₹', fmt(c.advance_amount))}${kv('Bill', esc((c.bill_no || '') + ' ' + (c.bill_date || '').substring(0, 10)))}${kv('Bill ₹', fmt(c.bill_amount))}
                 ${kv('TDS ₹', fmt(c.tds_amount))}${kv('Net payable ₹', fmt(c.net_payable))}${kv('PNR / sector', esc((c.pnr || '') + ' ' + (c.travel_sector || '')))}${kv('Bill source', esc((d.stamps || {}).source))}${kv('Uploaded', esc((d.stamps || {}).uploaded))}${kv('DMS', esc((d.stamps || {}).dms))}${kv('Verifier 1', esc((d.stamps || {}).verify1))}${kv('Focus entry', esc((d.stamps || {}).focus))}${kv('Finance approval', esc((d.stamps || {}).approved))}
                 ${kv('Paid', c.paid_amount ? '₹' + fmt(c.paid_amount) + ' on ' + esc((c.paid_on || '').substring(0, 10)) + ' · ' + esc(c.utr_number) : '')}${kv('Waiting for', esc(d.pending.join(', ')))}
@@ -310,13 +351,58 @@ $(function () {
                         .fail(x => $('#btcFocusOut').html('<div class="text-danger">' + esc((x.responseJSON && x.responseJSON.message) || 'Could not work out the Focus entry') + '</div>'));
                 };
                 $('#btcActForm .btc-fx').on('change', focusOut);
+                // BTC-FLOW-18: employees from the Employee Master (code or name)
+                if ($.fn.select2 && $('#btcPax').length) {
+                    $('#btcPax').select2({dropdownParent: $('#btcCaseModal'), width: '100%', placeholder: 'Type employee code or name', minimumInputLength: 2,
+                        ajax: {url: '{{ route('btc.approvers') }}', delay: 250, data: p => ({q: p.term, codes: 1}), processResults: r => ({results: r})}});
+                }
+                // BTC-PUNCH-02: rows added / removed, row totals and the totals of the form
+                const pNum = v => Number(String(v || '').replace(/,/g, '')) || 0;
+                const pRenumber = () => $('#btcActForm .btc-ptable').each(function () {
+                    const t = $(this).data('t');
+                    $(this).find('.btc-prow').each(function (i) { $(this).find('.btc-pno').text(i + 1); $(this).find('[name]').each(function () { this.name = this.name.replace(new RegExp('\\[_t\\]\\[' + t + '\\]\\[[^\\]]+\\]'), '[_t][' + t + '][' + i + ']'); }); });
+                });
+                const pTotals = () => {
+                    const defs = (d.punch || {}).table_defs || {}, msg = [];
+                    Object.entries(defs).forEach(([t, td]) => {
+                        let sum = 0;
+                        $('#btcActForm .btc-prow[data-t="' + t + '"]').each(function () {
+                            const $r = $(this), g = k => pNum($r.find('[data-k="' + k + '"]').val());
+                            if (td.total && (td.plus || []).length) {
+                                let v = (td.plus || []).reduce((s, k) => s + g(k), 0) - (td.minus || []).reduce((s, k) => s + g(k), 0);
+                                if (td.gst) v = v * (1 + g(td.gst) / 100);
+                                const $tot = $r.find('[data-k="' + td.total + '"]');
+                                if (!$tot.data('typed')) $tot.val(v ? Math.round(v * 100) / 100 : '');
+                            }
+                            if (td.total) sum += g(td.total);
+                        });
+                        if (td.total) { $('#btcActForm .btc-ptot[data-t="' + t + '"]').text('Total ' + td.cols[td.total] + ': ₹' + fmt(sum)); msg.push(sum); }
+                    });
+                    const F = k => pNum($('#btcActForm [data-k="' + k + '"]').first().val());
+                    if ((d.punch || {}).form === 'air') {
+                        const overall = (msg[0] || 0) + F('Service Charge') + F('Service Charge GST'), inv = F('Total Fare');
+                        $('#btcPunchTotals').html('Overall total (legs + service charge) ₹' + fmt(overall) + (inv && Math.abs(inv - overall) > 1 ? ' <span class="text-danger">does not match the invoice total ₹' + fmt(inv) + '</span>' : ''));
+                    }
+                    if ((d.punch || {}).form === 'vehicle') {
+                        const oc = F('Total Amount') - F('Total KM') * F('Per KM Rate'), $o = $('#btcActForm [data-k="Other Charges"]');
+                        if (F('Total Amount') && !$o.data('typed')) $o.val(Math.round(oc * 100) / 100);
+                    }
+                };
+                $('#btcActForm').on('input', '.btc-pf', function () { if (/Total|Other Charges/.test($(this).data('k')) && this.value !== '') $(this).data('typed', 1); pTotals(); });
+                $('#btcActForm').on('click', '.btc-padd', function () {
+                    const t = $(this).data('t'), $w = $(this).closest('.btc-ptable'), html = $w.find('template.btc-ptpl').html().replace(/__I__/g, 999);
+                    if ($w.data('block')) $(this).before(html); else $w.find('tbody').append(html);
+                    pRenumber(); pTotals();
+                });
+                $('#btcActForm').on('click', '.btc-pdel', function () { $(this).closest('.btc-prow').remove(); pRenumber(); pTotals(); });
+                pTotals();
                 focusOut();
                 $('#btcDo').on('click', function () {
                     if (!checkAmounts($('#btcActForm'))) return;   // BTC-AMT-01
                     const $af = $('#btcActForm');   // BTC-REQ-27: vendor name is mandatory when booking / updating the vendor
                     if ($af.find('.btc-vpick').length && !$af.find('.btc-vpick').val() && !String($af.find('[name=vendor_name]').val() || '').trim()) { Swal.fire('Vendor needed', 'Choose the vendor from the list or type its name.', 'warning'); return; }
                     $.ajax({url: '{{ url('btc/case') }}/' + c.id + '/act', method: 'POST', data: new FormData($('#btcActForm')[0]), processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
-                        .done(r => { Swal.fire('Done', r.message, 'success'); openCase(c.id); $(document).trigger('btc:changed'); })
+                        .done(r => { Swal.fire('Done', r.message, 'success'); if (r.download) window.location.href = r.download; openCase(c.id); $(document).trigger('btc:changed'); })   // BTC-FLOW-18: the Focus import sheet of the bill
                         .fail(x => Swal.fire('Not done', (x.responseJSON && x.responseJSON.message) || 'Error', 'warning'));
                 });
             });
