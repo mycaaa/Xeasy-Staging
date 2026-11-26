@@ -55,6 +55,11 @@ class LoginController extends BaseMobileController
 
         // Auto-detect CompanyId from EmpCode_New or EmpCode
         $comId = (int) $request->input('ComId', 1);
+        // YEAR-CUR-01 (26 Nov 2026, testing points 30 / 31): the year comes from the year list the app showed (the
+        // company in the path, else the ComId sent); each company numbers its years differently (VNR 8 = VVNR 6 =
+        // 2026-27), so the year is matched by its label in the employee's company. It was "VVNR = posted id - 2", which
+        // turned VVNR's own year 5 (2025-26) into 3 (2023-24).
+        $listCom = (int) ($request->route('comId') ?: $comId ?: 1);
         $qry = DB::connection($hrimsConn)
             ->select("select CompanyId from hrm_employee where (EmpCode_New=? or EmpCode=?) and EmpStatus!='De' LIMIT 1", [$empcode, $empcode]);
         if (!empty($qry)) {
@@ -62,8 +67,22 @@ class LoginController extends BaseMobileController
             if ($detectedComId > 0) {
                 $comId = $detectedComId;
             }
-            if ($comId == 11) {
-                $yearid = (string) ((int) $yearid - 2);
+        }
+        if (in_array($listCom, [1, 3, 11], true) && $listCom !== $comId && (int) $yearid > 0) {
+            try {
+                $label = DB::connection($this->getExpenseConnection($listCom))->table('financialyear')->where('YearId', (int) $yearid)->value('Year');
+                $mapped = $label ? (int) DB::connection($this->getExpenseConnection($comId))->table('financialyear')->where('Year', $label)->value('YearId') : 0;
+                if ($mapped <= 0) {   // that year does not exist in the employee's company: its current year
+                    $mapped = (int) DB::connection($this->getExpenseConnection($comId))->table('financialyear')
+                        ->where('FromDate', '<=', date('Y-m-d'))->where('Todate', '>=', date('Y-m-d'))->value('YearId');
+                }
+                if ($mapped > 0) {
+                    $yearid = (string) $mapped;
+                }
+            } catch (\Throwable $e) {
+                if ($comId === 11 && $listCom === 1) {
+                    $yearid = (string) ((int) $yearid - 2);   // the old rule, only if the year lists cannot be read
+                }
             }
         }
 

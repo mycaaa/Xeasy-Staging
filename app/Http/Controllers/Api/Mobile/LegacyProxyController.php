@@ -409,7 +409,10 @@ class LegacyProxyController extends BaseMobileController
 
     private function handleYearList(Request $request): JsonResponse
     {
-        $results = $this->rawSelect($this->con, "select YearId, Year, Status from financialyear order by YearId desc limit 0,3");
+        // YEAR-CUR-01 (26 Nov 2026, testing points 30 / 31): each company has its own year ids (VNR 8 = VVNR 6 = 2026-27);
+        // the app pre-selects the year marked Active, and VVNR's list still marks 2025-26. The year that contains today
+        // is now the Active one in this list (the master itself is not changed).
+        $results = $this->rawSelect($this->con, "select YearId, Year, CASE WHEN CURDATE() BETWEEN FromDate AND Todate THEN 'Active' ELSE 'Deactive' END AS Status from financialyear order by YearId desc limit 0,3");
 
         if (count($results) > 0) {
             return response()->json(["Code" => "300", "year_list" => $results]);
