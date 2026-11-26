@@ -33,7 +33,16 @@
                 <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-error-warning-line"></i>Exceptions</span></div>
                 <div class="xe-section-body p-0"><table class="table table-sm mb-0 btc-small">
                     <tbody>@foreach ($exceptions as [$l, $n, $url])
-                        <tr><td>{{ $l }}</td><td class="text-end">@if ($n)@if ($links)<a href="{{ $url }}" class="fw-semibold text-danger">{{ $n }}</a>@else<span class="fw-semibold text-danger">{{ $n }}</span>@endif@else<span class="text-muted">0</span>@endif</td></tr>
+                        <tr><td>{{ $l }}</td><td class="text-end">
+                            {{-- BTC-UI-01: written out (the joined directives showed no number) --}}
+                            @if ($n && $links)
+                                <a href="{{ $url }}" class="btc-pill btc-pill--back">{{ $n }}</a>
+                            @elseif ($n)
+                                <span class="btc-pill btc-pill--back">{{ $n }}</span>
+                            @else
+                                <span class="text-muted">0</span>
+                            @endif
+                        </td></tr>
                     @endforeach</tbody>
                 </table></div>
             </section>

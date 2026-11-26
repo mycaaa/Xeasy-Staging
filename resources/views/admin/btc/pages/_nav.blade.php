@@ -43,7 +43,7 @@
         }
     }
 @endphp
-<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126">
+<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126c">
 <div class="xe-topbar">
     <div>
         <h1 class="xe-title"><i class="{{ $icon ?? 'ri-bill-line' }}"></i>{{ $title }}</h1>
@@ -73,13 +73,15 @@
                     @foreach ($pipe as $i => [$route, $label, , $sts])
                         @php $n = array_sum(array_map(fn ($s) => (int) ($waiting[$s] ?? 0), $sts)); @endphp
                         <a href="{{ route($route) }}" class="{{ request()->routeIs($route) ? 'active' : '' }}" @if (request()->routeIs($route)) aria-current="page" @endif
-                           title="{{ $sts ? $n.' waiting' : '' }}"><span class="btc-step-no">{{ $i + 1 }}</span>{{ $label }}@if ($n)<span class="btc-step-n" aria-label="{{ $n }} waiting">{{ $n }}</span>@endif</a>
+                           title="{{ $sts ? $n.' at this step' : '' }}"><span class="btc-step-no">{{ $i + 1 }}</span>{{ $label }}@if ($n)<span class="btc-step-n" aria-label="{{ $n }} at this step">{{ $n }}</span>@endif</a>
                     @endforeach
                 </div>
             </div>
         @endif
     @endforeach
+    @unless (request()->routeIs('btc.index'))   {{-- the BTC Request page has its own "New BTC case" button --}}
     <a href="{{ route('btc.index') }}#new" class="xe-btn xe-btn-main btc-nav-new"><i class="ri-add-line"></i>New BTC Requirement</a>
+    @endunless
 </nav>
 @if (session('success'))<div class="alert alert-success py-2 small">{{ session('success') }}</div>@endif
 @if (session('error'))<div class="alert alert-danger py-2 small">{{ session('error') }}</div>@endif

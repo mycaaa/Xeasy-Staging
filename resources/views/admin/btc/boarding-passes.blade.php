@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="page-content">
-    <link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126">{{-- BTC-UI-01 --}}
+    <link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126c">{{-- BTC-UI-01 --}}
     <div class="container-fluid xe-screen btc-ui">
         <div class="card">
             <div class="card-header d-flex flex-wrap align-items-center gap-2">
