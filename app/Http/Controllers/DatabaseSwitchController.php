@@ -35,6 +35,20 @@ class DatabaseSwitchController extends Controller
             } catch (\Throwable $e) {
             }
         }
+        // TEAM-COMP-01 (26 Nov 2026, testing point 31): a reporting manager may open the company of his direct reports to
+        // approve their claims (a VNR manager of VVNR employees switches to VVNR from the top bar)
+        if ($emp > 0) {
+            try {
+                foreach (DB::connection('hrims')->table('hrm_employee_general as g')->join('hrm_employee as e', 'e.EmployeeID', '=', 'g.EmployeeID')
+                    ->where('g.RepEmployeeID', $emp)->where('g.EmployeeID', '<>', $emp)->whereIn('e.EmpStatus', ['A', 'R'])
+                    ->distinct()->pluck('e.CompanyId') as $cid) {
+                    if (in_array((int) $cid, [1, 3, 11], true)) {
+                        $ids[] = (int) $cid;
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+        }
         if (! $ids && session('company_id')) {
             $ids[] = (int) session('company_id');
         }

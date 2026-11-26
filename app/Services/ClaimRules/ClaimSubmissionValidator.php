@@ -569,7 +569,9 @@ class ClaimSubmissionValidator
         if ($yearId <= 0) {
             return [];
         }
-        $conn = $connection ?: (string) session('expense_connection', '');
+        // FY-CONN-02 (26 Nov 2026, testing point 30): the company's own connection (the app has no session, so a VVNR bill
+        // was treated as VNR and its year refused on the VVNR Active flag, which is still on 2025-26)
+        $conn = (string) (self::conn($connection) ?? '');
         $isVvnr = (int) session('company_id') === 11 || str_contains($conn, 'vvnr');
         $start = $this->fyStartYear($yearId, $connection);
         if ($start <= 0) {

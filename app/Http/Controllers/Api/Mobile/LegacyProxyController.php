@@ -31,8 +31,53 @@ class LegacyProxyController extends BaseMobileController
      * Handle common.php equivalent requests.
      * Accepts GET/POST with ?value=xxx parameter.
      */
+    /**
+     * TEAM-COMP-01 (26 Nov 2026, testing point 31): the app's team tabs name the team's company in the path (api/11/...)
+     * but send the manager's own ComId and year. For the team and approval actions the path's company decides, and the
+     * year is matched to that company by its label (VNR 8 = VVNR 6 = 2026-2027). Before, a VNR manager of VVNR
+     * employees (Apurva Tiwari -> V2474, V2471) was looking in VNR's tables and saw nothing to approve.
+     */
+    private const TEAM_ACTIONS = ['Team_Pending_Claimlist', 'Team_Pending_Claimlist_Day', 'Team_Approved_Claimlist', 'Team_Approved_Claimlist_Day',
+        'TeamMember', 'TeamMemberAppraiser', 'TeamMemberAppraiserAdvance', 'AllTeamExp', 'TeamRunningKilometers', 'TeamMemberExpenses',
+        'TeamMemberExpensesById', 'TeamExpensesByIdAndMember', 'UpdateExpenseClaimsOkayAll', 'ApprovedClaimsByMonth', 'ApprovedClaimsByMem',
+        'ApprovedClaimsByMonthMem', 'Claim_approved', 'Act_Claim_approved', 'Reporting_Claim_Submit'];
+
+    private function teamCompany(Request $request): void
+    {
+        $tab = (int) $request->route('comId');
+        $own = (int) $request->input('ComId', 1);
+        if (! in_array($tab, [1, 3, 11], true) || $tab === $own || ! in_array((string) $request->input('value', ''), self::TEAM_ACTIONS, true)) {
+            return;
+        }
+        $year = (int) ($request->input('YearId') ?: $request->input('yearid') ?: $request->input('year_id') ?: 0);
+        $mapped = 0;
+        // the app's connection first, then the web one for the same company (same year list)
+        foreach ([[$this->getExpenseConnection($own), $this->getExpenseConnection($tab)],
+            [\App\Helpers\DatabaseSwitcher::getExpenseConnection($own), \App\Helpers\DatabaseSwitcher::getExpenseConnection($tab)]] as [$fromConn, $toConn]) {
+            try {
+                $label = $year > 0 ? DB::connection($fromConn)->table('financialyear')->where('YearId', $year)->value('Year') : null;
+                $mapped = $label ? (int) DB::connection($toConn)->table('financialyear')->where('Year', $label)->value('YearId') : 0;
+            } catch (\Throwable $e) {
+                $mapped = 0;
+            }
+            if ($mapped > 0) {
+                break;
+            }
+        }
+        $merge = ['ComId' => (string) $tab];
+        if ($mapped > 0) {
+            foreach (['YearId', 'yearid', 'year_id'] as $k) {
+                if ($request->has($k)) {
+                    $merge[$k] = (string) $mapped;
+                }
+            }
+        }
+        $request->merge($merge);
+    }
+
     public function common(Request $request): JsonResponse
     {
+        $this->teamCompany($request);   // TEAM-COMP-01
         $this->setupConnections($request);
         $value = $request->input('value', '');
 
@@ -248,6 +293,7 @@ class LegacyProxyController extends BaseMobileController
      */
     public function claim(Request $request): JsonResponse
     {
+        $this->teamCompany($request);   // TEAM-COMP-01 (testing point 31)
         $this->setupConnections($request);
         $value = $request->input('value', '');
 

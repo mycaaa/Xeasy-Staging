@@ -20,16 +20,19 @@ class VVNRApproverController extends Controller
         $this->centralNotification = new CentralNotificationService();
     }
 
+    /**
+     * TEAM-COMP-01 (26 Nov 2026, testing point 31): the VVNR approver tab asks this app (VVNR = company 11). It used
+     * API_VVNR_BASE_URL with the live server (expense.vnrseeds.co.in) as default, so on xeasy the team list and the
+     * approve / submit calls went to the live site, and xeasy's own VVNR claims never showed for approval.
+     */
     private function baseUrl(): string
     {
-        $base = rtrim(env('API_VVNR_BASE_URL', 'https://expense.vnrseeds.co.in/api/11/api'), '/');
-        return "{$base}/common_rep.php";
+        return \App\Support\LegacyApi::baseUrl().'/11/common.php';
     }
 
     private function claimUrl(): string
     {
-        $base = rtrim(env('API_VVNR_BASE_URL', 'https://expense.vnrseeds.co.in/api/11/api'), '/');
-        return "{$base}/claim_rep.php";
+        return \App\Support\LegacyApi::baseUrl().'/11/claim.php';
     }
 
     // ── Shared session helpers ──────────────────────────────────────────────
