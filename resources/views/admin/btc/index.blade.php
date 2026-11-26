@@ -85,8 +85,8 @@
                     <div class="col-md-3 btc-trip btc-return"><label class="btc-label" for="btcRet">Return travel date <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="return_date" id="btcRet"></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
                     {{-- BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for Self / Team + Guest, passengers, class by eligibility --}}
-                    <div class="col-md-3 btc-bus"><label class="btc-label" for="btcFor">Booking for <span class="text-danger">*</span></label>
-                        <select class="form-select form-select-sm" name="booking_for" id="btcFor"><option value="">— choose —</option><option value="self">Self</option><option value="team">Team + Guest</option></select></div>
+                    <div class="col-md-3 btc-bus"><label class="btc-label" for="btcBookFor">Booking for <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" name="booking_for" id="btcBookFor"><option value="">— choose —</option><option value="self">Self</option><option value="team">Team + Guest</option></select></div>
                     <div class="col-md-6 btc-bus btc-self"><label class="btc-label">Passenger (you)</label><div class="small fw-semibold pt-1" id="btcSelfInfo">—</div></div>
                     <div class="col-md-2 btc-bus btc-team"><label class="btc-label" for="btcBusPax">Total PAX <span class="text-danger">*</span></label><input type="number" min="1" max="50" class="form-control form-control-sm" id="btcBusPax" placeholder="e.g. 4"></div>
                     <div class="col-12 btc-bus btc-team"><div id="btcPassengers"></div></div>
@@ -206,7 +206,7 @@ $(function () {
         if (trip) $('[name=location],[name=service_from],[name=service_to]').val(''); else $('[name=travel_from],[name=travel_to],[name=travel_date],[name=return_date]').val('');
         const rt = trip && $('[name=trip_type]:checked').val() === 'round_trip'; $('.btc-return').toggle(rt); if (!rt) $('[name=return_date]').val('');
         // BTC-BUS-01: Bus - booking for, passengers and class in place of pax / employees / guests
-        const bus = BUS_CATS.includes(c), fr = $('#btcFor').val();
+        const bus = BUS_CATS.includes(c), fr = $('#btcBookFor').val();
         $('.btc-bus').toggle(bus); $('.btc-nobus').toggle(!bus);
         $('.btc-self').toggle(bus && fr === 'self'); $('.btc-team').toggle(bus && fr === 'team');
         if (bus) busClass();
@@ -223,7 +223,7 @@ $(function () {
     // ---- BTC-BUS-01 (testing point 27): passengers and eligibility-based class ----
     const eligOf = ids => ids.length ? $.getJSON('{{ route('btc.bus-eligibility') }}', {ids: ids.join(',')}).then(r => { (r || []).forEach(x => busElig[x.employee_id] = x); }) : $.Deferred().resolve();
     function busPassengers() {
-        if ($('#btcFor').val() === 'self') return [{type: 'employee', id: ME}];
+        if ($('#btcBookFor').val() === 'self') return [{type: 'employee', id: ME}];
         return $('#btcPassengers .btc-px').map(function () { const t = $(this).find('.btc-pxt').val(); return {type: t, id: Number($(this).find('.btc-pxe').val() || 0), name: $(this).find('.btc-pxg').val()}; }).get();
     }
     function busClass() {
@@ -242,7 +242,7 @@ $(function () {
             <div class="col-md-5 btc-pxgw" style="display:none"><input class="form-control form-control-sm btc-pxg" name="passengers[${i}][name]" maxlength="100" placeholder="Guest name" aria-label="Passenger ${i + 1} guest name"></div>
             <div class="col-md-3 small">Eligible: <b class="btc-pxel">-</b></div></div>`;
     }
-    $('#btcFor').on('change', function () {
+    $('#btcBookFor').on('change', function () {
         if (this.value === 'self') eligOf([ME]).then(() => { const e = busElig[ME] || {}; $('#btcSelfInfo').text((e.code || '') + ' – ' + (e.name || '') + ' · eligible: ' + (e.eligible || '-') + ' · PAX 1'); busClass(); });
         shape();
     });
@@ -304,7 +304,7 @@ $(function () {
         $('#btcVendor, #btcTravellers').val(null).trigger('change');
         $('#btcNewForm').find('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea').val('');
         $('#btcPax').val('1');
-        $('#btcPassengers').empty(); $('#btcSelfInfo').text('—'); $('#btcFor').val('');   // BTC-BUS-01
+        $('#btcPassengers').empty(); $('#btcSelfInfo').text('—'); $('#btcBookFor').val('');   // BTC-BUS-01
         $('#btcNewForm select:not(#btcVendor):not(#btcTravellers)').each(function () { this.selectedIndex = 0; $(this).trigger('change.select2'); });
         const $r = $('.btc-route-radio'); $r.prop('checked', false); $r.first().prop('checked', true);
         $('#btcRoute').val($r.first().val() || $('#btcRoute').attr('value'));
@@ -317,7 +317,7 @@ $(function () {
         if (!$('#btcPurpose').val()) { Swal.fire('Purpose needed', 'Choose the purpose of the requirement.', 'warning'); return; }
         if (String($('#btcPurpose').val()).startsWith('Other') && !$('#btcRemarks').val().trim()) { Swal.fire('Remarks needed', 'Write the purpose in the remarks.', 'warning'); return; }
         if ($('.btc-bus:visible').length) {   // BTC-BUS-01
-            const fr = $('#btcFor').val();
+            const fr = $('#btcBookFor').val();
             if (!fr) { Swal.fire('Required', 'Choose Booking for: Self or Team + Guest.', 'warning'); return; }
             if (fr === 'team') {
                 const n = Number($('#btcBusPax').val() || 0), rows = $('#btcPassengers .btc-px');
