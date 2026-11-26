@@ -672,7 +672,20 @@ class ClaimSubmissionValidator
      */
     public static function conn(?string $connection): ?string
     {
-        return $connection ?: (session('expense_connection') ?: null);
+        if ($connection) {
+            return $connection;
+        }
+        if (session('expense_connection')) {
+            return session('expense_connection');
+        }
+        // FY-CONN-01 (26 Nov 2026, testing point 30): the company's own expense DB. Before, a VVNR bill was checked
+        // against VNR's year list (VVNR year 6 = 2026-27 read as VNR's 2024-25; the app's year 5 as 2023-24), so every
+        // VVNR bill was "outside the financial year". The app sends its company (comId / CompanyId); the web has it in
+        // the session.
+        $req = request();
+        $company = (int) ($req?->input('ComId', $req?->input('comId', $req?->input('CompanyId', $req?->input('company_id', $req?->input('comid'))))) ?: session('company_id', 0));
+
+        return $company > 0 ? \App\Helpers\DatabaseSwitcher::getExpenseConnection($company) : null;
     }
 
     public function fyStartYear(int $yearId, ?string $connection = null): int

@@ -537,6 +537,10 @@ class ClaimController extends BaseMobileController
 
         $expenseConn = $this->getExpenseConnection($comId);
         $claimMonth = (int) date('n', strtotime($billDate));
+        // MONTH-LOCK-01 (testing point 26): no DA in a month already submitted
+        if ($lockErr = \App\Services\Claims\MonthLock::refuseDated($expenseConn, (int) $yearId, (int) $empId, (string) $billDate, 'a DA')) {
+            return $this->error($lockErr);
+        }
 
         // Check if DA already exists for this date
         $existing = DB::connection($expenseConn)

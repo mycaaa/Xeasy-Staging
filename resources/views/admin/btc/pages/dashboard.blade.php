@@ -47,6 +47,8 @@
                 </table></div>
             </section>
         </div>
+        {{-- BTC-DASH-23 (26 Nov 2026, testing point 23): department-wise and vendor-wise only for Super Admin --}}
+        @if (auth()->user()?->hasRole('Super Admin'))
         @foreach (['Department-wise' => $byDept, 'Vendor-wise' => $byVendor] as $title => $list)
             <div class="col-lg-6">
                 <section class="xe-section">
@@ -64,6 +66,7 @@
                 </section>
             </div>
         @endforeach
+        @endif
         <div class="col-12">
             <section class="xe-section">
                 <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-flow-chart"></i>Requests by stage</span></div>

@@ -176,6 +176,35 @@ class BtcController extends Controller
 
     public function store(Request $request)
     {
+        // BTC-DUP-01 (26 Nov 2026, testing point 25): a form's token is accepted once; the same submission again (double
+        // click, slow network retry) returns the request already made instead of a copy
+        $token = preg_replace('/[^A-Za-z0-9-]/', '', (string) $request->input('submit_token', ''));
+        $tokenKey = $token !== '' ? 'btc_store:'.auth()->id().':'.$token : null;
+        if ($tokenKey && ! \Illuminate\Support\Facades\Cache::add($tokenKey, 'pending', now()->addHour())) {
+            $prev = \Illuminate\Support\Facades\Cache::get($tokenKey);
+            $pc = is_numeric($prev) ? BtcCase::find((int) $prev) : null;
+
+            return response()->json($pc ? ['success' => true, 'id' => $pc->id, 'case_no' => $pc->case_no, 'message' => "{$pc->case_no}: already saved (the form was sent twice; no copy was made)."]
+                : ['success' => false, 'message' => 'This form is already being saved - please wait.'], $pc ? 200 : 409);
+        }
+        try {
+            $resp = $this->storeOnce($request);
+        } catch (\Throwable $e) {
+            if ($tokenKey) {
+                \Illuminate\Support\Facades\Cache::forget($tokenKey);   // not saved: the same form may be sent again
+            }
+            throw $e;
+        }
+        if ($tokenKey) {
+            $data = method_exists($resp, 'getData') ? (array) $resp->getData(true) : [];
+            ! empty($data['id']) ? \Illuminate\Support\Facades\Cache::put($tokenKey, (int) $data['id'], now()->addHour()) : \Illuminate\Support\Facades\Cache::forget($tokenKey);
+        }
+
+        return $resp;
+    }
+
+    private function storeOnce(Request $request)
+    {
         $v = $request->validate([
             'route' => 'required|in:'.implode(',', array_keys(config('btc.routes'))),
             'category' => 'required|in:'.implode(',', array_keys(config('btc.categories'))),

@@ -175,6 +175,8 @@ return [
     // trip in place of Location and activity dates; for an admin booking the manager chooses corporate or normal booking
     'trip_categories' => ['air', 'train'],
     'booking_types' => ['corporate' => 'Corporate booking', 'normal' => 'Normal booking'],
+    // BTC-TRIP-02 (26 Nov 2026, testing point 28): the manager chooses the booking type for Air only
+    'booking_type_categories' => ['air'],
     // BTC-PUNCH-02 (25 Nov 2026, testing point 17): the punch form of each type in the layout of the 19 Nov spec - header
     // fields, then repeatable tables (journey legs, rooms, line items) with their totals. Keys of the header fields
     // stay as before (lists, verification and the narration use them); the tables are kept in punch_json._t.

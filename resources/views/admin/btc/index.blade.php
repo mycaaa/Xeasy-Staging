@@ -84,7 +84,8 @@
                     <div class="col-md-3 btc-trip"><label class="btc-label" for="btcGo">Travel date (onward) <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="travel_date" id="btcGo"></div>
                     <div class="col-md-3 btc-trip btc-return"><label class="btc-label" for="btcRet">Return travel date <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="return_date" id="btcRet"></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
-                    <div class="col-md-2"><label class="btc-label" for="btcPax">No. of pax</label><input type="number" min="1" max="500" class="form-control form-control-sm" name="pax_count" id="btcPax" value="1"></div>
+                    {{-- BTC-PAX-01 (26 Nov 2026, testing point 24): No. of pax as a list to pick from (it was a bare number box) --}}
+                    <div class="col-md-2"><label class="btc-label" for="btcPax">No. of pax</label><select class="form-select form-select-sm" name="pax_count" id="btcPax">@for ($i = 1; $i <= 100; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor</select></div>
                     <div class="col-md-6"><label class="btc-label">Employees (code or name)</label><select class="form-select form-select-sm" name="travellers[]" id="btcTravellers" multiple></select></div>
                     <div class="col-md-4"><label class="btc-label" for="btcGuests">Guests (names, comma-separated)</label><input class="form-control form-control-sm" name="guests" id="btcGuests" maxlength="500" placeholder="e.g. Dealer Ram Kumar, Farmer Suresh"></div>
                     <div class="col-md-3 btc-nota"><label class="btc-label">Estimated amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="estimated_amount"></div>
@@ -240,11 +241,15 @@ $(function () {
     });
     // BTC-NEW-BLANK-01 (20 Nov 2026, tracker tab "20-11-2026" #1): every new case starts from a blank form - nothing is
     // carried over from the case saved before, a draft, or a form closed without saving
+    let btcSaving = false, btcToken = '';
+    const newToken = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     function freshForm() {
+        btcToken = newToken();   // BTC-DUP-01: a new form, a new token
         const f = $('#btcNewForm')[0];
         f.reset();
         $('#btcVendor, #btcTravellers').val(null).trigger('change');
         $('#btcNewForm').find('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea').val('');
+        $('#btcPax').val('1');
         $('#btcNewForm select:not(#btcVendor):not(#btcTravellers)').each(function () { this.selectedIndex = 0; $(this).trigger('change.select2'); });
         const $r = $('.btc-route-radio'); $r.prop('checked', false); $r.first().prop('checked', true);
         $('#btcRoute').val($r.first().val() || $('#btcRoute').attr('value'));
@@ -260,10 +265,16 @@ $(function () {
             const miss = [['#btcFrom', 'Travel from'], ['#btcTo', 'Travel to'], ['#btcGo', 'Travel date (onward)']].concat($('.btc-return:visible').length ? [['#btcRet', 'Return travel date']] : []).filter(([s]) => !String($(s).val() || '').trim()).map(([, l]) => l);
             if (miss.length) { Swal.fire('Required', 'Fill in: ' + miss.join(', ') + '.', 'warning'); return; }
         }
-        const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit'));
+        // BTC-DUP-01 (26 Nov 2026, testing point 25): one request per submission - the buttons are locked while saving and
+        // the form carries a one-time token the server accepts once (a double click or a repeated post makes no copy)
+        if (btcSaving) return;
+        btcSaving = true;
+        const $btns = $('#btcNewForm [data-submit]').prop('disabled', true);
+        const fd = new FormData($('#btcNewForm')[0]); fd.append('submit', $(this).data('submit')); fd.append('submit_token', btcToken);
         $.ajax({url: '{{ route('btc.store') }}', method: 'POST', data: fd, processData: false, contentType: false, headers: {'X-CSRF-TOKEN': CSRF}})
             .done(r => { Swal.fire('Saved', r.message, r.message.startsWith('Saved as draft') ? 'warning' : 'success'); bootstrap.Modal.getInstance(document.getElementById('btcNewModal')).hide(); freshForm(); load(); })
-            .fail(x => Swal.fire('Not saved', (x.responseJSON && (x.responseJSON.message || Object.values(x.responseJSON.errors || {}).flat().join('\n'))) || 'Error', 'error'));
+            .fail(x => Swal.fire('Not saved', (x.responseJSON && (x.responseJSON.message || Object.values(x.responseJSON.errors || {}).flat().join('\n'))) || 'Error', 'error'))
+            .always(() => { btcSaving = false; $btns.prop('disabled', false); });
     });
 
     // BTC-V2: the case window is shared with the Finance screens (admin.btc._casewin)

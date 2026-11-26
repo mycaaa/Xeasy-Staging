@@ -615,6 +615,16 @@ class ExtractionController extends BaseMobileController
         // BILLDATE-03: day-first (dd/mm/yyyy); strtotime read 05/08 as 8 May
         $billDate = (!empty($billDate)) ? (ClaimSubmissionValidator::parseDate($billDate) ?? date('Y-m-d', strtotime(str_replace('/', '-', (string) $billDate)))) : '0000-00-00';
         $claimMonth = date('m', strtotime($billDate));
+        // MONTH-LOCK-01 (26 Nov 2026, testing point 26): an activity of a submitted month goes into the current month's
+        // claim (refused if that is submitted too)
+        $lockNote = null;
+        if ($billDate !== '0000-00-00') {
+            [$lockMonth, $lockNote] = \App\Services\Claims\MonthLock::billMonth($this->getExpenseConnection($comId), (int) $yearId, (int) $empId, $billDate);
+            if ($lockMonth === null) {
+                return response()->json(['Code' => '100', 'msg' => $lockNote]);
+            }
+            $claimMonth = sprintf('%02d', $lockMonth);
+        }
         $remark = $request->input('remark', '');
         $amount = (float) $request->input('amount', 0);
         $activityType = $request->input('activity_type', 0);
@@ -748,7 +758,7 @@ class ExtractionController extends BaseMobileController
                 $db->commit();
                 $files->keep();
 
-                return response()->json(['Code' => '200', 'msg' => 'Expense data updated successfully.']);
+                return response()->json(['Code' => '200', 'msg' => trim('Expense data updated successfully. '.($lockNote ?? ''))]);
 
             } else {
                 // ─── CREATE new expense claim ───
@@ -769,20 +779,16 @@ class ExtractionController extends BaseMobileController
                     'CrBy' => $empId,
                     'CrDate' => now(),
                     'ClaimYearId' => $yearId,
-                    'ClaimStatus' => 'Filled',
-                    'ClaimAtStep' => 2,
+                    // ACT-PUNCH-01 (26 Nov 2026, testing point 26): an activity bill goes to Data Punching like every bill
+                    // (it was saved as punched and employee-verified, and so skipped punching and verification)
+                    'ClaimStatus' => 'Submitted',
+                    'ClaimAtStep' => 0,
                     'BillDate' => $billDate,
                     'ClaimMonth' => $claimMonth,
                     'Other_Remark' => $remark,
                     'ClaimId' => $claimId,
                     'activity_type' => $activityType,
                     'FilledTAmt' => $amount,
-                    'VerifyTAmt' => $amount,
-                    'ApprTAmt' => $amount,
-                    'FinancedTAmt' => $amount,
-                    'FilledBy' => $empId,
-                    'FilledDate' => now(),
-                    'FilledOkay' => 1,
                     'traill_no' => $trailNo,
                 ], 'ExpId');
 
@@ -852,7 +858,7 @@ class ExtractionController extends BaseMobileController
                 $db->commit();
                 $files->keep();
 
-                return response()->json(['Code' => '200', 'msg' => 'Expense data saved successfully.']);
+                return response()->json(['Code' => '200', 'msg' => trim('Expense data saved successfully. '.($lockNote ?? ''))]);   // MONTH-LOCK-01: says which month it went to
             }
         } catch (\Throwable $e) {
             $db->rollBack();

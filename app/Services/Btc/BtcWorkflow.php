@@ -287,7 +287,7 @@ class BtcWorkflow
                     $to = 'booking_requested';
                     // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): for an Air / Train booking the manager chooses the
                     // booking type (corporate / normal); the booking desk sees it
-                    if (in_array($c->category, (array) config('btc.trip_categories', ['air', 'train']), true) && Schema::hasColumn('btc_cases', 'booking_type')) {
+                    if (in_array($c->category, (array) config('btc.booking_type_categories', ['air']), true) && Schema::hasColumn('btc_cases', 'booking_type')) {   // BTC-TRIP-02: Air only
                         $bt = (string) ($d['booking_type'] ?? '');
                         if (! array_key_exists($bt, (array) config('btc.booking_types'))) {
                             throw new RuntimeException('Choose the booking type: Corporate booking or Normal booking.');

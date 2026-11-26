@@ -43,6 +43,7 @@ $(function () {
     const TONES = @json((array) config('btc.status_tones'));   // BTC-UI-01: colour family of the status pill
     const TRIP_CATS = @json((array) config('btc.trip_categories', ['air', 'train']));   // BTC-TRIP-01
     const BOOKING_TYPES = @json((array) config('btc.booking_types', []));
+    const BOOKING_TYPE_CATS = @json((array) config('btc.booking_type_categories', ['air']));   // BTC-TRIP-02: Air only (testing point 28)
     const TDS = @json($tdsSections);
     const NATURES = @json($tdsNatures ?? []); // BTC-TDS-01
     const NATURE_BY_CAT = @json($tdsNatureByCategory ?? []);
@@ -123,7 +124,7 @@ $(function () {
         const P = d.punch || {}, pax = d.focus_pax || {};
         const opts = Object.entries(pax).map(([code, name]) => `<option value="${esc(code)}" selected>${esc(code + ' - ' + name)}</option>`).join('');
         return `<div class="col-12"><div class="fw-semibold small mt-2">Focus entry <span class="text-muted fw-normal">- employees and activity; then Focus Export makes the JV import rows</span></div></div>
-            <div class="col-md-6"><label class="btc-label">Employee(s) on this bill (code or name, from the Employee Master) <span class="text-danger">*</span></label><select class="form-select form-select-sm btc-fx" name="pax[]" id="btcPax" multiple>${opts}</select></div>
+            <div class="col-md-6"><label class="btc-label">Employee(s) on this bill (code or name, from the Employee Master) <span class="text-danger">*</span></label><select class="form-select form-select-sm btc-fx" name="pax[]" id="btcPunchPax" multiple>${opts}</select></div>
             <div class="col-md-3"><label class="btc-label">Type of expense</label><select class="form-select form-select-sm btc-fx" name="focus_expense_type">${(FOCUSX.expense_types || []).map(t => `<option ${t === (c.focus_expense_type || (FOCUSX.expense_type_by_category || {})[c.category]) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
             <div class="col-md-3"><label class="btc-label">Activity (type of activity)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_type" value="${esc(c.focus_activity_type || '')}" list="btcDl_fat2" placeholder="blank for travel / stay"><datalist id="btcDl_fat2">${(FOCUSX.activity_types || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>
             <div class="col-md-3"><label class="btc-label">Activity head (optional)</label><input class="form-control form-control-sm btc-fx" name="focus_activity_head" value="${esc(c.focus_activity_head || '')}" list="btcDl_fah2" placeholder="All Activity"><datalist id="btcDl_fah2">${(FOCUSX.activity_heads || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>
@@ -202,7 +203,7 @@ $(function () {
                 f.push(rmk(false)); break;
             case 'manager_approve': if (c.route === 'employee_advance' && Number(c.advance_amount) > 0) f.push(inp('advance_approved', 'Advance approved ₹ (requested ₹' + fmt(c.advance_amount) + ')', 'number', c.advance_amount));
                 // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): the manager decides the booking type of an Air / Train booking
-                if (c.route === 'admin_booking' && TRIP_CATS.includes(c.category)) f.push(`<div class="col-md-4"><label class="btc-label">Booking type <span class="text-danger">*</span></label><select class="form-select form-select-sm" name="booking_type" required><option value="">— choose —</option>${Object.entries(BOOKING_TYPES).map(([k, l]) => `<option value="${k}" ${c.booking_type === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`);
+                if (c.route === 'admin_booking' && BOOKING_TYPE_CATS.includes(c.category)) f.push(`<div class="col-md-4"><label class="btc-label">Booking type <span class="text-danger">*</span></label><select class="form-select form-select-sm" name="booking_type" required><option value="">— choose —</option>${Object.entries(BOOKING_TYPES).map(([k, l]) => `<option value="${k}" ${c.booking_type === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`);
                 f.push(rmk(false)); break;
             case 'change_vendor': f.push(vendorPick(c), rmk(true)); break;   // BTC-REQ-19
             case 'confirm_booking': case 'modify_booking': f.push(vendorPick(c),
@@ -307,7 +308,7 @@ $(function () {
                 <div class="row g-2 mb-2">${kv('Route', esc(d.route_label))}${c.bill_source ? kv('Bill received from', esc((d.stamps || {}).source)) : ''}${kv('Category', esc(d.category_label))}${kv('Employee', esc(c.emp_code + ' - ' + c.emp_name))}${kv('Department', esc(c.department_name))}
                 ${kv('Purpose', esc(c.purpose))}${c.travel_from ? kv('Journey', esc(c.travel_from + ' → ' + c.travel_to + ' · ' + (c.trip_type === 'round_trip' ? 'Round-trip' : 'One-way') + ' · ' + (c.travel_date || '').substring(0, 10) + (c.return_date ? ' / return ' + c.return_date.substring(0, 10) : ''))) : ''}${c.booking_type ? kv('Booking type', esc(BOOKING_TYPES[c.booking_type] || c.booking_type)) : ''}${c.request_remarks ? kv('Remarks', esc(c.request_remarks)) : ''}${kv('Vendor', esc(c.vendor_name) + (c.new_vendor ? ' (new)' : ''))}${c.travel_from ? '' : kv('Service', esc((c.service_from || '').substring(0, 10) + ' – ' + (c.service_to || '').substring(0, 10)))}${kv('Manager', esc(d.manager))}
                 ${kv('Quotation ₹', fmt(c.quotation_amount))}${kv('Advance ₹', fmt(c.advance_amount))}${kv('Bill', esc((c.bill_no || '') + ' ' + (c.bill_date || '').substring(0, 10)))}${kv('Bill ₹', fmt(c.bill_amount))}
-                ${kv('TDS ₹', fmt(c.tds_amount))}${kv('Net payable ₹', fmt(c.net_payable))}${kv('PNR / sector', esc((c.pnr || '') + ' ' + (c.travel_sector || '')))}${kv('Bill source', esc((d.stamps || {}).source))}${kv('Uploaded', esc((d.stamps || {}).uploaded))}${kv('DMS', esc((d.stamps || {}).dms))}${kv('Verifier 1', esc((d.stamps || {}).verify1))}${kv('Focus entry', esc((d.stamps || {}).focus))}${kv('Finance approval', esc((d.stamps || {}).approved))}
+                ${kv('TDS ₹', fmt(c.tds_amount))}${kv('Net payable ₹', fmt(c.net_payable))}${['air', 'train', 'bus'].includes(c.category) ? kv('PNR / sector', esc((c.pnr || '') + ' ' + (c.travel_sector || ''))) : ''}${kv('Bill source', esc((d.stamps || {}).source))}${kv('Uploaded', esc((d.stamps || {}).uploaded))}${kv('DMS', esc((d.stamps || {}).dms))}${kv('Verifier 1', esc((d.stamps || {}).verify1))}${kv('Focus entry', esc((d.stamps || {}).focus))}${kv('Finance approval', esc((d.stamps || {}).approved))}
                 ${kv('Paid', c.paid_amount ? '₹' + fmt(c.paid_amount) + ' on ' + esc((c.paid_on || '').substring(0, 10)) + ' · ' + esc(c.utr_number) : '')}${kv('Waiting for', esc(d.pending.join(', ')))}
                 ${c.pax_count ? kv('Pax', esc(String(c.pax_count))) : ''}${c.travellers ? kv('Employees', esc((() => { try { return JSON.parse(c.travellers).map(t => t.code + ' ' + t.name).join(', '); } catch (e) { return ''; } })())) : ''}${c.guests ? kv('Guests', esc(c.guests)) : ''}${c.bill_forwarded_dms_on ? kv('Bill to DMS', esc(c.bill_forwarded_dms_on.substring(0, 10))) : ''}${kv('Pending with', esc(d.pending_with))}${kv('Estimated ₹', fmt(c.estimated_amount))}${kv('Booking', c.booking_ref ? esc(c.booking_ref + ' · ₹' + fmt(c.booking_amount) + ' · ' + (c.booking_date || '').substring(0, 10) + ' · ' + (c.booking_status || '')) : '')}${kv('Activity completed', esc((c.activity_completed_on || '').substring(0, 10)))}</div>
                 ${Number(d.advance.requested) > 0 ? `<div class="mb-2"><p class="btc-label">Advance</p><table class="table table-sm table-bordered small mb-0"><tr class="table-light"><th>Requested</th><th>Approved</th><th>Actually paid</th><th>TDS on advance</th><th>Outstanding</th><th>Adjusted against invoice</th><th>Refund received</th><th>Balance outstanding</th><th>Finance approval</th></tr>
@@ -353,8 +354,8 @@ $(function () {
                 };
                 $('#btcActForm .btc-fx').on('change', focusOut);
                 // BTC-FLOW-18: employees from the Employee Master (code or name)
-                if ($.fn.select2 && $('#btcPax').length) {
-                    $('#btcPax').select2({dropdownParent: $('#btcCaseModal'), width: '100%', placeholder: 'Type employee code or name', minimumInputLength: 2,
+                if ($.fn.select2 && $('#btcPunchPax').length) {
+                    $('#btcPunchPax').select2({dropdownParent: $('#btcCaseModal'), width: '100%', placeholder: 'Type employee code or name', minimumInputLength: 2,
                         ajax: {url: '{{ route('btc.approvers') }}', delay: 250, data: p => ({q: p.term, codes: 1}), processResults: r => ({results: r})}});
                 }
                 // BTC-PUNCH-02: rows added / removed, row totals and the totals of the form

@@ -475,6 +475,14 @@ class ClaimViewController extends Controller
                     $varieties = collect();
                 }
                 $activityTypesList = ActivityType::getByDepartment($employee->DepartmentId ?? 1);
+                // ACT-TYPE-01 (26 Nov 2026, testing point 26): the type the employee chose is always in the list (the app
+                // offers every active type; this list is the department's, so a chosen type outside it showed as blank)
+                if (! empty($expense_detail->activity_type) && ! $activityTypesList->contains('id', (int) $expense_detail->activity_type)) {
+                    $chosen = ActivityType::whereKey((int) $expense_detail->activity_type)->first(['id', 'type_name', 'description']);
+                    if ($chosen) {
+                        $activityTypesList = $activityTypesList->prepend($chosen);
+                    }
+                }
                 $html = view('components.modal.claim_view.claim_detail_g7', ['claimId' => $claimId, 'cgId' => $cgId, 'expense_detail' => $expense_detail, 'expenses' => $expenses, 'filledData' => $filledData, 'expId' => $expid, 'activity_types' => $activityTypesList, 'crops' => $crops, 'varieties' => $varieties, 'employee' => $employee, 'viewContext' => $viewContext])->render();
             } else {
                 $html = '<div class="alert alert-warning">Component for Claim ID ' . $claimId . ' not found.</div>';

@@ -46,6 +46,11 @@ class ClaimActionsController extends BaseMobileController
         $conn = $this->getExpenseConnection($comId);
         $hrimsConn = $this->getHrimsConnection();
         $claimsTable = $this->claimsTable($yearId);
+        // MONTH-LOCK-01: no DA in a month already submitted
+        $daIso = \App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($billDate) ?? date('Y-m-d', strtotime($billDate));
+        if ($lockErr = \App\Services\Claims\MonthLock::refuseDated($conn, (int) $yearId, (int) $empId, $daIso, 'a DA')) {
+            return $this->error($lockErr);
+        }
 
         try {
             // Get eligibility for DA amount if BillDate < 2025-08-01
@@ -625,6 +630,12 @@ class ClaimActionsController extends BaseMobileController
         // Date validation
         $formattedDate = (\App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($billDate) ?? date('Y-m-d', strtotime($billDate))); // BILLDATE-03 day-first
         $billMonth = date('m', strtotime($billDate));
+        // MONTH-LOCK-01 (testing point 26): a bill of a submitted month goes into the current month's claim
+        [$lockMonth, $lockNote] = \App\Services\Claims\MonthLock::billMonth($conn, (int) $yearId, (int) $empId, $formattedDate);
+        if ($lockMonth === null) {
+            return $this->error($lockNote);
+        }
+        $billMonth = sprintf('%02d', $lockMonth);
         $today = date('Y-m-d');
 
         // Get offline fields
@@ -955,7 +966,7 @@ class ClaimActionsController extends BaseMobileController
 
             return response()->json([
                 'Code' => '300',
-                'msg' => 'Data updated successfully',
+                'msg' => trim('Data updated successfully. '.($lockNote ?? '')),   // MONTH-LOCK-01: which month it went to
                 'ExpId' => (string) $id,
                 'temp_punch_id' => (string) $tempPunchId,
                 'claim_id' => (string) $claimId,
@@ -1001,6 +1012,11 @@ class ClaimActionsController extends BaseMobileController
         // today (late entries still go through the back-date approval); another year or a future date is refused.
         if ($odoDateErr = \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->billDate($dateFor, (int) $yearId, $this->getExpenseConnection($comId)))) {
             return $this->error(str_replace('Bill date', 'Odometer date', $odoDateErr));
+        }
+        // MONTH-LOCK-01: no odometer reading in a month already submitted
+        if ($lockErr = \App\Services\Claims\MonthLock::refuseDated($this->getExpenseConnection($comId), (int) $yearId, (int) $empId,
+            \App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($dateFor) ?? date('Y-m-d', strtotime($dateFor)), 'an odometer reading')) {
+            return $this->error($lockErr);
         }
 
 
@@ -1124,6 +1140,11 @@ class ClaimActionsController extends BaseMobileController
         // ODO-FY-01: same date rule as the opening reading
         if ($odoDateErr = \App\Services\ClaimRules\ClaimSubmissionValidator::first(app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->billDate($dateFor, (int) $yearId, $this->getExpenseConnection($comId)))) {
             return $this->error(str_replace('Bill date', 'Odometer date', $odoDateErr));
+        }
+        // MONTH-LOCK-01: no odometer reading in a month already submitted
+        if ($lockErr = \App\Services\Claims\MonthLock::refuseDated($this->getExpenseConnection($comId), (int) $yearId, (int) $empId,
+            \App\Services\ClaimRules\ClaimSubmissionValidator::parseDate($dateFor) ?? date('Y-m-d', strtotime($dateFor)), 'an odometer reading')) {
+            return $this->error($lockErr);
         }
 
         $conn = $this->getExpenseConnection($comId);
