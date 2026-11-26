@@ -332,7 +332,7 @@ class BtcPagesController extends Controller
             $value = fn ($c) => (float) ($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount);
             $mine = BtcCase::where('company_id', $co)->where(fn ($w) => $w->where('employee_id', $emp)->orWhere('created_by', $u->id))->where('status', '!=', 'draft')->get();
             $myOpen = $mine->whereNotIn('status', $done);
-            $approve = BtcCase::where('company_id', $co)->where('status', 'pending_manager')->where('manager_id', $emp)->count();   // BTC-V2: no HOD step
+            $approve = BtcCase::where('company_id', $co)->whereIn('status', ['pending_manager', 'class_approval'])->where('manager_id', $emp)->count();   // BTC-BUS-01   // BTC-V2: no HOD step
             $team = null;
             if ($direct = \App\Support\ReportingTree::directReports($emp)) {
                 $all = BtcCase::where('company_id', $co)->whereIn('employee_id', \App\Support\ReportingTree::descendants($emp))->whereNotIn('status', ['draft', 'cancelled', 'rejected'])->get();

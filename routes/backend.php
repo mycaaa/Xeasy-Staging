@@ -1180,6 +1180,7 @@ Route::prefix('btc')->name('btc.')->group(function () {
     Route::get('/export/focus', [\App\Http\Controllers\admin\BtcController::class, 'focusExport'])->name('export.focus');
     Route::get('/export/boarding-pass', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassExport'])->name('export.boarding');
     Route::get('/approvers', [\App\Http\Controllers\admin\BtcController::class, 'approverSearch'])->name('approvers');
+    Route::get('/bus-eligibility', [\App\Http\Controllers\admin\BtcController::class, 'busEligibility'])->name('bus-eligibility');   // BTC-BUS-01
     // BOARDING-02: boarding passes of company-booked air tickets
     Route::get('/boarding-passes', [\App\Http\Controllers\admin\BtcController::class, 'boardingPasses'])->name('boarding.index');
     Route::post('/boarding-passes/{id}', [\App\Http\Controllers\admin\BtcController::class, 'boardingPassUpload'])->whereNumber('id')->name('boarding.upload');

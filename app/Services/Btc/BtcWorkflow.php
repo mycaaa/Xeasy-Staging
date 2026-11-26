@@ -38,6 +38,11 @@ class BtcWorkflow
         // BTC-REQ-05 (16 Nov 2026): admin booking queue - the BTC admin confirms, changes or cancels the booking
         'confirm_booking' => [['booking_requested'], 'btc.booking', 'booked'],
         'modify_booking' => [['booked'], 'btc.booking', null],
+        // BTC-BUS-01 (26 Nov 2026, testing point 27): no seat in the class asked for - the booking desk proposes a higher
+        // class with the reason; the reporting manager approves it (or not) before it is booked
+        'propose_class' => [['booking_requested'], 'btc.booking', 'class_approval'],
+        'class_approve' => [['class_approval'], 'manager', 'booking_requested'],
+        'class_reject' => [['class_approval'], 'manager', 'booking_requested'],
         'cancel_booking' => [['booking_requested', 'booked'], 'btc.booking', 'cancelled'],
         // BTC-REQ-19 (17 Nov 2026): the BTC admin changes the vendor before / after booking (reason logged)
         'change_vendor' => [['booking_requested', 'booked'], 'btc.booking', null],
@@ -132,6 +137,9 @@ class BtcWorkflow
             'adv_instruct' => ($c->adv_stage ?? null) === 'approved',
             'advance_paid' => ! Schema::hasColumn('btc_cases', 'adv_stage') || ! config('btc.advance_approval', true) || ($c->adv_stage ?? null) === 'instructed',
             'finance_upload' => $c->status !== 'scanned',
+            // BTC-BUS-01: only a bus request with a class asked for, and once per proposal
+            'propose_class' => in_array($c->category, (array) config('btc.passenger_categories', ['bus']), true) && ! empty($c->travel_class)
+                && ($c->class_approval ?? null) !== 'approved',
             default => true,
         };
     }
@@ -168,7 +176,7 @@ class BtcWorkflow
     }
 
     /** BTC-SOD-01: the steps a person may never take on a request that is his own (as employee or as the one who raised it). */
-    public const NOT_ON_OWN = ['manager_approve', 'manager_reject', 'adv_fin_approve', 'adv_fin_reject', 'adv_instruct', 'advance_paid',
+    public const NOT_ON_OWN = ['manager_approve', 'manager_reject', 'class_approve', 'class_reject', 'adv_fin_approve', 'adv_fin_reject', 'adv_instruct', 'advance_paid',
         'verify1', 'verify1_return', 'verify1_reject', 'focus_entry', 'fin_approve', 'fin_return', 'fin_reject', 'pay_instruct', 'pay',
         'waive_document', 'release_hold'];
 
@@ -308,8 +316,46 @@ class BtcWorkflow
                 $c->manager_action_at = $now;
                 $c->manager_remark = $remark ?: 'Approved';
                 break;
+            case 'propose_class':   // BTC-BUS-01
+                $pc = (string) ($d['proposed_class'] ?? '');
+                if (BusEligibility::rank($pc) <= BusEligibility::rank($c->travel_class)) {
+                    throw new RuntimeException('Propose a class higher than the one asked for ('.($c->travel_class ?: '-').').');
+                }
+                if ($remark === '') {
+                    throw new RuntimeException('Give the reason for the higher class (e.g. no seat available in '.$c->travel_class.').');
+                }
+                $c->seat_available = 'N';
+                $c->proposed_class = $pc;
+                $c->class_reason = mb_substr($remark, 0, 500);
+                $c->class_approval = 'pending';
+                $remark = 'Higher class proposed: '.$pc.' (asked '.$c->travel_class.') - '.$remark;
+                break;
+            case 'class_approve':
+            case 'class_reject':
+                if ($action === 'class_reject' && $remark === '') {
+                    throw new RuntimeException('Give the reason for not approving the higher class.');
+                }
+                $c->class_approval = $action === 'class_approve' ? 'approved' : 'rejected';
+                $c->class_approved_by = $user->id;
+                $c->class_approved_at = $now;
+                $c->class_remark = $remark !== '' ? mb_substr($remark, 0, 500) : null;
+                $remark = ($action === 'class_approve' ? 'Higher class '.$c->proposed_class.' approved' : 'Higher class '.$c->proposed_class.' not approved - book '.$c->travel_class.' or cancel').($remark ? ' - '.$remark : '');
+                break;
             case 'confirm_booking':
             case 'modify_booking':
+                // BTC-BUS-01: seat check and the class booked; above the class asked for only with the manager's approval
+                if (in_array($c->category, (array) config('btc.passenger_categories', ['bus']), true) && Schema::hasColumn('btc_cases', 'booked_class') && $c->travel_class) {
+                    $bc = (string) ($d['booked_class'] ?? '');
+                    if (! BusEligibility::rank($bc)) {
+                        throw new RuntimeException('Choose the class booked (AC / Non-AC).');
+                    }
+                    if (BusEligibility::rank($bc) > BusEligibility::rank($c->travel_class)
+                        && ! ($c->class_approval === 'approved' && BusEligibility::rank($bc) <= BusEligibility::rank($c->proposed_class))) {
+                        throw new RuntimeException("{$bc} is above the class asked for ({$c->travel_class}): propose the higher class with the reason; the manager must approve it first.");
+                    }
+                    $c->booked_class = $bc;
+                    $c->seat_available = BusEligibility::rank($bc) > BusEligibility::rank($c->travel_class) ? 'N' : 'Y';
+                }
                 $ref = trim((string) ($d['booking_ref'] ?? ''));
                 $amt = round((float) ($d['booking_amount'] ?? 0), 2);
                 // BTC-REQ-28 (19 Nov 2026): the booking amount may be zero (complimentary / paid elsewhere); reference still needed

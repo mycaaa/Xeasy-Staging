@@ -218,6 +218,7 @@ class BtcCase extends Model
             'draft' => 'Requester (draft)',
             'pending_manager' => 'Reporting manager',
             'booking_requested' => 'BTC Admin (booking)',
+            'class_approval' => 'Reporting manager (higher class)',   // BTC-BUS-01
             // BTC-SCAN-01: Finance Advance Approval (pending -> approved -> instructed), then Finance Advance pays
             'advance_requested' => match ($this->adv_stage ?? null) {
                 'instructed' => 'Finance Advance (pay - instructed)', 'approved' => 'Finance (payment instruction)', default => 'Finance Advance Approval',

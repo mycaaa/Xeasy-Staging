@@ -84,10 +84,18 @@
                     <div class="col-md-3 btc-trip"><label class="btc-label" for="btcGo">Travel date (onward) <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="travel_date" id="btcGo"></div>
                     <div class="col-md-3 btc-trip btc-return"><label class="btc-label" for="btcRet">Return travel date <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="return_date" id="btcRet"></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
+                    {{-- BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for Self / Team + Guest, passengers, class by eligibility --}}
+                    <div class="col-md-3 btc-bus"><label class="btc-label" for="btcFor">Booking for <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" name="booking_for" id="btcFor"><option value="">— choose —</option><option value="self">Self</option><option value="team">Team + Guest</option></select></div>
+                    <div class="col-md-6 btc-bus btc-self"><label class="btc-label">Passenger (you)</label><div class="small fw-semibold pt-1" id="btcSelfInfo">—</div></div>
+                    <div class="col-md-2 btc-bus btc-team"><label class="btc-label" for="btcBusPax">Total PAX <span class="text-danger">*</span></label><input type="number" min="1" max="50" class="form-control form-control-sm" id="btcBusPax" placeholder="e.g. 4"></div>
+                    <div class="col-12 btc-bus btc-team"><div id="btcPassengers"></div></div>
+                    <div class="col-md-3 btc-bus"><label class="btc-label" for="btcClass">Travel class <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm" name="travel_class" id="btcClass"><option value="">— choose —</option></select><div class="form-text" id="btcClassHint"></div></div>
                     {{-- BTC-PAX-01 (26 Nov 2026, testing point 24): No. of pax as a list to pick from (it was a bare number box) --}}
-                    <div class="col-md-2"><label class="btc-label" for="btcPax">No. of pax</label><select class="form-select form-select-sm" name="pax_count" id="btcPax">@for ($i = 1; $i <= 100; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor</select></div>
-                    <div class="col-md-6"><label class="btc-label">Employees (code or name)</label><select class="form-select form-select-sm" name="travellers[]" id="btcTravellers" multiple></select></div>
-                    <div class="col-md-4"><label class="btc-label" for="btcGuests">Guests (names, comma-separated)</label><input class="form-control form-control-sm" name="guests" id="btcGuests" maxlength="500" placeholder="e.g. Dealer Ram Kumar, Farmer Suresh"></div>
+                    <div class="col-md-2 btc-nobus"><label class="btc-label" for="btcPax">No. of pax</label><select class="form-select form-select-sm" name="pax_count" id="btcPax">@for ($i = 1; $i <= 100; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor</select></div>
+                    <div class="col-md-6 btc-nobus"><label class="btc-label">Employees (code or name)</label><select class="form-select form-select-sm" name="travellers[]" id="btcTravellers" multiple></select></div>
+                    <div class="col-md-4 btc-nobus"><label class="btc-label" for="btcGuests">Guests (names, comma-separated)</label><input class="form-control form-control-sm" name="guests" id="btcGuests" maxlength="500" placeholder="e.g. Dealer Ram Kumar, Farmer Suresh"></div>
                     <div class="col-md-3 btc-nota"><label class="btc-label">Estimated amount (₹)</label><input type="number" step="0.01" min="0" max="9999999.99" class="form-control form-control-sm" name="estimated_amount"></div>
                     <div class="col-md-6 btc-nota"><label class="btc-label">Vendor</label>
                         <select class="form-select form-select-sm" name="vendor_id" id="btcVendor"><option value="">— new / not listed —</option></select>
@@ -126,6 +134,9 @@
 
 @push('scripts')
 <script>
+    const BUS_CATS = @json((array) config('btc.passenger_categories', ['bus'])), BUS_RANK = @json((array) config('btc.bus_classes', []));
+    const ME = @json((int) (auth()->user()->employee_id ?? 0));
+    let busElig = {};   // EmployeeID -> {code, name, eligible}
     const BTC_TONES = @json((array) config('btc.status_tones'));   // BTC-UI-01: colour family of the status pill
 $(function () {
     const CSRF = $('meta[name="csrf-token"]').attr('content');
@@ -194,6 +205,11 @@ $(function () {
         $('.btc-trip').toggle(trip); $('.btc-notrip').toggle(!trip);
         if (trip) $('[name=location],[name=service_from],[name=service_to]').val(''); else $('[name=travel_from],[name=travel_to],[name=travel_date],[name=return_date]').val('');
         const rt = trip && $('[name=trip_type]:checked').val() === 'round_trip'; $('.btc-return').toggle(rt); if (!rt) $('[name=return_date]').val('');
+        // BTC-BUS-01: Bus - booking for, passengers and class in place of pax / employees / guests
+        const bus = BUS_CATS.includes(c), fr = $('#btcFor').val();
+        $('.btc-bus').toggle(bus); $('.btc-nobus').toggle(!bus);
+        $('.btc-self').toggle(bus && fr === 'self'); $('.btc-team').toggle(bus && fr === 'team');
+        if (bus) busClass();
         // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books)
         $('.btc-nota').toggle(r !== 'admin_booking');
         if (r === 'admin_booking') { $('#btcVendor').val('').trigger('change.select2'); $('[name=estimated_amount],[name=vendor_name],[name=vendor_gstin]').val(''); }
@@ -204,6 +220,44 @@ $(function () {
     }
     $('#btcCategory, #btcVendor').on('change', shape); $(document).on('change', '[name=trip_type]', shape); shape();
     $('#btcGo').on('change', function () { $('#btcRet').attr('min', this.value); });
+    // ---- BTC-BUS-01 (testing point 27): passengers and eligibility-based class ----
+    const eligOf = ids => ids.length ? $.getJSON('{{ route('btc.bus-eligibility') }}', {ids: ids.join(',')}).then(r => { (r || []).forEach(x => busElig[x.employee_id] = x); }) : $.Deferred().resolve();
+    function busPassengers() {
+        if ($('#btcFor').val() === 'self') return [{type: 'employee', id: ME}];
+        return $('#btcPassengers .btc-px').map(function () { const t = $(this).find('.btc-pxt').val(); return {type: t, id: Number($(this).find('.btc-pxe').val() || 0), name: $(this).find('.btc-pxg').val()}; }).get();
+    }
+    function busClass() {
+        const px = busPassengers(), emps = px.filter(p => p.type === 'employee' && p.id);
+        let max = 'AC';
+        emps.forEach(p => { const e = (busElig[p.id] || {}).eligible || 'Non-AC'; if ((BUS_RANK[e] || 0) < (BUS_RANK[max] || 0)) max = e; });
+        const cur = $('#btcClass').val();
+        $('#btcClass').html('<option value="">— choose —</option>' + Object.keys(BUS_RANK).filter(k => BUS_RANK[k] <= BUS_RANK[max]).map(k => `<option ${k === cur ? 'selected' : ''}>${k}</option>`).join(''));
+        $('#btcClassHint').text(emps.length ? 'Eligible up to ' + max + (emps.length > 1 ? ' (lowest of the employees)' : '') + '. If no seat is available, Admin may propose a higher class for your manager to approve.' : '');
+        $('#btcPassengers .btc-px').each(function () { const id = Number($(this).find('.btc-pxe').val() || 0), t = $(this).find('.btc-pxt').val(); $(this).find('.btc-pxel').text(t === 'guest' ? 'Guest policy' : (busElig[id] ? busElig[id].eligible : '-')); });
+    }
+    function pxRow(i) {
+        return `<div class="row g-2 align-items-end btc-px mb-1"><div class="col-auto"><span class="btc-label">PAX ${i + 1}</span></div>
+            <div class="col-md-2"><select class="form-select form-select-sm btc-pxt" name="passengers[${i}][type]" aria-label="Passenger ${i + 1} type"><option value="employee">Employee</option><option value="guest">Guest</option></select></div>
+            <div class="col-md-5 btc-pxew"><select class="form-select form-select-sm btc-pxe" name="passengers[${i}][employee_id]" aria-label="Passenger ${i + 1} employee"></select></div>
+            <div class="col-md-5 btc-pxgw" style="display:none"><input class="form-control form-control-sm btc-pxg" name="passengers[${i}][name]" maxlength="100" placeholder="Guest name" aria-label="Passenger ${i + 1} guest name"></div>
+            <div class="col-md-3 small">Eligible: <b class="btc-pxel">-</b></div></div>`;
+    }
+    $('#btcFor').on('change', function () {
+        if (this.value === 'self') eligOf([ME]).then(() => { const e = busElig[ME] || {}; $('#btcSelfInfo').text((e.code || '') + ' – ' + (e.name || '') + ' · eligible: ' + (e.eligible || '-') + ' · PAX 1'); busClass(); });
+        shape();
+    });
+    $('#btcBusPax').on('change', function () {
+        const n = Math.max(0, Math.min(50, Number(this.value) || 0)), $w = $('#btcPassengers'), have = $w.find('.btc-px').length;
+        for (let i = have; i < n; i++) {
+            $w.append(pxRow(i));
+            $w.find('.btc-pxe').last().select2({dropdownParent: $('#btcNewModal'), width: '100%', placeholder: 'Employee code or name', minimumInputLength: 2,
+                ajax: {url: '{{ route('btc.approvers') }}', delay: 250, data: p => ({q: p.term}), processResults: d => ({results: d})}});
+        }
+        $w.find('.btc-px').slice(n).remove();
+        busClass();
+    });
+    $(document).on('change', '#btcPassengers .btc-pxt', function () { const g = this.value === 'guest', $r = $(this).closest('.btc-px'); $r.find('.btc-pxew').toggle(!g); $r.find('.btc-pxgw').toggle(g); if (g) $r.find('.btc-pxe').val(null).trigger('change'); busClass(); });
+    $(document).on('change', '#btcPassengers .btc-pxe', function () { const id = Number(this.value || 0); (id && !busElig[id] ? eligOf([id]) : $.Deferred().resolve()).then(busClass); });
     $('#btcPurpose').on('change', function () { const o = String(this.value).startsWith('Other'); $('#btcRemarks').prop('required', o); $('#btcRemarksHint').text(o ? '(required - write the purpose)' : ''); });
     $('#btcAddFile').on('click', () => $('#btcFiles').append(fileRow('supporting')));
     // BTC-REQ-20: employees by code or name
@@ -250,6 +304,7 @@ $(function () {
         $('#btcVendor, #btcTravellers').val(null).trigger('change');
         $('#btcNewForm').find('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea').val('');
         $('#btcPax').val('1');
+        $('#btcPassengers').empty(); $('#btcSelfInfo').text('—'); $('#btcFor').val('');   // BTC-BUS-01
         $('#btcNewForm select:not(#btcVendor):not(#btcTravellers)').each(function () { this.selectedIndex = 0; $(this).trigger('change.select2'); });
         const $r = $('.btc-route-radio'); $r.prop('checked', false); $r.first().prop('checked', true);
         $('#btcRoute').val($r.first().val() || $('#btcRoute').attr('value'));
@@ -261,6 +316,18 @@ $(function () {
         if (!checkAmounts($('#btcNewForm'))) return;
         if (!$('#btcPurpose').val()) { Swal.fire('Purpose needed', 'Choose the purpose of the requirement.', 'warning'); return; }
         if (String($('#btcPurpose').val()).startsWith('Other') && !$('#btcRemarks').val().trim()) { Swal.fire('Remarks needed', 'Write the purpose in the remarks.', 'warning'); return; }
+        if ($('.btc-bus:visible').length) {   // BTC-BUS-01
+            const fr = $('#btcFor').val();
+            if (!fr) { Swal.fire('Required', 'Choose Booking for: Self or Team + Guest.', 'warning'); return; }
+            if (fr === 'team') {
+                const n = Number($('#btcBusPax').val() || 0), rows = $('#btcPassengers .btc-px');
+                if (!n || rows.length !== n) { Swal.fire('Required', 'Enter the total PAX and each passenger.', 'warning'); return; }
+                const bad = rows.filter(function () { return $(this).find('.btc-pxt').val() === 'guest' ? !$(this).find('.btc-pxg').val().trim() : !$(this).find('.btc-pxe').val(); });
+                if (bad.length) { Swal.fire('Required', 'Choose the employee or type the guest name for every passenger.', 'warning'); return; }
+            }
+            if (!$('#btcClass').val()) { Swal.fire('Required', 'Choose the travel class.', 'warning'); return; }
+            $('#btcPax').val(String(fr === 'self' ? 1 : Number($('#btcBusPax').val())));
+        }
         if ($('.btc-trip:visible').length) {   // BTC-TRIP-01
             const miss = [['#btcFrom', 'Travel from'], ['#btcTo', 'Travel to'], ['#btcGo', 'Travel date (onward)']].concat($('.btc-return:visible').length ? [['#btcRet', 'Return travel date']] : []).filter(([s]) => !String($(s).val() || '').trim()).map(([, l]) => l);
             if (miss.length) { Swal.fire('Required', 'Fill in: ' + miss.join(', ') + '.', 'warning'); return; }

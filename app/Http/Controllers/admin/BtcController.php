@@ -18,7 +18,7 @@ class BtcController extends Controller
     {
         return [
             'mine' => ['My requests', null, null],   // BTC-REQ-14: menu reads 'BTC Request'
-            'approvals' => ['My approvals', ['pending_manager'], null],
+            'approvals' => ['My approvals', ['pending_manager', 'class_approval'], null],   // BTC-BUS-01: higher class too
             'booking' => ['Booking queue', ['booking_requested', 'booked'], 'btc.booking'],
             // BTC-V2 (19 Nov 2026): the revised queues (each also has its own screen in the BTC menu)
             'dms' => ['DMS: physical bills', ['bill_with_dms'], 'btc.dms'],
@@ -141,7 +141,7 @@ class BtcController extends Controller
             $q->where(fn ($w) => $w->where('employee_id', $empId)->orWhere('created_by', $user->id));
         } elseif ($tab === 'approvals') {
             // BTC-REQ-15 (17 Nov 2026): pending with me, or what I approved / rejected / returned, or all of these
-            $pending = fn ($w) => $w->where(fn ($a) => $a->where('status', 'pending_manager')->where('manager_id', $empId));
+            $pending = fn ($w) => $w->where(fn ($a) => $a->whereIn('status', ['pending_manager', 'class_approval'])->where('manager_id', $empId));   // BTC-BUS-01
             $did = fn (array $acts) => fn ($w) => $w->whereIn('id', DB::table('btc_case_logs')->where('user_id', $user->id)->whereIn('action', $acts)->pluck('btc_case_id'));
             $ap = (string) $request->input('ap', 'pending');
             match ($ap) {
@@ -226,6 +226,10 @@ class BtcController extends Controller
             // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): Air / Train - from, to, one-way or round trip
             'travel_from' => 'nullable|string|max:100', 'travel_to' => 'nullable|string|max:100',
             'trip_type' => 'nullable|in:one_way,round_trip', 'return_date' => 'nullable|date|after_or_equal:travel_date',
+            // BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for, passengers, class
+            'booking_for' => 'nullable|in:self,team', 'travel_class' => 'nullable|in:AC,Non-AC',
+            'passengers' => 'nullable|array|max:100', 'passengers.*.type' => 'nullable|in:employee,guest',
+            'passengers.*.employee_id' => 'nullable|integer', 'passengers.*.name' => 'nullable|string|max:100',
             'bill_no' => 'nullable|string|max:60',
             'bill_date' => 'nullable|date|before_or_equal:today',
             'taxable_amount' => 'nullable|numeric|min:0|max:9999999.99|decimal:0,2',
@@ -275,6 +279,69 @@ class BtcController extends Controller
         } else {
             $v['travel_from'] = $v['travel_to'] = $v['trip_type'] = $v['return_date'] = null;
         }
+        // BTC-BUS-01: Self = the requester alone; Team + Guest = each passenger an employee (from the master) or a guest
+        // by name; the class asked for may not be above what every employee passenger is eligible for
+        $bus = null;
+        if (in_array($v['category'], (array) config('btc.passenger_categories', ['bus']), true)) {
+            $for = $v['booking_for'] ?? null;
+            if (! $for) {
+                return response()->json(['success' => false, 'message' => 'Choose Booking for: Self or Team + Guest.'], 422);
+            }
+            $pax = [];
+            if ($for === 'self') {
+                $pax[] = ['type' => 'employee', 'employee_id' => (int) (auth()->user()->employee_id ?? 0)];
+            } else {
+                foreach ((array) ($v['passengers'] ?? []) as $i => $p) {
+                    $type = $p['type'] ?? 'employee';
+                    if ($type === 'guest') {
+                        $name = trim((string) ($p['name'] ?? ''));
+                        if ($name === '') {
+                            return response()->json(['success' => false, 'message' => 'Passenger '.($i + 1).': give the guest name.'], 422);
+                        }
+                        $pax[] = ['type' => 'guest', 'name' => mb_substr($name, 0, 100)];
+                    } else {
+                        if (empty($p['employee_id'])) {
+                            return response()->json(['success' => false, 'message' => 'Passenger '.($i + 1).': choose the employee.'], 422);
+                        }
+                        $pax[] = ['type' => 'employee', 'employee_id' => (int) $p['employee_id']];
+                    }
+                }
+                if (! $pax) {
+                    return response()->json(['success' => false, 'message' => 'Team + Guest: enter the total PAX and each passenger.'], 422);
+                }
+                if ((int) ($v['pax_count'] ?? count($pax)) !== count($pax)) {
+                    return response()->json(['success' => false, 'message' => 'Total PAX is '.(int) $v['pax_count'].' but '.count($pax).' passenger(s) are filled in.'], 422);
+                }
+            }
+            $elig = \App\Services\Btc\BusEligibility::of(array_column(array_filter($pax, fn ($p) => $p['type'] === 'employee'), 'employee_id'));
+            foreach ($pax as $k => $p) {
+                if ($p['type'] === 'employee') {
+                    if (! isset($elig[$p['employee_id']])) {
+                        return response()->json(['success' => false, 'message' => 'Passenger '.($k + 1).': employee not found in the employee master.'], 422);
+                    }
+                    $pax[$k] = ['type' => 'employee'] + $elig[$p['employee_id']];
+                } else {
+                    $pax[$k] += ['eligible' => 'Guest policy'];
+                }
+            }
+            $codes = array_filter(array_column($pax, 'employee_id'));
+            if (count($codes) !== count(array_unique($codes))) {
+                return response()->json(['success' => false, 'message' => 'The same employee is chosen twice.'], 422);
+            }
+            $class = $v['travel_class'] ?? null;
+            if (! $class) {
+                return response()->json(['success' => false, 'message' => 'Choose the travel class (AC / Non-AC).'], 422);
+            }
+            $max = \App\Services\Btc\BusEligibility::groupMax($pax);
+            if (\App\Services\Btc\BusEligibility::rank($class) > \App\Services\Btc\BusEligibility::rank($max)) {
+                return response()->json(['success' => false, 'message' => "Travel class {$class} is above the eligibility ({$max}) of: "
+                    .implode(', ', array_map(fn ($p) => $p['code'].' '.$p['name'], array_filter($pax, fn ($p) => ($p['type'] === 'employee') && \App\Services\Btc\BusEligibility::rank($p['eligible']) < \App\Services\Btc\BusEligibility::rank($class)))).'.'], 422);
+            }
+            $v['pax_count'] = count($pax);
+            $v['travellers'] = array_values(array_filter($codes, fn ($id) => (int) $id !== (int) (auth()->user()->employee_id ?? 0)));
+            $v['guests'] = implode(', ', array_column(array_filter($pax, fn ($p) => $p['type'] === 'guest'), 'name'));
+            $bus = ['booking_for' => $for, 'passengers_json' => json_encode(array_values($pax), JSON_UNESCAPED_UNICODE), 'travel_class' => $class];
+        }
         $user = auth()->user();
         if (! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {   // BTC-REQ-23 (18 Nov 2026): also for the BTC admin
             return response()->json(['success' => false, 'message' => 'Choose "Admin Booking Required" or "Advance Required".'], 422);   // BTC-FORM-01 / BTC-REQ-03
@@ -296,7 +363,7 @@ class BtcController extends Controller
             $v['vendor_id'] = $vendor['vendor_id'] ?? null;
         }
         $cat = config("btc.categories.{$v['category']}");
-        $case = DB::transaction(function () use ($v, $emp, $user, $cat) {
+        $case = DB::transaction(function () use ($v, $emp, $user, $cat, $bus) {
             $companyId = (int) session('company_id', 1);
             $c = BtcCase::create([
                 'case_no' => 'TMP'.uniqid(), 'company_id' => $companyId, 'route' => $v['route'], 'category' => $v['category'],
@@ -323,7 +390,8 @@ class BtcController extends Controller
                     ->get(['EmployeeID as id', 'EmpCode as code', DB::raw("TRIM(CONCAT_WS(' ', Fname, Sname, Lname)) as name")])) : null,
             ] : []) + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'request_remarks') ? ['request_remarks' => trim((string) ($v['request_remarks'] ?? '')) ?: null] : [])
               + (\Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'trip_type') ? ['travel_from' => $v['travel_from'] ?? null, 'travel_to' => $v['travel_to'] ?? null,
-                  'trip_type' => $v['trip_type'] ?? null, 'return_date' => $v['return_date'] ?? null] : []));   // BTC-TRIP-01
+                  'trip_type' => $v['trip_type'] ?? null, 'return_date' => $v['return_date'] ?? null] : [])   // BTC-TRIP-01
+              + ($bus && \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'booking_for') ? $bus : []));   // BTC-BUS-01
             $c->case_no = sprintf('BTC/%s/%05d', now('Asia/Kolkata')->format('y'), $c->id);
             $c->save();
 
@@ -429,6 +497,14 @@ class BtcController extends Controller
             ? route('btc.treasury.focus', ['kind' => 'jv', 'ids' => $c->id]) : null;
 
         return response()->json(['success' => true, 'message' => "{$c->case_no}: ".$c->statusLabel().($dl ? ' - Focus JV '.$c->focus_jv_doc : ''), 'status' => $c->status, 'download' => $dl]);
+    }
+
+    /** BTC-BUS-01 (testing point 27): bus class eligibility of employees (new-request form). */
+    public function busEligibility(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $ids = array_slice(array_filter(array_map('intval', explode(',', (string) $request->input('ids')))), 0, 100);
+
+        return response()->json(array_values(\App\Services\Btc\BusEligibility::of($ids)));
     }
 
     /** BTC-FIN-02 (17 Nov 2026): Dr/Cr preview of the Finance form, nothing saved. */

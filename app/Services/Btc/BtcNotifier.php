@@ -111,7 +111,7 @@ class BtcNotifier
         ];
         // hand-off mails go to named people (manager, department head, requester, assigned Finance maker); desk queues
         // (booking, DMS, Finance, checker, Treasury) see their lists on screen and get the daily overdue mail instead
-        $named = in_array($c->status, ['pending_manager', 'advance_paid', 'returned', 'rejected', 'cancelled', 'closed'], true)
+        $named = in_array($c->status, ['pending_manager', 'class_approval', 'advance_paid', 'returned', 'rejected', 'cancelled', 'closed'], true)
             || ($c->status === 'booked' && $c->route !== 'admin_booking');
         $to = $named ? self::actors($c) : [];
         if ($c->status === 'paid') {   // the requester hears that the vendor is paid

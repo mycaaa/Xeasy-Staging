@@ -118,6 +118,7 @@ return [
         'draft' => 'Draft',
         'pending_manager' => 'Waiting for manager approval',
         'booking_requested' => 'Waiting for admin booking',
+        'class_approval' => 'Higher class - waiting for manager',   // BTC-BUS-01
         'advance_requested' => 'Advance requested',
         'advance_paid' => 'Advance paid',
         'booked' => 'Booked / service in progress',
@@ -146,7 +147,7 @@ return [
         'draft' => 'draft', 'pending_manager' => 'wait', 'booking_requested' => 'admin', 'advance_requested' => 'wait', 'advance_paid' => 'admin',
         'booked' => 'admin', 'bill_with_dms' => 'admin', 'bill_with_finance' => 'fin', 'scanned' => 'fin', 'bill_submitted' => 'fin', 'extracted' => 'fin',
         'finance_verified' => 'fin', 'focus_done' => 'fin', 'fin_approved' => 'fin', 'paid' => 'done', 'closed' => 'done',
-        'returned' => 'back', 'rejected' => 'back', 'cancelled' => 'stop',
+        'returned' => 'back', 'rejected' => 'back', 'cancelled' => 'stop', 'class_approval' => 'wait',
     ],
 
     // BTC-V2: where the bill came from (Bill Upload by Finance)
@@ -173,10 +174,16 @@ return [
     'classification' => ['hotel', 'vehicle', 'air', 'train', 'bus', 'meals', 'meeting'],
     // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): the request form of these has Travel From / To and one-way / round
     // trip in place of Location and activity dates; for an admin booking the manager chooses corporate or normal booking
-    'trip_categories' => ['air', 'train'],
+    'trip_categories' => ['air', 'train', 'bus'],   // BTC-BUS-01 (testing point 27): Bus too
     'booking_types' => ['corporate' => 'Corporate booking', 'normal' => 'Normal booking'],
     // BTC-TRIP-02 (26 Nov 2026, testing point 28): the manager chooses the booking type for Air only
     'booking_type_categories' => ['air'],
+    // BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for Self / Team + Guest, passengers, AC / Non-AC by
+    // eligibility. There is no bus class in the eligibility master: an employee whose train / outside-HQ class is an
+    // AC class (AC-I, AC-II, AC-III, Economy/AC-..) may take AC; Sleeper, General, Non AC or blank = Non-AC only.
+    // Guests follow the guest policy (the class the requester asks, checked by Admin and the manager).
+    'passenger_categories' => ['bus'],
+    'bus_classes' => ['Non-AC' => 1, 'AC' => 2],   // higher number = higher class
     // BTC-PUNCH-02 (25 Nov 2026, testing point 17): the punch form of each type in the layout of the 19 Nov spec - header
     // fields, then repeatable tables (journey legs, rooms, line items) with their totals. Keys of the header fields
     // stay as before (lists, verification and the narration use them); the tables are kept in punch_json._t.
