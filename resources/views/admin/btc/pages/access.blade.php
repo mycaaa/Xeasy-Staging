@@ -1,7 +1,7 @@
 {{-- BTC-REQ-01 / 02: BTC Roles & Access (Super Admin) --}}
 @extends('layouts.app')
 @section('content')
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'BTC Roles & Access', 'icon' => 'ri-shield-user-line', 'sub' => 'Roles, screen-wise and action-wise permissions, entity and department access, approval limits, user assignment and history'])
     <div class="xe-seg mb-3">
         @foreach (['roles' => 'Roles', 'users' => 'Users', 'history' => 'Access history', 'activity' => 'User activity'] as $k => $l)

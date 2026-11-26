@@ -1,7 +1,7 @@
 {{-- BTC-V2 (19 Nov 2026): Automatic Data Extraction / Finance Verifier 1 / Finance Approval - queues of the revised workflow --}}
 @extends('layouts.app')
 @section('content')
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
     @if (! empty($focusExport))
         <div class="d-flex gap-2 mb-2">

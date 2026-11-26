@@ -12,7 +12,7 @@
     .cl-types label:has(input:checked) { border-color: #2563eb; background: #eff6ff; color: #1e3a8a; }
     .cl-types label:has(input:focus-visible) { outline: 2px solid #2563eb; outline-offset: 2px; }
 </style>
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
     <div class="xe-seg mb-2">
         @foreach ($tabs as $k => $l)
@@ -33,7 +33,7 @@
                     <td class="small">{{ $c->bill_uploaded_by ? \App\Models\User::whereKey($c->bill_uploaded_by)->value('name') : '' }}</td>
                     <td class="small">{{ $c->status === 'scanned' ? '-' : $c->categoryLabel() }}</td>
                     <td class="small">{{ trim($c->emp_code.' '.$c->emp_name) ?: ($c->department_name ?: '-') }}</td>
-                    <td class="small">{{ $c->statusLabel() }}</td>
+                    <td>{{ $c->statusPill() }}</td>
                     <td class="text-nowrap">
                         @if ($c->status === 'scanned')
                             <button type="button" class="xe-btn xe-btn-blue" data-classify="{{ $c->id }}" data-no="{{ $c->case_no }}" data-file="{{ $bf ? route('btc.file', $bf->id) : '' }}" data-pdf="{{ $bf && str_ends_with(strtolower($bf->file_name), '.pdf') ? 1 : 0 }}">Classify</button>

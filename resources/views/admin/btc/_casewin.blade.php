@@ -40,6 +40,7 @@ $(function () {
             .always(function () { $b.prop('disabled', false); });
     });
     const STATUS = @json($statuses);
+    const TONES = @json((array) config('btc.status_tones'));   // BTC-UI-01: colour family of the status pill
     const TRIP_CATS = @json((array) config('btc.trip_categories', ['air', 'train']));   // BTC-TRIP-01
     const BOOKING_TYPES = @json((array) config('btc.booking_types', []));
     const TDS = @json($tdsSections);
@@ -297,7 +298,7 @@ $(function () {
     function openCase(id) {
         $.get('{{ url('btc/case') }}/' + id, function (d) {
             const c = d.case, steps = (c.route === 'admin_booking' ? FLOW_A : (c.route === 'direct_bill' ? ['scanned'] : [])).concat(FLOW), at = steps.indexOf(c.status);
-            $('#btcCaseTitle').text(c.case_no + ' · ' + d.status_label);
+            $('#btcCaseTitle').html(`<span class="btc-casehead">${esc(c.case_no)} <span class="btc-pill btc-pill--${(TONES[c.status] || 'stop')}">${esc(d.status_label)}</span></span>`);   // BTC-UI-01
             const flow = steps.map((s, i) => `<span class="btc-step ${i < at ? 'done' : (i === at ? 'now' : '')}">${STATUS[s]}</span>`).join(' › ');
             const files = d.files.map(f => `<a class="me-3" target="_blank" href="${f.url}"><i class="ri-file-line"></i> ${esc(f.kind.replace('_', ' '))}: ${esc(f.name)}</a>`).join('') || '<span class="text-muted">none</span>';
             const logs = d.logs.map(l => `<div class="btc-log"><b>${esc(l.at)}</b> ${esc(l.by)} · ${esc(l.action.replace(/_/g, ' '))} → ${esc(l.to)}${l.remark ? '<br>' + esc(l.remark) : ''}</div>`).join('');

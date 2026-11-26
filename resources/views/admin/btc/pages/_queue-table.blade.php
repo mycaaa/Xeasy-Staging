@@ -64,7 +64,7 @@
                     @if ($ps = $c->punchSummary())<div class="text-muted mt-1" style="max-width:260px">{{ $ps }}</div>@endif
                     @if (in_array($c->status, ['bill_submitted'], true) && $c->extract_note)<div class="text-muted">{{ \Illuminate\Support\Str::limit($c->extract_note, 60) }}</div>@endif
                 </td>
-                <td class="small">{{ $c->statusLabel() }}</td>
+                <td>{{ $c->statusPill() }}</td>
                 <td class="small text-nowrap">{{ optional($c->updated_at)->format('d-m-Y H:i') }}</td>
                 <td><button type="button" class="xe-btn xe-btn-blue" data-open="{{ $c->id }}">Open</button></td>
             </tr>

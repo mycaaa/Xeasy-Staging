@@ -1,7 +1,7 @@
 {{-- BTC-CONF-01 (17 Nov 2026): BTC Settings - controls, Focus ledgers, TDS defaults, Nova matching --}}
 @extends('layouts.app')
 @section('content')
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'BTC Settings', 'icon' => 'ri-settings-3-line',
         'sub' => 'Values Finance may change without a program change. Every change is logged below.'])
     @if (session('success'))<div class="alert alert-success py-2">{{ session('success') }}</div>@endif

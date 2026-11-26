@@ -2,7 +2,7 @@
 @extends('layouts.app')
 @section('content')
 @php $inr = fn ($n) => $n === null ? '-' : number_format((float) $n, 2); @endphp
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'Advance Request & Processing', 'icon' => 'ri-hand-coin-line', 'sub' => 'The amount requested is not the amount paid: each advance in its separate figures'])
     <div class="xe-seg mb-2">
         @foreach (['to_pay' => 'To pay', 'outstanding' => 'Outstanding', 'settled' => 'Settled', 'all' => 'All'] as $k => $l)
@@ -27,7 +27,7 @@
                     <td class="text-end">{{ $inr($a['adjusted']) }}</td>
                     <td class="text-end">{{ $inr($a['refund']) }}</td>
                     <td class="text-end fw-semibold {{ $a['balance'] > 0.5 ? 'text-danger' : '' }}">{{ $inr($a['balance']) }}</td>
-                    <td>{{ $c->statusLabel() }}</td>
+                    <td>{{ $c->statusPill() }}</td>
                     <td><a class="xe-btn xe-btn-blue" href="{{ route('btc.index', ['case' => $c->id]) }}">{{ $c->status === 'advance_requested' ? 'Pay' : 'Open' }}</a></td>
                 </tr>
             @empty

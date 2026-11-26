@@ -3,7 +3,8 @@
 
 @section('content')
 <div class="page-content">
-    <div class="container-fluid">
+    <link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126">{{-- BTC-UI-01 --}}
+    <div class="container-fluid xe-screen btc-ui">
         <div class="card">
             <div class="card-header d-flex flex-wrap align-items-center gap-2">
                 <h4 class="card-title mb-0 flex-grow-1"><i class="ri-plane-line me-1"></i>Boarding Pass <span class="text-muted fs-13 fw-normal">tickets booked by the company</span></h4>

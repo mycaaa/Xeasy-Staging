@@ -2,7 +2,7 @@
 @extends('layouts.app')
 @section('content')
 @php $inr = fn ($n) => $n === null || $n === '' ? '' : number_format((float) $n, 2); @endphp
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'Admin Booking Queue', 'icon' => 'ri-hotel-line', 'sub' => 'Requests with "Admin Booking Required": choose the vendor / hotel, confirm the booking, change or cancel it, mark the activity completed and record that the physical bill was handed over to DMS'])
     <div class="xe-seg mb-2">
         @foreach (['to_book' => 'To book', 'booked' => 'Booked', 'completed' => 'Activity completed (bill to DMS)', 'to_dms' => 'Bill handed to DMS', 'cancelled' => 'Cancelled'] as $k => $l)
@@ -25,7 +25,7 @@
                     <td>{{ $c->booking_ref ?: '-' }}</td>
                     <td class="text-end">{{ $inr($c->booking_amount) }}</td>
                     <td class="text-nowrap">{{ optional($c->booking_date)->format('d-m-Y') }}</td>
-                    <td>{{ $c->statusLabel() }}{{ $c->activity_completed_on ? ' · done '.$c->activity_completed_on->format('d-m-Y') : '' }}{{ $c->booking_status === 'modified' ? ' · changed' : '' }}{{ $c->bill_forwarded_dms_on ? ' · bill to DMS '.\Carbon\Carbon::parse($c->bill_forwarded_dms_on)->format('d-m-Y') : '' }}</td>
+                    <td>{{ $c->statusPill() }}<div class="btc-pending">{{ $c->activity_completed_on ? ' · done '.$c->activity_completed_on->format('d-m-Y') : '' }}{{ $c->booking_status === 'modified' ? ' · changed' : '' }}{{ $c->bill_forwarded_dms_on ? ' · bill to DMS '.\Carbon\Carbon::parse($c->bill_forwarded_dms_on)->format('d-m-Y') : '' }}</div></td>
                     <td><a class="xe-btn xe-btn-blue" href="{{ route('btc.index', ['case' => $c->id]) }}">{{ $show === 'to_book' ? 'Book' : 'Open' }}</a></td>
                 </tr>
             @empty

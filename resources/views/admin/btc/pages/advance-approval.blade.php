@@ -7,7 +7,7 @@
     $u = auth()->user();
     $canAct = $u->can('btc.admin') || ($tab === 'pending' ? $u->can('btc.fin_approver') : ($tab === 'approved' && ($u->can('btc.fin_approver') || $u->can('btc.advance'))));
 @endphp
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
     <div class="xe-seg mb-2">
         @foreach ($tabs as $k => $l)

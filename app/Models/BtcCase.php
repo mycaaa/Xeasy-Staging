@@ -48,6 +48,18 @@ class BtcCase extends Model
         return config("btc.statuses.{$this->status}", $this->status);
     }
 
+    /** BTC-UI-01: colour family of the status pill (wait / admin / fin / done / back / stop / draft). */
+    public function statusTone(): string
+    {
+        return $this->on_hold ? 'back' : (string) config('btc.status_tones.'.$this->status, 'stop');
+    }
+
+    /** BTC-UI-01: the status as a pill (label in words, colour by family). */
+    public function statusPill(): \Illuminate\Support\HtmlString
+    {
+        return new \Illuminate\Support\HtmlString('<span class="btc-pill btc-pill--'.e($this->statusTone()).'">'.e($this->statusLabel()).'</span>');
+    }
+
     /** BTC-CANCEL-01: who cancelled the case (the last cancel step in its history). */
     public function cancelledBy(): ?string
     {

@@ -141,6 +141,14 @@ return [
         'dept_approved' => 'Department approved (old)',
     ],
 
+    // BTC-UI-01 (26 Nov 2026, testing point 22): the colour family of each status pill (words always shown with it)
+    'status_tones' => [
+        'draft' => 'draft', 'pending_manager' => 'wait', 'booking_requested' => 'admin', 'advance_requested' => 'wait', 'advance_paid' => 'admin',
+        'booked' => 'admin', 'bill_with_dms' => 'admin', 'bill_with_finance' => 'fin', 'scanned' => 'fin', 'bill_submitted' => 'fin', 'extracted' => 'fin',
+        'finance_verified' => 'fin', 'focus_done' => 'fin', 'fin_approved' => 'fin', 'paid' => 'done', 'closed' => 'done',
+        'returned' => 'back', 'rejected' => 'back', 'cancelled' => 'stop',
+    ],
+
     // BTC-V2: where the bill came from (Bill Upload by Finance)
     'bill_sources' => ['dms' => 'DMS (physical bill)', 'vendor' => 'Vendor', 'email' => 'E-mail', 'admin' => 'Admin', 'department' => 'Other department', 'employee' => 'Employee'],
 

@@ -10,7 +10,7 @@
     .btc-exc-tiles b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
     .btc-exc-tiles span { display: block; font-size: .75rem; color: #64748b; }
 </style>
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'Exception Queue', 'icon' => 'ri-error-warning-line',
         'sub' => 'Open BTC cases that need a second look - clear each with a remark, or fix the case. Latest first.'])
     @if (session('success'))<div class="alert alert-success py-2">{{ session('success') }}</div>@endif
@@ -40,7 +40,7 @@
                 <tr>
                     <td><a class="fw-semibold" href="{{ route('btc.index', ['case' => $c->id]) }}">{{ $c->case_no }}</a><div class="small text-muted">{{ $c->categoryLabel() }}</div></td>
                     <td>{{ $c->emp_code }} - {{ $c->emp_name }}<div class="small text-muted">{{ $c->vendor_name }}</div></td>
-                    <td class="small">{{ $c->statusLabel() }}</td>
+                    <td>{{ $c->statusPill() }}</td>
                     <td><span class="badge bg-danger-subtle text-danger">{{ $r['label'] }}</span></td>
                     <td class="small">{{ $r['detail'] }}</td>
                     <td class="small" style="min-width:240px">

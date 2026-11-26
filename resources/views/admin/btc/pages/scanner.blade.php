@@ -1,7 +1,7 @@
 {{-- BTC-SCAN-01 (19 Nov 2026, tracker tab "Data Punching Form & Finance approval screens", 1): Scanner --}}
 @extends('layouts.app')
 @section('content')
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
     <section class="xe-section mb-3"><div class="p-3">
         <form method="post" action="{{ route('btc.scanner.store') }}" enctype="multipart/form-data" class="row g-2" id="scForm">@csrf

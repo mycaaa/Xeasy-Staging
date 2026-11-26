@@ -6,16 +6,13 @@
     $q = fn (array $extra) => route('btc.team', array_merge(request()->except('page'), $extra));
 @endphp
 <style>
-    .btc-kpi { border: 1px solid #e8edf3; border-radius: 12px; padding: 10px 14px; background: #fff; height: 100%; }
-    .btc-kpi .v { font-size: 1.2rem; font-weight: 800; color: #1e293b; font-variant-numeric: tabular-nums; }
-    .btc-kpi .l { font-size: .72rem; color: #64748b; }
     .btc-small td, .btc-small th { font-size: .78rem; }
-    .btc-scope a { border: 1.5px solid #2563eb; color: #2563eb; border-radius: 999px; padding: 4px 14px; font-size: .8rem; font-weight: 600; text-decoration: none; }
-    .btc-scope a.on { background: #2563eb; color: #fff; }
-    .btc-scope a:not(.on):hover { background: #eff6ff; }
+    .btc-scope a { border: 1px solid var(--btc-line); color: var(--btc-ink-2); border-radius: 8px; padding: 5px 12px; font-size: .76rem; font-weight: 600; text-decoration: none; background: #fff; }
+    .btc-scope a.on { background: var(--btc-ink); border-color: var(--btc-ink); color: #fff; }
+    .btc-scope a:not(.on):hover { background: var(--btc-wash); color: var(--btc-brand); }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 </style>
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'My Team BTC', 'icon' => 'ri-team-line',
         'sub' => ($mgrName ? $mgrName.' · ' : '').'BTC requests of the people who report to you, with stage and who each is waiting for - latest first'])
 
@@ -105,7 +102,7 @@
                     <td><a href="{{ route('btc.index', ['case' => $c->id]) }}" class="fw-semibold">{{ $c->case_no }}</a></td>
                     <td>{{ $c->emp_code }} - {{ $c->emp_name }}<div class="small text-muted">{{ $c->department_name }}{{ $v ? ' · via '.$v : '' }}</div></td>
                     <td>{{ $c->categoryLabel() }}<div class="small text-muted">{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</div></td>
-                    <td><span class="badge {{ in_array($c->status, ['returned', 'rejected'], true) ? 'bg-danger-subtle text-danger' : (in_array($c->status, ['paid', 'closed'], true) ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary') }}">{{ $c->statusLabel() }}</span></td>
+                    <td>{{ $c->statusPill() }}</td>
                     <td>{{ in_array($c->status, ['closed', 'cancelled', 'rejected'], true) ? '-' : $c->pendingWith() }}</td>
                     <td>{{ $c->vendor_name ?: '-' }}</td>
                     <td class="num">{{ $a['requested'] > 0 ? $inr($a['requested']).' / '.$inr($a['paid']).' / '.$inr($a['balance']) : '-' }}</td>

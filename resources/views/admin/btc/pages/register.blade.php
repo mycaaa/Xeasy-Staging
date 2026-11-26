@@ -2,7 +2,7 @@
 @extends('layouts.app')
 @section('content')
 @php $inr = fn ($n) => $n === null || $n === '' ? '' : number_format((float) $n, 2); @endphp
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'BTC Request Register', 'icon' => 'ri-list-check-2', 'sub' => 'Every request with its unique ID, origin route, owner, stage and who it is pending with - latest first'])
     <form method="get" class="row g-2 align-items-end mb-2">
         <div class="col-md-3"><input type="search" name="q" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Request ID, employee, vendor, bill, booking, Nova doc" aria-label="Search"></div>
@@ -22,7 +22,7 @@
                     <td>{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</td>
                     <td>{{ $c->emp_code }} - {{ $c->emp_name }}<div class="small text-muted">{{ $c->department_name }}</div></td>
                     <td>{{ $c->categoryLabel() }}</td>
-                    <td><span class="badge bg-primary-subtle text-primary">{{ $c->statusLabel() }}</span></td>
+                    <td>{{ $c->statusPill() }}</td>
                     <td>{{ $c->pendingWith() }}</td>
                     <td>{{ $c->booking_ref ? $c->booking_ref.' · '.$inr($c->booking_amount) : ($c->route === 'admin_booking' ? ($c->booking_status ?: '-') : '-') }}</td>
                     <td class="text-end">{{ $a['requested'] > 0 ? $inr($a['requested']).' / '.$inr($a['paid']).' / '.$inr($a['balance']) : '-' }}</td>

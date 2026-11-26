@@ -15,29 +15,13 @@
     .btc-val { font-size: 13px; }
 </style>
 <div class="page-content">
-    <div class="container-fluid">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-            <div>
-                <h5 class="fw-bold mb-0" style="color:#1e3a5f;"><i class="ri-bill-line me-1 text-primary"></i> Bill To Company (BTC)</h5>
-                @if ($showFlow)<div class="btc-flow">Requirement → Admin booking (physical bill → DMS → Finance) / quotation + manager approval + advance → bill uploaded in Xeasy → automatic data extraction → Finance Verifier 1 + Focus entry → Finance Approval → Treasury payment → Closure</div>@endif
-            </div>
-            <div class="d-flex gap-2 flex-wrap">
-                @php $u = auth()->user(); @endphp
-                @if (true)<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.dashboard') }}"><i class="ri-dashboard-3-line"></i> Dashboard</a>@endif
-                @if (\App\Http\Controllers\admin\BtcPagesController::hasTeam() || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-primary" href="{{ route('btc.team') }}"><i class="ri-team-line"></i> My team</a>@endif
-                @if ($u->can('btc.register') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.register') }}"><i class="ri-list-check-2"></i> Register</a>@endif
-                @if ($u->can('btc.booking') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.booking') }}"><i class="ri-hotel-line"></i> Booking queue</a>@endif
-                @if ($u->can('btc.advance') || $u->can('btc.finance') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.advances') }}"><i class="ri-hand-coin-line"></i> Advances</a>@endif
-                @if ($u->can('btc.bill_upload') || $u->can('btc.finance') || $u->can('btc.dms') || $u->can('btc.admin'))<a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.scanner') }}"><i class="ri-scan-line"></i> Scanner</a>@endif
-                @can('btc.finance')
-                    <a class="btn btn-sm btn-outline-secondary" href="{{ route('btc.export.boarding') }}"><i class="ri-plane-line"></i> Boarding passes pending</a>
-                @endcan
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#btcNewModal"><i class="ri-add-line"></i> New BTC case</button>
-            </div>
-        </div>
+    <div class="container-fluid xe-screen btc-ui">
+        {{-- BTC-UI-01 (26 Nov 2026, testing point 22): the same page bar and BTC menu as every BTC screen; the buttons stay --}}
+        @include('admin.btc.pages._nav', ['title' => 'BTC Request', 'icon' => 'ri-bill-line', 'actionsView' => 'admin.btc._index-actions',
+            'sub' => $showFlow ? 'Requirement → admin booking or advance → bill in Xeasy → punch and Focus export → Finance verification → Finance approval → Treasury payment → closure' : 'Your Bill To Company requests and the ones waiting for your approval'])
         <div class="card">
             <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <ul class="nav nav-pills btc-tabs" id="btcTabs">
+                <ul class="nav nav-pills btc-tabs xe-seg" id="btcTabs">
                     @foreach ($tabs as $k => $label)
                         <li class="nav-item"><a class="nav-link {{ $loop->first ? 'active' : '' }}" href="#" data-tab="{{ $k }}">{{ $label }}</a></li>
                     @endforeach
@@ -141,6 +125,7 @@
 
 @push('scripts')
 <script>
+    const BTC_TONES = @json((array) config('btc.status_tones'));   // BTC-UI-01: colour family of the status pill
 $(function () {
     const CSRF = $('meta[name="csrf-token"]').attr('content');
     const STATUS = @json($statuses);
@@ -157,7 +142,7 @@ $(function () {
             const rows = (r.data || []).map(c => `<tr role="button" data-id="${c.id}">
                 <td class="fw-semibold">${esc(c.case_no)}</td><td>${esc(c.route)}</td><td>${esc(c.category)}</td><td class="btc-emp-col">${esc(c.employee)}</td>
                 <td>${esc(c.vendor)}</td><td>${esc(c.purpose)}</td><td class="text-end">${fmt(c.amount)}</td>
-                <td><span class="badge bg-primary-subtle text-primary">${esc(c.status_label)}</span>${c.pending ? '<div class="text-danger small">' + esc(c.pending) + '</div>' : ''}</td>
+                <td><span class="btc-pill btc-pill--${BTC_TONES[c.status] || 'stop'}">${esc(c.status_label)}</span>${c.pending ? '<div class="btc-pending">' + esc(c.pending) + '</div>' : ''}</td>
                 <td>${esc(c.pending_with)}</td><td>${esc(st(c).booking)}</td><td>${esc(st(c).advance)}</td><td>${esc(st(c).invoice)}</td><td>${esc(st(c).payment)}</td>
                 <td>${esc(c.updated)}</td></tr>`).join('');
             $('#btcApFilter').toggle(tab === 'approvals');

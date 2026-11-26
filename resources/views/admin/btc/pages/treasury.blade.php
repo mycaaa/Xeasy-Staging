@@ -2,7 +2,7 @@
 @extends('layouts.app')
 @section('content')
 @php $inr = fn ($n) => number_format((float) $n, 2); @endphp
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => $title, 'icon' => $icon, 'sub' => $sub])
     @if (! empty($focus) || ! empty($matrix))
         {{-- BTC-FOCUS-01 / BTC-MATRIX-01 (20 Nov 2026, tracker items 7, 8, 9) --}}

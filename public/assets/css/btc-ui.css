@@ -1,0 +1,167 @@
+/*
+ * BTC-UI-01 (26 Nov 2026, testing point 22): one look for every BTC screen - Bill To Company is a finance desk where a
+ * travel / stay bill moves from request to payment, so the design reads like a desk ledger: navy ink on paper-white
+ * cards, hairline rules, figures in tabular numerals, and one memorable element - the bill pipeline in the page bar,
+ * with the count waiting at each step. Status pills carry the meaning by family (waiting, with admin, in Finance,
+ * done, returned, stopped) - never colour alone: every pill has its words.
+ * Opt in with class "btc-ui" on the page wrapper; the case window and the new-request form are styled by their ids.
+ * Pure presentation: no field, button, validation or workflow depends on this file.
+ */
+.btc-ui, #btcCaseModal, #btcNewModal {
+    --btc-ink: #13293d;
+    --btc-ink-2: #3d5468;
+    --btc-mute: #6b7c8c;
+    --btc-line: #dfe5eb;
+    --btc-line-2: #edf1f5;
+    --btc-paper: #ffffff;
+    --btc-wash: #f5f7f9;
+    --btc-brand: #15648c;
+    --btc-brand-wash: #e8f1f6;
+    --btc-wait: #93560a;   --btc-wait-bg: #fdf2df;
+    --btc-admin: #1d5c9e;  --btc-admin-bg: #e6f0fa;
+    --btc-fin: #573a96;    --btc-fin-bg: #eee9fa;
+    --btc-done: #1b6a43;   --btc-done-bg: #e2f3ea;
+    --btc-back: #a3361f;   --btc-back-bg: #fbe8e3;
+    --btc-stop: #55606b;   --btc-stop-bg: #eceff2;
+    --btc-r: 10px;
+}
+
+/* ---------- page bar ---------- */
+.btc-ui .xe-topbar { margin-bottom: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--btc-line); }
+.btc-ui .xe-title { color: var(--btc-ink); font-size: 1.18rem; }
+.btc-ui .xe-title i { color: var(--btc-brand); background: var(--btc-brand-wash); border-radius: 8px; padding: 5px; font-size: 1.05rem; }
+.btc-ui .xe-sub { color: var(--btc-mute); font-size: .76rem; max-width: 900px; line-height: 1.45; }
+
+/* ---------- module navigation: groups, with the bill pipeline as numbered steps ---------- */
+.btc-nav { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: flex-start; margin-bottom: 14px; }
+.btc-nav-group { display: flex; flex-direction: column; gap: 4px; }
+.btc-nav-name { font-size: .66rem; font-weight: 700; color: var(--btc-mute); padding-left: 2px; }
+.btc-nav-row { display: flex; flex-wrap: wrap; gap: 2px; background: var(--btc-wash); border: 1px solid var(--btc-line-2); border-radius: 10px; padding: 3px; }
+.btc-nav-row a { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 8px; color: var(--btc-ink-2); font-size: .76rem; font-weight: 600;
+    text-decoration: none; white-space: nowrap; line-height: 1.2; transition: background .15s ease, color .15s ease; }
+.btc-nav-row a:hover { background: #fff; color: var(--btc-brand); }
+.btc-nav-row a.active { background: #fff; color: var(--btc-ink); box-shadow: 0 1px 3px rgba(19, 41, 61, .14); }
+.btc-nav-row a:focus-visible { outline: 2px solid var(--btc-brand); outline-offset: 1px; }
+.btc-nav-row a i { font-size: .95rem; color: var(--btc-mute); }
+.btc-nav-row a.active i { color: var(--btc-brand); }
+.btc-nav-new { align-self: flex-end; }
+/* the pipeline: steps joined by a rule, a number disc per step and the bills waiting there */
+.btc-pipe { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; background: var(--btc-paper); border: 1px solid var(--btc-line); border-radius: 10px; padding: 3px; }
+.btc-pipe a { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border-radius: 8px; color: var(--btc-ink-2);
+    font-size: .76rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.btc-pipe a + a::before { content: ""; position: absolute; left: -4px; top: 50%; width: 8px; height: 1px; background: var(--btc-line); }
+.btc-pipe a:hover { background: var(--btc-wash); color: var(--btc-brand); }
+.btc-pipe a.active { background: var(--btc-ink); color: #fff; }
+.btc-pipe a:focus-visible { outline: 2px solid var(--btc-brand); outline-offset: 1px; }
+.btc-step-no { display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; font-size: .66rem; font-weight: 800;
+    background: var(--btc-brand-wash); color: var(--btc-brand); font-variant-numeric: tabular-nums; }
+.btc-pipe a.active .btc-step-no { background: rgba(255, 255, 255, .18); color: #fff; }
+.btc-step-n { font-size: .66rem; font-weight: 800; border-radius: 50px; padding: 1px 7px; background: var(--btc-wait-bg); color: var(--btc-wait); font-variant-numeric: tabular-nums; }
+.btc-pipe a.active .btc-step-n { background: #fff; color: var(--btc-ink); }
+
+/* ---------- status pills ---------- */
+.btc-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 50px; font-size: .7rem; font-weight: 700; line-height: 1.25;
+    white-space: normal; background: var(--btc-stop-bg); color: var(--btc-stop); }
+.btc-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+.btc-pill--wait  { background: var(--btc-wait-bg);  color: var(--btc-wait); }
+.btc-pill--admin { background: var(--btc-admin-bg); color: var(--btc-admin); }
+.btc-pill--fin   { background: var(--btc-fin-bg);   color: var(--btc-fin); }
+.btc-pill--done  { background: var(--btc-done-bg);  color: var(--btc-done); }
+.btc-pill--back  { background: var(--btc-back-bg);  color: var(--btc-back); }
+.btc-pill--stop  { background: var(--btc-stop-bg);  color: var(--btc-stop); }
+.btc-pill--draft { background: #fff; color: var(--btc-mute); box-shadow: inset 0 0 0 1px var(--btc-line); }
+.btc-pill--draft::before { background: var(--btc-line); }
+.btc-pending { font-size: .7rem; color: var(--btc-mute); margin-top: 3px; }
+.btc-pending b { color: var(--btc-ink-2); font-weight: 600; }
+
+/* ---------- section cards ---------- */
+.btc-ui .xe-section, .btc-ui .card { border: 1px solid var(--btc-line); border-radius: var(--btc-r); box-shadow: 0 1px 2px rgba(19, 41, 61, .05); background: var(--btc-paper); }
+.btc-ui .xe-section-hdr, .btc-ui .card-header { background: var(--btc-paper); border-bottom: 1px solid var(--btc-line-2); padding: 11px 16px; }
+.btc-ui .xe-section-title { color: var(--btc-ink); font-size: .88rem; }
+.btc-ui .xe-section-title i { color: var(--btc-brand); }
+.btc-ui .xe-count { background: var(--btc-brand-wash); color: var(--btc-brand); }
+
+/* ---------- tabs inside a page (queues, register) ---------- */
+.btc-ui .xe-seg { background: var(--btc-wash); border: 1px solid var(--btc-line-2); }
+.btc-ui .xe-seg > a.active, .btc-ui .xe-seg .nav-link.active { color: var(--btc-ink) !important; }
+.btc-ui .xe-seg .badge { background: #fff !important; color: var(--btc-ink-2) !important; box-shadow: inset 0 0 0 1px var(--btc-line); font-variant-numeric: tabular-nums; }
+.btc-ui .xe-seg > a.active .badge { background: var(--btc-ink) !important; color: #fff !important; box-shadow: none; }
+
+/* ---------- tables ---------- */
+.btc-ui .table-responsive { max-height: calc(100vh - 230px); }
+.btc-ui .table { --bs-table-hover-bg: #f3f7fa; color: var(--btc-ink); margin-bottom: 0; }
+.btc-ui .table > thead > tr > th { position: sticky; top: 0; z-index: 2; background: var(--btc-wash) !important; color: var(--btc-ink-2) !important; font-size: .7rem !important;
+    font-weight: 700; border-bottom: 1px solid var(--btc-line) !important; padding: 9px 10px; white-space: nowrap; }
+.btc-ui .table > tbody > tr > td { padding: 9px 10px; border-color: var(--btc-line-2); font-size: .78rem; vertical-align: middle; }
+.btc-ui .table > tbody > tr[role="button"], .btc-ui .table > tbody > tr[data-open] { cursor: pointer; }
+.btc-ui .table .text-end, .btc-ui .table td.num, .btc-ui .table th.num { font-variant-numeric: tabular-nums; }
+.btc-ui .table td.fw-semibold { color: var(--btc-ink); }
+.btc-ui .table .small.text-muted, .btc-ui .table .text-muted { color: var(--btc-mute) !important; }
+.btc-ui .table td .badge { font-weight: 700; border-radius: 50px; padding: 3px 8px; font-size: .68rem; }
+.btc-ui .pagination { margin: 10px 0 0; }
+
+/* ---------- KPI cards (dashboards) ---------- */
+.btc-ui .btc-kpi { position: relative; border: 1px solid var(--btc-line); border-radius: var(--btc-r); padding: 12px 14px 12px 16px; background: var(--btc-paper); height: 100%; overflow: hidden; }
+.btc-ui .btc-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--btc-brand); }
+.btc-ui .row > div:nth-child(5n+2) > .btc-kpi::before { background: var(--btc-fin); }
+.btc-ui .row > div:nth-child(5n+3) > .btc-kpi::before { background: var(--btc-wait); }
+.btc-ui .row > div:nth-child(5n+4) > .btc-kpi::before { background: var(--btc-done); }
+.btc-ui .row > div:nth-child(5n+5) > .btc-kpi::before { background: var(--btc-back); }
+.btc-ui .btc-kpi .v { font-size: 1.3rem; font-weight: 800; color: var(--btc-ink); font-variant-numeric: tabular-nums; letter-spacing: -.3px; margin: 2px 0; }
+.btc-ui .btc-kpi .l { font-size: .72rem; color: var(--btc-mute); }
+.btc-ui .btc-kpi .l:first-child { color: var(--btc-ink-2); font-weight: 600; }
+/* stage counts on the dashboard */
+.btc-stagebar { display: flex; flex-wrap: wrap; gap: 6px; }
+.btc-stagebar a, .btc-stagebar span.btc-stage { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 8px; padding: 5px 6px 5px 4px; }
+.btc-stagebar a:hover { background: var(--btc-wash); }
+.btc-stagebar .btc-stage-n { font-size: .78rem; font-weight: 800; color: var(--btc-ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- forms ---------- */
+.btc-ui .form-label, .btc-label, #btcCaseModal .btc-label, #btcNewModal .btc-label { font-size: .7rem; font-weight: 600; color: var(--btc-ink-2); margin-bottom: 3px; }
+.btc-ui .form-control, .btc-ui .form-select, #btcCaseModal .form-control, #btcCaseModal .form-select, #btcNewModal .form-control, #btcNewModal .form-select {
+    border-color: var(--btc-line); border-radius: 7px; color: var(--btc-ink); }
+.btc-ui .form-control:focus, .btc-ui .form-select:focus, #btcCaseModal .form-control:focus, #btcCaseModal .form-select:focus, #btcNewModal .form-control:focus, #btcNewModal .form-select:focus {
+    border-color: var(--btc-brand); box-shadow: 0 0 0 3px rgba(21, 100, 140, .14); }
+.btc-ui .form-control[readonly], #btcCaseModal .form-control[readonly] { background: var(--btc-wash); }
+.btc-ui .alert { border-radius: 9px; border-color: var(--btc-line); }
+.btc-ui .alert-light { background: var(--btc-wash); color: var(--btc-ink-2); }
+
+/* ---------- the case window ---------- */
+#btcCaseModal .modal-content, #btcNewModal .modal-content { border: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(19, 41, 61, .28); }
+#btcCaseModal .modal-header, #btcNewModal .modal-header { background: var(--btc-ink); color: #fff; border-bottom: 0; padding: 12px 18px; }
+#btcCaseModal .modal-header .modal-title, #btcNewModal .modal-header .modal-title { color: #fff; font-weight: 700; font-size: 1rem; letter-spacing: -.2px; }
+#btcCaseModal .modal-header .btn-close, #btcNewModal .modal-header .btn-close { filter: invert(1) grayscale(1); opacity: .8; }
+#btcCaseModal .modal-body, #btcNewModal .modal-body { background: var(--btc-wash); }
+#btcCaseModal .modal-footer, #btcNewModal .modal-footer { background: #fff; border-top: 1px solid var(--btc-line); }
+#btcCaseModal .border.rounded, #btcNewModal .border.rounded { background: #fff; border-color: var(--btc-line) !important; border-radius: var(--btc-r) !important; }
+#btcCaseModal .fw-semibold.small { color: var(--btc-ink); }
+#btcCaseModal .table { --bs-table-bg: #fff; }
+#btcCaseModal .table th, #btcCaseModal .table-light { background: var(--btc-wash) !important; color: var(--btc-ink-2); }
+#btcCaseModal .btc-log { border-left: 2px solid var(--btc-line); padding-left: 10px; margin-bottom: 8px; font-size: .72rem; color: var(--btc-ink-2); }
+#btcCaseModal .btc-step { border-radius: 50px; padding: 2px 9px; font-size: .68rem; font-weight: 600; background: var(--btc-wash); color: var(--btc-mute); }
+#btcCaseModal .btc-step.done { background: var(--btc-done-bg); color: var(--btc-done); }
+#btcCaseModal .btc-step.now { background: var(--btc-ink); color: #fff; }
+#btcCaseModal .btc-casehead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#btcCaseModal .modal-header .btc-pill { background: rgba(255, 255, 255, .14); color: #fff; }
+/* the punch form: tables and leg blocks */
+#btcCaseModal .btc-ptable .table td { padding: 3px; }
+#btcCaseModal .btc-prow.border { background: #fff; }
+#btcCaseModal .btc-ptot { color: var(--btc-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+#btcCaseModal #btcFocusOut table { font-variant-numeric: tabular-nums; }
+/* sections of the new-request form */
+#btcNewModal .btc-trip, #btcNewModal .btc-notrip { transition: none; }
+
+/* ---------- buttons ---------- */
+.btc-ui .xe-btn, #btcCaseModal .xe-btn { border-radius: 7px; }
+.btc-ui .btn-primary, #btcCaseModal .btn-primary, #btcNewModal .btn-primary { background: var(--btc-brand); border-color: var(--btc-brand); }
+.btc-ui .btn-primary:hover, #btcCaseModal .btn-primary:hover, #btcNewModal .btn-primary:hover { background: #0f5072; border-color: #0f5072; }
+
+@media (max-width: 768px) {
+    .btc-nav { gap: 8px; }
+    .btc-nav-group, .btc-pipe, .btc-nav-row { width: 100%; }
+    .btc-pipe a, .btc-nav-row a { padding: 6px 9px; }
+    .btc-ui .table-responsive { max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .btc-nav-row a, .btc-pipe a { transition: none; }
+}

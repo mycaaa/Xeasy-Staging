@@ -2,15 +2,9 @@
 @extends('layouts.app')
 @section('content')
 @php $inr = fn ($n) => '₹'.number_format((float) $n, 0); @endphp
-<style>
-    .btc-kpi { border: 1px solid #e8edf3; border-radius: 12px; padding: 12px 14px; background: #fff; height: 100%; }
-    .btc-kpi .v { font-size: 1.25rem; font-weight: 800; color: #1e293b; }
-    .btc-kpi .l { font-size: .72rem; color: #64748b; }
-    .btc-small td, .btc-small th { font-size: .78rem; }
-</style>
-<div class="page-content"><div class="container-fluid xe-screen">
+<div class="page-content"><div class="container-fluid xe-screen btc-ui">
     @include('admin.btc.pages._nav', ['title' => 'BTC Dashboard', 'icon' => 'ri-dashboard-3-line', 'sub' => 'Live BTC requests you are allowed to see'])
-    <div class="alert alert-light border py-2 small mb-3"><i class="ri-eye-line me-1"></i>Showing: <b>{{ $scope['label'] }}</b></div>
+    <div class="alert alert-light py-2 small mb-3"><i class="ri-eye-line me-1"></i>Showing: <b>{{ $scope['label'] }}</b></div>
 
     <div class="row g-2 mb-3">
         @foreach ([
@@ -64,9 +58,11 @@
         <div class="col-12">
             <section class="xe-section">
                 <div class="xe-section-hdr"><span class="xe-section-title"><i class="ri-flow-chart"></i>Requests by stage</span></div>
-                <div class="xe-section-body d-flex flex-wrap gap-2">
+                <div class="xe-section-body btc-stagebar">
                     @forelse ($byStatus as $st => $n)
-                        @if ($links)<a class="xe-btn xe-btn-plain" href="{{ route('btc.register', ['status' => $st]) }}">{{ config("btc.statuses.$st", $st) }} <span class="xe-count">{{ $n }}</span></a>@else<span class="xe-btn xe-btn-plain">{{ config("btc.statuses.$st", $st) }} <span class="xe-count">{{ $n }}</span></span>@endif
+                        {{-- BTC-UI-01: each stage as its status pill with the count --}}
+                        @php $pill = '<span class="btc-pill btc-pill--'.e(config("btc.status_tones.$st", 'stop')).'">'.e(config("btc.statuses.$st", $st)).'</span><span class="btc-stage-n">'.(int) $n.'</span>'; @endphp
+                        @if ($links)<a href="{{ route('btc.register', ['status' => $st]) }}">{!! $pill !!}</a>@else<span class="btc-stage">{!! $pill !!}</span>@endif
                     @empty
                         <span class="text-muted small">No BTC requests yet.</span>
                     @endforelse
