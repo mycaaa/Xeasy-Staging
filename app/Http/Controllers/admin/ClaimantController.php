@@ -1025,7 +1025,11 @@ class ClaimantController extends Controller
         $claimTypes = self::exDb()->table('claimtype')->where('ClaimStatus', 'A')->where('cgId', '!=', 7)->where('cgId', 1)->whereNotIn('ClaimId', [7, 19, 20])->whereRaw("NOT (ClaimName = 'Phone Fax' AND DATE(NOW()) >= '2025-04-01')")->orderBy('cgId')->orderBy('ClaimId')->select('ClaimId', 'ClaimName')->get();
         $financialYears = [6 => ['from' => '2024-04-01', 'to' => '2025-03-31'], 7 => ['from' => '2025-04-01', 'to' => '2026-03-31']];
 
-        return response()->json(['success' => true, 'claimTypes' => $claimTypes, 'fyearId' => $yearId, 'financialYear' => $financialYears[$yearId] ?? null]);
+        // MONTH-LOCK-02 (testing point 33): the submitted months, so the form says at once that their bills are refused
+        $locked = \App\Services\Claims\MonthLock::closedMonths((string) session('expense_connection', \App\Helpers\DatabaseSwitcher::getExpenseConnection()), (int) $yearId, (int) $employeeId);
+
+        return response()->json(['success' => true, 'claimTypes' => $claimTypes, 'fyearId' => $yearId, 'financialYear' => $financialYears[$yearId] ?? null,
+            'lockedMonths' => $locked, 'lockedNames' => array_map(fn ($m) => \App\Services\Claims\MonthLock::name($m), $locked)]);
     }
 
     public function extractClaimData(Request $request)

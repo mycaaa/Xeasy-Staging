@@ -38,7 +38,11 @@ class MonthLock
     }
 
     /**
-     * The claim month for a bill or an activity: its own month, or the current month when its own is submitted.
+     * The claim month for a bill or an activity: its own month while that month is not submitted.
+     * MONTH-LOCK-02 (27 Nov 2026, testing point 33): a submitted month is locked for any further bill, whatever stage
+     * the claim is at - the bill is refused (it used to go into the current month's claim, where it showed in Draft and
+     * Data Punching but never reached the verifier with the submitted claim). Finance (Super Admin / Admin) reopens the
+     * month (Employee page > Return) when a bill really has to be added; then uploading works as usual.
      *
      * @return array{0:int|null, 1:string|null} [month, message]; month null = refused (message says why)
      */
@@ -48,16 +52,41 @@ class MonthLock
         if (! self::closed($conn, $yearId, $empId, $own)) {
             return [$own, null];
         }
-        $now = now('Asia/Kolkata');
-        $cur = (int) $now->format('n');
-        $fyStart = (int) $now->format('n') >= 4 ? (int) $now->format('Y') : (int) $now->format('Y') - 1;
-        $sameYear = (int) app(\App\Services\ClaimRules\ClaimSubmissionValidator::class)->fyStartYear($yearId, $conn) === $fyStart;
-        if (! $sameYear || $cur === $own || self::closed($conn, $yearId, $empId, $cur)) {
-            return [null, 'Your '.self::name($own).' claim is already submitted, so this bill cannot be added to it'
-                .($sameYear && $cur !== $own ? ' and the '.self::name($cur).' claim is submitted too' : '').'. Please contact Finance.'];
+
+        return [null, self::lockedMessage($own)];
+    }
+
+    /** MONTH-LOCK-02: what the employee is told when a bill of a submitted month is refused. */
+    public static function lockedMessage(int $month): string
+    {
+        return 'Your '.self::name($month).' claim is already submitted, so no more bills can be added to '.self::name($month)
+            .'. If a bill has to be added, ask Finance (Super Admin / Admin) to reopen '.self::name($month).'.';
+    }
+
+    /** MONTH-LOCK-02: the submitted months of an employee in a year (for the upload form). */
+    public static function closedMonths(string $conn, int $yearId, int $empId): array
+    {
+        if ($empId <= 0 || $yearId <= 0) {
+            return [];
+        }
+        try {
+            return DB::connection($conn)->table("y{$yearId}_monthexpensefinal")->where('EmployeeID', $empId)->where('YearId', $yearId)
+                ->where('Status', 'Closed')->pluck('Month')->map(fn ($m) => (int) $m)->unique()->values()->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /** MONTH-LOCK-02: the claim month of a bill (ClaimMonth, else its bill date). */
+    public static function claimMonth(string $conn, int $yearId, int $expId): int
+    {
+        try {
+            $r = DB::connection($conn)->table("y{$yearId}_expenseclaims")->where('ExpId', $expId)->first(['ClaimMonth', 'BillDate']);
+        } catch (\Throwable $e) {
+            return 0;
         }
 
-        return [$cur, 'Your '.self::name($own).' claim is already submitted: this bill is added to your '.self::name($cur).' claim.'];
+        return $r ? ((int) $r->ClaimMonth ?: (int) date('n', strtotime((string) $r->BillDate))) : 0;
     }
 
     /** A DA or an odometer reading of a submitted month is refused. */

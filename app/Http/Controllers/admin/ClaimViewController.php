@@ -1869,6 +1869,15 @@ class ClaimViewController extends Controller
         }
         $owner = \App\Support\RecordAccess::claimOwner((int) $expId, (int) session('year_id'), (string) session('expense_connection'));
         if ($owner !== null && (int) $owner === (int) \App\Support\RecordAccess::selfId($user)) {
+            // MONTH-LOCK-02 (27 Nov 2026, testing point 33): the employee's own bill of a submitted month stays as
+            // submitted - no punching or new file until Finance reopens the month
+            $conn = (string) session('expense_connection');
+            $yid = (int) session('year_id');
+            $m = \App\Services\Claims\MonthLock::claimMonth($conn, $yid, (int) $expId);
+            if ($m && \App\Services\Claims\MonthLock::closed($conn, $yid, (int) $owner, $m)) {
+                return $this->jsonError(\App\Services\Claims\MonthLock::lockedMessage($m), 423);
+            }
+
             return null;
         }
         \Illuminate\Support\Facades\Log::warning('APPR-RO-01: claim edit refused', ['user' => $user->id, 'exp_id' => $expId, 'path' => request()->path()]);

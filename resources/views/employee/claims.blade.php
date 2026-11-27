@@ -298,6 +298,7 @@
                             </label>
                             <input type="text" class="form-control" value="" id="uploadBillDate" name="uploadBillDate"
                                 placeholder="dd/mm/yyyy" required />
+                            <div class="form-text text-danger d-none" id="uploadLockedNote"></div>{{-- MONTH-LOCK-02 --}}
                         </div>
                     </div>
                     <div class="row">
@@ -1122,6 +1123,10 @@ $companyId = session('company_id');
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
+                        // MONTH-LOCK-02 (27 Nov 2026, testing point 33): bills of a submitted month are not accepted
+                        window.uploadLockedMonths = (response.lockedMonths || []).map(Number);
+                        $("#uploadLockedNote").toggleClass("d-none", !window.uploadLockedMonths.length)
+                            .text(window.uploadLockedMonths.length ? "Submitted (locked) months: " + (response.lockedNames || []).join(", ") + ". Bills of these months cannot be uploaded unless Finance reopens the month." : "");
                         $("#uploadClaimType")
                             .empty()
                             .append('<option value="">--Select Claim Type--</option>');
@@ -2472,6 +2477,13 @@ $companyId = session('company_id');
 
             if (!billDate) {
                 showMessage("Bill date is required.", "danger", "#uploadClaimMessage");
+                return;
+            }
+
+            const lockM = Number((billDate.split(/[-\/.]/)[1]) || 0);   // MONTH-LOCK-02: dd/mm/yyyy
+            if (lockM && (window.uploadLockedMonths || []).includes(lockM)) {
+                const mn = new Date(2000, lockM - 1, 1).toLocaleString("en-IN", {month: "short"});
+                showMessage("Your " + mn + " claim is already submitted, so no more bills can be added to " + mn + ". If a bill has to be added, ask Finance (Super Admin / Admin) to reopen " + mn + ".", "danger", "#uploadClaimMessage");
                 return;
             }
 

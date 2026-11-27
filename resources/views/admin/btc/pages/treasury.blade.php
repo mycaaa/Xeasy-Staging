@@ -10,7 +10,7 @@
             @if (! empty($focus))
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                     <span class="small fw-semibold">Focus import files</span>
-                    @foreach (['jv' => 'JV - vendor bills', 'ejv' => 'Employee JV', 'bank' => 'Bank payment (release)'] as $k => $l)
+                    @foreach (['jv' => 'JV - vendor bills', 'ejv' => 'Employee JV (bills exported before 27 Nov)', 'bank' => 'Bank payment (release)'] as $k => $l)
                         <span class="d-inline-flex gap-1">
                             <a class="xe-btn xe-btn-green" href="{{ route('btc.treasury.focus', $k) }}" title="Gives the next document numbers to the bills that pass the checks"><i class="ri-file-excel-2-line"></i> {{ $l }} <span class="badge bg-light text-dark">{{ $focus[$k] }}</span></a>
                             <a class="xe-btn xe-btn-plain" href="{{ route('btc.treasury.focus', [$k, 'check' => 1]) }}" title="Checks only - no document numbers used">Check</a>

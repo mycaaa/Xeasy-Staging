@@ -630,7 +630,7 @@ class BtcV2Controller extends Controller
                 'focus' => $focus ? [
                     'jv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('finance_at')->whereNull('focus_jv_doc')
                         ->when($need, fn ($w) => $w->whereNotNull('pay_instructed_at'))->count(),
-                    'ejv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->count(),
+                    'ejv' => BtcCase::where('company_id', (int) session('company_id', 1))->whereNotIn('status', ['cancelled', 'rejected'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->count(),   // BTC-JV-34
                     'bank' => DB::table('btc_payments as p')->join('btc_cases as c', 'c.id', '=', 'p.btc_case_id')->where('c.company_id', (int) session('company_id', 1))
                         ->where('p.status', 'success')->whereNull('p.focus_doc')->count(),
                 ] : null,
@@ -732,6 +732,9 @@ class BtcV2Controller extends Controller
                 ->when($ids, fn ($w) => $w->whereIn('id', $ids))
                 ->when(! $ids, fn ($w) => $w->whereDate('focus_exported_at', $request->date('exported_on') ?? now()))->orderBy('id')->limit(500)->get();
             $out = $x->vendorJv($cases, false);
+            // BTC-JV-34 (testing point 34): the employee JV rows of the same bills (made at the same Focus Export)
+            $ejvOut = $x->employeeJv($cases->filter(fn ($c) => $c->focus_ejv_doc), false);
+            $out['check'] = array_merge($out['check'], $ejvOut['check']);
             $assign = true;   // the rows carry their own DocNo
             $cols = \App\Services\Btc\BtcFocusExport::JV_COLS;
             $name = 'Focus_import_BTC';
@@ -742,7 +745,9 @@ class BtcV2Controller extends Controller
             $cols = \App\Services\Btc\BtcFocusExport::JV_COLS;
             $name = 'Jv_import_BTC';
         } elseif ($kind === 'ejv') {
-            $cases = $base->whereIn('status', ['fin_approved', 'paid', 'closed'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->limit(500)->get();
+            // BTC-JV-34: the employee JV is made at Focus Export on the Punch Screen; here only bills exported before that
+            // change (vendor JV given, no employee JV yet) - at any stage
+            $cases = $base->whereNotIn('status', ['cancelled', 'rejected'])->whereNotNull('focus_jv_doc')->whereNull('focus_ejv_doc')->limit(500)->get();
             $out = $x->employeeJv($cases, $assign);
             $cols = \App\Services\Btc\BtcFocusExport::EJV_COLS;
             $name = 'Employee_jv_import_BTC';
@@ -791,6 +796,16 @@ class BtcV2Controller extends Controller
         }
         if ($again) {
             $sheets = [$sheet('Sheet2', $cols, $out['rows'], $dateCols)];
+            // BTC-JV-34: the employee JV import (Sheet1, as in Finance's sample) beside the vendor JV
+            $ejvDates = [];
+            foreach (\App\Services\Btc\BtcFocusExport::EJV_COLS as $i => $h) {
+                if (isset(\App\Services\Btc\BtcFocusExport::DATE_FORMATS['ejv'][$h])) {
+                    $ejvDates[\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1)] = \App\Services\Btc\BtcFocusExport::DATE_FORMATS['ejv'][$h];
+                }
+            }
+            if (! empty($ejvOut['rows'])) {
+                $sheets[] = $sheet('Sheet1', \App\Services\Btc\BtcFocusExport::EJV_COLS, $ejvOut['rows'], $ejvDates);
+            }
         }
         $sheets[] = $sheet('Check', ['File', 'BTC ID', 'Result', 'What is wrong / pending', 'Employee(s)', 'Entity', 'Vendor (code)', 'Ledger', 'Sub ledger / cost center',
             'Dept / sub dept / BU / region / zone / function / vertical / location / state', 'Amount'], $check);

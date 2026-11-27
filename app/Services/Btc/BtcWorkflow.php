@@ -1053,12 +1053,15 @@ class BtcWorkflow
             'claim_overlap_override' => 1, '__at_punch' => 1] + array_intersect_key($d, array_flip(['focus_expense_type', 'focus_activity_type', 'focus_activity_head',
             'tds_rate', 'advance_adjusted', 'tds_threshold_override', 'remark'])), $user);
         $fx = new BtcFocusExport;
-        $chk = $fx->vendorJv(collect([$c]), false);
-        $bad = collect($chk['check'])->where('result', '!=', 'Pass')->pluck('problems')->filter()->implode('; ');
+        // BTC-JV-34 (27 Nov 2026, testing point 34): the employee JV (expense booking) is made here too, with the vendor
+        // JV - it no longer waits for Treasury; a guest-only bill has none
+        $chk = array_merge($fx->vendorJv(collect([$c]), false)['check'], $fx->employeeJv(collect([$c]), false)['check']);
+        $bad = collect($chk)->where('result', '!=', 'Pass')->pluck('problems')->filter()->unique()->implode('; ');
         if ($bad !== '') {
             throw new RuntimeException('Not exported - for Finance to set up: '.$bad.'.');
         }
         $fx->vendorJv(collect([$c]), true);   // gives the DocNo (kept on the case)
+        $fx->employeeJv(collect([$c]), true);   // the EJV DocNo, when the bill has an employee's share
 
         return (string) $c->focus_jv_doc;
     }

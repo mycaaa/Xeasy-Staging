@@ -583,6 +583,9 @@ class BtcController extends Controller
                 'Zone' => $m['zone'], 'Function' => $m['function'], 'Vertical' => $m['vertical'], 'Location' => $m['location'], 'State' => $m['state']]
                 : ['Employee' => $code.' '.$name.' - not in the employee master'];
         }
+        foreach (\App\Services\Btc\BtcFocusExport::persons($copy)['guests'] as $g) {   // BTC-JV-34: guests - no Employee BTC
+            $fetched[] = ['Employee' => 'Guest: '.$g, 'Account' => 'expense ledger (no Employee BTC, no employee JV)'];
+        }
         $first = $fetched ? $fx->employee((string) array_key_first(\App\Services\Btc\BtcFocusExport::pax($copy))) : null;
         [$lc, $sc, $lerr] = \App\Services\Btc\BtcFocusExport::ledger($copy, $first['entity'] ?? 'VNR');
         [$narr] = \App\Services\Btc\BtcFocusExport::narration($copy, \App\Services\Btc\BtcFocusExport::pax($copy), \App\Services\Btc\BtcFocusExport::vendorState($copy) ?: (string) ($first['state_name'] ?? ''));

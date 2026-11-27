@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Schema;
  * BTC-FOCUS-01 (20 Nov 2026, tracker tab "Data Punching Form & Finance approval screens", items 7 and 8).
  *
  *  jv   - Focus JV import for the vendor bill (one row per employee / pax, amount split), DocNo JV/BTC/<FY>/0001
- *  ejv  - Focus Employee JV import (expense booking to the ledger), DocNo EJV/BTC/<FY>/0001, only when approved and,
- *         for air / rail / bus, the proof of travel is received
+ *  ejv  - Focus Employee JV import (expense booking to the ledger), DocNo EJV/BTC/<FY>/0001, made with the vendor JV
+ *         at Focus Export on the Punch Screen; none for a guest's share (BTC-JV-34, 27 Nov 2026)
  *  bank - Focus Bank Payment (non cheque) import of the payments Treasury recorded, DocNo BP/BTC/<FY>/0001
  *
  * Employee values come from HRIMS by employee code (never by name); ledger / sub-ledger codes from config
@@ -201,18 +201,19 @@ class BtcFocusExport
         }
     }
 
-    /** mm-dd-YYYY, as the narration wants it. */
+    /**
+     * The narration date. BTC-JV-34 (27 Nov 2026, testing point 34): date first, then month (dd-mm-YYYY) - it was
+     * mm-dd-YYYY. Nothing else of the narration changes.
+     */
     private static function mdy($d): ?string
     {
-        $x = self::dmy($d);
-
-        return $x ? Carbon::createFromFormat('d-m-Y', $x)->format('m-d-Y') : null;
+        return self::dmy($d);
     }
 
     /**
      * BTC-FOCUS-05 (25 Nov 2026, testing point 19): "Being {Mode} of {Employee Name} & {Person Name} stay in {Vendor Name}
      * in room no. {Room No} from Dt.- {Stay From} to dt.- {Stay To} vide bill no.- {Inv No} dt.-{Inv Date} For The Purpose
-     * of {Purpose}", dates mm-dd-YYYY, the Punch Screen's narration remark at the end. Null parts are left out.
+     * of {Purpose}", dates dd-mm-YYYY (BTC-JV-34), the Punch Screen's narration remark at the end. Null parts are left out.
      */
     public static function narration(BtcCase $c, array $pax, string $stateName): array
     {
@@ -280,6 +281,159 @@ class BtcFocusExport
         return 'E'.str_pad(preg_replace('/\D/', '', $code), 4, '0', STR_PAD_LEFT);
     }
 
+    /** BTC-JV-34: "E1001", "1001", "e01001" -> "1001" (the employee code as the master keeps it). */
+    private static function bareCode(string $x): string
+    {
+        $x = strtoupper(trim($x));
+
+        return preg_replace('/^E0*/', '', $x) ?: $x;
+    }
+
+    /**
+     * BTC-JV-34 (27 Nov 2026, testing point 34): who the bill is for - employees (code => name) and guests (names).
+     * Employees: the requester and the co-travellers; for a Bus "Team + Guest" request the passengers as entered (the
+     * requester only when he is one of them). Guests: the guest names of the request.
+     *
+     * @return array{employees: array<string,string>, guests: list<string>}
+     */
+    public static function persons(BtcCase $c): array
+    {
+        $emp = self::pax($c);
+        $pj = json_decode((string) ($c->passengers_json ?? ''), true);
+        if (is_array($pj) && $pj && $c->emp_code) {
+            $codes = array_map(fn ($p) => self::bareCode((string) ($p['code'] ?? '')), array_filter($pj, fn ($p) => ($p['type'] ?? '') === 'employee'));
+            if (! in_array(self::bareCode((string) $c->emp_code), $codes, true)) {
+                unset($emp[(string) $c->emp_code]);
+            }
+        }
+        $guests = array_values(array_filter(array_map('trim', explode(',', (string) ($c->guests ?? ''))), fn ($g) => $g !== ''));
+
+        return ['employees' => $emp, 'guests' => $guests];
+    }
+
+    /** BTC-JV-34: the expense type of a journey leg from its Mode (Air / Train / Rail / Bus); else the bill's. */
+    private static function legType(BtcCase $c, string $mode): string
+    {
+        $m = strtolower(trim($mode));
+        $cat = str_contains($m, 'air') || str_contains($m, 'flight') ? 'air' : (str_contains($m, 'train') || str_contains($m, 'rail') ? 'train' : (str_contains($m, 'bus') ? 'bus' : null));
+        if ($cat === null || $cat === $c->category) {
+            return self::expenseType($c);
+        }
+
+        return (string) config('btc.focus_export.expense_type_by_category.'.$cat, self::expenseType($c));
+    }
+
+    /**
+     * BTC-JV-34: the bill as accounting lines - one per line of the punch table that has a line total (journey legs,
+     * hotel line items, invoice items), each with its own expense type and people; what the lines do not cover
+     * (service charge, its GST, rounding) is one more line. A bill without such a table is one line.
+     *
+     * @return array{0: list<array{label:string, type:string, amount:float, employees:array<string,string>, guests:list<string>}>, 1: list<string>}
+     */
+    public function lines(BtcCase $c): array
+    {
+        $who = self::persons($c);
+        $total = round((float) $c->bill_amount, 2);
+        $p = json_decode((string) ($c->punch_json ?? ''), true) ?: [];
+        $form = (string) config('btc.punch_form_of.'.$c->category, '');
+        $err = [];
+        $lines = [];
+        foreach ((array) config("btc.punch_forms.{$form}.tables", []) as $key => $def) {
+            $col = $def['total'] ?? null;
+            if (! $col) {
+                continue;
+            }
+            foreach ((array) ($p['_t'][$key] ?? []) as $i => $r) {
+                $amt = round((float) ($r[$col] ?? 0), 2);
+                if (abs($amt) < 0.005) {
+                    continue;
+                }
+                $emps = $who['employees'];
+                $guests = $who['guests'];
+                $codes = array_values(array_filter(array_map(fn ($x) => self::bareCode($x), preg_split('/[\s,;]+/', (string) ($r['Employees'] ?? ''))), fn ($x) => $x !== ''));
+                if ($codes) {   // the line names its employees: only they
+                    $emps = [];
+                    foreach ($codes as $code) {
+                        $m = $this->employee($code);
+                        if (! $m) {
+                            $err[] = ($def['title'] ?? $key).' '.($i + 1).": employee code {$code} not in the employee master";
+
+                            continue;
+                        }
+                        $emps[$m['code']] = $m['name'];
+                    }
+                    $guests = [];
+                }
+                $type = $key === 'legs' ? self::legType($c, (string) ($r['Mode'] ?? '')) : self::expenseType($c);
+                $label = $key === 'legs' ? trim(($r['Mode'] ?? '').' '.trim(($r['Journey From'] ?? '').'-'.($r['Journey Upto'] ?? ''), '-').' '.($r['Ticket Number'] ?? $r['PNR Number'] ?? ''))
+                    : trim((string) ($r['Particulars'] ?? $r['Particular'] ?? ''));
+                $lines[] = ['label' => ($def['title'] ?? $key).' '.($i + 1).($label !== '' ? ': '.$label : ''), 'type' => $type, 'amount' => $amt, 'employees' => $emps, 'guests' => $guests];
+            }
+            if ($lines) {
+                break;   // one table carries the amounts
+            }
+        }
+        $sum = round(array_sum(array_column($lines, 'amount')), 2);
+        if ($lines && $sum - $total > 0.009) {
+            $err[] = 'the punched lines add up to Rs '.number_format($sum, 2).', more than the bill total Rs '.number_format($total, 2);
+        }
+        $rest = round($total - $sum, 2);
+        if (! $lines || abs($rest) > 0.009) {
+            $lines[] = ['label' => $lines ? 'Other charges on the bill (service charge, GST, rounding)' : 'Bill', 'type' => self::expenseType($c), 'amount' => $rest,
+                'employees' => $who['employees'], 'guests' => $who['guests']];
+        }
+
+        return [$lines, $err];
+    }
+
+    /**
+     * BTC-JV-34: each line split equally among its people (paisa difference on the last) - one entry per person per line.
+     * An employee's share: vendor JV Dr Employee BTC / Cr vendor, and the employee JV Dr expense / Cr Employee BTC.
+     * A guest's share: vendor JV Dr expense / Cr vendor only - no Employee BTC, no employee JV.
+     *
+     * @return array{0: list<array{kind:string, code:string, name:string, type:string, amount:float, line:string}>, 1: list<string>}
+     */
+    public function entries(BtcCase $c): array
+    {
+        [$lines, $err] = $this->lines($c);
+        $out = [];
+        foreach ($lines as $l) {
+            $people = [];
+            foreach ($l['employees'] as $code => $name) {
+                $people[] = ['kind' => 'employee', 'code' => (string) $code, 'name' => (string) $name];
+            }
+            foreach ($l['guests'] as $g) {
+                $people[] = ['kind' => 'guest', 'code' => '', 'name' => $g];
+            }
+            if (! $people) {
+                $err[] = $l['label'].': no employee or guest';
+
+                continue;
+            }
+            $n = count($people);
+            $each = $l['amount'] >= 0 ? floor($l['amount'] / $n * 100) / 100 : ceil($l['amount'] / $n * 100) / 100;
+            foreach ($people as $i => $who) {
+                $amt = $i === $n - 1 ? round($l['amount'] - $each * ($n - 1), 2) : $each;
+                $out[] = $who + ['type' => $l['type'], 'amount' => $amt, 'line' => $l['label']];
+            }
+        }
+
+        return [$out, $err];
+    }
+
+    /** BTC-JV-34: the entity of the bill for a guest's share - the requester's company (else the bill's company). */
+    private function billEntity(BtcCase $c, array $entries): array
+    {
+        $m = $c->emp_code ? $this->employee((string) $c->emp_code) : null;
+        foreach ($entries as $e) {
+            if (! $m && $e['kind'] === 'employee') {
+                $m = $this->employee($e['code']);
+            }
+        }
+
+        return [$m, $m['entity'] ?? ((int) $c->company_id === 11 ? 'VVNR' : 'VNR')];
+    }
+
     /** Checks before any entry (tracker list); returns the problems. */
     public function validate(BtcCase $c, array $pax): array
     {
@@ -302,8 +456,9 @@ class BtcFocusExport
         if ($c->employee_id && ! $c->manager_action_at && $c->route !== 'direct_bill') {
             $e[] = 'reporting manager (HOD) approval not recorded';
         }
-        if (! $pax) {
-            $e[] = 'no employee on the bill';
+        $who = self::persons($c);
+        if (! $pax && ! $who['guests']) {
+            $e[] = 'no employee or guest on the bill';   // BTC-JV-34: a guest-only bill is booked straight to expense
         }
         foreach (array_keys($pax) as $code) {
             if (! $this->employee((string) $code)) {
@@ -326,6 +481,9 @@ class BtcFocusExport
 
     /**
      * Vendor JV rows for the cases. $assign = false: check only (no numbers given, nothing marked).
+     * BTC-JV-34 (27 Nov 2026, testing point 34): one row per person per bill line (see entries()); an employee's row
+     * Dr Employee BTC / Cr vendor, a guest's row Dr the expense ledger (Focus ledgers in BTC Settings, by the entity
+     * and the line's expense type) / Cr vendor. All rows of the bill under one DocNo.
      * @return array{rows: array, check: array}
      */
     public function vendorJv($cases, bool $assign): array
@@ -335,39 +493,52 @@ class BtcFocusExport
         foreach ($cases as $c) {
             $pax = self::pax($c);
             $err = $this->validate($c, $pax);
-            $first = $pax ? $this->employee((string) array_key_first($pax)) : null;
-            $entity = $first['entity'] ?? 'VNR';
-            [$ledger, $sub, $lerr] = self::ledger($c, $entity);
-            if ($lerr) {
-                $err[] = $lerr;
+            [$entries, $eerr] = $this->entries($c);
+            $err = array_merge($err, $eerr);
+            [$req, $billEntity] = $this->billEntity($c, $entries);
+            $first = $req;
+            $ledgers = [];
+            $ledgerOf = function (string $type, string $entity) use ($c, &$ledgers, &$err) {
+                $k = $type.'|'.$entity;
+                if (! isset($ledgers[$k])) {
+                    $ledgers[$k] = self::ledger($c->replicate()->forceFill(['focus_expense_type' => $type]), $entity);
+                    if ($ledgers[$k][2]) {
+                        $err[] = $ledgers[$k][2];
+                    }
+                }
+
+                return $ledgers[$k];
+            };
+            $be = fn (string $entity) => (string) (config('btc.focus_export.business_entity')[$entity] ?? '');
+            $plan = [];
+            foreach ($entries as $e) {
+                $m = $e['kind'] === 'employee' ? $this->employee($e['code']) : $req;
+                $entity = $m['entity'] ?? $billEntity;
+                [$ledger, $sub] = $ledgerOf($e['type'], $entity);
+                if ($be($entity) === '') {
+                    $err[] = "Business Entity for {$entity} not set (BTC_FOCUS_ENTITY_VVNR) - Finance to confirm";
+                }
+                if (! $m) {
+                    $err[] = 'no employee master for the dimensions of '.($e['kind'] === 'guest' ? 'the guest share (requester)' : $e['code']);
+                }
+                $plan[] = [$e, $m, $entity, $ledger, $sub];
             }
-            $be = (string) (config('btc.focus_export.business_entity')[$entity] ?? '');
-            if ($be === '') {
-                $err[] = "Business Entity for {$entity} not set (BTC_FOCUS_ENTITY_VVNR) - Finance to confirm";
-            }
-            [$narr, $nerr] = self::narration($c, $pax, self::vendorState($c) ?: (string) ($first['state_name'] ?? ''));
+            $err = array_values(array_unique($err));
+            [$narr, $nerr] = self::narration($c, self::persons($c)['employees'], self::vendorState($c) ?: (string) ($first['state_name'] ?? ''));   // BTC-JV-34: a guest-only bill names the guests only
             $err = array_merge($err, $nerr);
-            $date = $c->finance_at ?: now();
-            $check[] = $this->checkRow($c, 'JV', $err, $first, $entity, $ledger, $sub, $pax);
+            [$l0, $s0] = $plan ? [$plan[0][3], $plan[0][4]] : [null, null];
+            $check[] = $this->checkRow($c, 'JV', $err, $first, $billEntity, $l0, $s0, $pax, $entries);
             if ($err) {
                 continue;
             }
             $activity = self::activity($c);
-            // BTC-FOCUS-05: one row per employee, all rows of the bill under one DocNo; amount = bill total / employees,
-            // any paisa difference on the last row so the rows add up to the bill total
-            $n = count($pax);
-            $total = round((float) $c->bill_amount, 2);
-            $each = floor($total / $n * 100) / 100;
-            $i = 0;
             $doc = $c->focus_jv_doc ?: ($assign ? self::nextJvDoc(now(), (int) $c->company_id) : '(on export)');
             $at = $c->focus_exported_at ? Carbon::parse($c->focus_exported_at) : now();
-            foreach ($pax as $code => $name) {
-                $i++;
-                $m = $this->employee((string) $code);
-                $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;
-                $rows[] = [$doc, self::xlDate($at), $at->format('H:i:s'), $be, '', '', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
+            foreach ($plan as [$e, $m, $entity, $ledger, $sub]) {
+                $dr = $e['kind'] === 'employee' ? self::employeeAccount($e['code']) : (string) $ledger;
+                $rows[] = [$doc, self::xlDate($at), $at->format('H:i:s'), $be($entity), '', '', (string) $c->bill_no, self::xlDate($c->bill_date), $m['department'], $sub,
                     $m['business_unit'], $activity, $m['location'], $m['state'], $m['category'] ?? 'N/A', $m['crop'] ?? 'All Crop', $m['region'], $m['function'], $m['vertical'],
-                    $m['sub_department'], $m['zone'], self::employeeAccount((string) $code), strtoupper((string) $c->vendor_code), $amt, $narr, '', '', '', ''];
+                    $m['sub_department'], $m['zone'], $dr, strtoupper((string) $c->vendor_code), $e['amount'], $narr, '', '', '', ''];
             }
             if ($assign && ! $c->focus_jv_doc) {
                 $c->focus_jv_doc = $doc;
@@ -375,14 +546,20 @@ class BtcFocusExport
                 if ($c->exists) {
                     BtcCase::whereKey($c->id)->update(['focus_jv_doc' => $doc, 'focus_exported_at' => $c->focus_exported_at]);
                 }
-                $this->log($c, 'Focus JV '.$doc.' exported ('.$n.' row'.($n > 1 ? 's' : '').', Rs '.number_format($total, 2).')');
+                $n = count($plan);
+                $this->log($c, 'Focus JV '.$doc.' exported ('.$n.' row'.($n > 1 ? 's' : '').', Rs '.number_format((float) $c->bill_amount, 2).')');
             }
         }
 
         return ['rows' => $rows, 'check' => $check];
     }
 
-    /** Employee JV: only after payment approval and, for air / rail / bus, with the proof of travel received. */
+    /**
+     * Employee JV (expense booking): Dr the expense ledger / Cr Employee BTC, one row per employee per bill line.
+     * BTC-JV-34 (27 Nov 2026, testing point 34): made with the vendor JV at Focus Export on the Punch Screen (it used to
+     * wait for payment approval and Treasury's export); none for a guest's share; each line keeps its own expense
+     * ledger (by the employee's entity VNR / VVNR and the line's expense type, from the Focus ledgers in BTC Settings).
+     */
     public function employeeJv($cases, bool $assign): array
     {
         $rows = [];
@@ -390,51 +567,50 @@ class BtcFocusExport
         foreach ($cases as $c) {
             $pax = self::pax($c);
             $err = $this->validate($c, $pax);
-            if (! in_array($c->status, ['fin_approved', 'paid', 'closed'], true)) {
-                $err[] = 'Expense booking pending: payment approval not given yet';
+            [$entries, $eerr] = $this->entries($c);
+            $err = array_merge($err, $eerr);
+            $emp = array_values(array_filter($entries, fn ($e) => $e['kind'] === 'employee'));
+            [$req, $billEntity] = $this->billEntity($c, $entries);
+            $plan = [];
+            foreach ($emp as $e) {
+                $m = $this->employee($e['code']);
+                $entity = $m['entity'] ?? $billEntity;
+                [$ledger, $sub, $lerr] = self::ledger($c->replicate()->forceFill(['focus_expense_type' => $e['type']]), $entity);
+                if ($lerr) {
+                    $err[] = $lerr;
+                }
+                $be = (string) (config('btc.focus_export.business_entity')[$entity] ?? '');
+                if ($be === '') {
+                    $err[] = "Business Entity for {$entity} not set - Finance to confirm";
+                }
+                $plan[] = [$e, $entity, $be, $ledger, $sub];
             }
-            if (in_array($c->category, ['air', 'train', 'bus'], true) && in_array('boarding pass', $c->pendingDocuments(), true)) {
-                $err[] = 'Expense booking pending: proof of travel (boarding pass / ticket) not received';
-            }
-            if (! $c->focus_jv_doc) {
-                $err[] = 'Expense booking pending: export the vendor JV first';
-            }
-            $first = $pax ? $this->employee((string) array_key_first($pax)) : null;
-            $entity = $first['entity'] ?? 'VNR';
-            [$ledger, $sub, $lerr] = self::ledger($c, $entity);
-            if ($lerr) {
-                $err[] = $lerr;
-            }
-            $be = (string) (config('btc.focus_export.business_entity')[$entity] ?? '');
-            if ($be === '') {
-                $err[] = "Business Entity for {$entity} not set - Finance to confirm";
-            }
-            [$narr, $nerr] = self::narration($c, $pax, self::vendorState($c) ?: (string) ($first['state_name'] ?? ''));
+            $err = array_values(array_unique($err));
+            [$narr, $nerr] = self::narration($c, self::persons($c)['employees'], self::vendorState($c) ?: (string) ($req['state_name'] ?? ''));
             $err = array_merge($err, $nerr);
-            $check[] = $this->checkRow($c, 'EJV', $err, $first, $entity, $ledger, $sub, $pax);
-            if ($err) {
+            $row = $this->checkRow($c, 'EJV', $err, $req, $billEntity, $plan[0][3] ?? null, $plan[0][4] ?? null, $pax, $emp);
+            if (! $err && ! $emp) {
+                $row['problems'] = 'No employee JV: the bill is for guest(s) only - booked straight to expense in the vendor JV';
+            }
+            $check[] = $row;
+            if ($err || ! $emp) {
                 continue;
             }
-            $date = $c->fin_approved_at ?: now();
+            $date = $c->focus_exported_at ? Carbon::parse($c->focus_exported_at) : now();
             $activity = self::activity($c);
-            $mon = strtoupper(Carbon::parse($date)->format('M'));
-            $n = count($pax);
-            $total = round((float) $c->bill_amount, 2);
-            $each = floor($total / $n * 100) / 100;
-            $i = 0;
-            $docs = [];
+            $mon = strtoupper($date->format('M'));
             $doc = $c->focus_ejv_doc ?: ($assign ? self::nextDoc(config('btc.focus_export.employee_series'), $date, (int) $c->company_id) : '(on export)');   // BTC-FOCUS-05: one per bill
-            foreach ($pax as $code => $name) {
-                $i++;
-                $amt = $i === $n ? round($total - $each * ($n - 1), 2) : $each;   // equals the JV debit of this employee
-                $docs[] = $doc;
+            foreach ($plan as [$e, $entity, $be, $ledger, $sub]) {
                 // as in the sample: the dimensions stay blank in the employee JV (they are on the vendor JV)
-                $rows[] = [$doc, self::xlDate($date), self::employeeAccount((string) $code), $be, '', '', $narr, $mon, '', 'All Crop',
-                    '', '', $activity, 'N/A', $sub, '', '', '', '', '', $ledger, $amt];
+                $rows[] = [$doc, self::xlDate($date), self::employeeAccount($e['code']), $be, '', '', $narr, $mon, '', 'All Crop',
+                    '', '', $activity, 'N/A', $sub, '', '', '', '', '', $ledger, $e['amount']];
             }
             if ($assign && ! $c->focus_ejv_doc) {
-                BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => $doc, 'focus_ejv_at' => now()]);
-                $this->log($c, 'Focus Employee JV '.$doc.' exported');
+                $c->focus_ejv_doc = $doc;
+                if ($c->exists) {
+                    BtcCase::whereKey($c->id)->update(['focus_ejv_doc' => $doc, 'focus_ejv_at' => now()]);
+                }
+                $this->log($c, 'Focus Employee JV '.$doc.' exported ('.count($plan).' row'.(count($plan) > 1 ? 's' : '').')');
             }
         }
 
@@ -495,10 +671,14 @@ class BtcFocusExport
         return ['rows' => $rows, 'check' => $check];
     }
 
-    private function checkRow(BtcCase $c, string $type, array $err, ?array $m, string $entity, $ledger, $sub, array $pax): array
+    private function checkRow(BtcCase $c, string $type, array $err, ?array $m, string $entity, $ledger, $sub, array $pax, array $entries = []): array
     {
+        // BTC-JV-34: the entries (person, line, expense type, amount) when the bill has more than one
+        $people = $entries ? implode('; ', array_map(fn ($e) => trim(($e['kind'] === 'guest' ? 'Guest '.$e['name'] : $e['code'].' '.$e['name']).' - '.$e['type'].' '.number_format($e['amount'], 2)), $entries))
+            : implode(', ', array_map(fn ($k, $v) => $k.' '.$v, array_keys($pax), $pax));
+
         return ['type' => $type, 'case' => $c->case_no, 'result' => $err ? 'Fail' : 'Pass', 'problems' => implode('; ', $err),
-            'employee' => implode(', ', array_map(fn ($k, $v) => $k.' '.$v, array_keys($pax), $pax)), 'entity' => $entity,
+            'employee' => $people, 'entity' => $entity,
             'vendor' => trim($c->vendor_name.' ('.($c->vendor_code ?: 'no code').')'), 'ledger' => (string) $ledger, 'sub' => (string) $sub,
             'dims' => $m ? implode(' / ', [$m['department'], $m['sub_department'], $m['business_unit'], $m['region'], $m['zone'], $m['function'], $m['vertical'], $m['location'], $m['state']]) : '',
             'amount' => (float) $c->bill_amount];

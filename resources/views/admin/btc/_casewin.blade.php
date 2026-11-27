@@ -141,14 +141,14 @@ $(function () {
         const chk = (r.check || []).map(x => `<div class="${x.result === 'Pass' ? 'text-success' : 'text-danger'}"><b>${esc(x.type === 'JV' ? 'Vendor JV' : 'Employee JV')}: ${esc(x.result)}</b>${x.problems ? ' - ' + esc(x.problems) : ''}</div>`).join('');
         const f = r.fetched || [];
         const fcols = f.length ? Object.keys(f[0]) : [];
-        const ejvPending = (r.check || []).filter(x => x.type === 'EJV' && x.result !== 'Pass').map(x => x.problems).join('; ');
+        const ejvPending = (r.check || []).filter(x => x.type === 'EJV' && x.problems).map(x => x.problems).join('; ');
         return `<div class="border rounded p-2 bg-light-subtle">
             <div class="fw-semibold mb-1">1. Validation</div>${chk || '-'}
             <div class="fw-semibold mt-2 mb-1">2. Fetched from the bill and the masters</div><table class="table table-sm mb-2" style="font-size:12px">${kv(r.bill || {})}</table>
             ${fcols.length ? tbl(fcols, f.map(o => fcols.map(k => o[k] ?? ''))) : ''}
             <div class="fw-semibold mt-2 mb-1">3. JV (vendor bill) - Focus import columns</div>${(r.jv.rows || []).length ? tbl(r.jv.cols, r.jv.rows) : '<div class="text-danger">No JV rows - see the validation above.</div>'}
             <div class="fw-semibold mt-2 mb-1">4. Employee JV (expense booking)</div>${(r.ejv.rows || []).length ? tbl(r.ejv.cols, r.ejv.rows) : `<div class="text-warning-emphasis">${esc(ejvPending || 'Expense booking pending')}</div>`}
-            <div class="text-muted mt-1">The JV DocNo is given at Focus Export on the Punch Screen; the employee JV number when Treasury exports it.</div></div>`;
+            <div class="text-muted mt-1">The vendor JV and the employee JV DocNos are both given at Focus Export on the Punch Screen. A guest's share has no employee JV: it is booked straight to the expense ledger in the vendor JV.</div></div>`;
     }
     // BTC-FORMAT-01 (23 Nov 2026, testing point 7): the bill in its own prescribed format (Hotel / Lodging, Air / Rail /
     // Bus, Hired vehicle, Meals, Team meeting), read-only, on every view of the case
