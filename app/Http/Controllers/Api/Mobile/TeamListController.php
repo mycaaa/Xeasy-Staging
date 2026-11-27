@@ -12,6 +12,31 @@ class TeamListController extends BaseMobileController
      * Get pending claim list for team members under the approver.
      * Replicates: common.php?value=Team_Pending_Claimlist
      */
+    /**
+     * APP-VVNR-02 (27 Nov 2026, testing points 42 / 43): the app's VVNR approval screens read the employee name from a
+     * top-level "Ename" and parse every amount of the day list as a number - a missing name or an empty amount (e.g. the
+     * approved amount of a claim not yet approved) crashed them: a blank list, and a black screen on opening an employee.
+     * Every row now carries "Ename", amounts are never empty and numbers are sent as text, as the app expects.
+     */
+    private function appRow(array $r, ?string $ename = null): array
+    {
+        foreach (['FilledTAmt', 'VerifyTAmt', 'ApprTAmt', 'FinancedTAmt', 'TotKm'] as $k) {
+            if (array_key_exists($k, $r) && ($r[$k] === null || $r[$k] === '')) {
+                $r[$k] = '0';
+            }
+        }
+        foreach ($r as $k => $v) {
+            if (is_int($v) || is_float($v)) {
+                $r[$k] = (string) $v;
+            }
+        }
+        if (! isset($r['Ename']) || $r['Ename'] === null) {
+            $r['Ename'] = (string) ($ename ?? ($r['EmpName']['Ename'] ?? ''));
+        }
+
+        return $r;
+    }
+
     public function handleTeamPendingClaimlist(Request $request): JsonResponse
     {
         $empId = (int) $request->input('empid');
@@ -81,6 +106,7 @@ class TeamListController extends BaseMobileController
                 $res = (array) $row;
 
                 $res['EmpName'] = ['Ename' => $names[(int) $res['EmployeeID']] ?? ''];
+                $res['Ename'] = $names[(int) $res['EmployeeID']] ?? '';   // APP-VVNR-02
 
                 $res['TotalApprovedAmt'] = (string) ($apprTotals[(int) $res['EmployeeID'].'-'.(int) $res['Month']] ?? '0');
 
@@ -185,7 +211,7 @@ class TeamListController extends BaseMobileController
                     $rowArr['VerifyTAmt'] ?? '0'
                 );
 
-                $Detail_carray[] = $rowArr;
+                $Detail_carray[] = $this->appRow($rowArr, $dayName ??= ($this->teamNames($this->getHrimsConnection(), [$empId])[$empId] ?? ''));   // APP-VVNR-02
             }
 
             // APPR-RECON-01 (14 Nov 2026): punched lines left out of this list (and of its total) are listed with the reason,
@@ -262,6 +288,7 @@ class TeamListController extends BaseMobileController
                 $res = (array) $row;
 
                 $res['EmpName'] = ['Ename' => $names[(int) $res['EmployeeID']] ?? ''];
+                $res['Ename'] = $names[(int) $res['EmployeeID']] ?? '';   // APP-VVNR-02
 
                 // Stringify all values
                 $stringified = [];
@@ -334,7 +361,7 @@ class TeamListController extends BaseMobileController
                 $rowArr['Img_3'] = $this->resolveFileUrl($rowArr['Img_3'] ?? '', $yearId, $userId);
                 $rowArr['pdf_1'] = $this->resolveFileUrl($rowArr['pdf_1'] ?? '', $yearId, $userId);
                 $rowArr['pdf_2'] = $this->resolveFileUrl($rowArr['pdf_2'] ?? '', $yearId, $userId);
-                $Detail_carray[] = $rowArr;
+                $Detail_carray[] = $this->appRow($rowArr, $dayName ??= ($this->teamNames($this->getHrimsConnection(), [$empId])[$empId] ?? ''));   // APP-VVNR-02
             }
 
             return response()->json(['Code' => '300', 'msg' => 'Data Available!', 'DayWiseDetails' => $Detail_carray]);

@@ -43,6 +43,7 @@ class DashboardController extends Controller
             ->values()
             ->toArray();
 
+        $teamMembers = $this->companyTeam($teamMembers);   // VVNR-DASH-01
         $hasTeam = !empty($teamMembers);
 
         // Determine user roles/access
@@ -236,6 +237,22 @@ class DashboardController extends Controller
         ));
     }
 
+    /**
+     * VVNR-DASH-01 (27 Nov 2026, testing point 44): a manager with reports in two companies (e.g. a VNR manager with
+     * VVNR team members) sees, in each company, only that company's team - the VVNR dashboard listed the VNR members.
+     * A team with nobody in the session company is kept as it is (VVNR-18NOV-05 reads the team's company then).
+     */
+    private function companyTeam(array $ids): array
+    {
+        if (! $ids) {
+            return $ids;
+        }
+        $mine = $this->hrimsDb()->table('hrm_employee')->whereIn('EmployeeID', $ids)->where('CompanyId', (int) session('company_id', 1))
+            ->pluck('EmployeeID')->map(fn ($x) => (int) $x)->all();
+
+        return $mine ? array_values($mine) : $ids;
+    }
+
     private function expenseDb()
     {
         return DB::connection(session('expense_connection', DatabaseSwitcher::getExpenseConnection()));
@@ -406,6 +423,7 @@ class DashboardController extends Controller
                 ->pluck('eg.EmployeeID')
                 ->unique()
                 ->toArray();
+            $teamMembers = $this->companyTeam(array_map('intval', $teamMembers));   // VVNR-DASH-01
 
             $teamCount = count($teamMembers);
 
@@ -419,9 +437,10 @@ class DashboardController extends Controller
             $db = $this->expenseDb();
 
             // Pending = claims from team with status 'Verified' not yet approved
+            // VVNR-DASH-01: in VVNR the manager approves before verification - his pending claims are Filled / Submitted
             $pendingRow = $db->table($table)
                 ->whereIn('CrBy', $teamMembers)
-                ->where('ClaimStatus', 'Verified')
+                ->whereIn('ClaimStatus', (int) session('company_id', 1) === 11 ? ['Filled', 'Submitted', 'Verified'] : ['Verified'])
                 ->where(function ($q) {
                     $q->whereNull('ApprDate')->orWhere('ApprDate', '0000-00-00');
                 })

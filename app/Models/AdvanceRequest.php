@@ -45,6 +45,22 @@ class AdvanceRequest extends Model
     const REVERTED_FROM_FINANCE = 'Finance';
 
     /**
+     * VVNR-ADV-01 (27 Nov 2026, testing point 41): only the requests of the company chosen in the top bar - advances of
+     * all companies share these tables, so a VVNR screen listed VNR employees. No company in the session: no filter.
+     */
+    public function scopeForSessionCompany($query)
+    {
+        $co = (int) session('company_id', 0);
+        if ($co <= 0) {
+            return $query;
+        }
+        static $ids = [];
+        $ids[$co] ??= \Illuminate\Support\Facades\DB::connection('hrims')->table('hrm_employee')->where('CompanyId', $co)->pluck('EmployeeID')->map(fn ($x) => (int) $x)->all();
+
+        return $query->whereHas('employees', fn ($e) => $e->whereIn('employee_id', $ids[$co] ?: [0]));
+    }
+
+    /**
      * Get all employees for this request
      */
     public function employees()

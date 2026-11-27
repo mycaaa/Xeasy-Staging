@@ -450,6 +450,9 @@ class AdvanceAdjustmentReportController extends Controller
             return collect();
         }
 
+        // VVNR-FNF-01 (27 Nov 2026, testing point 40): a company database without the advance tables (VVNR) has no
+        // advances - it must not stop the ledger (FNF said "Database update needed")
+        $hasAdv = \Illuminate\Support\Facades\Schema::connection($conn)->hasTable('advance_requests');
         $query = DB::connection($conn)
             ->table('advance_requests as ar')
             ->join('advance_request_employees as are', 'are.advance_request_id', '=', 'ar.id')
@@ -478,7 +481,7 @@ class AdvanceAdjustmentReportController extends Controller
             });
         }
 
-        $advances = $query->select([
+        $advances = ! $hasAdv ? collect() : $query->select([
                 'ara.id as activity_id',
                 'are.advance_request_id as request_id',
                 'are.employee_id',

@@ -46,7 +46,7 @@ class AdvanceFinanceController extends Controller
             // Get year_id from request parameter (default to current year if not provided)
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             // Get requests that have approved activities ready for finance processing
-            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])
+            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()   // VVNR-ADV-01
                 ->where(function ($query) {
                     $query->where('current_status', AdvanceRequest::STATUS_FINANCE)->orWhere(function ($subQuery) {
                         // Or requests in approval that have some approved activities
@@ -682,7 +682,7 @@ class AdvanceFinanceController extends Controller
         try {
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             // Get requests that have finance-approved activities ready for payment release
-            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) {
+            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) {
                 $activityQuery->where('finance_status', AdvanceRequestActivity::FINANCE_STATUS_APPROVED)->where(function ($paymentQuery) {
                     $paymentQuery->whereNull('payment_status')->orWhere('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_PENDING);
                 });
@@ -763,9 +763,9 @@ class AdvanceFinanceController extends Controller
         try {
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             // Get requests that have been finalized
-            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->where('current_status', AdvanceRequest::STATUS_FINALIZED)->orWhereHas('activities', function ($activityQuery) {
+            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->where(fn ($w) => $w->where('current_status', AdvanceRequest::STATUS_FINALIZED)->orWhereHas('activities', function ($activityQuery) {
                 $activityQuery->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_RELEASED);
-            })->orderBy('updated_at', 'desc')->get();
+            }))->orderBy('updated_at', 'desc')->get();
             // Transform data similar to other methods
             $allEmployees = [];
             foreach ($requests as $advanceRequest) {
@@ -1114,7 +1114,7 @@ class AdvanceFinanceController extends Controller
             // Get year_id from request parameter (default to current year if not provided)
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             // Get requests that have activities rejected by finance
-            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) {
+            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) {
                 $activityQuery->where('finance_status', AdvanceRequestActivity::FINANCE_STATUS_REJECTED);
             })->orderBy('updated_at', 'desc')->get();
             // Transform the data to match the expected format - employees with req_data inside (same as AdvanceRequestController)
@@ -1513,7 +1513,7 @@ class AdvanceFinanceController extends Controller
             $yearId = ($request->filled('year_id') ? (int) $request->input('year_id') : null);
             // Get requests that have activities approved by finance but NOT yet released for payment
             // This ensures approved list only shows items ready for payment release, not already released
-            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) {
+            $requests = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) {
                 $activityQuery->where('finance_status', AdvanceRequestActivity::FINANCE_STATUS_APPROVED)->where(function ($paymentQuery) {
                     // Include activities that have no payment status set OR are still pending payment
                     $paymentQuery->whereNull('payment_status')->orWhere('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_PENDING);
@@ -2027,7 +2027,7 @@ class AdvanceFinanceController extends Controller
             $limit = $request->input('limit', 50);  // Default limit
             $page = $request->input('page', 1);  // Default page
             // Build query for requests that have activities released for payment
-            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) use ($status, $batchId) {
+            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) use ($status, $batchId) {
                 $activityQuery->where('payment_status', $status);
                 if ($batchId) {
                     $activityQuery->where('payment_batch_id', $batchId);
@@ -4158,7 +4158,7 @@ class AdvanceFinanceController extends Controller
             $limit = $request->input('limit', 50);  // Default limit
             $page = $request->input('page', 1);  // Default page
             // Build query for requests that have activities marked as "Paid"
-            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) use ($batchId) {
+            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) use ($batchId) {
                 $activityQuery->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_PAID)->whereNotNull('payment_date');
                 if ($batchId) {
                     $activityQuery->where('payment_batch_id', $batchId);
@@ -4362,7 +4362,7 @@ class AdvanceFinanceController extends Controller
                 return $this->jsonError('employee_id is required');
             }
             // Build query for requests that have activities marked as "Paid" for specific employee
-            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->whereHas('activities', function ($activityQuery) use ($batchId) {
+            $query = AdvanceRequest::with(['employees.activities', 'currentApprovals', 'actions'])->forSessionCompany()->whereHas('activities', function ($activityQuery) use ($batchId) {
                 $activityQuery->where('payment_status', AdvanceRequestActivity::PAYMENT_STATUS_PAID)->whereNotNull('payment_date');
                 if ($batchId) {
                     $activityQuery->where('payment_batch_id', $batchId);
