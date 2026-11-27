@@ -356,11 +356,47 @@ class BtcWorkflow
                     $c->booked_class = $bc;
                     $c->seat_available = BusEligibility::rank($bc) > BusEligibility::rank($c->travel_class) ? 'N' : 'Y';
                 }
+                // BTC-VEH-01 (27 Nov 2026, testing point 36): Hired vehicle - availability of the type asked for, the vehicle
+                // booked (another type only with the reason; no further approval), vehicle and driver details
+                if (in_array($c->category, (array) config('btc.vehicle_categories', ['vehicle']), true) && Schema::hasColumn('btc_cases', 'booked_vehicle_type')) {
+                    $bt = (string) ($d['booked_vehicle_type'] ?? '');
+                    if (! in_array($bt, (array) config('btc.vehicle_types', ['Sedan', 'SUV']), true)) {
+                        throw new RuntimeException('Choose the vehicle type booked (Sedan / SUV).');
+                    }
+                    $alt = trim((string) ($d['alt_vehicle_reason'] ?? ''));
+                    if ($c->vehicle_type && $bt !== $c->vehicle_type && $alt === '') {
+                        throw new RuntimeException("{$c->vehicle_type} was asked for: give the reason for arranging {$bt}.");
+                    }
+                    foreach (['vehicle_no' => 'vehicle number', 'driver_name' => 'driver name', 'driver_phone' => 'driver contact number'] as $k => $l) {
+                        if (trim((string) ($d[$k] ?? '')) === '') {
+                            throw new RuntimeException("Enter the {$l}.");
+                        }
+                    }
+                    $c->booked_vehicle_type = $bt;
+                    $c->vehicle_available = ($c->vehicle_type && $bt !== $c->vehicle_type) ? 'N' : 'Y';
+                    $c->alt_vehicle_reason = $c->vehicle_available === 'N' ? mb_substr($alt, 0, 500) : null;
+                    $c->vehicle_no = mb_substr(strtoupper(trim((string) $d['vehicle_no'])), 0, 40);
+                    $c->driver_name = mb_substr(trim((string) $d['driver_name']), 0, 100);
+                    $c->driver_phone = mb_substr(trim((string) $d['driver_phone']), 0, 20);
+                }
+                // BTC-RET-01 (testing points 38 / 39): the return journey of a round trip booked separately
+                if (Schema::hasColumn('btc_cases', 'return_pnr')) {
+                    foreach (['return_booking_ref' => 80, 'return_pnr' => 40, 'return_sector' => 120] as $k => $len) {
+                        if (array_key_exists($k, $d)) {
+                            $c->$k = trim((string) $d[$k]) !== '' ? mb_substr(trim((string) $d[$k]), 0, $len) : null;
+                        }
+                    }
+                    if (! empty($d['return_date'])) {
+                        $c->return_date = $d['return_date'];
+                    }
+                }
                 $ref = trim((string) ($d['booking_ref'] ?? ''));
                 $amt = round((float) ($d['booking_amount'] ?? 0), 2);
                 // BTC-REQ-28 (19 Nov 2026): the booking amount may be zero (complimentary / paid elsewhere); reference still needed
-                if ($ref === '' || $amt < 0 || ! isset($d['booking_amount']) || $d['booking_amount'] === '') {
-                    throw new RuntimeException('Enter the booking reference and the booking amount (0 is allowed).');
+                // BTC-HOTEL-37 (27 Nov 2026, testing point 37): for a Hotel the booking reference is optional
+                $refNeeded = $c->category !== 'hotel';
+                if (($refNeeded && $ref === '') || $amt < 0 || ! isset($d['booking_amount']) || $d['booking_amount'] === '') {
+                    throw new RuntimeException($refNeeded ? 'Enter the booking reference and the booking amount (0 is allowed).' : 'Enter the booking amount (0 is allowed).');
                 }
                 // BTC-REQ-27 (19 Nov 2026): the admin can set / update the advance to the vendor while confirming the booking
                 $adv = isset($d['advance_amount']) && $d['advance_amount'] !== '' ? round((float) $d['advance_amount'], 2) : null;
@@ -385,7 +421,7 @@ class BtcWorkflow
                 if ($action === 'modify_booking' && $remark === '') {
                     throw new RuntimeException('Give the reason for the change.');
                 }
-                $c->booking_ref = mb_substr($ref, 0, 80);
+                $c->booking_ref = $ref !== '' ? mb_substr($ref, 0, 80) : null;
                 $c->booking_amount = $amt;
                 $c->booking_date = $d['booking_date'] ?? $now->toDateString();
                 $c->booking_status = $action === 'confirm_booking' ? 'confirmed' : 'modified';
@@ -404,7 +440,7 @@ class BtcWorkflow
                         $to = 'advance_requested';   // Finance Advance pays the vendor; the case returns to "booked" when paid
                     }
                 }
-                $remark = trim(($action === 'confirm_booking' ? 'Booked' : 'Booking changed').": {$c->vendor_name}, ref {$c->booking_ref}, Rs ".number_format($amt, 2)
+                $remark = trim(($action === 'confirm_booking' ? 'Booked' : 'Booking changed').": {$c->vendor_name}".($c->booking_ref ? ", ref {$c->booking_ref}" : '').($c->vehicle_no ?? null ? ", {$c->booked_vehicle_type} {$c->vehicle_no}, driver {$c->driver_name} {$c->driver_phone}".($c->vehicle_available === 'N' ? " (instead of {$c->vehicle_type}: {$c->alt_vehicle_reason})" : '') : '').($c->return_pnr ?? null ? ", return PNR {$c->return_pnr}" : '').', Rs '.number_format($amt, 2)
                     .($adv > 0 ? ', advance Rs '.number_format($adv, 2) : '').($remark ? " - {$remark}" : ''));
                 break;
             case 'cancel_booking':

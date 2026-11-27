@@ -728,9 +728,16 @@ class BtcV2Controller extends Controller
         $base = BtcCase::where('company_id', $company)->orderBy('id');
         if ($again) {
             $ids = array_filter(array_map('intval', explode(',', (string) $request->input('ids'))));
+            // BTC-DAYFILE-01 (testing point 35): one consolidated file of the day; "new only" leaves out the bills already
+            // in an earlier download, so nothing is imported twice
+            $newOnly = ! $ids && $request->boolean('new_only') && \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'focus_file_at');
             $cases = $this->cases()->whereNotNull('focus_jv_doc')->whereNotIn('status', ['cancelled', 'rejected'])
                 ->when($ids, fn ($w) => $w->whereIn('id', $ids))
-                ->when(! $ids, fn ($w) => $w->whereDate('focus_exported_at', $request->date('exported_on') ?? now()))->orderBy('id')->limit(500)->get();
+                ->when(! $ids, fn ($w) => $w->whereDate('focus_exported_at', $request->date('exported_on') ?? now()))
+                ->when($newOnly, fn ($w) => $w->whereNull('focus_file_at'))->orderBy('id')->limit(500)->get();
+            if (! $ids && $cases->isNotEmpty() && \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'focus_file_at')) {
+                BtcCase::whereIn('id', $cases->pluck('id'))->update(['focus_file_at' => now()]);
+            }
             $out = $x->vendorJv($cases, false);
             // BTC-JV-34 (testing point 34): the employee JV rows of the same bills (made at the same Focus Export)
             $ejvOut = $x->employeeJv($cases->filter(fn ($c) => $c->focus_ejv_doc), false);

@@ -5,6 +5,7 @@
 @section('content')
 {{-- BTC-01: Bill To Company process (config/btc.php) --}}
 <style>
+    #btcPassengers.btc-noelig .btc-pxelw { display: none; }   /* BTC-VEH-01: no class eligibility for a hired vehicle */
     .btc-tabs .nav-link { font-size: 12px; padding: 6px 12px; }
     .btc-table td, .btc-table th { font-size: 12px; vertical-align: middle; }
     .btc-flow { font-size: 11px; color: #6b7280; }
@@ -106,13 +107,16 @@
                     <div class="col-md-3 btc-trip"><label class="btc-label" for="btcTo">Travel to <span class="text-danger">*</span></label><input class="form-control form-control-sm" name="travel_to" id="btcTo" maxlength="100" placeholder="e.g. Delhi"></div>
                     <div class="col-md-6"><label class="btc-label" for="btcPurpose">Purpose / business requirement</label>
                         <select class="form-select form-select-sm" name="purpose" id="btcPurpose" required><option value="">— choose —</option>@foreach ($purposes as $p)<option value="{{ $p }}">{{ $p }}</option>@endforeach</select></div>
-                    <div class="col-md-3 btc-notrip"><label class="btc-label">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
-                    <div class="col-md-3 btc-notrip"><label class="btc-label">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
-                    <div class="col-md-4 btc-trip"><label class="btc-label">Trip type</label><div>
+                    <div class="col-md-3 btc-notrip"><label class="btc-label" id="btcSvcFromL">Activity date (from)</label><input type="date" class="form-control form-control-sm" name="service_from"></div>
+                    <div class="col-md-3 btc-notrip"><label class="btc-label" id="btcSvcToL">Activity date (to)</label><input type="date" class="form-control form-control-sm" name="service_to"></div>
+                    <div class="col-md-4 btc-trip btc-triptype"><label class="btc-label">Trip type</label><div>
                         <label class="me-3"><input type="radio" class="form-check-input me-1" name="trip_type" value="one_way" checked> One-way</label>
                         <label><input type="radio" class="form-check-input me-1" name="trip_type" value="round_trip"> Round-trip</label></div></div>
                     <div class="col-md-3 btc-trip"><label class="btc-label" for="btcGo">Travel date (onward) <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="travel_date" id="btcGo"></div>
                     <div class="col-md-3 btc-trip btc-return"><label class="btc-label" for="btcRet">Return travel date <span class="text-danger">*</span></label><input type="date" class="form-control form-control-sm" name="return_date" id="btcRet"></div>
+                    {{-- BTC-VEH-01 (27 Nov 2026, testing point 36): Hired vehicle - pickup time and vehicle type --}}
+                    <div class="col-md-2 btc-veh"><label class="btc-label" for="btcPickup">Pickup time <span class="text-danger">*</span></label><input type="time" class="form-control form-control-sm" name="pickup_time" id="btcPickup"></div>
+                    <div class="col-md-2 btc-veh"><label class="btc-label" for="btcVehType">Vehicle type <span class="text-danger">*</span></label><select class="form-select form-select-sm" name="vehicle_type" id="btcVehType"><option value="">— choose —</option>@foreach ((array) config('btc.vehicle_types', ['Sedan', 'SUV']) as $vt)<option>{{ $vt }}</option>@endforeach</select></div>
                     {{-- BTC-REQ-20 (17 Nov 2026): who goes - number of pax, employees (code / name) and guests --}}
                     {{-- BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for Self / Team + Guest, passengers, class by eligibility --}}
                     <div class="col-md-3 btc-bus"><label class="btc-label" for="btcBookFor">Booking for <span class="text-danger">*</span></label>
@@ -120,7 +124,7 @@
                     <div class="col-md-6 btc-bus btc-self"><label class="btc-label">Passenger (you)</label><div class="small fw-semibold pt-1" id="btcSelfInfo">—</div></div>
                     <div class="col-md-2 btc-bus btc-team"><label class="btc-label" for="btcBusPax">Total PAX <span class="text-danger">*</span></label><input type="number" min="1" max="50" class="form-control form-control-sm" id="btcBusPax" placeholder="e.g. 4"></div>
                     <div class="col-12 btc-bus btc-team"><div id="btcPassengers"></div></div>
-                    <div class="col-md-3 btc-bus"><label class="btc-label" for="btcClass">Travel class <span class="text-danger">*</span></label>
+                    <div class="col-md-3 btc-bus btc-classw"><label class="btc-label" for="btcClass">Travel class <span class="text-danger">*</span></label>
                         <select class="form-select form-select-sm" name="travel_class" id="btcClass"><option value="">— choose —</option></select><div class="form-text" id="btcClassHint"></div></div>
                     {{-- BTC-PAX-01 (26 Nov 2026, testing point 24): No. of pax as a list to pick from (it was a bare number box) --}}
                     <div class="col-md-2 btc-nobus"><label class="btc-label" for="btcPax">No. of pax</label><select class="form-select form-select-sm" name="pax_count" id="btcPax">@for ($i = 1; $i <= 100; $i++)<option value="{{ $i }}">{{ $i }}</option>@endfor</select></div>
@@ -165,6 +169,7 @@
 @push('scripts')
 <script>
     const BUS_CATS = @json((array) config('btc.passenger_categories', ['bus'])), BUS_RANK = @json((array) config('btc.bus_classes', []));
+    const CLASS_CATS = @json((array) config('btc.class_categories', ['bus'])), VEH_CATS = @json((array) config('btc.vehicle_categories', ['vehicle']));   // BTC-VEH-01
     const ME = @json((int) (auth()->user()->employee_id ?? 0));
     let busElig = {};   // EmployeeID -> {code, name, eligible}
     const BTC_TONES = @json((array) config('btc.status_tones'));   // BTC-UI-01: colour family of the status pill
@@ -278,11 +283,17 @@ $(function () {
         const trip = @json((array) config('btc.trip_categories', ['air', 'train'])).includes(c);
         $('.btc-trip').toggle(trip); $('.btc-notrip').toggle(!trip);
         if (trip) $('[name=location],[name=service_from],[name=service_to]').val(''); else $('[name=travel_from],[name=travel_to],[name=travel_date],[name=return_date]').val('');
-        const rt = trip && $('[name=trip_type]:checked').val() === 'round_trip'; $('.btc-return').toggle(rt); if (!rt) $('[name=return_date]').val('');
+        // BTC-VEH-01: Hired vehicle - one way (pickup -> destination) with pickup time and vehicle type
+        $('#btcSvcFromL').text(c === 'hotel' ? 'Stay from' : 'Activity date (from)'); $('#btcSvcToL').text(c === 'hotel' ? 'Stay to' : 'Activity date (to)');   // BTC-HOTEL-37
+        const veh = VEH_CATS.includes(c); $('.btc-veh').toggle(veh); $('.btc-triptype').toggle(trip && !veh);
+        if (veh) $('[name=trip_type][value=one_way]').prop('checked', true); else $('[name=pickup_time],[name=vehicle_type]').val('');
+        $('label[for=btcGo]').html((veh ? 'Travel date' : 'Travel date (onward)') + ' <span class="text-danger">*</span>');
+        const rt = trip && !veh && $('[name=trip_type]:checked').val() === 'round_trip'; $('.btc-return').toggle(rt); if (!rt) $('[name=return_date]').val('');
         // BTC-BUS-01: Bus - booking for, passengers and class in place of pax / employees / guests
         const bus = BUS_CATS.includes(c), fr = $('#btcBookFor').val();
         $('.btc-bus').toggle(bus); $('.btc-nobus').toggle(!bus);
         $('.btc-self').toggle(bus && fr === 'self'); $('.btc-team').toggle(bus && fr === 'team');
+        const classed = CLASS_CATS.includes(c); $('.btc-classw').toggle(bus && classed); $('#btcPassengers').toggleClass('btc-noelig', !classed); if (!classed) $('#btcClass').val('');
         if (bus) busClass();
         // BTC-REQ-09/11 (17 Nov 2026): admin booking - no estimate / vendor fields (the admin books)
         $('.btc-nota').toggle(r !== 'admin_booking');
@@ -314,10 +325,10 @@ $(function () {
             <div class="col-md-2"><select class="form-select form-select-sm btc-pxt" name="passengers[${i}][type]" aria-label="Passenger ${i + 1} type"><option value="employee">Employee</option><option value="guest">Guest</option></select></div>
             <div class="col-md-5 btc-pxew"><select class="form-select form-select-sm btc-pxe" name="passengers[${i}][employee_id]" aria-label="Passenger ${i + 1} employee"></select></div>
             <div class="col-md-5 btc-pxgw" style="display:none"><input class="form-control form-control-sm btc-pxg" name="passengers[${i}][name]" maxlength="100" placeholder="Guest name" aria-label="Passenger ${i + 1} guest name"></div>
-            <div class="col-md-3 small">Eligible: <b class="btc-pxel">-</b></div></div>`;
+            <div class="col-md-3 small btc-pxelw">Eligible: <b class="btc-pxel">-</b></div></div>`;
     }
     $('#btcBookFor').on('change', function () {
-        if (this.value === 'self') eligOf([ME]).then(() => { const e = busElig[ME] || {}; $('#btcSelfInfo').text((e.code || '') + ' – ' + (e.name || '') + ' · eligible: ' + (e.eligible || '-') + ' · PAX 1'); busClass(); });
+        if (this.value === 'self') eligOf([ME]).then(() => { const e = busElig[ME] || {}; $('#btcSelfInfo').text((e.code || '') + ' – ' + (e.name || '') + (CLASS_CATS.includes($('#btcCategory').val()) ? ' · eligible: ' + (e.eligible || '-') : '') + ' · PAX 1'); busClass(); });
         shape();
     });
     $('#btcBusPax').on('change', function () {
@@ -399,7 +410,8 @@ $(function () {
                 const bad = rows.filter(function () { return $(this).find('.btc-pxt').val() === 'guest' ? !$(this).find('.btc-pxg').val().trim() : !$(this).find('.btc-pxe').val(); });
                 if (bad.length) { Swal.fire('Required', 'Choose the employee or type the guest name for every passenger.', 'warning'); return; }
             }
-            if (!$('#btcClass').val()) { Swal.fire('Required', 'Choose the travel class.', 'warning'); return; }
+            if ($('.btc-classw:visible').length && !$('#btcClass').val()) { Swal.fire('Required', 'Choose the travel class.', 'warning'); return; }
+            if ($('.btc-veh:visible').length && (!$('#btcPickup').val() || !$('#btcVehType').val())) { Swal.fire('Required', 'Give the pickup time and the vehicle type (Sedan / SUV).', 'warning'); return; }
             $('#btcPax').val(String(fr === 'self' ? 1 : Number($('#btcBusPax').val())));
         }
         if ($('.btc-trip:visible').length) {   // BTC-TRIP-01

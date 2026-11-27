@@ -195,7 +195,7 @@ return [
     'classification' => ['hotel', 'vehicle', 'air', 'train', 'bus', 'meals', 'meeting'],
     // BTC-TRIP-01 (25 Nov 2026, testing points 20 / 21): the request form of these has Travel From / To and one-way / round
     // trip in place of Location and activity dates; for an admin booking the manager chooses corporate or normal booking
-    'trip_categories' => ['air', 'train', 'bus'],   // BTC-BUS-01 (testing point 27): Bus too
+    'trip_categories' => ['air', 'train', 'bus', 'vehicle'],   // BTC-BUS-01 (testing point 27): Bus too; BTC-VEH-01: Hired vehicle (pickup -> destination)
     'booking_types' => ['corporate' => 'Corporate booking', 'normal' => 'Normal booking'],
     // BTC-TRIP-02 (26 Nov 2026, testing point 28): the manager chooses the booking type for Air only
     'booking_type_categories' => ['air'],
@@ -203,7 +203,11 @@ return [
     // eligibility. There is no bus class in the eligibility master: an employee whose train / outside-HQ class is an
     // AC class (AC-I, AC-II, AC-III, Economy/AC-..) may take AC; Sleeper, General, Non AC or blank = Non-AC only.
     // Guests follow the guest policy (the class the requester asks, checked by Admin and the manager).
-    'passenger_categories' => ['bus'],
+    // BTC-VEH-01 (27 Nov 2026, testing point 36): Hired vehicle has Self / Team + Guest passengers too (no class eligibility)
+    'passenger_categories' => ['bus', 'vehicle'],
+    'class_categories' => ['bus'],          // the travel class is asked (and checked against eligibility) only for Bus
+    'vehicle_categories' => ['vehicle'],    // pickup time and vehicle type (Sedan / SUV); one-way only
+    'vehicle_types' => ['Sedan', 'SUV'],
     'bus_classes' => ['Non-AC' => 1, 'AC' => 2],   // higher number = higher class
     // BTC-PUNCH-02 (25 Nov 2026, testing point 17): the punch form of each type in the layout of the 19 Nov spec - header
     // fields, then repeatable tables (journey legs, rooms, line items) with their totals. Keys of the header fields

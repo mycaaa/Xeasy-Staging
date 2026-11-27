@@ -11,10 +11,18 @@
     @endif
     @if (! empty($punchSheet))
         {{-- BTC-FLOW-18 (25 Nov 2026, testing point 18): the Focus import sheet of the bills exported on this screen --}}
-        <form method="get" action="{{ route('btc.treasury.focus', 'jv') }}" class="d-flex flex-wrap gap-2 align-items-end mb-2">
-            <div><label class="form-label small mb-1" for="psDay">Focus import sheet of bills exported on</label><input type="date" id="psDay" name="exported_on" value="{{ now()->toDateString() }}" class="form-control form-control-sm"></div>
-            <button class="xe-btn xe-btn-green"><i class="ri-file-excel-2-line"></i> Download Focus import sheet</button>
-            <span class="small text-muted">Each bill keeps the DocNo given at its Focus Export; downloading again gives no new number.</span>
+        {{-- BTC-DAYFILE-01 (27 Nov 2026, testing point 35): one consolidated file per day (all vendors, employees, bills) --}}
+        @php
+            $dayQ = \App\Models\BtcCase::where('company_id', (int) session('company_id', 1))->whereDate('focus_exported_at', now()->toDateString())->whereNotIn('status', ['cancelled', 'rejected']);
+            $dayAll = (clone $dayQ)->count();
+            $dayNew = \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'focus_file_at') ? (clone $dayQ)->whereNull('focus_file_at')->count() : $dayAll;
+        @endphp
+        <form method="get" action="{{ route('btc.treasury.focus', 'jv') }}" class="d-flex flex-wrap gap-2 align-items-end mb-2 p-2 border rounded bg-light">
+            <div class="small fw-semibold w-100">Today's Focus export: {{ $dayAll }} bill{{ $dayAll === 1 ? '' : 's' }} ({{ $dayNew }} not yet downloaded)</div>
+            <div><label class="form-label small mb-1" for="psDay">Bills exported on</label><input type="date" id="psDay" name="exported_on" value="{{ now()->toDateString() }}" class="form-control form-control-sm"></div>
+            <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="new_only" value="1" id="psNew" checked><label class="form-check-label small" for="psNew">Only bills not in an earlier download</label></div>
+            <button class="xe-btn xe-btn-green"><i class="ri-file-excel-2-line"></i> Download the day's consolidated file</button>
+            <span class="small text-muted">Each Focus Export adds the bill to the day's list; one file holds every bill of the day (vendor JV, employee JV and the check sheet). Each bill keeps its own DocNo.</span>
         </form>
     @endif
     @if (! empty($pick) && $rows->count())

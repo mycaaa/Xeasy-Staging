@@ -246,6 +246,7 @@ class BtcController extends Controller
             'trip_type' => 'nullable|in:one_way,round_trip', 'return_date' => 'nullable|date|after_or_equal:travel_date',
             // BTC-BUS-01 (26 Nov 2026, testing point 27): Bus - booking for, passengers, class
             'booking_for' => 'nullable|in:self,team', 'travel_class' => 'nullable|in:AC,Non-AC',
+            'pickup_time' => 'nullable|date_format:H:i', 'vehicle_type' => 'nullable|in:Sedan,SUV',   // BTC-VEH-01
             'passengers' => 'nullable|array|max:100', 'passengers.*.type' => 'nullable|in:employee,guest',
             'passengers.*.employee_id' => 'nullable|integer', 'passengers.*.name' => 'nullable|string|max:100',
             'bill_no' => 'nullable|string|max:60',
@@ -283,7 +284,7 @@ class BtcController extends Controller
                     return response()->json(['success' => false, 'message' => "{$l} is required for ".config("btc.categories.{$v['category']}.label").'.'], 422);
                 }
             }
-            $v['trip_type'] = $v['trip_type'] ?? 'one_way';
+            $v['trip_type'] = in_array($v['category'], (array) config('btc.vehicle_categories', ['vehicle']), true) ? 'one_way' : ($v['trip_type'] ?? 'one_way');   // BTC-VEH-01: pickup -> destination
             if ($v['trip_type'] === 'round_trip' && empty($v['return_date'])) {
                 return response()->json(['success' => false, 'message' => 'Round trip: give the return travel date.'], 422);
             }
@@ -347,18 +348,33 @@ class BtcController extends Controller
                 return response()->json(['success' => false, 'message' => 'The same employee is chosen twice.'], 422);
             }
             $class = $v['travel_class'] ?? null;
-            if (! $class) {
+            $classed = in_array($v['category'], (array) config('btc.class_categories', ['bus']), true);
+            if ($classed && ! $class) {
                 return response()->json(['success' => false, 'message' => 'Choose the travel class (AC / Non-AC).'], 422);
             }
+            if (! $classed) {
+                $class = null;
+            }
+            // BTC-VEH-01 (testing point 36): Hired vehicle - pickup time and the vehicle type (Sedan / SUV)
+            $veh = [];
+            if (in_array($v['category'], (array) config('btc.vehicle_categories', ['vehicle']), true)) {
+                if (empty($v['pickup_time']) || empty($v['vehicle_type'])) {
+                    return response()->json(['success' => false, 'message' => 'Give the pickup time and the vehicle type (Sedan / SUV).'], 422);
+                }
+                $veh = \Illuminate\Support\Facades\Schema::hasColumn('btc_cases', 'vehicle_type') ? ['pickup_time' => $v['pickup_time'], 'vehicle_type' => $v['vehicle_type']] : [];
+            }
             $max = \App\Services\Btc\BusEligibility::groupMax($pax);
-            if (\App\Services\Btc\BusEligibility::rank($class) > \App\Services\Btc\BusEligibility::rank($max)) {
+            if ($classed && \App\Services\Btc\BusEligibility::rank($class) > \App\Services\Btc\BusEligibility::rank($max)) {
                 return response()->json(['success' => false, 'message' => "Travel class {$class} is above the eligibility ({$max}) of: "
                     .implode(', ', array_map(fn ($p) => $p['code'].' '.$p['name'], array_filter($pax, fn ($p) => ($p['type'] === 'employee') && \App\Services\Btc\BusEligibility::rank($p['eligible']) < \App\Services\Btc\BusEligibility::rank($class)))).'.'], 422);
             }
             $v['pax_count'] = count($pax);
             $v['travellers'] = array_values(array_filter($codes, fn ($id) => (int) $id !== (int) (auth()->user()->employee_id ?? 0)));
             $v['guests'] = implode(', ', array_column(array_filter($pax, fn ($p) => $p['type'] === 'guest'), 'name'));
-            $bus = ['booking_for' => $for, 'passengers_json' => json_encode(array_values($pax), JSON_UNESCAPED_UNICODE), 'travel_class' => $class];
+            if (! $classed) {   // no class eligibility for a hired vehicle
+                $pax = array_map(fn ($p) => array_diff_key($p, ['eligible' => 1]), $pax);
+            }
+            $bus = ['booking_for' => $for, 'passengers_json' => json_encode(array_values($pax), JSON_UNESCAPED_UNICODE), 'travel_class' => $class] + $veh;
         }
         $user = auth()->user();
         if (! in_array($v['route'], (array) config('btc.employee_routes', ['employee_advance']), true)) {   // BTC-REQ-23 (18 Nov 2026): also for the BTC admin
@@ -512,11 +528,16 @@ class BtcController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
-        // BTC-FLOW-18: Focus Export on the Punch Screen gives the bill's import sheet at once
-        $dl = $request->input('action') === 'confirm_extraction' && ! empty($c->focus_jv_doc) && \Illuminate\Support\Facades\Route::has('btc.treasury.focus')
-            ? route('btc.treasury.focus', ['kind' => 'jv', 'ids' => $c->id]) : null;
+        // BTC-DAYFILE-01 (27 Nov 2026, testing point 35): Focus Export on the Punch Screen adds the bill to the day's export
+        // (no file per bill); one consolidated file of the day is downloaded from the Punch Screen
+        $msg = "{$c->case_no}: ".$c->statusLabel();
+        if ($request->input('action') === 'confirm_extraction' && ! empty($c->focus_jv_doc)) {
+            $n = BtcCase::where('company_id', $c->company_id)->whereDate('focus_exported_at', now()->toDateString())->whereNotIn('status', ['cancelled', 'rejected'])->count();
+            $msg .= " - Focus JV {$c->focus_jv_doc}".($c->focus_ejv_doc ? ", EJV {$c->focus_ejv_doc}" : '')." added to today's Focus export ({$n} bill".($n === 1 ? '' : 's')
+                .' today). Download the day\'s file from the Punch Screen when done.';
+        }
 
-        return response()->json(['success' => true, 'message' => "{$c->case_no}: ".$c->statusLabel().($dl ? ' - Focus JV '.$c->focus_jv_doc : ''), 'status' => $c->status, 'download' => $dl]);
+        return response()->json(['success' => true, 'message' => $msg, 'status' => $c->status, 'download' => null]);
     }
 
     /** BTC-BUS-01 (testing point 27): bus class eligibility of employees (new-request form). */

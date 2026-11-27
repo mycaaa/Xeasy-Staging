@@ -316,7 +316,7 @@ class BtcCase extends Model
         $booking = match (true) {
             $this->route !== 'admin_booking' => $this->vendor_name ? 'Own arrangement' : '-',
             $this->booking_status === 'cancelled' => 'Cancelled',
-            (bool) $this->booking_ref => 'Booked '.$this->booking_ref.($this->activity_completed_on ? ' · done' : ''),
+            (bool) $this->booking_ref || in_array($this->booking_status, ['confirmed', 'modified'], true) => trim('Booked '.$this->booking_ref).($this->activity_completed_on ? ' · done' : ''),   // BTC-HOTEL-37: a hotel may have no reference
             in_array($this->status, ['draft', 'pending_manager', 'booking_requested'], true) => 'Waiting',
             default => '-',
         };
