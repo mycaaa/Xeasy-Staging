@@ -166,3 +166,40 @@
 @media (prefers-reduced-motion: reduce) {
     .btc-nav-row a, .btc-pipe a { transition: none; }
 }
+
+/* ---------- BTC-MYREQ-01 (27 Nov 2026, testing point 32): the BTC Request screen ---------- */
+.btc-ui.btc-req { background: #f3f7fb; border-radius: 14px; padding: 14px 16px 18px; }
+.btc-sum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.btc-sum-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 12px 16px; border-radius: 12px;
+    background: #fff; border: 1px solid var(--btc-line); border-left: 4px solid var(--btc-brand); color: var(--btc-ink); cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease; }
+.btc-sum-card:hover { box-shadow: 0 2px 8px rgba(19, 41, 61, .08); }
+.btc-sum-card:focus-visible { outline: 2px solid var(--btc-brand); outline-offset: 2px; }
+.btc-sum-card.active { border-color: var(--btc-brand); box-shadow: 0 0 0 1px var(--btc-brand) inset; }
+.btc-sum--wait { border-left-color: var(--btc-wait); } .btc-sum--done { border-left-color: var(--btc-done); } .btc-sum--back { border-left-color: var(--btc-back); }
+.btc-sum-n { font-size: 1.5rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.btc-sum-l { font-size: .76rem; color: var(--btc-mute); font-weight: 600; }
+.btc-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; padding: 12px 16px; border-bottom: 1px solid var(--btc-line-2); }
+.btc-f { display: flex; flex-direction: column; gap: 3px; min-width: 120px; }
+.btc-f label { font-size: .7rem; font-weight: 600; color: var(--btc-mute); margin: 0; }
+.btc-f--search { flex: 1 1 220px; }
+.btc-f--btns { flex-direction: row; gap: 6px; min-width: 0; }
+.btc-search { position: relative; } .btc-search i { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--btc-mute); }
+.btc-search input { padding-left: 28px; }
+.btc-req-scroll { max-height: 66vh; overflow: auto; }
+.btc-req-table { table-layout: fixed; min-width: 900px; }
+.btc-req-table thead th { position: sticky; top: 0; z-index: 2; background: #eef4fa; color: var(--btc-ink-2); font-size: .72rem; font-weight: 700;
+    border-bottom: 1px solid var(--btc-line); white-space: nowrap; padding: 9px 10px; }
+.btc-req-table td { padding: 9px 10px; text-align: left; border-color: var(--btc-line-2); }
+.btc-req-table td.text-end, .btc-req-table th.text-end { text-align: right; }
+.btc-req-table .btc-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.btc-vendor { font-weight: 600; color: var(--btc-ink); }
+.btc-sub { font-size: .7rem; color: var(--btc-mute); margin-top: 2px; }
+.btc-sub-d { font-size: .72rem; color: var(--btc-ink-2); }
+.btc-pay { font-size: .74rem; font-weight: 700; }
+.btc-pay--notinitiated { color: var(--btc-mute); font-weight: 600; }
+.btc-pay--processing { color: var(--btc-admin); } .btc-pay--paid { color: var(--btc-done); } .btc-pay--failed { color: var(--btc-back); }
+.btc-pager { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 16px; font-size: .76rem; color: var(--btc-mute);
+    border-top: 1px solid var(--btc-line-2); }
+@media (max-width: 767px) { .btc-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .btc-ui.btc-req { padding: 8px; } }
+@media (prefers-reduced-motion: reduce) { .btc-sum-card { transition: none; } }

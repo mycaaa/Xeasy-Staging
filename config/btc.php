@@ -150,6 +150,27 @@ return [
         'returned' => 'back', 'rejected' => 'back', 'cancelled' => 'stop', 'class_approval' => 'wait',
     ],
 
+    // BTC-MYREQ-01 (27 Nov 2026, testing point 32): the employee's BTC Request screen shows one word for the stage and one
+    // word for who has it - the full workflow labels above stay for the Finance / Admin screens and the history.
+    // Status: Draft / Pending / Returned / Verified / Completed / Rejected / Cancelled
+    'short_status' => [
+        'draft' => 'Draft', 'returned' => 'Returned', 'rejected' => 'Rejected', 'cancelled' => 'Cancelled',
+        'finance_verified' => 'Verified', 'focus_done' => 'Verified', 'fin_approved' => 'Verified',
+        'paid' => 'Completed', 'closed' => 'Completed',
+        // every other status: Pending
+    ],
+    'short_tones' => ['Draft' => 'draft', 'Pending' => 'wait', 'Returned' => 'back', 'Verified' => 'fin', 'Completed' => 'done', 'Rejected' => 'back', 'Cancelled' => 'stop'],
+    // Pending with: one department ('Requester' reads 'You' on the requester's own screen)
+    'pending_dept' => [
+        'draft' => 'Requester', 'returned' => 'Requester', 'advance_paid' => 'Requester',
+        'pending_manager' => 'Manager', 'class_approval' => 'Manager',
+        'booking_requested' => 'Admin', 'bill_with_dms' => 'DMS',
+        'advance_requested' => 'Finance', 'bill_with_finance' => 'Finance', 'scanned' => 'Finance', 'extracted' => 'Finance',
+        'finance_verified' => 'Finance', 'focus_done' => 'Finance', 'bill_submitted' => 'Punch',
+        'fin_approved' => 'Treasury', 'paid' => 'Accounts',
+        // booked: Admin for an admin booking, else the requester (to upload the bill); closed / rejected / cancelled: none
+    ],
+
     // BTC-V2: where the bill came from (Bill Upload by Finance)
     'bill_sources' => ['dms' => 'DMS (physical bill)', 'vendor' => 'Vendor', 'email' => 'E-mail', 'admin' => 'Admin', 'department' => 'Other department', 'employee' => 'Employee'],
 

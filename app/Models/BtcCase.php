@@ -241,6 +241,59 @@ class BtcCase extends Model
         };
     }
 
+    /** BTC-MYREQ-01 (testing point 32): one-word stage for the requester's screen (config btc.short_status). */
+    public function shortStatus(): string
+    {
+        return (string) config('btc.short_status.'.$this->status, 'Pending');
+    }
+
+    /** BTC-MYREQ-01: one-word department the case is with ('You' when the viewer is the requester); '' when finished. */
+    public function pendingDept(bool $viewerIsRequester = false): string
+    {
+        if (in_array($this->status, ['closed', 'rejected', 'cancelled'], true)) {
+            return '';
+        }
+        $d = $this->status === 'booked'
+            ? ($this->route === 'admin_booking' ? 'Admin' : 'Requester')
+            : (string) config('btc.pending_dept.'.$this->status, 'Finance');
+
+        return $d === 'Requester' ? ($viewerIsRequester ? 'You' : 'Employee') : $d;
+    }
+
+    /**
+     * BTC-MYREQ-01: payment in four words - Not Initiated / Processing / Paid / Failed ('' for a cancelled / rejected
+     * request with nothing paid). $failed: the latest payment of the case came back.
+     */
+    public function paymentState(bool $failed = false): string
+    {
+        $paid = (float) $this->paid_amount;
+        if ($failed && ! in_array($this->status, ['paid', 'closed'], true)) {
+            return 'Failed';
+        }
+        if ($paid > 0 && ($this->payment_status === 'full' || in_array($this->status, ['paid', 'closed'], true))) {
+            return 'Paid';
+        }
+        if ($paid > 0 || $this->status === 'fin_approved') {
+            return 'Processing';
+        }
+
+        return in_array($this->status, ['rejected', 'cancelled'], true) ? '' : 'Not Initiated';
+    }
+
+    /** BTC-MYREQ-01: the advance in a few words ("Advance 5,000 paid"), '' when none was asked for. */
+    public function advanceShort(): string
+    {
+        $a = $this->advanceFigures();
+        if ($a['requested'] <= 0) {
+            return '';
+        }
+        if ($a['paid'] > 0) {
+            return 'Advance '.number_format($a['paid']).' paid';
+        }
+
+        return 'Advance '.number_format($a['requested']).(in_array($this->status, ['rejected', 'cancelled'], true) ? ' not paid' : ' requested');
+    }
+
     /** BTC-FLOW-01: true when no active user holds the permission (the case would wait for nobody). */
     public static function nobodyHas(string $perm): bool
     {

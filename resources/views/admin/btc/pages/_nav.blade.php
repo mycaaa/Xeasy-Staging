@@ -43,7 +43,7 @@
         }
     }
 @endphp
-<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261126c">
+<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261127a">
 <div class="xe-topbar">
     <div>
         <h1 class="xe-title"><i class="{{ $icon ?? 'ri-bill-line' }}"></i>{{ $title }}</h1>

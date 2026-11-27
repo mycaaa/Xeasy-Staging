@@ -164,11 +164,29 @@ class BtcController extends Controller
                 ->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('bill_no', 'like', "%{$s}%")->orWhere('pnr', 'like', "%{$s}%"));
         }
 
-        return response()->json(['data' => $q->orderByDesc('id')->limit(1000)->get()->map(fn ($c) => [
+        $rows = $q->orderByDesc('id')->limit(1000)->get();
+        // BTC-MYREQ-01 (27 Nov 2026, testing point 32): the vendor's place, and whether the last payment came back - in two
+        // queries for the whole list
+        $ids = $rows->pluck('id')->all();
+        $failed = $ids && \Illuminate\Support\Facades\Schema::hasTable('btc_payments')
+            ? DB::table('btc_payments as p')->whereIn('p.btc_case_id', $ids)->where('p.status', 'failed')
+                ->whereRaw('p.id = (SELECT MAX(x.id) FROM btc_payments x WHERE x.btc_case_id = p.btc_case_id)')->pluck('p.btc_case_id')->flip()->all()
+            : [];
+        $codes = $rows->pluck('vendor_code')->filter()->unique()->values()->all();
+        $places = $codes && \Illuminate\Support\Facades\Schema::hasTable('btc_core_vendors')
+            ? DB::table('btc_core_vendors')->whereIn('code', $codes)->get(['code', 'city', 'state_name'])
+                ->mapWithKeys(fn ($v) => [$v->code => implode(', ', array_filter([trim((string) $v->city), trim((string) $v->state_name)]))])->all()
+            : [];
+
+        return response()->json(['data' => $rows->map(fn ($c) => [
+            'short_status' => $c->shortStatus(), 'pending_dept' => $c->pendingDept((int) $c->employee_id === $empId || (int) $c->created_by === (int) $user->id),
+            'payment_state' => $c->paymentState(isset($failed[$c->id])), 'advance_short' => $c->advanceShort(),
+            'vendor_place' => ($c->vendor_code ? ($places[$c->vendor_code] ?? '') : '') ?: (string) ($c->travel_to ?: $c->location),
+            'category_key' => $c->category, 'raised' => optional($c->created_at)->format('Y-m-d'), 'updated_ts' => optional($c->updated_at)->timestamp,
             'id' => $c->id, 'case_no' => $c->case_no, 'route' => config("btc.route_short.{$c->route}", config("btc.routes.{$c->route}")), 'category' => $c->categoryLabel(),
             'employee' => trim($c->emp_code.' - '.$c->emp_name), 'vendor' => $c->vendor_name, 'purpose' => $c->purpose,
             'bill' => $c->bill_no ? $c->bill_no.' / '.optional($c->bill_date)->format('d/m/Y') : '',
-            'amount' => $c->bill_amount ?? $c->quotation_amount, 'net' => $c->net_payable, 'status' => $c->status, 'status_label' => $c->statusLabel(),
+            'amount' => $c->bill_amount ?? $c->quotation_amount ?? $c->estimated_amount, 'net' => $c->net_payable, 'status' => $c->status, 'status_label' => $c->statusLabel(),
             'pending' => implode(', ', $c->waitingFor()), 'updated' => $c->updated_at?->format('d/m/Y H:i'),
             'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),   // BTC-REQ-02 / 04
         ])]);
@@ -460,6 +478,8 @@ class BtcController extends Controller
             'default_ledger' => config("btc.focus.expense_ledgers.{$c->category}"),
             'focus_pax' => \App\Services\Btc\BtcFocusExport::pax($c),   // BTC-FOCUS-02
             'advance' => $c->advanceFigures(), 'pending_with' => $c->pendingWith(), 'stages' => $c->stageSummary(),
+            // BTC-MYREQ-01 (testing point 32): the requester's own view shows one word for the stage and the department
+            'short_status' => $c->shortStatus(), 'pending_dept' => $c->pendingDept((int) $c->employee_id === (int) ($user->employee_id ?? 0) || (int) $c->created_by === (int) $user->id),
 
         ]);
     }

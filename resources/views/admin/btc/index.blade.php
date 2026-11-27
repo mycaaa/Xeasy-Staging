@@ -15,11 +15,20 @@
     .btc-val { font-size: 13px; }
 </style>
 <div class="page-content">
-    <div class="container-fluid xe-screen btc-ui">
+    <div class="container-fluid xe-screen btc-ui btc-req">
         {{-- BTC-UI-01 (26 Nov 2026, testing point 22): the same page bar and BTC menu as every BTC screen; the buttons stay --}}
         @include('admin.btc.pages._nav', ['title' => 'BTC Request', 'icon' => 'ri-bill-line', 'actionsView' => 'admin.btc._index-actions',
             'sub' => $showFlow ? 'Requirement → admin booking or advance → bill in Xeasy → punch and Focus export → Finance verification → Finance approval → Treasury payment → closure' : 'Your Bill To Company requests and the ones waiting for your approval'])
-        <div class="card">
+        {{-- BTC-MYREQ-01 (27 Nov 2026, testing point 32): summary cards (click to filter), one filter bar, a short list with
+             one-word status / department / payment; route, category, booking, advance and invoice are in View details --}}
+        <div class="btc-sum" id="btcSum" role="group" aria-label="Filter by summary">
+            <button type="button" class="btc-sum-card active" data-sum="all"><span class="btc-sum-n" data-n="all">0</span><span class="btc-sum-l">Total requests</span></button>
+            <button type="button" class="btc-sum-card btc-sum--wait" data-sum="open"><span class="btc-sum-n" data-n="open">0</span><span class="btc-sum-l">Pending</span></button>
+            <button type="button" class="btc-sum-card btc-sum--done" data-sum="Completed"><span class="btc-sum-n" data-n="Completed">0</span><span class="btc-sum-l">Completed</span></button>
+            <button type="button" class="btc-sum-card btc-sum--back" data-sum="Rejected"><span class="btc-sum-n" data-n="Rejected">0</span><span class="btc-sum-l">Rejected</span></button>
+        </div>
+        <div class="card btc-req-card">
+            @if (count($tabs) > 1)
             <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <ul class="nav nav-pills btc-tabs xe-seg" id="btcTabs">
                     @foreach ($tabs as $k => $label)
@@ -29,14 +38,35 @@
                 <select class="form-select form-select-sm" id="btcApFilter" style="width:170px;display:none" aria-label="Approvals to show">
                     <option value="pending">Pending with me</option><option value="approved">Approved by me</option><option value="rejected">Rejected / returned by me</option><option value="all">All</option>
                 </select>
-                <input type="text" class="form-control form-control-sm" id="btcSearch" placeholder="Search case, employee, vendor, bill, PNR" aria-label="Search case, employee, vendor, bill, PNR" style="width:280px;">
             </div>
-            <div class="card-body p-2">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover btc-table mb-0">
-                        <thead class="table-light"><tr><th>Case</th><th>Route</th><th>Category</th><th class="btc-emp-col">Employee</th><th>Vendor</th><th>Purpose</th><th class="text-end">Amount</th><th>Status</th><th>Pending with</th><th>Booking</th><th>Advance</th><th>Invoice</th><th>Payment</th><th>Updated</th></tr></thead>
-                        <tbody id="btcRows"><tr><td colspan="14" class="text-center text-muted">Loading…</td></tr></tbody>
-                    </table>
+            @else
+                <ul class="d-none" id="btcTabs">@foreach ($tabs as $k => $label)<li><a class="nav-link active" href="#" data-tab="{{ $k }}">{{ $label }}</a></li>@endforeach</ul>
+            @endif
+            <form class="btc-filters" id="btcFilters" autocomplete="off">
+                <div class="btc-f btc-f--search"><label for="btcSearch">Search</label>
+                    <div class="btc-search"><i class="ri-search-line" aria-hidden="true"></i><input type="search" class="form-control form-control-sm" id="btcSearch" placeholder="Case ID, vendor, bill no., PNR"></div></div>
+                <div class="btc-f"><label for="btcFStatus">Status</label><select class="form-select form-select-sm" id="btcFStatus"><option value="">All</option>
+                    @foreach (['Draft', 'Pending', 'Returned', 'Verified', 'Completed', 'Rejected', 'Cancelled'] as $st)<option>{{ $st }}</option>@endforeach</select></div>
+                <div class="btc-f"><label for="btcFWith">Pending with</label><select class="form-select form-select-sm" id="btcFWith"><option value="">All</option></select></div>
+                <div class="btc-f"><label for="btcFCat">Category</label><select class="form-select form-select-sm" id="btcFCat"><option value="">All</option>
+                    @foreach (config('btc.categories') as $ck => $cv)<option value="{{ $ck }}">{{ $cv['label'] ?? $ck }}</option>@endforeach</select></div>
+                <div class="btc-f"><label for="btcFFrom">Raised from</label><input type="date" class="form-control form-control-sm" id="btcFFrom"></div>
+                <div class="btc-f"><label for="btcFTo">to</label><input type="date" class="form-control form-control-sm" id="btcFTo"></div>
+                <div class="btc-f btc-f--btns"><button type="submit" class="btn btn-sm btn-primary"><i class="ri-search-line"></i> Search</button>
+                    <button type="button" class="btn btn-sm btn-light" id="btcReset">Reset</button></div>
+            </form>
+            <div class="btc-req-scroll">
+                <table class="table table-sm table-hover btc-table btc-req-table mb-0">
+                    <thead><tr><th style="width:9rem">Case ID</th><th class="btc-emp-col" style="width:11rem">Employee</th><th>Vendor</th><th style="width:13rem">Purpose</th><th class="text-end" style="width:8rem">Amount (₹)</th><th style="width:8.5rem">Status</th><th style="width:8rem">Pending with</th><th style="width:10rem">Payment</th><th style="width:8rem">Last updated</th><th class="text-end" style="width:5rem">Action</th></tr></thead>
+                    <tbody id="btcRows"><tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr></tbody>
+                </table>
+            </div>
+            <div class="btc-pager">
+                <span id="btcPageInfo" aria-live="polite"></span>
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small text-muted mb-0" for="btcPageSize">Rows</label>
+                    <select class="form-select form-select-sm" id="btcPageSize" style="width:auto"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+                    <nav aria-label="Pages"><ul class="pagination pagination-sm mb-0" id="btcPages"></ul></nav>
                 </div>
             </div>
         </div>
@@ -148,23 +178,67 @@ $(function () {
     const esc = s => $('<div>').text(s ?? '').html();
     let tab = $('#btcTabs .nav-link.active').data('tab') || 'mine', timer;
 
+    // BTC-MYREQ-01 (27 Nov 2026, testing point 32): the list is fetched once per tab / search; status, department,
+    // category, dates, summary card and pages are applied here
+    const SHORT_TONES = @json((array) config('btc.short_tones'));
+    let all = [], page = 1, sum = 'all';
+    const OPEN = ['Draft', 'Pending', 'Returned', 'Verified'];
+    const own = () => tab === 'mine' || tab === 'approvals';   // the requester / manager view: one-word labels
     function load() {
+        $('#btcRows').html('<tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr>');
         $.get('{{ route('btc.data') }}', {tab: tab, search: $('#btcSearch').val(), ap: $('#btcApFilter').val()}, function (r) {
-            const st = c => c.stages || {};
-            const rows = (r.data || []).map(c => `<tr role="button" data-id="${c.id}">
-                <td class="fw-semibold">${esc(c.case_no)}</td><td>${esc(c.route)}</td><td>${esc(c.category)}</td><td class="btc-emp-col">${esc(c.employee)}</td>
-                <td>${esc(c.vendor)}</td><td>${esc(c.purpose)}</td><td class="text-end">${fmt(c.amount)}</td>
-                <td><span class="btc-pill btc-pill--${BTC_TONES[c.status] || 'stop'}">${esc(c.status_label)}</span>${c.pending ? '<div class="btc-pending">' + esc(c.pending) + '</div>' : ''}</td>
-                <td>${esc(c.pending_with)}</td><td>${esc(st(c).booking)}</td><td>${esc(st(c).advance)}</td><td>${esc(st(c).invoice)}</td><td>${esc(st(c).payment)}</td>
-                <td>${esc(c.updated)}</td></tr>`).join('');
+            all = r.data || [];
             $('#btcApFilter').toggle(tab === 'approvals');
-            $('#btcRows').html(rows || '<tr><td colspan="14" class="text-center text-muted">No cases</td></tr>');
             $('.btc-emp-col').toggle(tab !== 'mine');   // BTC-REQ-10: own requests - no employee column
+            const withs = [...new Set(all.map(c => own() ? c.pending_dept : c.pending_with).filter(Boolean))].sort(), keep = $('#btcFWith').val();
+            $('#btcFWith').html('<option value="">All</option>' + withs.map(w => `<option ${w === keep ? 'selected' : ''}>${esc(w)}</option>`).join(''));
+            page = 1; draw();
         });
     }
+    function filtered(skipSum) {
+        const st = $('#btcFStatus').val(), w = $('#btcFWith').val(), cat = $('#btcFCat').val(), f = $('#btcFFrom').val(), t = $('#btcFTo').val();
+        return all.filter(c => (!st || c.short_status === st) && (!w || (own() ? c.pending_dept : c.pending_with) === w) && (!cat || c.category_key === cat)
+            && (!f || (c.raised || '') >= f) && (!t || (c.raised || '') <= t)
+            && (skipSum || sum === 'all' || (sum === 'open' ? OPEN.includes(c.short_status) : c.short_status === sum)));
+    }
+    function draw() {
+        const base = filtered(true);
+        $('[data-n="all"]').text(base.length);
+        $('[data-n="open"]').text(base.filter(c => OPEN.includes(c.short_status)).length);
+        ['Completed', 'Rejected'].forEach(k => $(`[data-n="${k}"]`).text(base.filter(c => c.short_status === k).length));
+        const list = filtered(false), size = Number($('#btcPageSize').val()) || 25, pages = Math.max(1, Math.ceil(list.length / size));
+        page = Math.min(page, pages);
+        const rows = list.slice((page - 1) * size, page * size).map(c => {
+            const label = own() ? c.short_status : c.status_label, tone = own() ? (SHORT_TONES[c.short_status] || 'wait') : (BTC_TONES[c.status] || 'stop');
+            const withTxt = own() ? c.pending_dept : c.pending_with;
+            const pay = c.payment_state ? `<span class="btc-pay btc-pay--${c.payment_state.replace(/\s/g, '').toLowerCase()}">${esc(c.payment_state)}</span>` : '<span class="text-muted">—</span>';
+            return `<tr role="button" data-id="${c.id}">
+                <td class="fw-semibold text-nowrap">${esc(c.case_no)}</td><td class="btc-emp-col text-truncate" title="${esc(c.employee)}">${esc(c.employee)}</td>
+                <td><div class="btc-vendor text-truncate" title="${esc(c.vendor)}">${esc(c.vendor) || '<span class="text-muted">—</span>'}</div>${c.vendor_place ? '<div class="btc-sub text-truncate">' + esc(c.vendor_place) + '</div>' : ''}</td>
+                <td class="text-truncate" title="${esc(c.purpose)}">${esc(c.purpose)}</td>
+                <td class="text-end btc-num">${fmt(c.amount) || '<span class="text-muted">—</span>'}</td>
+                <td><span class="btc-pill btc-pill--${tone}">${esc(label)}</span>${!own() && c.pending ? '<div class="btc-pending">' + esc(c.pending) + '</div>' : ''}</td>
+                <td>${withTxt ? esc(withTxt) : '<span class="text-muted">—</span>'}</td>
+                <td>${pay}${c.advance_short ? '<div class="btc-sub">' + esc(c.advance_short) + '</div>' : ''}</td>
+                <td class="text-nowrap btc-sub-d">${esc(c.updated)}</td>
+                <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary btc-view" aria-label="View details of ${esc(c.case_no)}">View</button></td></tr>`;
+        }).join('');
+        $('#btcRows').html(rows || `<tr><td colspan="10" class="text-center text-muted py-4">${all.length ? 'No requests match these filters.' : (tab === 'mine' ? 'You have no BTC requests yet. Use “New BTC case” to raise one.' : 'No cases')}</td></tr>`);
+        $('.btc-emp-col').toggle(tab !== 'mine');
+        $('#btcPageInfo').text(list.length ? `Showing ${(page - 1) * size + 1}–${Math.min(page * size, list.length)} of ${list.length}` : '');
+        const li = (p, l, dis, act) => `<li class="page-item ${dis ? 'disabled' : ''} ${act ? 'active' : ''}"><a class="page-link" href="#" data-p="${p}">${l}</a></li>`;
+        let pg = li(page - 1, '‹', page === 1);
+        for (let p = 1; p <= pages; p++) if (p === 1 || p === pages || Math.abs(p - page) <= 1) pg += li(p, p, false, p === page); else if (Math.abs(p - page) === 2) pg += li(page, '…', true);
+        $('#btcPages').html(pages > 1 ? pg + li(page + 1, '›', page === pages) : '');
+        $('#btcSum .btc-sum-card').removeClass('active').filter(`[data-sum="${sum}"]`).addClass('active');
+    }
+    $('#btcPages').on('click', '.page-link', function (e) { e.preventDefault(); const p = Number($(this).data('p')); if (p >= 1) { page = p; draw(); } });
+    $('#btcPageSize, #btcFStatus, #btcFWith, #btcFCat, #btcFFrom, #btcFTo').on('change', () => { page = 1; draw(); });
+    $('#btcSum').on('click', '.btc-sum-card', function () { sum = $(this).data('sum'); page = 1; draw(); });
+    $('#btcFilters').on('submit', function (e) { e.preventDefault(); load(); });
+    $('#btcReset').on('click', function () { $('#btcFilters')[0].reset(); sum = 'all'; load(); });
     $('#btcApFilter').on('change', load);   // BTC-REQ-15
     $('#btcTabs').on('click', '.nav-link', function (e) { e.preventDefault(); $('#btcTabs .nav-link').removeClass('active'); $(this).addClass('active'); tab = $(this).data('tab'); load(); });
-    $('#btcSearch').on('input', () => { clearTimeout(timer); timer = setTimeout(load, 300); });
     load();
 
     // new case form
