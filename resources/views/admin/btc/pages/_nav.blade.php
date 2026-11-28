@@ -43,8 +43,8 @@
         }
     }
 @endphp
-<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261128a">
-<script src="{{ asset('assets/js/btc-grid.js') }}?v=20261128a" defer></script>{{-- BTC-GRID-02: sort / rows per page --}}
+<link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261128b">
+<script src="{{ asset('assets/js/btc-grid.js') }}?v=20261128b" defer></script>{{-- BTC-GRID-02: sort / rows per page --}}
 <div class="xe-topbar">
     <div>
         <h1 class="xe-title"><i class="{{ $icon ?? 'ri-bill-line' }}"></i>{{ $title }}</h1>

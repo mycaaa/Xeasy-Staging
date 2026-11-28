@@ -34,7 +34,7 @@
                 Array.from(hr.cells).forEach(c => c.removeAttribute('aria-sort'));
                 th.setAttribute('aria-sort', dir === 1 ? 'ascending' : 'descending');
                 const rows = dataRows(tb);
-                rows.map((r, i) => ({r, k: key(r.cells[idx]), i})).sort((a, b) => (cmp(a.k, b.k) * dir) || (a.i - b.i)).forEach(x => tb.appendChild(x.r));
+                rows.map((r, i) => ({r, k: key(r.cells[idx]), i})).sort((a, b) => ((a.k.t === 2) - (b.k.t === 2)) || (cmp(a.k, b.k) * dir) || (a.i - b.i)).forEach(x => tb.appendChild(x.r));   // blanks stay last
                 if (table._btcPage) table._btcPage(1);
             };
             th.addEventListener('click', e => { if (e.target.closest('a,input,button,select')) return; go(); });

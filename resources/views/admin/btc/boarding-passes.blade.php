@@ -3,8 +3,8 @@
 
 @section('content')
 <div class="page-content">
-    <link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261128a">{{-- BTC-UI-01 --}}
-    <script src="{{ asset('assets/js/btc-grid.js') }}?v=20261128a" defer></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/btc-ui.css') }}?v=20261128b">{{-- BTC-UI-01 --}}
+    <script src="{{ asset('assets/js/btc-grid.js') }}?v=20261128b" defer></script>
     <div class="container-fluid xe-screen btc-ui">
         <div class="card">
             <div class="card-header d-flex flex-wrap align-items-center gap-2">

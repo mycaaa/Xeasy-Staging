@@ -243,7 +243,8 @@
 .btc-ui th.btc-sortable:focus-visible { outline: 2px solid var(--btc-brand); outline-offset: -2px; }
 .btc-pager-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 8px 4px; font-size: .78rem; color: var(--btc-mute); }
 .btc-pager-bar .pagination { margin: 0; }
-.btc-pager-bar nav p.small { display: none; }   /* the paginator's own "Showing x to y" - shown once on the left instead */
+.btc-pager-bar nav p.small, .btc-pager-bar nav .d-sm-none { display: none !important; }   /* the paginator's own "Showing x to y" - shown once on the left */
+.btc-pager-bar nav > div.d-none { display: flex !important; }
 .btc-req-table thead th { text-align: center !important; border-right: 1px solid #d3e1ee; }
 .btc-req-table td { border-right: 1px solid var(--btc-line-2); }
 .btc-req-table { border: 1px solid var(--btc-line); }

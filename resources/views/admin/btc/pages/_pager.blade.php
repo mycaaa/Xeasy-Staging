@@ -12,6 +12,6 @@
             @foreach (\App\Support\BtcPerPage::CHOICES as $n)<option value="{{ $n }}" @selected($p->perPage() === $n)>{{ $n }}</option>@endforeach
         </select>
     </form>
-    <div class="ms-md-auto">{{ $p->onEachSide(1)->links() }}</div>
+    <div class="ms-md-auto">{{ $p->onEachSide(1)->links('pagination::bootstrap-5') }}</div>
 </div>
 @endif
