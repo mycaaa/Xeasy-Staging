@@ -600,7 +600,7 @@ class TeamController extends BaseMobileController
             return $this->error(\App\Support\ApproverAfterVerifier::MESSAGE);
         }
 
-        $rows = $this->memberMonthClaims($conn, $yearId, $memberId, $month, 3);
+        $rows = array_map(fn ($r) => $this->appSafe($r), $this->memberMonthClaims($conn, $yearId, $memberId, $month, 3));   // APP-VVNR-03
 
         return $this->success(['DayWiseDetails' => $rows, 'pending_claims' => $rows], 'Data Available!');
     }
@@ -636,7 +636,8 @@ class TeamController extends BaseMobileController
         $list = $rows->map(function ($r) use ($names) {
             $a = (array) $r;
             $a['EmpName'] = ['Ename' => $names[$r->EmployeeID] ?? null];
-            return $a;
+
+            return $this->appSafe($a, (string) ($names[$r->EmployeeID] ?? ''));   // APP-VVNR-03
         })->all();
 
         return $this->success(['Approved_list' => $list, 'approved_claims' => $list], 'Data Available!');
@@ -658,9 +659,34 @@ class TeamController extends BaseMobileController
             return $this->error('Invalid Employee!');
         }
 
-        $rows = $this->memberMonthClaims($conn, $yearId, $memberId, $month, 5);
+        $rows = array_map(fn ($r) => $this->appSafe($r), $this->memberMonthClaims($conn, $yearId, $memberId, $month, 5));   // APP-VVNR-03
 
         return $this->success(['DayWiseDetails' => $rows, 'approved_claims' => $rows], 'Data Available!');
+    }
+
+    /**
+     * APP-VVNR-03 (28 Nov 2026, testing point 51): the app's VVNR team screens read the name from a top-level "Ename"
+     * and parse every amount as a number in text form; a number sent as a number, or an empty amount, crashed the
+     * screen (black) when an employee or a month was picked. Rows and their day lines now come as the app expects.
+     */
+    private function appSafe(array $a, string $ename = ''): array
+    {
+        $amounts = ['Claim_Amount', 'Verified_Amount', 'Approved_Amount', 'Finance_Amount', 'Fin_PayAmt', 'Fin_AdvancePay', 'Total_Claim',
+            'FilledTAmt', 'VerifyTAmt', 'ApprTAmt', 'FinancedTAmt', 'TotKm', 'TotalApprovedAmt'];
+        foreach ($a as $k => $v) {
+            if (is_array($v)) {
+                $a[$k] = $k === 'DayWiseDetails' ? array_map(fn ($d) => $this->appSafe((array) $d, $ename), $v) : $v;
+            } elseif (in_array($k, $amounts, true) && ($v === null || $v === '')) {
+                $a[$k] = '0';
+            } elseif (is_int($v) || is_float($v)) {
+                $a[$k] = (string) $v;
+            }
+        }
+        if (! isset($a['Ename']) || ! is_string($a['Ename'])) {
+            $a['Ename'] = $ename;
+        }
+
+        return $a;
     }
 
     /** Legacy getExpenseData(): approved months of the reporting team, optionally one month and/or one member. */
@@ -703,7 +729,8 @@ class TeamController extends BaseMobileController
             $a = (array) $r;
             $a['EmpName'] = $names[$r->EmployeeID] ?? 'Unknown';
             $a['DayWiseDetails'] = $this->memberMonthClaims($conn, $yearId, (int) $r->EmployeeID, (int) $r->Month, 5);
-            return $a;
+
+            return $this->appSafe($a, (string) $a['EmpName']);   // APP-VVNR-03
         })->all();
 
         return $this->success(['success' => true, 'Approved_list' => $list, 'approved_claims' => $list, 'error' => ''], 'Data Available!');
