@@ -67,7 +67,8 @@ $(function () {
         const line = (n, t, a, src) => `<tr><td>${n}</td><td>${t}</td><td class="fnf-num">${a}</td><td class="small text-muted">${src}</td></tr>`;
         // FNF-LIVE-01 (21 Nov 2026, testing point 4): View = the employee's summary sheet of that month; "Now" = claims' status today
         const live = j.live || {};
-        const sumUrl = (m) => `${j.summary_url}?e=${encodeURIComponent(j.e.EmployeeID)}&m=${m.month}&y=${m.year}&n=1`;
+        // FNF-SUM-01 (28 Nov 2026, testing point 45): the full summary sheet of E-Home (every day and line, all claims but deactivated)
+        const sumUrl = (m) => `${j.summary_url}?e=${encodeURIComponent(j.e.EmployeeID)}&m=${m.month}&y=${m.year}&nn=1&c=${j.company || ''}`;
         const nowCell = (m) => { const l = live[m.year + '-' + m.month]; if (!l) return '<span class="text-muted">-</span>';
             return `<div class="fw-semibold">${esc(l.month)}</div>` + (l.claims || []).map(c => `<div>${esc(c.status)}: ${c.n} (₹${fmt(c.amount)})</div>`).join('') + (l.hard_copy ? `<div class="text-muted">Hard copy ${d(l.hard_copy)}</div>` : ''); };
         const months = (w.months || []).map(m => `<tr><td class="text-nowrap">${esc(m.label)}<div><a class="small" target="_blank" rel="noopener" href="${sumUrl(m)}"><i class="ri-eye-line"></i> View</a></div></td><td>${esc(m.status)}</td><td class="fnf-num">${m.claims}</td><td class="fnf-num">${m.odo_days || '-'}</td><td class="fnf-num">${fmt(m.eligible)}</td><td class="fnf-num">${m.waiting ? fmt(m.waiting) : '-'}</td><td class="fnf-num">${m.excluded ? fmt(m.excluded) : '-'}</td><td class="small">${(m.notes || []).map(esc).join('<br>')}</td><td class="small fnf-now">${nowCell(m)}</td></tr>`).join('');

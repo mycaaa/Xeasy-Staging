@@ -55,6 +55,7 @@
                 <span>Expense:</span>
                 @if($isCompany11 && isset($expAdv['source']) && $expAdv['source'] === 'prev_month_calculation')
                     <span style="font-size:8px;color:#e65100;">(Prev Month Adj)</span>
+                    @if(!empty($expAdv['remark']))<div style="font-size:8px;color:#5d4037;">{{ $expAdv['remark'] }}</div>@endif {{-- VVNR-ADJ-02 --}}
                 @elseif($isCompany11)
                     <span style="font-size:8px;color:#15648C;">(Full Advance Allowed)</span>
                 @endif

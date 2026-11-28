@@ -2196,6 +2196,31 @@ ORDER BY mef.Month ASC, mef.EmployeeID ASC";
             $totalAdjustment = $fig['total_adjustment'];
             $totalAdvancePayment = $fig['advance_payment_amount'];
 
+            // VVNR-ADJ-02 (28 Nov 2026, testing point 46): an earlier month's excess recovered here keeps its remark
+            // ("Expense Adjustment – Previous Month (August): Paid ..., Verified ..., Difference Adjusted ...")
+            if (is_array($expLinesIn) && (int) session('company_id') === 11 && function_exists('getPrevMonthExpenseAdvanceForAdjustment')) {
+                $prev = collect(getPrevMonthExpenseAdvanceForAdjustment($employeeId, $month))->keyBy('expense_advance_id')->all();
+                $notes = [];
+                foreach ($expLinesIn as $k => $line) {
+                    $id = is_array($line) ? (string) ($line['advance_activity_id'] ?? $line['expense_advance_id'] ?? $k) : (string) $k;
+                    $amt = is_array($line) ? (float) ($line['amount'] ?? $line['adjustment_amount'] ?? 0) : (float) $line;
+                    $p = $prev[$id] ?? null;
+                    if ($amt <= 0 || ! $p || empty($p['remark'])) {
+                        continue;
+                    }
+                    $r = abs($amt - (float) $p['advance_amount']) < 1 ? $p['remark']   // the whole difference
+                        : str_replace('Difference Adjusted ₹'.number_format((int) $p['advance_amount']).'.', 'Difference ₹'.number_format((int) $p['advance_amount']).', Adjusted now ₹'.number_format((int) round($amt)).'.', $p['remark']);
+                    if (is_array($line)) {
+                        $expLinesIn[$k]['remark'] = $r;
+                    }
+                    $notes[] = $r;
+                }
+                if ($notes) {
+                    $expenseAdjustmentsJson = json_encode($expLinesIn, JSON_UNESCAPED_UNICODE);
+                    $otherAdjustmentRemark = trim(implode(' ', $notes).' '.(string) $otherAdjustmentRemark);
+                }
+            }
+
             $connection = DB::connection(session('expense_connection'));
             $tableName = 'y'.$yearId.'_monthexpensefinal';
 

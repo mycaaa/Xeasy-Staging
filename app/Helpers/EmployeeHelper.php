@@ -810,7 +810,10 @@ if (!function_exists('getPrevMonthExpenseAdvanceForAdjustment')) {
                 return []; // April: last year's March is settled with last year's records
             }
             $candidates = $multi ? array_slice($fy, 0, $pos) : [$fy[$pos - 1]];
-            $candidates = array_values(array_diff($candidates, $exclude));
+            // VVNR-ADJ-02 (28 Nov 2026, testing point 46): an April-September month that Finance verifies only now (on or after
+            // the start of the automatic recovery) was not reconciled by hand - its excess is offered like any other month.
+            // Months of that range verified before the start stay with Finance's manual reconciliation.
+            $from = (string) ($cfg['from'] ?? '2026-11-01');
             if (!$candidates) {
                 return [];
             }
@@ -846,6 +849,9 @@ if (!function_exists('getPrevMonthExpenseAdvanceForAdjustment')) {
                 if ($verified <= 0 || $vDate === '' || str_starts_with($vDate, '0000')) {
                     continue; // not verified yet: nothing to compare with
                 }
+                if (in_array((int) $m, $exclude, true) && substr($vDate, 0, 10) < $from) {
+                    continue; // VVNR-ADJ-02: verified before the automatic recovery started - Finance reconciles it by hand
+                }
                 $finPayAmt = (float) ($r->Fin_PayAmt ?? 0);
                 $totalAdjustment = (float) ($r->total_adjustment ?? 0);
                 if ($finPayAmt <= 0 && $totalAdjustment <= 0) {
@@ -861,7 +867,12 @@ if (!function_exists('getPrevMonthExpenseAdvanceForAdjustment')) {
                 if ($excess < 1) {
                     continue;
                 }
+                $paidAll = (int) round($finPayAmt + $totalAdjustment);
+                $verNet = (int) round($verified - $daAmount);
                 $out[] = [
+                    // VVNR-ADJ-02: the remark Finance wants on the adjustment
+                    'remark' => 'Expense Adjustment – Previous Month ('.date('F', mktime(0, 0, 0, $m, 1)).'): Paid ₹'.number_format($paidAll)
+                        .', Verified ₹'.number_format($verNet).', Difference Adjusted ₹'.number_format((int) round($excess)).'.',
                     'advance_amount' => (int) round($excess),
                     'month' => $m,
                     'month_name' => date('M', mktime(0, 0, 0, $m, 1)),
