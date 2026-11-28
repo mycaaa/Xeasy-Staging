@@ -1591,6 +1591,42 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * DA-DETAIL-01 (28 Nov 2026, testing point 49): DA In/Out report - one employee's DA claims (DA In and DA Out, claim
+     * types 19 and 20) month by month: filled, verified, approved and financed amounts, in the company and year chosen in
+     * the top bar. The DA In/Out Excel report is unchanged.
+     */
+    public function daInOutDetail(Request $request)
+    {
+        $emp = (int) $request->input('employee_id');
+        abort_unless($emp > 0, 422, 'Choose an employee.');
+        $conn = \App\Helpers\DatabaseSwitcher::getExpenseConnection();
+        $yearId = (int) session('year_id');
+        $t = "y{$yearId}_expenseclaims";
+        abort_unless(\Illuminate\Support\Facades\Schema::connection($conn)->hasTable($t), 404, 'No claims table for this year.');
+        // the employee must be one the user may see on this report (the page's own list)
+        $hr = DB::connection(session('hrims_connection'));
+        $e = $hr->table('hrm_employee')->where('EmployeeID', $emp)->where('CompanyId', (int) session('company_id', 1))->first(['EmployeeID', 'EmpCode', 'Fname', 'Sname', 'Lname']);
+        abort_unless($e, 404, 'Employee not found in this company.');
+        $rows = DB::connection($conn)->table($t)->where('CrBy', $emp)->whereIn('ClaimId', [19, 20])
+            ->whereNotIn('ClaimStatus', ['Deactivate', 'Draft'])
+            ->when(\Illuminate\Support\Facades\Schema::connection($conn)->hasColumn($t, 'ClaimYearId'), fn ($q) => $q->where(fn ($w) => $w->where('ClaimYearId', $yearId)->orWhereNull('ClaimYearId')))
+            ->groupBy('ClaimMonth')
+            ->selectRaw('ClaimMonth m, COUNT(*) n, SUM(COALESCE(FilledTAmt,0)) filled, SUM(COALESCE(VerifyTAmt,0)) verified, SUM(COALESCE(ApprTAmt,0)) approved, SUM(COALESCE(FinancedTAmt,0)) financed')
+            ->get()->keyBy(fn ($r) => (int) $r->m);
+        $out = [];
+        foreach ([4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3] as $m) {   // financial-year order
+            $r = $rows->get($m);
+            if (! $r) {
+                continue;
+            }
+            $out[] = ['month' => date('F', mktime(0, 0, 0, $m, 1)), 'claims' => (int) $r->n, 'filled' => round((float) $r->filled, 2),
+                'verified' => round((float) $r->verified, 2), 'approved' => round((float) $r->approved, 2), 'financed' => round((float) $r->financed, 2)];
+        }
+
+        return response()->json(['employee' => trim($e->EmpCode.' - '.preg_replace('/\s+/', ' ', $e->Fname.' '.($e->Sname ?? '').' '.$e->Lname)), 'rows' => $out]);
+    }
+
     public function exportClaimStage(Request $request)
     {
         ini_set('max_execution_time', 10000);

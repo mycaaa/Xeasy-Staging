@@ -94,10 +94,12 @@
                                             <option value="over_7_days">> 7 Days</option>
                                         </select>
                                     </div>
-                                    <div id="dateRangeContainer" style="display:none;">
+                                    <div id="dateRangeContainer" style="display:none;"><div class="d-flex gap-2 align-items-center">
                                         <input type="text" class="form-control" id="dateRangePicker"
                                             placeholder="Select Date Range" aria-label="Select Date Range" style="width: 250px;" readonly>
-                                    </div>
+                                        {{-- DA-DETAIL-01 (28 Nov 2026, testing point 49): one employee's DA month by month --}}
+                                        <button type="button" class="btn btn-outline-primary btn-sm text-nowrap" id="daDetailBtn" title="Employee-wise detail view"><i class="ri-eye-line"></i> Detail view</button>
+                                    </div></div>
                                     @can('month_filter')
                                         <div id="monthContainer">
                                             <select class="form-select" id="monthSelect" style="width: 200px;" multiple>
@@ -245,6 +247,22 @@
             </div>
         </div>
     </div>
+    {{-- DA-DETAIL-01: employee-wise DA detail --}}
+    <div class="modal fade" id="daDetailModal" tabindex="-1" aria-labelledby="daDetailTitle">
+        <div class="modal-dialog modal-lg"><div class="modal-content">
+            <div class="modal-header py-2"><h6 class="modal-title" id="daDetailTitle">DA In/Out - employee detail</h6><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <label class="form-label small" for="daDetailEmp">Employee</label>
+                <select id="daDetailEmp" class="form-select form-select-sm mb-3" style="width:100%">
+                    <option value="">Select one employee</option>
+                    @foreach ($employees as $employee)
+                        <option value="{{ $employee->EmployeeID }}">{{ $employee->EmpCode_New }} - {{ $employee->Fname }} {{ $employee->Sname ?? '' }} {{ $employee->Lname }}{{ $employee->EmpStatus === 'D' ? ' (left)' : '' }}</option>
+                    @endforeach
+                </select>
+                <div id="daDetailOut" class="text-muted small">Choose an employee to see the DA claims month by month (financial year chosen in the top bar).</div>
+            </div>
+        </div></div>
+    </div>
     @endsection @push('styles')
     <link rel="stylesheet" href="assets/libs/@simonwep/pickr/themes/classic.min.css" />
     <link rel="stylesheet" href="assets/libs/@simonwep/pickr/themes/monolith.min.css" />
@@ -297,4 +315,28 @@
     {{-- LIB-ONCE-01: select2 comes from the layout footer (a second copy stacked pop-ups) --}}
     <script src="{{ asset('vendor/cdn/xlsx@0.18.5/dist/xlsx.full.min.js') }}"></script>
     <script src="{{ asset('custom/js/pages/claim_stage.js') }}?v={{ filemtime(public_path('custom/js/pages/claim_stage.js')) }}"></script>
+    <script>
+    // DA-DETAIL-01 (28 Nov 2026, testing point 49): employee-wise detail of the DA In/Out report
+    $(function () {
+        const fmt = n => Number(n || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const esc = s => $('<div>').text(s ?? '').html();
+        const modal = () => bootstrap.Modal.getOrCreateInstance(document.getElementById('daDetailModal'));
+        $('#daDetailBtn').on('click', function () {
+            modal().show();
+            if ($.fn.select2 && !$('#daDetailEmp').hasClass('select2-hidden-accessible')) $('#daDetailEmp').select2({dropdownParent: $('#daDetailModal'), width: '100%', placeholder: 'Select one employee'});
+        });
+        $('#daDetailEmp').on('change', function () {
+            const id = $(this).val(); if (!id) return;
+            $('#daDetailOut').html('<span class="text-muted">Loading…</span>');
+            $.getJSON(@json(route('reports.da-in-out-detail')), {employee_id: id}).done(function (r) {
+                if (!r.rows.length) { $('#daDetailOut').html(`<div class="text-muted">${esc(r.employee)}: no DA claims in this financial year.</div>`); return; }
+                const t = {filled: 0, verified: 0, approved: 0, financed: 0};
+                const rows = r.rows.map(x => { Object.keys(t).forEach(k => t[k] += Number(x[k])); return `<tr><td>${esc(x.month)}</td><td class="text-end">${x.claims}</td><td class="text-end">${fmt(x.filled)}</td><td class="text-end">${fmt(x.verified)}</td><td class="text-end">${fmt(x.approved)}</td><td class="text-end">${fmt(x.financed)}</td></tr>`; }).join('');
+                $('#daDetailOut').html(`<div class="fw-semibold mb-2 text-body">${esc(r.employee)}</div>
+                    <div class="table-responsive"><table class="table table-sm table-bordered mb-0 align-middle"><thead class="table-light"><tr class="text-center"><th>Month</th><th>Claims</th><th>Filled</th><th>Verified</th><th>Approved</th><th>Financed</th></tr></thead>
+                    <tbody>${rows}</tbody><tfoot><tr class="fw-semibold"><td>Total</td><td></td><td class="text-end">${fmt(t.filled)}</td><td class="text-end">${fmt(t.verified)}</td><td class="text-end">${fmt(t.approved)}</td><td class="text-end">${fmt(t.financed)}</td></tr></tfoot></table></div>`);
+            }).fail(x => $('#daDetailOut').html('<div class="text-danger">' + esc((x.responseJSON && x.responseJSON.message) || 'Could not load.') + '</div>'));
+        });
+    });
+    </script>
 @endpush

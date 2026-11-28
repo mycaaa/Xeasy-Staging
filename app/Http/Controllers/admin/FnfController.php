@@ -127,7 +127,15 @@ class FnfController extends Controller
             $live = [];
         }
 
-        return response()->json(['e' => $e, 's' => $s, 'w' => $w, 'hr' => $hr, 'live' => $live, 'summary_url' => route('expense.print.details'), 'company' => (int) session('company_id', 1),   // FNF-SUM-01 (28 Nov 2026, testing point 45): the E-Home summary sheet
+        // FNF-PEND-01 (28 Nov 2026, testing point 47): every open month after the last verified one, stage and who has it
+        try {
+            $pending = FnfCalculator::pendingMonths($e);
+        } catch (\Throwable $ex) {
+            report($ex);
+            $pending = [];
+        }
+
+        return response()->json(['e' => $e, 's' => $s, 'w' => $w, 'hr' => $hr, 'live' => $live, 'pending' => $pending, 'summary_url' => route('expense.print.details'), 'company' => (int) session('company_id', 1),   // FNF-SUM-01 (28 Nov 2026, testing point 45): the E-Home summary sheet
            
             'final' => FnfCalculator::finalBalance((float) $w['ledger_balance'], (float) $w['expense_total'], $hr)]);
     }

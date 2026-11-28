@@ -72,7 +72,11 @@ $(function () {
         const nowCell = (m) => { const l = live[m.year + '-' + m.month]; if (!l) return '<span class="text-muted">-</span>';
             return `<div class="fw-semibold">${esc(l.month)}</div>` + (l.claims || []).map(c => `<div>${esc(c.status)}: ${c.n} (₹${fmt(c.amount)})</div>`).join('') + (l.hard_copy ? `<div class="text-muted">Hard copy ${d(l.hard_copy)}</div>` : ''); };
         const months = (w.months || []).map(m => `<tr><td class="text-nowrap">${esc(m.label)}<div><a class="small" target="_blank" rel="noopener" href="${sumUrl(m)}"><i class="ri-eye-line"></i> View</a></div></td><td>${esc(m.status)}</td><td class="fnf-num">${m.claims}</td><td class="fnf-num">${m.odo_days || '-'}</td><td class="fnf-num">${fmt(m.eligible)}</td><td class="fnf-num">${m.waiting ? fmt(m.waiting) : '-'}</td><td class="fnf-num">${m.excluded ? fmt(m.excluded) : '-'}</td><td class="small">${(m.notes || []).map(esc).join('<br>')}</td><td class="small fnf-now">${nowCell(m)}</td></tr>`).join('');
-        const holds = (w.hold || []).map(h => `<tr><td>${esc(h.label)}</td><td class="fnf-num">${fmt(h.amount)}</td><td class="small text-muted">${esc(h.remark)}</td></tr>`).join('');
+        const holds = (w.hold || []).map(h => `<tr><td>${esc(h.label)}<div><a class="small" target="_blank" rel="noopener" href="${sumUrl(h)}"><i class="ri-eye-line"></i> View</a></div></td><td class="fnf-num">${fmt(h.amount)}<div class="small text-muted">${h.verified ? 'verified amount' : 'approved amount'}</div></td><td class="small text-muted">${esc(h.remark)}</td></tr>`).join('');
+        // FNF-PEND-01 (28 Nov 2026, testing point 47): open months after the last verified one - stage and who has it
+        const pend = (j.pending || []).map(p => `<tr><td class="text-nowrap">${esc(p.label)}</td><td class="fnf-num">${fmt(p.claim)}</td><td class="fnf-num">${p.verified === null ? '<span class="text-muted">-</span>' : fmt(p.verified)}</td>
+            <td><span class="badge ${p.payment === 'Paid' ? 'bg-success' : (p.payment === 'Pending' ? 'bg-warning text-dark' : 'bg-info text-dark')}">${esc(p.payment)}</span></td><td class="fw-semibold">${esc(p.stage)}</td><td>${esc(p.with)}</td>
+            <td><a class="small" target="_blank" rel="noopener" href="${sumUrl(p)}"><i class="ri-eye-line"></i> View</a></td></tr>`).join('');
         $('#fnfTitle').text(`FNF working - ${j.e.EmpCode} ${j.e.name}`);
         $('#fnfBody').html(`
             <div class="row g-3">
@@ -98,7 +102,9 @@ $(function () {
                 ${w.rules ? `<div class="small text-muted mt-1">Rules used (F&amp;F Rules, as on the last working day): odometer free days ${w.rules.odo_free_days}, approval above that ${w.rules.odo_needs_approval ? 'needed' : 'not needed'}, hard-copy wait ${w.rules.hard_copy_wait_days} days, hold months ${w.rules.include_hold_months ? 'counted' : 'not counted'}.</div>` : ''}
               </div>
               <div class="col-lg-7">
-                <p class="fw-semibold small mb-1">Payment hold (rule 1)</p>
+                <p class="fw-semibold small mb-1">Pending status - every month after the last verified one</p>
+                <table class="table table-sm table-bordered fnf-work mb-3"><tr class="table-light"><th>Claim month</th><th class="fnf-num">Claim amount</th><th class="fnf-num">Verified amount</th><th>Payment</th><th>Workflow stage</th><th>Pending with</th><th>Summary sheet</th></tr>${pend || '<tr><td colspan="7" class="text-muted">All months up to now are verified.</td></tr>'}</table>
+                <p class="fw-semibold small mb-1">Payment hold - payable with F&amp;F (rule 1)</p>
                 <table class="table table-sm fnf-work mb-3"><tr class="table-light"><th>Month</th><th class="fnf-num">Amount</th><th>Hold remark</th></tr>${holds || '<tr><td colspan="3" class="text-muted">No month on hold.</td></tr>'}</table>
                 <p class="fw-semibold small mb-1">Months not yet approved for payment (rule 2)</p>
                 <table class="table table-sm fnf-work"><tr class="table-light"><th>Month</th><th>Status</th><th class="fnf-num">Claims</th><th class="fnf-num">Odo days</th><th class="fnf-num">Eligible</th><th class="fnf-num">Waiting</th><th class="fnf-num">Left out</th><th>Rule (as on the last working day)</th><th>Now (real-time claim status)</th></tr>${months || '<tr><td colspan="9" class="text-muted">None.</td></tr>'}</table>

@@ -73,18 +73,23 @@ class FnfCalculator
                 }
                 $mef = $mefs->get($m);
                 $label = self::monthLabel($conn, $y, $m);
+                // Rule 1: on payment hold. FNF-HOLD-02 (28 Nov 2026, testing point 47): "Payable with F&F" months are found
+                // the way the VVNR payment report finds them (hold remark, a payment remark "Payable with ...", the hold
+                // flag, or the UTR reason ff_hold) with nothing paid and no F&F UTR linked - VVNR marks them with a pay
+                // date and Rs 0, so they were taken for paid and left out. Checked before the look-back window: a held
+                // month stays due however old it is.
+                if ($rules['include_hold_months'] && $mef && self::onFnfHold($mef)) {
+                    $hold[] = ['year' => $y, 'month' => $m, 'label' => $label, 'amount' => round(self::holdAmount($mef), 2),
+                        'remark' => trim((string) (($mef->hold_remark ?? '') ?: ($mef->Fin_PayRemark ?? ''))),
+                        'verified' => \App\Support\ZeroDate::has($mef->Verified_Date ?? null)];
+                    continue;
+                }
                 // already paid (or settled without payment) - nothing due
                 if ($mef && \App\Support\Paid::is($mef)) {
                     continue;
                 }
                 // FNF-RULES-01: only months within the look-back window before the last working day
                 if (self::monthKey($conn, $y, $m) < $oldest) {
-                    continue;
-                }
-                // Rule 1: on payment hold
-                if ($rules['include_hold_months'] && $mef && (int) ($mef->is_exported ?? 0) === 2) {
-                    $amt = (float) ($mef->payment_amount ?: $mef->actual_expense_amount ?: $mef->Finance_Amount ?: $mef->Approved_Amount ?: 0);
-                    $hold[] = ['year' => $y, 'month' => $m, 'label' => $label, 'amount' => round($amt, 2), 'remark' => (string) ($mef->hold_remark ?? '')];
                     continue;
                 }
                 // approved for payment (instructed / pending at Treasury) but not held: counted as payable, shown apart
@@ -120,6 +125,96 @@ class FnfCalculator
             'hard_copy_until' => $waitUntil->toDateString(),
             'rules' => $rules,                    // FNF-RULES-01: the rule values used
         ];
+    }
+
+    /** FNF-HOLD-02: the month is held to be paid with the F&F (and not settled yet). */
+    public static function onFnfHold(object $mef): bool
+    {
+        if (! empty($mef->ff_utr ?? null)) {
+            return false;   // paid with the F&F settlement
+        }
+        $paid = (float) (($mef->Fin_PayAmt ?? 0) ?: ($mef->payment_amount ?? 0));
+        $text = trim((string) (($mef->hold_remark ?? '') ?: (preg_match('/^\s*payable with/i', (string) ($mef->Fin_PayRemark ?? '')) ? $mef->Fin_PayRemark : '')));
+
+        return $paid <= 0 && ((int) ($mef->is_exported ?? 0) === 2 || ($mef->utr_exempt_reason ?? null) === 'ff_hold' || $text !== '');
+    }
+
+    /** FNF-HOLD-02: amount of a held month - the verified amount once Finance has verified it, else the approved / payable amount. */
+    public static function holdAmount(object $mef): float
+    {
+        if (\App\Support\ZeroDate::has($mef->Verified_Date ?? null) && (float) ($mef->Verified_Amount ?? 0) > 0) {
+            return (float) $mef->Verified_Amount;
+        }
+
+        return (float) (($mef->payment_amount ?? 0) ?: ($mef->actual_expense_amount ?? 0) ?: ($mef->Finance_Amount ?? 0) ?: ($mef->Approved_Amount ?? 0) ?: ($mef->Claim_Amount ?? 0));
+    }
+
+    /**
+     * FNF-PEND-01 (28 Nov 2026, testing point 47): every month after the last verified one up to the current month, with
+     * where it stands - so no open month is missed. Verified months are left out. Columns: claim amount, verified
+     * amount, payment (Paid / On hold / Pending), stage and who has it.
+     *
+     * @return list<array{year:int, month:int, label:string, claim:float, verified:?float, payment:string, stage:string, with:string}>
+     */
+    public static function pendingMonths(object $emp): array
+    {
+        $companyId = (int) ($emp->CompanyId ?? 1);
+        $conn = DatabaseSwitcher::getExpenseConnection($companyId) ?: 'expense';
+        $vvnr = $companyId === 11;
+        $today = now()->startOfMonth();
+        // the months to look at: up to 12 back from this month, then cut at the last verified one
+        $cands = [];
+        for ($i = 0; $i < 12; $i++) {
+            $d = $today->copy()->subMonthsNoOverflow($i);
+            $y = CompanyYear::containing($conn, $d->toDateString());
+            if (! $y || ! Schema::connection($conn)->hasTable("y{$y}_monthexpensefinal")) {
+                continue;
+            }
+            $mef = DB::connection($conn)->table("y{$y}_monthexpensefinal")->where('EmployeeID', (int) $emp->EmployeeID)->where('Month', (int) $d->month)->first();
+            // the last finished month stops the list: verified for VVNR (it verifies last); paid for VNR (it verifies first)
+            $done = $mef && ! self::onFnfHold($mef) && ($vvnr ? \App\Support\ZeroDate::has($mef->Verified_Date ?? null) : \App\Support\Paid::is($mef));
+            if ($done) {
+                break;
+            }
+            $cands[] = [$y, (int) $d->month, $d, $mef];
+        }
+        $rm = DB::connection(DatabaseSwitcher::getHrimsConnection($companyId) ?: 'hrims')->table('hrm_employee_general as g')
+            ->join('hrm_employee as m', 'm.EmployeeID', '=', 'g.RepEmployeeID')->where('g.EmployeeID', (int) $emp->EmployeeID)
+            ->value(DB::raw("TRIM(CONCAT(m.EmpCode, ' ', m.Fname, ' ', COALESCE(m.Lname, '')))"));
+        $out = [];
+        foreach ($cands as [$y, $m, $d, $mef]) {
+            $has = fn ($k) => $mef && \App\Support\ZeroDate::has($mef->{$k} ?? null);
+            $claim = (float) ($mef->Claim_Amount ?? 0);
+            if ($claim <= 0 && Schema::connection($conn)->hasTable("y{$y}_expenseclaims")) {
+                $claim = (float) DB::connection($conn)->table("y{$y}_expenseclaims")->where('CrBy', (int) $emp->EmployeeID)->where('ClaimMonth', $m)
+                    ->whereNotIn('ClaimStatus', ['Deactivate', 'Draft'])->sum('FilledTAmt');
+            }
+            $paid = $mef && \App\Support\Paid::is($mef) && ! self::onFnfHold($mef);
+            $hold = $mef && self::onFnfHold($mef);
+            $submitted = $mef && ($mef->Status ?? '') === 'Closed' && $has('DateOfSubmit');
+            if (! $submitted) {
+                [$stage, $with] = [$claim > 0 ? 'Submission pending' : 'No claim submitted', 'Employee'];
+            } elseif ($vvnr && ! $has('Approved_Date')) {
+                [$stage, $with] = ['Approval pending', 'Reporting Manager'.($rm ? ' ('.$rm.')' : '')];
+            } elseif (! $vvnr && ! $has('RecevingDate')) {
+                [$stage, $with] = ['Hard copy pending', 'Employee / courier'];
+            } elseif (! $vvnr && ! $has('Verified_Date')) {
+                [$stage, $with] = ['Verification pending', 'Finance'];
+            } elseif (! $vvnr && ! $has('Approved_Date')) {
+                [$stage, $with] = ['Approval pending', 'Reporting Manager'.($rm ? ' ('.$rm.')' : '')];
+            } elseif ($hold) {
+                [$stage, $with] = ['Payable with F&F', 'Finance'];
+            } elseif (! $paid) {
+                [$stage, $with] = ['Payment pending', 'Finance'];
+            } else {
+                [$stage, $with] = [$vvnr ? 'Verification pending' : 'Paid', $vvnr ? 'Finance' : '-'];
+            }
+            $out[] = ['year' => $y, 'month' => $m, 'label' => $d->format('F Y'), 'claim' => round($claim, 2),
+                'verified' => $has('Verified_Date') ? round((float) $mef->Verified_Amount, 2) : null,
+                'payment' => $hold ? 'On hold (F&F)' : ($paid ? 'Paid' : 'Pending'), 'stage' => $stage, 'with' => $with];
+        }
+
+        return $out;
     }
 
     /** Final balance: + payable to the employee, - to recover. */

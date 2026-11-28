@@ -340,6 +340,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('claim-stage', [ReportController::class, 'claimStage']);
         Route::get('claim-stage-fy', [ReportController::class, 'claimStageFy']);
+        Route::get('claim-stage/da-in-out-detail', [ReportController::class, 'daInOutDetail'])->name('reports.da-in-out-detail');   // DA-DETAIL-01 (testing point 49)
         Route::post('export-claim-stage', [ReportController::class, 'exportClaimStage']);
         Route::post('export-claim-stage-data', [ReportController::class, 'exportClaimStageData']);
         Route::post('preview-excel-file', [ReportController::class, 'previewExcelFile']);

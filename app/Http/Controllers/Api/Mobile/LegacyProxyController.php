@@ -1086,6 +1086,9 @@ class LegacyProxyController extends BaseMobileController
                 }
             }
 
+            // FNF-MAIL-01 (28 Nov 2026, testing point 48): a leaving employee's month - the manager is told at once (F&F)
+            \App\Services\Fnf\FnfSubmitNotifier::notify((int) $comId, (int) $yearId, (int) $empId, (int) $closingMonth, (float) $filledAmt);
+
             return response()->json(['Code' => '300', 'msg' => 'Month claim submitted successfully']);
         } catch (\Exception $e) {
             return response()->json(['Code' => '100', 'msg' => 'Error: ' . $e->getMessage()]);
