@@ -11,31 +11,44 @@
         <div class="col-md-2"><select name="department_id" class="form-select form-select-sm" aria-label="Department"><option value="">All departments</option>@foreach ($depts as $id => $n)<option value="{{ $id }}" @selected((string) request('department_id') === (string) $id)>{{ $n }}</option>@endforeach</select></div>
         <div class="col-md-3 d-flex gap-2"><button class="xe-btn xe-btn-blue">Filter</button>@if (auth()->user()->can('btc.export') || auth()->user()->can('btc.admin'))<a class="xe-btn xe-btn-green" href="{{ route('btc.register.export', request()->query()) }}"><i class="ri-file-excel-2-line"></i>Excel</a>@endif</div>
     </form>
-    <section class="xe-section"><div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-            <thead><tr><th>Request ID</th><th>Origin route</th><th>Owner</th><th>Category</th><th>Status</th><th>Pending with</th><th>Booking</th><th class="text-end">Advance req / paid / balance</th><th>Invoice</th><th class="text-end">Amount</th><th>Raised</th></tr></thead>
+    {{-- BTC-GRID-01 (28 Nov 2026): advance requested / paid / balance, booking and invoice each in their own columns --}}
+    <section class="xe-section"><div class="btc-grid-wrap">
+        <table class="btc-grid">
+            <thead>
+                <tr class="btc-grp"><th class="btc-grp-none" colspan="5"></th><th class="gs" colspan="2">Booking</th><th class="gs" colspan="3">Advance ₹</th><th class="gs" colspan="2">Invoice</th><th class="btc-grp-none gs"></th></tr>
+                <tr><th>Request ID</th><th>Owner</th><th>Category</th><th>Status</th><th>Pending with</th>
+                    <th class="gs">Reference</th><th class="num">Amount ₹</th>
+                    <th class="num gs">Requested</th><th class="num">Paid</th><th class="num">Balance</th>
+                    <th class="gs">No.</th><th class="num">Amount ₹</th><th class="gs">Raised</th></tr>
+            </thead>
             <tbody>
             @forelse ($rows as $c)
-                @php $a = $c->advanceFigures(); @endphp
+                @php $a = $c->advanceFigures(); $amt = $c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount; @endphp
                 <tr>
-                    <td><a href="{{ route('btc.index', ['case' => $c->id]) }}" class="fw-semibold">{{ $c->case_no }}</a></td>
-                    <td>{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</td>
-                    <td>{{ $c->emp_code }} - {{ $c->emp_name }}<div class="small text-muted">{{ $c->department_name }}</div></td>
-                    <td>{{ $c->categoryLabel() }}</td>
-                    <td>{{ $c->statusPill() }}</td>
-                    <td>{{ $c->pendingWith() }}</td>
-                    <td>{{ $c->booking_ref ? $c->booking_ref.' · '.$inr($c->booking_amount) : ($c->route === 'admin_booking' ? ($c->booking_status ?: '-') : '-') }}</td>
-                    <td class="text-end">{{ $a['requested'] > 0 ? $inr($a['requested']).' / '.$inr($a['paid']).' / '.$inr($a['balance']) : '-' }}</td>
-                    <td>{{ $c->bill_no ?: '-' }}@if ($c->nova_document_id)<div class="small text-muted">Nova {{ $c->nova_document_id }}</div>@endif</td>
-                    <td class="text-end">{{ $inr($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount) }}</td>
-                    <td class="text-nowrap">{{ optional($c->created_at)->format('d-m-Y') }}</td>
+                    <td class="nw"><a href="{{ route('btc.index', ['case' => $c->id]) }}" class="fw-semibold">{{ $c->case_no }}</a></td>
+                    <td>{{ $c->emp_code }} - {{ $c->emp_name }}<span class="sub">{{ $c->department_name }}</span></td>
+                    <td>{{ $c->categoryLabel() }}<span class="sub">{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</span></td>
+                    <td class="nw">{{ $c->statusPill() }}</td>
+                    <td>{{ in_array($c->status, ['closed', 'cancelled', 'rejected'], true) ? '-' : $c->pendingWith() }}</td>
+                    <td class="gs">{{ $c->booking_ref ?: ($c->route === 'admin_booking' ? ($c->booking_status ? ucfirst($c->booking_status) : 'Not booked') : '-') }}</td>
+                    <td class="num {{ (float) $c->booking_amount > 0 ? '' : 'zero' }}">{{ (float) $c->booking_amount > 0 ? $inr($c->booking_amount) : '-' }}</td>
+                    @if ($a['requested'] > 0)
+                        <td class="num gs">{{ $inr($a['requested']) }}</td>
+                        <td class="num {{ $a['paid'] > 0 ? '' : 'zero' }}">{{ $a['paid'] > 0 ? $inr($a['paid']) : '-' }}</td>
+                        <td class="num {{ $a['balance'] > 0.5 ? 'due' : 'zero' }}">{{ $a['balance'] > 0.5 ? $inr($a['balance']) : '-' }}</td>
+                    @else
+                        <td class="num gs zero">-</td><td class="num zero">-</td><td class="num zero">-</td>
+                    @endif
+                    <td class="gs nw">{{ $c->bill_no ?: '-' }}@if ($c->nova_document_id)<span class="sub">Nova {{ $c->nova_document_id }}</span>@endif</td>
+                    <td class="num {{ $amt ? '' : 'zero' }}">{{ $amt ? $inr($amt) : '-' }}@if (! $c->bill_amount && $amt)<span class="sub">{{ $c->booking_amount ? 'booking' : ($c->quotation_amount ? 'quotation' : 'estimate') }}</span>@endif</td>
+                    <td class="gs nw">{{ optional($c->created_at)->format('d-m-Y') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="11" class="text-center text-muted py-3">No requests match.</td></tr>
+                <tr><td colspan="13" class="text-center text-muted py-3">No requests match.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div></section>
-    {{ $rows->links() }}
+    @include('admin.btc.pages._pager')
 </div></div>
 @endsection

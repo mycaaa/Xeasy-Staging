@@ -32,7 +32,7 @@
     </div>
 
     <section class="xe-section"><div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
+        <table class="table table-sm table-hover mb-0 align-middle" data-pager>
             <thead><tr><th>Request ID</th><th>Employee</th><th>Stage</th><th>Exception</th><th>Detail</th><th>Review</th></tr></thead>
             <tbody>
             @forelse ($rows as $r)

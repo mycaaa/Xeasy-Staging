@@ -727,7 +727,7 @@ class BtcController extends Controller
             });
         }
         $cases = $q->with(['files' => fn ($f) => $f->where('kind', 'boarding_pass')])
-            ->orderByDesc('travel_date')->orderByDesc('id')->paginate(25)->withQueryString();
+            ->orderByDesc('travel_date')->orderByDesc('id')->paginate(\App\Support\BtcPerPage::of(null, 25))->withQueryString();
 
         // 16 Nov #4: an "Upload boarding pass" button for any open air booking (the list above only offers upload on
         // pending rows, so with nothing pending there was no way to upload)

@@ -55,7 +55,7 @@ class BtcV2Controller extends Controller
             $q->where(fn ($w) => $w->where('case_no', 'like', "%{$s}%")->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('bill_no', 'like', "%{$s}%")
                 ->orWhere('emp_code', 'like', "%{$s}%")->orWhere('emp_name', 'like', "%{$s}%")->orWhere('vendor_gstin', 'like', "%{$s}%"));
         }
-        $rows = $q->orderByDesc('updated_at')->orderByDesc('id')->paginate(50)->withQueryString();
+        $rows = $q->orderByDesc('updated_at')->orderByDesc('id')->paginate(\App\Support\BtcPerPage::of())->withQueryString();
 
         return view('admin.btc.pages.'.$view, array_merge(app(BtcController::class)->caseWindowData(), [
             'rows' => $rows, 'tabs' => collect($tabs)->map(fn ($t) => $t[0])->all(), 'counts' => $counts, 'tab' => $tab,

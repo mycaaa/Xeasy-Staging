@@ -75,7 +75,7 @@
 
     <section class="xe-section">
         <div class="xe-section-hdr"><span class="xe-section-title">Change history</span></div>
-        <div class="table-responsive"><table class="table table-sm mb-0">
+        <div class="table-responsive"><table class="table table-sm mb-0" data-pager>
             <thead><tr><th>When</th><th>By</th><th>Setting</th><th>From</th><th>To</th></tr></thead>
             <tbody>
             @forelse ($logs as $l)

@@ -57,8 +57,8 @@
                     <button type="button" class="btn btn-sm btn-light" id="btcReset">Reset</button></div>
             </form>
             <div class="btc-req-scroll">
-                <table class="table table-sm table-hover btc-table btc-req-table mb-0">
-                    <thead><tr><th style="width:9rem">Case ID</th><th class="btc-emp-col" style="width:11rem">Employee</th><th>Vendor</th><th style="width:13rem">Purpose</th><th class="text-end" style="width:8rem">Amount (₹)</th><th style="width:8.5rem">Status</th><th style="width:8rem">Pending with</th><th style="width:10rem">Payment</th><th style="width:8rem">Last updated</th><th class="text-end" style="width:5rem">Action</th></tr></thead>
+                <table class="table table-sm table-hover btc-table btc-req-table mb-0" data-own-sort>
+                    <thead><tr><th data-key="case_no" style="width:9rem">Case ID</th><th data-key="employee" class="btc-emp-col" style="width:11rem">Employee</th><th data-key="vendor">Vendor</th><th data-key="purpose" style="width:13rem">Purpose</th><th data-key="amount" style="width:8rem">Amount (₹)</th><th data-key="status" style="width:8.5rem">Status</th><th data-key="with" style="width:8rem">Pending with</th><th data-key="payment_state" style="width:10rem">Payment</th><th data-key="updated_ts" style="width:8rem">Last updated</th><th style="width:5rem">Action</th></tr></thead>
                     <tbody id="btcRows"><tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr></tbody>
                 </table>
             </div>
@@ -206,7 +206,18 @@ $(function () {
             && (!f || (c.raised || '') >= f) && (!t || (c.raised || '') <= t)
             && (skipSum || sum === 'all' || (sum === 'open' ? OPEN.includes(c.short_status) : c.short_status === sum)));
     }
+    // BTC-GRID-02 (28 Nov 2026): click a heading to sort the whole list (again to reverse)
+    let sortKey = null, sortDir = 1;
+    const sortVal = (c, k) => k === 'status' ? (own() ? c.short_status : c.status_label) : k === 'with' ? (own() ? c.pending_dept : c.pending_with)
+        : k === 'amount' ? Number(c.amount || 0) : k === 'updated_ts' ? Number(c.updated_ts || 0) : String(c[k] ?? '').toLowerCase();
+    $('.btc-req-table thead th[data-key]').addClass('btc-sortable').attr('tabindex', 0).on('click keydown', function (e) {
+        if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault();
+        const k = $(this).data('key'); sortDir = sortKey === k ? -sortDir : 1; sortKey = k;
+        $('.btc-req-table thead th').removeAttr('aria-sort'); $(this).attr('aria-sort', sortDir === 1 ? 'ascending' : 'descending');
+        page = 1; draw();
+    });
     function draw() {
+        if (sortKey) all.sort((a, b) => { const x = sortVal(a, sortKey), y = sortVal(b, sortKey); return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'en', {numeric: true})) * sortDir; });
         const base = filtered(true);
         $('[data-n="all"]').text(base.length);
         $('[data-n="open"]').text(base.filter(c => OPEN.includes(c.short_status)).length);

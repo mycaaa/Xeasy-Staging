@@ -47,7 +47,7 @@
             </tbody>
         </table>
     </div></section>
-    <div class="mt-2">{{ $rows->links() }}</div>
+    @include('admin.btc.pages._pager')
 </div></div>
 
 <div class="modal fade" id="clModal" tabindex="-1" aria-labelledby="clTitle">

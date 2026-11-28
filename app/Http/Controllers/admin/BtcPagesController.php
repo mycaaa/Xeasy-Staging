@@ -119,7 +119,7 @@ class BtcPagesController extends Controller
             $q->where(fn ($w) => $w->where('case_no', 'like', "%{$s}%")->orWhere('emp_code', 'like', "%{$s}%")->orWhere('emp_name', 'like', "%{$s}%")
                 ->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('bill_no', 'like', "%{$s}%")->orWhere('booking_ref', 'like', "%{$s}%")->orWhere('nova_document_id', 'like', "%{$s}%"));
         }
-        $rows = $q->orderByDesc('id')->paginate(50)->withQueryString();
+        $rows = $q->orderByDesc('id')->paginate(\App\Support\BtcPerPage::of())->withQueryString();
         $depts = $this->cases()->whereNotNull('department_id')->distinct()->orderBy('department_name')->pluck('department_name', 'department_id');
 
         return view('admin.btc.pages.register', compact('rows', 'depts'));
@@ -432,7 +432,7 @@ class BtcPagesController extends Controller
             $q->where(fn ($w) => $w->where('case_no', 'like', "%{$s}%")->orWhere('emp_code', 'like', "%{$s}%")->orWhere('emp_name', 'like', "%{$s}%")
                 ->orWhere('vendor_name', 'like', "%{$s}%")->orWhere('bill_no', 'like', "%{$s}%")->orWhere('booking_ref', 'like', "%{$s}%"));
         }
-        $rows = $q->orderByDesc('id')->paginate(50)->withQueryString();
+        $rows = $q->orderByDesc('id')->paginate(\App\Support\BtcPerPage::of())->withQueryString();
         $via = fn ($c) => $scope === 'all' && ! isset($directSet[(int) $c->employee_id]) ? ($names[$branch((int) $c->employee_id)] ?? '') : '';
 
         return view('admin.btc.pages.team', compact('rows', 'summary', 'stages', 'kpi', 'scope', 'mgr', 'isAdmin', 'via') + [
@@ -472,7 +472,7 @@ class BtcPagesController extends Controller
             'to_dms' => $q->whereIn('status', ['bill_with_dms', 'bill_with_finance']),
             'cancelled' => $q->where('booking_status', 'cancelled'),
         };
-        $rows = $q->orderByDesc('id')->paginate(50)->withQueryString();
+        $rows = $q->orderByDesc('id')->paginate(\App\Support\BtcPerPage::of())->withQueryString();
 
         return view('admin.btc.pages.booking', compact('rows', 'show', 'counts'));
     }

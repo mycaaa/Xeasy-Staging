@@ -203,3 +203,47 @@
     border-top: 1px solid var(--btc-line-2); }
 @media (max-width: 767px) { .btc-sum { grid-template-columns: repeat(2, minmax(0, 1fr)); } .btc-ui.btc-req { padding: 8px; } }
 @media (prefers-reduced-motion: reduce) { .btc-sum-card { transition: none; } }
+
+/* ---------- BTC-GRID-01 (28 Nov 2026): one table style for the BTC lists - grouped money columns, each figure in its
+   own right-aligned column, header that stays in view, no wrapping of amounts or dates ---------- */
+.btc-grid-wrap { max-height: 70vh; overflow: auto; border-radius: var(--btc-r); }
+.btc-grid { font-size: .8rem; margin: 0; border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.btc-grid thead { position: sticky; top: 0; z-index: 3; }
+.btc-grid thead th { background: #eef4fa; color: var(--btc-ink-2); font-size: .72rem; font-weight: 700; padding: 7px 9px; white-space: nowrap;
+    vertical-align: bottom; border-bottom: 1px solid var(--btc-line); text-align: left; }
+.btc-grid thead tr.btc-grp th { background: #e3edf6; font-size: .68rem; color: var(--btc-brand); text-align: center; padding: 4px 9px; border-bottom: 2px solid #c9dbea; }
+.btc-grid thead tr.btc-grp th.btc-grp-none { background: #eef4fa; border-bottom-color: #eef4fa; }
+.btc-grid td { padding: 7px 9px; vertical-align: top; border-bottom: 1px solid var(--btc-line-2); text-align: left; }
+.btc-grid tbody tr:hover td { background: #f6f9fc; }
+.btc-grid th.num, .btc-grid td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.btc-grid td.num { font-weight: 600; color: var(--btc-ink); }
+.btc-grid td.num.zero { color: var(--btc-mute); font-weight: 400; }
+.btc-grid .gs { border-left: 1px solid var(--btc-line); }            /* first column of a group */
+.btc-grid td.gs, .btc-grid th.gs { box-shadow: inset 1px 0 0 var(--btc-line); border-left: 0; }
+.btc-grid .nw { white-space: nowrap; }
+.btc-grid .sub { display: block; font-size: .7rem; color: var(--btc-mute); font-weight: 400; margin-top: 1px; }
+.btc-grid .due { color: var(--btc-back); }
+.btc-grid .ok { color: var(--btc-done); }
+.btc-grid tfoot td { background: #f3f7fb; font-weight: 700; border-top: 2px solid var(--btc-line); position: sticky; bottom: 0; }
+
+/* BTC-GRID-02 (28 Nov 2026): every BTC list - light cell borders, headings centred, click a heading to sort,
+   rows per page under the list */
+.btc-grid { border: 1px solid var(--btc-line); }
+.btc-grid th, .btc-grid td { border-right: 1px solid var(--btc-line-2); }
+.btc-grid thead th, .btc-grid thead th.num { text-align: center; vertical-align: middle; border-right: 1px solid #d3e1ee; }
+.btc-ui table.table { border: 1px solid var(--btc-line); }
+.btc-ui table.table > :not(caption) > * > * { border-right: 1px solid var(--btc-line-2); border-bottom: 1px solid var(--btc-line-2); }
+.btc-ui table.table thead th { background: #eef4fa; color: var(--btc-ink-2); font-size: .72rem; font-weight: 700; text-align: center !important;
+    vertical-align: middle; white-space: nowrap; border-bottom: 1px solid #d3e1ee; position: sticky; top: 0; z-index: 2; }
+.btc-ui th.btc-sortable { cursor: pointer; user-select: none; }
+.btc-ui th.btc-sortable:hover { background: #e2edf7; }
+.btc-ui th.btc-sortable::after { content: '\2195'; margin-left: 4px; font-size: .65rem; color: #9bb0c3; }
+.btc-ui th.btc-sortable[aria-sort="ascending"]::after { content: '\25B2'; color: var(--btc-brand); }
+.btc-ui th.btc-sortable[aria-sort="descending"]::after { content: '\25BC'; color: var(--btc-brand); }
+.btc-ui th.btc-sortable:focus-visible { outline: 2px solid var(--btc-brand); outline-offset: -2px; }
+.btc-pager-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 8px 4px; font-size: .78rem; color: var(--btc-mute); }
+.btc-pager-bar .pagination { margin: 0; }
+.btc-pager-bar nav p.small { display: none; }   /* the paginator's own "Showing x to y" - shown once on the left instead */
+.btc-req-table thead th { text-align: center !important; border-right: 1px solid #d3e1ee; }
+.btc-req-table td { border-right: 1px solid var(--btc-line-2); }
+.btc-req-table { border: 1px solid var(--btc-line); }

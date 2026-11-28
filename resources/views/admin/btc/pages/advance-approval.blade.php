@@ -27,34 +27,42 @@
                 <span class="small text-muted">To reject, open the request.</span>
             </div>
         @endif
-        <section class="xe-section"><div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle">
-                <thead><tr>@if ($canAct)<th><input type="checkbox" id="aaAll" aria-label="Tick all"></th>@endif<th>BTC ID</th><th>Employee / department</th><th>Category · purpose</th><th>Vendor</th><th class="text-end">Quotation</th><th class="text-end">Advance</th><th>Manager approval</th><th>Finance approval</th><th>Instruction</th><th class="text-end">Paid / to settle</th><th></th></tr></thead>
+        {{-- BTC-GRID-01 (28 Nov 2026): approvals and the advance figures (asked / paid / to settle) in their own columns --}}
+        <section class="xe-section"><div class="btc-grid-wrap">
+            <table class="btc-grid">
+                <thead>
+                    <tr class="btc-grp"><th class="btc-grp-none" colspan="{{ $canAct ? 5 : 4 }}"></th><th class="gs" colspan="2">Amount ₹</th><th class="gs" colspan="3">Approval</th><th class="gs" colspan="2">Advance ₹</th><th class="btc-grp-none gs"></th></tr>
+                    <tr>@if ($canAct)<th><input type="checkbox" id="aaAll" aria-label="Tick all"></th>@endif<th>BTC ID</th><th>Employee</th><th>Category · purpose</th><th>Vendor</th>
+                        <th class="num gs">Quotation</th><th class="num">Advance asked</th>
+                        <th class="gs">Manager</th><th>Finance</th><th>Instruction</th>
+                        <th class="num gs">Paid</th><th class="num">To settle</th><th class="gs"></th></tr>
+                </thead>
                 <tbody>
                 @forelse ($rows as $c)
+                    @php($af = $c->advanceFigures())
                     <tr>
                         @if ($canAct)<td><input type="checkbox" name="ids[]" value="{{ $c->id }}" class="aa-pick" aria-label="Tick {{ $c->case_no }}"></td>@endif
-                        <td class="fw-semibold text-nowrap">{{ $c->case_no }}</td>
-                        <td>{{ trim($c->emp_code.' '.$c->emp_name) }}<div class="small text-muted">{{ $c->department_name }}</div></td>
-                        <td class="small">{{ $c->categoryLabel() }}<div class="text-muted">{{ \Illuminate\Support\Str::limit($c->purpose, 50) }}</div></td>
-                        <td class="small">{{ $c->vendor_name ?: '-' }}</td>
-                        <td class="text-end">{{ $inr($c->quotation_amount) }}</td>
-                        <td class="text-end fw-semibold">{{ $inr($c->advance_approved ?? $c->advance_amount) }}</td>
-                        <td class="small">{{ optional($c->manager_action_at)->format('d-m-Y') }}</td>
-                        <td class="small">@if ($c->adv_fin_at){{ \App\Models\User::whereKey($c->adv_fin_by)->value('name') }}<div class="text-muted">{{ $c->adv_fin_at->format('d-m-Y H:i') }}</div>@else - @endif</td>
-                        <td class="small">@if ($c->adv_instructed_at){{ $c->adv_instructed_at->format('d-m-Y H:i') }}<div class="text-muted">{{ $c->adv_instruction_ref }}</div>@if ($c->advance_paid_amount)<span class="badge bg-success">Paid {{ $inr($c->advance_paid_amount) }}</span>@else<span class="badge bg-warning text-dark">To pay</span>@endif @else - @endif</td>
-                        @php($af = $c->advanceFigures())
-                        <td class="text-end small">@if ($c->adv_stage === 'rejected')<span class="text-danger">Rejected</span><div class="text-muted">{{ \Illuminate\Support\Str::limit($c->adv_fin_remark, 60) }}</div>@elseif ($af['paid'] > 0){{ $inr($af['paid']) }}@if ($af['balance'] > 0.5)<div class="text-danger">{{ $inr($af['balance']) }} to settle</div>@else<div class="text-success">Settled</div>@endif @else - @endif</td>
-                        <td><button type="button" class="xe-btn xe-btn-plain" data-open="{{ $c->id }}">Open</button></td>
+                        <td class="fw-semibold nw">{{ $c->case_no }}</td>
+                        <td>{{ trim($c->emp_code.' '.$c->emp_name) }}<span class="sub">{{ $c->department_name }}</span></td>
+                        <td>{{ $c->categoryLabel() }}<span class="sub">{{ \Illuminate\Support\Str::limit($c->purpose, 50) }}</span></td>
+                        <td>{{ $c->vendor_name ?: '-' }}</td>
+                        <td class="num gs">{{ $inr($c->quotation_amount) }}</td>
+                        <td class="num">{{ $inr($c->advance_approved ?? $c->advance_amount) }}</td>
+                        <td class="gs small nw">{{ optional($c->manager_action_at)->format('d-m-Y') ?: '-' }}</td>
+                        <td class="small">@if ($c->adv_stage === 'rejected')<span class="due">Rejected</span><span class="sub">{{ \Illuminate\Support\Str::limit($c->adv_fin_remark, 60) }}</span>@elseif ($c->adv_fin_at){{ \App\Models\User::whereKey($c->adv_fin_by)->value('name') }}<span class="sub">{{ $c->adv_fin_at->format('d-m-Y H:i') }}</span>@else - @endif</td>
+                        <td class="small">@if ($c->adv_instructed_at)<span class="nw">{{ $c->adv_instructed_at->format('d-m-Y H:i') }}</span><span class="sub">{{ $c->adv_instruction_ref }}</span>@else - @endif</td>
+                        <td class="num gs {{ $af['paid'] > 0 ? 'ok' : 'zero' }}">{{ $af['paid'] > 0 ? $inr($af['paid']) : ($c->adv_instructed_at ? 'to pay' : '-') }}</td>
+                        <td class="num {{ $af['balance'] > 0.5 ? 'due' : 'zero' }}">{{ $af['paid'] > 0 ? ($af['balance'] > 0.5 ? $inr($af['balance']) : 'settled') : '-' }}</td>
+                        <td class="gs"><button type="button" class="xe-btn xe-btn-plain" data-open="{{ $c->id }}">Open</button></td>
                     </tr>
                 @empty
-                    <tr><td colspan="12" class="text-center text-muted py-4">Nothing here.</td></tr>
+                    <tr><td colspan="{{ $canAct ? 13 : 12 }}" class="text-center text-muted py-4">Nothing here.</td></tr>
                 @endforelse
                 </tbody>
             </table>
         </div></section>
     </form>
-    <div class="mt-2">{{ $rows->links() }}</div>
+    @include('admin.btc.pages._pager')
 </div></div>
 @include('admin.btc._casewin')
 @endsection

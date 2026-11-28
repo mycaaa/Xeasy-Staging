@@ -18,7 +18,7 @@
             $editDeps = $edit ? array_filter(explode(',', (string) $edit->department_ids)) : [];
         @endphp
         <section class="xe-section">
-            <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+            <div class="table-responsive"><table class="table table-sm mb-0 align-middle" data-pager>
                 <thead><tr><th>Role</th><th>Access responsibility</th><th>Permissions</th><th>Entities</th><th>Departments</th><th class="text-end">Approval limit</th><th class="text-end">Users</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                 @foreach ($roles as $r)
@@ -99,7 +99,7 @@
             </section>
         @endforeach
     @elseif ($tab === 'history')
-        <section class="xe-section"><div class="table-responsive"><table class="table table-sm mb-0">
+        <section class="xe-section"><div class="table-responsive"><table class="table table-sm mb-0" data-pager>
             <thead><tr><th>Time</th><th>Change</th><th>Role</th><th>User</th><th>Details</th><th>By</th></tr></thead>
             <tbody>
             @forelse ($history as $h)
@@ -113,7 +113,7 @@
         <form method="get" class="d-flex gap-2 mb-2"><input type="hidden" name="tab" value="activity">
             <input type="number" name="activity_user" value="{{ $activityUser }}" class="form-control form-control-sm" style="max-width:200px" placeholder="User ID" aria-label="User ID" required>
             <button class="xe-btn xe-btn-blue">Show</button><span class="small text-muted align-self-center">or open "activity" from the Users tab</span></form>
-        <section class="xe-section"><div class="table-responsive"><table class="table table-sm mb-0">
+        <section class="xe-section"><div class="table-responsive"><table class="table table-sm mb-0" data-pager>
             <thead><tr><th>Time</th><th>Request</th><th>Step</th><th>Stage after</th><th>Remark</th></tr></thead>
             <tbody>
             @forelse ($activity as $a)

@@ -9,25 +9,32 @@
             <a href="{{ route('btc.advances', ['show' => $k]) }}" class="{{ $show === $k ? 'active' : '' }}">{{ $l }} <span class="badge bg-light text-dark">{{ $counts[$k] }}</span></a>
         @endforeach
     </div>
-    <section class="xe-section"><div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-            <thead><tr><th>Request ID</th><th>Employee / vendor</th><th class="text-end">Quotation</th><th class="text-end">Requested</th><th class="text-end">Approved</th><th class="text-end">Actually paid</th><th>Payment ref / Advance ID</th><th class="text-end">TDS on advance</th><th class="text-end">Outstanding</th><th class="text-end">Adjusted against invoice</th><th class="text-end">Refund received</th><th class="text-end">Balance outstanding</th><th>Status</th><th></th></tr></thead>
+    {{-- BTC-GRID-01 (28 Nov 2026): the advance (asked / approved / paid) and its settlement in grouped columns --}}
+    <section class="xe-section"><div class="btc-grid-wrap">
+        <table class="btc-grid" data-pager>
+            <thead>
+                <tr class="btc-grp"><th class="btc-grp-none" colspan="3"></th><th class="gs" colspan="4">Advance ₹</th><th class="gs" colspan="5">Settlement ₹</th><th class="btc-grp-none gs" colspan="2"></th></tr>
+                <tr><th>Request ID</th><th>Employee / vendor</th><th class="num">Quotation ₹</th>
+                    <th class="num gs">Requested</th><th class="num">Approved</th><th class="num">Paid</th><th>Payment ref</th>
+                    <th class="num gs">TDS</th><th class="num">Outstanding</th><th class="num">Adjusted</th><th class="num">Refund</th><th class="num">Balance</th>
+                    <th class="gs">Status</th><th></th></tr>
+            </thead>
             <tbody>
             @forelse ($rows as [$c, $a])
                 <tr>
-                    <td class="fw-semibold">{{ $c->case_no }}</td>
-                    <td>{{ $c->emp_name }}<div class="small text-muted">{{ $c->vendor_name }}</div></td>
-                    <td class="text-end">{{ $inr($c->quotation_amount) }}</td>
-                    <td class="text-end">{{ $inr($a['requested']) }}</td>
-                    <td class="text-end">{{ $inr($a['approved']) }}</td>
-                    <td class="text-end">{{ $inr($a['paid']) }}<div class="small text-muted">{{ optional($c->advance_paid_on)->format('d-m-Y') }}</div></td>
-                    <td>{{ $c->advance_payment_ref ?: '-' }}{{ $c->advance_activity_id ? ' · ADV '.$c->advance_activity_id : '' }}</td>
-                    <td class="text-end">{{ $inr($a['tds']) }}</td>
-                    <td class="text-end">{{ $inr($a['outstanding']) }}</td>
-                    <td class="text-end">{{ $inr($a['adjusted']) }}</td>
-                    <td class="text-end">{{ $inr($a['refund']) }}</td>
-                    <td class="text-end fw-semibold {{ $a['balance'] > 0.5 ? 'text-danger' : '' }}">{{ $inr($a['balance']) }}</td>
-                    <td>{{ $c->statusPill() }}</td>
+                    <td class="fw-semibold nw">{{ $c->case_no }}</td>
+                    <td>{{ $c->emp_name }}<span class="sub">{{ $c->vendor_name }}</span></td>
+                    <td class="num">{{ $inr($c->quotation_amount) }}</td>
+                    <td class="num gs">{{ $inr($a['requested']) }}</td>
+                    <td class="num">{{ $inr($a['approved']) }}</td>
+                    <td class="num {{ $a['paid'] > 0 ? '' : 'zero' }}">{{ $inr($a['paid']) }}<span class="sub">{{ optional($c->advance_paid_on)->format('d-m-Y') }}</span></td>
+                    <td class="small">{{ $c->advance_payment_ref ?: '-' }}@if ($c->advance_activity_id)<span class="sub">ADV {{ $c->advance_activity_id }}</span>@endif</td>
+                    <td class="num gs">{{ $inr($a['tds']) }}</td>
+                    <td class="num">{{ $inr($a['outstanding']) }}</td>
+                    <td class="num">{{ $inr($a['adjusted']) }}</td>
+                    <td class="num">{{ $inr($a['refund']) }}</td>
+                    <td class="num {{ $a['balance'] > 0.5 ? 'due' : 'zero' }}">{{ $inr($a['balance']) }}</td>
+                    <td class="gs nw">{{ $c->statusPill() }}</td>
                     <td><a class="xe-btn xe-btn-blue" href="{{ route('btc.index', ['case' => $c->id]) }}">{{ $c->status === 'advance_requested' ? 'Pay' : 'Open' }}</a></td>
                 </tr>
             @empty
@@ -35,11 +42,11 @@
             @endforelse
             </tbody>
             @if ($rows->isNotEmpty())
-                <tfoot><tr class="fw-semibold"><td colspan="3" class="text-end">Total</td>
-                    @foreach (['requested', 'approved', 'paid'] as $k)<td class="text-end">{{ $inr($totals[$k]) }}</td>@endforeach
+                <tfoot><tr><td colspan="3" class="text-end">Total</td>
+                    @foreach (['requested', 'approved', 'paid'] as $k)<td class="num{{ $k === 'requested' ? ' gs' : '' }}">{{ $inr($totals[$k]) }}</td>@endforeach
                     <td></td>
-                    @foreach (['tds', 'outstanding', 'adjusted', 'refund', 'balance'] as $k)<td class="text-end">{{ $inr($totals[$k]) }}</td>@endforeach
-                    <td colspan="2"></td></tr></tfoot>
+                    @foreach (['tds', 'outstanding', 'adjusted', 'refund', 'balance'] as $k)<td class="num{{ $k === 'tds' ? ' gs' : '' }}">{{ $inr($totals[$k]) }}</td>@endforeach
+                    <td colspan="2" class="gs"></td></tr></tfoot>
             @endif
         </table>
     </div></section>

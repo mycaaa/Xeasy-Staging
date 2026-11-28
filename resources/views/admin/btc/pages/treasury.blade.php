@@ -46,30 +46,34 @@
                     <button class="xe-btn xe-btn-green" id="tpGo"><i class="ri-check-double-line"></i> Record payment for ticked cases</button>
                 </div>
             </div></section>
-            <section class="xe-section"><div class="table-responsive">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                    <thead><tr><th><input type="checkbox" id="tpAll" aria-label="Tick all"></th><th>BTC ID</th><th>Vendor</th><th>Invoice</th><th class="text-end">Invoice amount</th><th class="text-end">TDS</th><th class="text-end">Advance set off</th><th class="text-end">To pay ₹</th><th>UTR / cheque no.</th><th>Approved</th><th></th></tr></thead>
+            {{-- BTC-GRID-01 (28 Nov 2026): invoice figures grouped; amounts right-aligned --}}
+            <section class="xe-section"><div class="btc-grid-wrap">
+                <table class="btc-grid">
+                    <thead>
+                        <tr class="btc-grp"><th class="btc-grp-none" colspan="4"></th><th class="gs" colspan="3">Invoice ₹</th><th class="gs" colspan="2">Payment</th><th class="btc-grp-none gs" colspan="2"></th></tr>
+                        <tr><th data-nosort><input type="checkbox" id="tpAll" aria-label="Tick all"></th><th>BTC ID</th><th>Vendor</th><th>Invoice no.</th><th class="num gs">Amount</th><th class="num">TDS</th><th class="num">Advance set off</th><th class="num gs">To pay ₹</th><th data-nosort>UTR / cheque no.</th><th class="gs">Approved</th><th data-nosort></th></tr>
+                    </thead>
                     <tbody>
                     @foreach ($rows as $i => $c)
                         @php $due = round((float) $c->net_payable - (float) $c->paid_amount, 2); @endphp
                         <tr>
                             <td><input type="checkbox" class="tp-pick" name="rows[{{ $i }}][pick]" value="1" aria-label="Pay {{ $c->case_no }}"><input type="hidden" name="rows[{{ $i }}][id]" value="{{ $c->id }}"></td>
-                            <td class="fw-semibold text-nowrap">{{ $c->case_no }}</td>
-                            <td>{{ $c->vendor_name }}<div class="small text-muted">{{ $c->vendor_gstin }}</div></td>
-                            <td class="text-nowrap">{{ $c->bill_no }}<div class="small text-muted">{{ optional($c->bill_date)->format('d-m-Y') }}</div></td>
-                            <td class="text-end">{{ $inr($c->bill_amount) }}</td>
-                            <td class="text-end">{{ $inr($c->tds_amount) }}</td>
-                            <td class="text-end">{{ $inr($c->advance_adjusted) }}</td>
-                            <td class="text-end" style="width:130px"><input type="number" step="0.01" min="0.01" max="{{ $due }}" name="rows[{{ $i }}][amount]" value="{{ $due }}" class="form-control form-control-sm text-end" aria-label="Amount for {{ $c->case_no }}">@if ((float) $c->paid_amount > 0)<div class="small text-muted">paid {{ $inr($c->paid_amount) }}</div>@endif</td>
+                            <td class="fw-semibold nw">{{ $c->case_no }}</td>
+                            <td>{{ $c->vendor_name }}<span class="sub">{{ $c->vendor_gstin }}</span></td>
+                            <td class="nw">{{ $c->bill_no }}<span class="sub">{{ optional($c->bill_date)->format('d-m-Y') }}</span></td>
+                            <td class="num gs">{{ $inr($c->bill_amount) }}</td>
+                            <td class="num">{{ $inr($c->tds_amount) }}</td>
+                            <td class="num">{{ $inr($c->advance_adjusted) }}</td>
+                            <td class="num gs" data-sort="{{ $due }}" style="width:130px"><input type="number" step="0.01" min="0.01" max="{{ $due }}" name="rows[{{ $i }}][amount]" value="{{ $due }}" class="form-control form-control-sm text-end" aria-label="Amount for {{ $c->case_no }}">@if ((float) $c->paid_amount > 0)<div class="small text-muted">paid {{ $inr($c->paid_amount) }}</div>@endif</td>
                             <td style="width:170px"><input name="rows[{{ $i }}][utr]" maxlength="40" class="form-control form-control-sm" aria-label="UTR for {{ $c->case_no }}"></td>
-                            <td class="small text-nowrap">{{ optional($c->fin_approved_at)->format('d-m-Y') }}</td>
+                            <td class="gs small nw">{{ optional($c->fin_approved_at)->format('d-m-Y') }}</td>
                             <td><button type="button" class="xe-btn xe-btn-blue" data-open="{{ $c->id }}">Open</button></td>
                         </tr>
                     @endforeach
                     </tbody>
                 </table>
             </div></section>
-            <div class="mt-2">{{ $rows->links() }}</div>
+            @include('admin.btc.pages._pager')
         </form>
     @else
         @include('admin.btc.pages._queue-table')

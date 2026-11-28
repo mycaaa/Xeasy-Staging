@@ -92,30 +92,42 @@
         <div class="col-md-2"><select name="show" class="form-select form-select-sm" aria-label="Open or all"><option value="">Open and finished</option><option value="open" @selected(request('show') === 'open')>Open only</option></select></div>
         <div class="col-md-3 d-flex gap-2"><button class="xe-btn xe-btn-blue">Filter</button><a class="xe-btn" href="{{ route('btc.team', ['scope' => $scope] + ($isAdmin ? ['mgr' => $mgr] : [])) }}">Clear</a><a class="xe-btn xe-btn-green" href="{{ route('btc.team.export', ['scope' => $scope] + ($isAdmin ? ['mgr' => $mgr] : [])) }}"><i class="ri-file-excel-2-line"></i>Excel</a></div>
     </form>
-    <section class="xe-section"><div class="table-responsive">
-        <table class="table table-sm table-hover mb-0 align-middle">
-            <thead><tr><th>Request ID</th><th>Requester</th><th>Category / route</th><th>Status</th><th>Pending with</th><th>Vendor</th><th class="num">Advance req / paid / balance</th><th>Invoice</th><th class="num">Amount ₹</th><th>Raised</th></tr></thead>
+    {{-- BTC-GRID-01 (28 Nov 2026): advance requested / paid / balance and the invoice each in their own columns --}}
+    <section class="xe-section"><div class="btc-grid-wrap">
+        <table class="btc-grid">
+            <thead>
+                <tr class="btc-grp"><th class="btc-grp-none" colspan="6"></th><th class="gs" colspan="3">Advance ₹</th><th class="gs" colspan="2">Invoice</th><th class="btc-grp-none gs"></th></tr>
+                <tr><th>Request ID</th><th>Requester</th><th>Category</th><th>Status</th><th>Pending with</th><th>Vendor</th>
+                    <th class="num gs">Requested</th><th class="num">Paid</th><th class="num">Balance</th>
+                    <th class="gs">No.</th><th class="num">Amount ₹</th><th class="gs">Raised</th></tr>
+            </thead>
             <tbody>
             @forelse ($rows as $c)
-                @php $a = $c->advanceFigures(); $v = $via($c); @endphp
+                @php $a = $c->advanceFigures(); $v = $via($c); $amt = $c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount; @endphp
                 <tr>
-                    <td><a href="{{ route('btc.index', ['case' => $c->id]) }}" class="fw-semibold">{{ $c->case_no }}</a></td>
-                    <td>{{ $c->emp_code }} - {{ $c->emp_name }}<div class="small text-muted">{{ $c->department_name }}{{ $v ? ' · via '.$v : '' }}</div></td>
-                    <td>{{ $c->categoryLabel() }}<div class="small text-muted">{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</div></td>
-                    <td>{{ $c->statusPill() }}</td>
+                    <td class="nw"><a href="{{ route('btc.index', ['case' => $c->id]) }}" class="fw-semibold">{{ $c->case_no }}</a></td>
+                    <td>{{ $c->emp_code }} - {{ $c->emp_name }}<span class="sub">{{ $c->department_name }}{{ $v ? ' · via '.$v : '' }}</span></td>
+                    <td>{{ $c->categoryLabel() }}<span class="sub">{{ config("btc.route_choices.{$c->route}.0", $c->route) }}</span></td>
+                    <td class="nw">{{ $c->statusPill() }}</td>
                     <td>{{ in_array($c->status, ['closed', 'cancelled', 'rejected'], true) ? '-' : $c->pendingWith() }}</td>
                     <td>{{ $c->vendor_name ?: '-' }}</td>
-                    <td class="num">{{ $a['requested'] > 0 ? $inr($a['requested']).' / '.$inr($a['paid']).' / '.$inr($a['balance']) : '-' }}</td>
-                    <td>{{ $c->bill_no ?: '-' }}</td>
-                    <td class="num">{{ $inr($c->bill_amount ?: $c->booking_amount ?: $c->quotation_amount ?: $c->estimated_amount) }}</td>
-                    <td class="text-nowrap">{{ optional($c->created_at)->format('d-m-Y') }}</td>
+                    @if ($a['requested'] > 0)
+                        <td class="num gs">{{ $inr($a['requested']) }}</td>
+                        <td class="num {{ $a['paid'] > 0 ? '' : 'zero' }}">{{ $a['paid'] > 0 ? $inr($a['paid']) : '-' }}</td>
+                        <td class="num {{ $a['balance'] > 0.5 ? 'due' : 'zero' }}">{{ $a['balance'] > 0.5 ? $inr($a['balance']) : '-' }}</td>
+                    @else
+                        <td class="num gs zero">-</td><td class="num zero">-</td><td class="num zero">-</td>
+                    @endif
+                    <td class="gs nw">{{ $c->bill_no ?: '-' }}</td>
+                    <td class="num {{ $amt ? '' : 'zero' }}">{{ $amt ? $inr($amt) : '-' }}</td>
+                    <td class="gs nw">{{ optional($c->created_at)->format('d-m-Y') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="10" class="text-center text-muted py-3">No requests match.</td></tr>
+                <tr><td colspan="12" class="text-center text-muted py-3">No requests match.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div></section>
-    {{ $rows->links() }}
+    @include('admin.btc.pages._pager')
 </div></div>
 @endsection
